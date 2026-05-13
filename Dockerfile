@@ -26,7 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir python-dotenv imageio-ffmpeg
 
 # Copy application source
-COPY app.py transcript_agent.py launch.py proxy_manager.py api.py ./
+COPY app.py transcript_agent.py launch.py api.py ./
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

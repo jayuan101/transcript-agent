@@ -11,12 +11,10 @@ services:
       - ./outputs:/app/outputs           # Transcript outputs saved here on your host
       - whisper-cache:/app/.cache        # Whisper model cache — survives restarts
     env_file:
-      - .env                             # loads PROXYSCRAPE_API_KEY + ANTHROPIC_API_KEY
+      - .env                             # loads ANTHROPIC_API_KEY
     environment:
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT=7860
-      # Proxy is set dynamically at startup by entrypoint.sh via proxy_manager.py
-      - NO_PROXY=localhost,127.0.0.1,api.anthropic.com
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]

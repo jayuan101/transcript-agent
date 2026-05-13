@@ -16,16 +16,23 @@ from pathlib import Path
 
 
 def _download_url(url: str, dest_dir: Path) -> Path:
-    """Download a URL to dest_dir; uses Content-Disposition to pick filename."""
+    """Download a URL to dest_dir; uses Content-Disposition to pick filename.
+
+    Handles S3 application-level redirects (PermanentRedirect XML response with
+    HTTP 200/301) by retrying against the correct endpoint.
+    """
     import requests
 
-    resp = requests.get(
-        url,
-        stream=True,
-        timeout=300,
-        headers={"User-Agent": "TranscriptAgent/1.0"},
-        allow_redirects=True,
-    )
+    def _do_get(u: str):
+        return requests.get(
+            u,
+            stream=True,
+            timeout=300,
+            headers={"User-Agent": "TranscriptAgent/1.0"},
+            allow_redirects=True,
+        )
+
+    resp = _do_get(url)
 
     if resp.status_code == 401:
         raise ValueError(
@@ -33,6 +40,67 @@ def _download_url(url: str, dest_dir: Path) -> Path:
             "Download the file manually and paste its local path instead."
         )
     resp.raise_for_status()
+
+    # Peek at the first chunk so we can detect S3 XML-style errors that arrive
+    # as a normal 200 response.
+    chunks = resp.iter_content(chunk_size=65536)
+    try:
+        first = next(chunks)
+    except StopIteration:
+        first = b""
+
+    ct = (resp.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+    head = first[:512].lstrip()
+
+    looks_xml = (
+        ct in ("application/xml", "text/xml")
+        or head.startswith(b"<?xml")
+        or head.startswith(b"<Error")
+    )
+
+    if looks_xml:
+        body = head.decode("utf-8", errors="replace")
+        # Detect S3 PermanentRedirect and retry against the suggested endpoint.
+        m_code   = re.search(r"<Code>([^<]+)</Code>", body)
+        m_ep     = re.search(r"<Endpoint>([^<]+)</Endpoint>", body)
+        m_bucket = re.search(r"<Bucket>([^<]+)</Bucket>", body)
+        if m_code and m_code.group(1) == "PermanentRedirect" and m_ep:
+            parsed = urllib.parse.urlparse(url)
+            new_host = m_ep.group(1).strip()
+            # If the suggested endpoint is the bare regional/global host (e.g.
+            # "s3.amazonaws.com"), keep the bucket on the path; otherwise use
+            # the endpoint as-is (it already includes the bucket).
+            bucket = m_bucket.group(1).strip() if m_bucket else ""
+            if bucket and not new_host.startswith(bucket + "."):
+                new_path = "/" + bucket.strip("/") + "/" + parsed.path.lstrip("/")
+            else:
+                new_path = parsed.path
+            new_url = urllib.parse.urlunparse(
+                (parsed.scheme or "https", new_host, new_path,
+                 parsed.params, parsed.query, parsed.fragment)
+            )
+            resp.close()
+            resp = _do_get(new_url)
+            resp.raise_for_status()
+            chunks = resp.iter_content(chunk_size=65536)
+            try:
+                first = next(chunks)
+            except StopIteration:
+                first = b""
+            ct = (resp.headers.get("Content-Type", "") or "").split(";")[0].strip().lower()
+            head = first[:512].lstrip()
+            if head.startswith(b"<?xml") or head.startswith(b"<Error"):
+                snippet = head.decode("utf-8", errors="replace")[:400]
+                raise ValueError(
+                    "Download failed: server returned an XML error after "
+                    "following S3 redirect.\n" + snippet
+                )
+        else:
+            snippet = body[:400]
+            msg = "Download failed: server returned an XML error instead of a media file."
+            if m_code:
+                msg += f"\nS3 error: {m_code.group(1)}"
+            raise ValueError(msg + "\n" + snippet)
 
     # Prefer Content-Disposition filename; fall back to final (post-redirect) URL path
     cd = resp.headers.get("Content-Disposition", "")
@@ -49,13 +117,33 @@ def _download_url(url: str, dest_dir: Path) -> Path:
         url_path = urllib.parse.urlparse(resp.url).path   # use final URL after redirects
         filename = Path(urllib.parse.unquote(url_path)).name or "download"
     if not Path(filename).suffix:
-        ct = resp.headers.get("Content-Type", "").split(";")[0].strip()
         filename += mimetypes.guess_extension(ct) or ""
 
     dest = dest_dir / filename
+    total = 0
     with open(dest, "wb") as f:
-        for chunk in resp.iter_content(chunk_size=65536):
+        if first:
+            f.write(first)
+            total += len(first)
+        for chunk in chunks:
             f.write(chunk)
+            total += len(chunk)
+
+    # Sanity check: a real audio/video file is never just a few hundred bytes.
+    if total < 1024:
+        try:
+            preview = dest.read_bytes()[:400].decode("utf-8", errors="replace")
+        except Exception:
+            preview = ""
+        try:
+            dest.unlink()
+        except Exception:
+            pass
+        raise ValueError(
+            f"Download failed: only {total} bytes received — the URL did not "
+            f"return a valid media file.\n{preview}"
+        )
+
     return dest
 
 # ── Windows sleep prevention ──────────────────────────────────────────────────

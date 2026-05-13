@@ -212,12 +212,24 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp_path = tmp.name
         tmp.close()
-        ret = _sp.run(
-            [FFMPEG_EXE, "-i", path, "-ar", "16000", "-ac", "1", "-y", tmp_path, "-loglevel", "error"],
+        # -vn: ignore video, -sn: ignore subtitles, force pcm_s16le mono 16k for Whisper
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path,
+             "-vn", "-sn", "-acodec", "pcm_s16le",
+             "-ar", "16000", "-ac", "1",
+             tmp_path],
             capture_output=True,
-        ).returncode
-        if ret != 0:
-            raise RuntimeError("ffmpeg failed extracting audio from video.")
+        )
+        if proc.returncode != 0:
+            err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
+            # keep the error short but informative
+            tail = "\n".join(err.splitlines()[-8:]) if err else "(no stderr output)"
+            raise RuntimeError(
+                "ffmpeg failed extracting audio from video.\n"
+                f"ffmpeg path: {FFMPEG_EXE}\n"
+                f"input: {path}\n"
+                f"stderr (tail):\n{tail}"
+            )
         _log("Audio extraction complete.")
         audio_path = tmp_path
 

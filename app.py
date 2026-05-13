@@ -9,38 +9,53 @@ import threading
 import queue as Q
 import time
 import re
-import urllib.request
 import urllib.parse
 import mimetypes
-import shutil
 import tempfile
 from pathlib import Path
 
 
 def _download_url(url: str, dest_dir: Path) -> Path:
     """Download a URL to dest_dir; uses Content-Disposition to pick filename."""
-    req = urllib.request.Request(url, headers={"User-Agent": "TranscriptAgent/1.0"})
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        # Prefer Content-Disposition filename
-        cd = resp.headers.get("Content-Disposition", "")
-        filename = None
-        if cd:
-            m = re.search(r"filename\*=(?:UTF-8'')?([^\s;]+)", cd, re.I)
+    import requests
+
+    resp = requests.get(
+        url,
+        stream=True,
+        timeout=300,
+        headers={"User-Agent": "TranscriptAgent/1.0"},
+        allow_redirects=True,
+    )
+
+    if resp.status_code == 401:
+        raise ValueError(
+            "The URL requires a login (401 Unauthorized). "
+            "Download the file manually and paste its local path instead."
+        )
+    resp.raise_for_status()
+
+    # Prefer Content-Disposition filename; fall back to final (post-redirect) URL path
+    cd = resp.headers.get("Content-Disposition", "")
+    filename = None
+    if cd:
+        m = re.search(r"filename\*=(?:UTF-8'')?([^\s;]+)", cd, re.I)
+        if m:
+            filename = urllib.parse.unquote(m.group(1).strip('"'))
+        else:
+            m = re.search(r'filename=["\']?([^"\';]+)', cd, re.I)
             if m:
-                filename = urllib.parse.unquote(m.group(1).strip('"'))
-            else:
-                m = re.search(r'filename=["\']?([^"\';]+)', cd, re.I)
-                if m:
-                    filename = m.group(1).strip()
-        if not filename:
-            url_path = urllib.parse.urlparse(url).path
-            filename = Path(urllib.parse.unquote(url_path)).name or "download"
-        if not Path(filename).suffix:
-            ct = resp.headers.get("Content-Type", "").split(";")[0].strip()
-            filename += mimetypes.guess_extension(ct) or ""
-        dest = dest_dir / filename
-        with open(dest, "wb") as f:
-            shutil.copyfileobj(resp, f)
+                filename = m.group(1).strip()
+    if not filename:
+        url_path = urllib.parse.urlparse(resp.url).path   # use final URL after redirects
+        filename = Path(urllib.parse.unquote(url_path)).name or "download"
+    if not Path(filename).suffix:
+        ct = resp.headers.get("Content-Type", "").split(";")[0].strip()
+        filename += mimetypes.guess_extension(ct) or ""
+
+    dest = dest_dir / filename
+    with open(dest, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=65536):
+            f.write(chunk)
     return dest
 
 # ── Windows sleep prevention ──────────────────────────────────────────────────

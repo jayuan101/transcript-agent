@@ -565,6 +565,22 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     )
 
 
+def _err(msg: str) -> tuple:
+    """Yield this tuple to display an inline error card instead of a popup."""
+    html = (
+        '<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);'
+        'border:2px solid #ef4444;border-radius:12px;padding:18px 22px;'
+        'display:flex;align-items:flex-start;gap:14px;font-family:sans-serif;">'
+        '<div style="font-size:1.8em;line-height:1;flex-shrink:0;">❌</div>'
+        '<div>'
+        '<div style="color:#991b1b;font-weight:700;font-size:1em;">Something went wrong</div>'
+        f'<div style="color:#b91c1c;font-size:0.88em;margin-top:5px;">{msg}</div>'
+        '</div>'
+        '</div>'
+    )
+    return _out(status=html, eta="")
+
+
 def process_file(
     uploaded_file,
     path_input,
@@ -582,9 +598,11 @@ def process_file(
     inc_analytics,
     user_api_key,
 ):
+    # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     if not api_key:
-        raise gr.Error("Please enter your Anthropic API key at the top of the page.")
+        yield _err("Please enter your Anthropic API key at the top of the page.")
+        return
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop
@@ -593,7 +611,8 @@ def process_file(
         uploaded_file = pasted
 
     if not uploaded_file:
-        raise gr.Error("Please drag a file, paste a file path, or paste a URL above.")
+        yield _err("Please drag a file, paste a file path, or paste a URL above.")
+        return
 
     # Download remote file before anything else
     if isinstance(uploaded_file, str) and (
@@ -610,11 +629,19 @@ def process_file(
         try:
             uploaded_file = str(_download_url(uploaded_file, _dl_dir))
         except Exception as _e:
-            raise gr.Error(f"Download failed: {_e}")
+            yield _err(f"Download failed: {_e}")
+            return
 
     from pathlib import Path as _P
     if not _P(uploaded_file).exists():
-        raise gr.Error(f"File not found: {uploaded_file}")
+        yield _err(f"File not found: {uploaded_file}")
+        return
+
+    # Initial yield so Gradio 6 always has a value before processing begins
+    yield _out(
+        status=_status_html("⏳", "Starting…", subtitle="Preparing your file for processing…"),
+        eta=_eta_panel_html("loading", elapsed="0s"),
+    )
 
     config = ReportConfig(
         style=report_style,
@@ -832,7 +859,8 @@ def process_file(
             break
 
         elif kind == "error":
-            raise gr.Error(f"Processing failed: {msg[1]}")
+            yield _err(f"Processing failed: {msg[1]}")
+            break
     finally:
         _allow_sleep()
 
@@ -1229,7 +1257,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
 
 if __name__ == "__main__":
-    _host   = os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1")
+    _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
     demo.queue(max_size=5, default_concurrency_limit=1)
@@ -1243,4 +1271,5 @@ if __name__ == "__main__":
         inbrowser=not _docker,
         show_error=True,
         share=True,
+        strict_cors=not _docker,
     )

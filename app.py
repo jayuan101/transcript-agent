@@ -688,6 +688,50 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
             combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_acc, log, eta)
 
 
+def _step_tracker_html(stage: str, done: bool = False) -> str:
+    if done:
+        states = ["done", "done", "done"]
+    elif stage in ("loading",):
+        states = ["active", "waiting", "waiting"]
+    elif stage in ("extracting", "whisper"):
+        states = ["done", "active", "waiting"]
+    elif stage == "claude":
+        states = ["done", "done", "active"]
+    else:
+        states = ["active", "waiting", "waiting"]
+
+    labels = [("📁", "Upload"), ("🎤", "Transcribe"), ("🤖", "Analyze")]
+    parts  = []
+    for i, ((icon, label), state) in enumerate(zip(labels, states)):
+        if state == "done":
+            bg, border, color, dot = "#dcfce7", "#22c55e", "#166534", "✓"
+        elif state == "active":
+            bg, border, color, dot = "#dbeafe", "#2563eb", "#1d4ed8", "●"
+        else:
+            bg, border, color, dot = "#f1f5f9", "#e2e8f0", "#94a3b8", "○"
+        parts.append(
+            f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;">'
+            f'<div style="background:{bg};border:2px solid {border};border-radius:50%;'
+            f'width:38px;height:38px;display:flex;align-items:center;justify-content:center;'
+            f'font-size:1.05em;font-weight:800;color:{color};transition:all 0.4s;">{dot}</div>'
+            f'<div style="font-size:0.68em;font-weight:700;color:{color};text-align:center;'
+            f'text-transform:uppercase;letter-spacing:0.06em;">{icon} {label}</div>'
+            f'</div>'
+        )
+        if i < 2:
+            lc = "#22c55e" if states[i] == "done" else "#e2e8f0"
+            parts.append(
+                f'<div style="flex:0.6;height:2px;background:{lc};margin-top:19px;'
+                f'border-radius:2px;transition:background 0.4s;"></div>'
+            )
+
+    return (
+        '<div style="display:flex;align-items:flex-start;padding:10px 16px 8px;'
+        'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;">'
+        + "".join(parts) + "</div>"
+    )
+
+
 def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
                     elapsed: str = "", done: bool = False) -> str:
     import datetime as _dt
@@ -697,8 +741,10 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     )
 
     # ── Done ──────────────────────────────────────────────────────────────────
+    tracker = _step_tracker_html(stage, done)
+
     if done:
-        return (
+        return tracker + (
             '<div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);'
             'border:2px solid #10b981;border-radius:16px;padding:28px 32px;'
             'text-align:center;font-family:sans-serif;">'
@@ -730,7 +776,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         if eta_secs and eta_secs > 0:
             finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
 
-        return (
+        return tracker + (
             '<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);'
             'border:2px solid #2563eb;border-radius:16px;padding:24px 28px;'
             'font-family:sans-serif;">'
@@ -815,7 +861,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             '</div>'
         )
 
-    return (
+    return tracker + (
         f'<div style="background:linear-gradient(135deg,#f8fafc,{bg});'
         f'border:2px solid {color};border-radius:16px;padding:24px 28px;'
         f'font-family:sans-serif;">'
@@ -1250,14 +1296,17 @@ _HERO = """
 
 _API_BANNER = """
 <div id="api-banner" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;
-     border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:14px;transition:background 0.3s,border-color 0.3s;">
-  <div style="font-size:1.6em;">🔑</div>
-  <div>
-    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.9em;">API Key Required</div>
-    <div id="api-banner-sub" style="color:#a16207;font-size:0.8em;margin-top:2px;">
+     border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:14px;
+     transition:background 0.35s,border-color 0.35s;">
+  <div id="api-banner-icon" style="font-size:1.6em;transition:all 0.3s;">🔑</div>
+  <div style="flex:1;">
+    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.9em;transition:color 0.3s;">API Key Required</div>
+    <div id="api-banner-sub" style="color:#a16207;font-size:0.8em;margin-top:2px;transition:color 0.3s;">
       Enter your <strong>Anthropic API key</strong> below. Usage is billed directly to your account — nothing is stored here.
     </div>
   </div>
+  <div id="api-banner-badge" style="display:none;background:#22c55e;color:#fff;font-size:0.72em;
+       font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.04em;">APPROVED ✓</div>
 </div>
 """
 
@@ -1367,6 +1416,50 @@ _THEME_TOGGLE = """
   setTimeout(addEyes, 600);
   setTimeout(addEyes, 1600);
   setTimeout(addEyes, 3200);
+
+  /* 🔑 API key banner — turns green when a valid key is typed */
+  function watchApiKey(){
+    var inp = document.querySelector('input[type="password"]');
+    if(!inp){ setTimeout(watchApiKey, 600); return; }
+
+    function refreshBanner(){
+      var v      = inp.value.trim();
+      var banner = document.getElementById('api-banner');
+      var icon   = document.getElementById('api-banner-icon');
+      var title  = document.getElementById('api-banner-title');
+      var sub    = document.getElementById('api-banner-sub');
+      var badge  = document.getElementById('api-banner-badge');
+
+      if(v.startsWith('sk-ant')){
+        /* ── Approved ── */
+        if(banner){ banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
+        if(icon)   icon.textContent = '✅';
+        if(title){ title.textContent='API Key Approved'; title.style.color='#166534'; }
+        if(sub){   sub.innerHTML='Your Anthropic key is set. You\'re ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
+        if(badge)  badge.style.display='block';
+      } else if(v.length > 0){
+        /* ── Wrong format ── */
+        if(banner){ banner.style.background='linear-gradient(135deg,#fef2f2,#fee2e2)'; banner.style.borderColor='#ef4444'; }
+        if(icon)   icon.textContent = '⚠️';
+        if(title){ title.textContent='Invalid Key Format'; title.style.color='#991b1b'; }
+        if(sub){   sub.innerHTML='Key should start with <strong>sk-ant-api03-</strong>…'; sub.style.color='#b91c1c'; }
+        if(badge)  badge.style.display='none';
+      } else {
+        /* ── Empty ── */
+        if(banner){ banner.style.background='linear-gradient(135deg,#fffbeb,#fef3c7)'; banner.style.borderColor='#f59e0b'; }
+        if(icon)   icon.textContent = '🔑';
+        if(title){ title.textContent='API Key Required'; title.style.color='#92400e'; }
+        if(sub){   sub.innerHTML='Enter your <strong>Anthropic API key</strong> below. Usage is billed directly to your account — nothing is stored here.'; sub.style.color='#a16207'; }
+        if(badge)  badge.style.display='none';
+      }
+    }
+
+    inp.addEventListener('input', refreshBanner);
+    inp.addEventListener('change', refreshBanner);
+    refreshBanner();
+  }
+  setTimeout(watchApiKey, 800);
+  setTimeout(watchApiKey, 2000);
 })();
 </script>
 """

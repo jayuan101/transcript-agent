@@ -1193,9 +1193,8 @@ _VARIANT_LABELS = {
 def toggle_language_variant(lang):
     variants = LANGUAGE_VARIANTS.get(lang, [])
     if variants:
-        label = _VARIANT_LABELS.get(lang, "Regional variant / dialect")
-        return gr.update(choices=variants, value=variants[0][1], visible=True, label=label)
-    return gr.update(choices=[], value=None, visible=False, label="Regional variant / dialect")
+        return gr.update(choices=variants, value=variants[0][1], visible=True)
+    return gr.update(choices=[], value=None, visible=False)
 
 
 # ── build theme ────────────────────────────────────────────────────────────────
@@ -1458,7 +1457,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="auto",
                 )
                 language_variant = gr.Dropdown(
-                    label="Spanish regional variant",
+                    label="Regional variant / dialect",
                     choices=LANGUAGE_VARIANTS["es"],
                     value=LANGUAGE_VARIANTS["es"][0][1],
                     visible=False,

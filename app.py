@@ -1150,11 +1150,52 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
+_VARIANT_LABELS = {
+    "en": "English regional variant",
+    "es": "Spanish regional variant",
+    "fr": "French regional variant",
+    "pt": "Portuguese regional variant",
+    "de": "German regional variant",
+    "it": "Italian regional variant",
+    "zh": "Chinese regional variant",
+    "ja": "Japanese dialect",
+    "ko": "Korean dialect",
+    "ar": "Arabic regional variant",
+    "ru": "Russian regional variant",
+    "hi": "Hindi dialect",
+    "bn": "Bengali regional variant",
+    "ta": "Tamil regional variant",
+    "te": "Telugu dialect",
+    "gu": "Gujarati regional variant",
+    "kn": "Kannada dialect",
+    "ml": "Malayalam dialect",
+    "mr": "Marathi dialect",
+    "pa": "Punjabi regional variant",
+    "ur": "Urdu regional variant",
+    "nl": "Dutch regional variant",
+    "tr": "Turkish regional variant",
+    "vi": "Vietnamese regional variant",
+    "sv": "Swedish regional variant",
+    "no": "Norwegian variant",
+    "pl": "Polish regional variant",
+    "th": "Thai regional variant",
+    "el": "Greek regional variant",
+    "he": "Hebrew regional variant",
+    "ro": "Romanian regional variant",
+    "hu": "Hungarian regional variant",
+    "cs": "Czech regional variant",
+    "fi": "Finnish regional variant",
+    "da": "Danish regional variant",
+    "uk": "Ukrainian regional variant",
+    "id": "Indonesian regional variant",
+}
+
 def toggle_language_variant(lang):
     variants = LANGUAGE_VARIANTS.get(lang, [])
     if variants:
-        return gr.update(choices=variants, value=variants[0][1], visible=True)
-    return gr.update(choices=[], value=None, visible=False)
+        label = _VARIANT_LABELS.get(lang, "Regional variant / dialect")
+        return gr.update(choices=variants, value=variants[0][1], visible=True, label=label)
+    return gr.update(choices=[], value=None, visible=False, label="Regional variant / dialect")
 
 
 # ── build theme ────────────────────────────────────────────────────────────────
@@ -1417,11 +1458,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="auto",
                 )
                 language_variant = gr.Dropdown(
-                    label="Regional variant / dialect",
-                    choices=[],
-                    value=None,
+                    label="Spanish regional variant",
+                    choices=LANGUAGE_VARIANTS["es"],
+                    value=LANGUAGE_VARIANTS["es"][0][1],
                     visible=False,
-                    info="Appears automatically when a language with known regional dialects is selected.",
                 )
 
             with gr.Accordion("Report Format", open=False):

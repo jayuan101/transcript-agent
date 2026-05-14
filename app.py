@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.1"""
 
 import gradio as gr
 import os

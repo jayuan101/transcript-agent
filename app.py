@@ -341,50 +341,296 @@ LANGUAGES = [
     ("🇮🇩 Indonesian",                "id"),
 ]
 
-SPANISH_VARIANTS = [
-    ("🌎 Auto (General Spanish)",              "General Spanish"),
-    ("🇨🇴 Colombian Spanish",                  "Colombian Spanish (es-CO)"),
-    ("🇲🇽 Mexican Spanish",                    "Mexican Spanish (es-MX)"),
-    ("🇪🇸 Spain Spanish (Castilian)",          "Castilian Spanish (es-ES)"),
-    ("🇦🇷 Argentinian Spanish",                "Argentinian Spanish (es-AR)"),
-    ("🇨🇱 Chilean Spanish",                    "Chilean Spanish (es-CL)"),
-    ("🇻🇪 Venezuelan Spanish",                 "Venezuelan Spanish (es-VE)"),
-    ("🇵🇪 Peruvian Spanish",                   "Peruvian Spanish (es-PE)"),
-    ("🇨🇺 Cuban Spanish",                      "Cuban Spanish (es-CU)"),
-    ("🇵🇷 Puerto Rican Spanish",               "Puerto Rican Spanish (es-PR)"),
-    ("🇩🇴 Dominican Spanish",                  "Dominican Spanish (es-DO)"),
-    ("🇬🇹 Guatemalan Spanish",                 "Guatemalan Spanish (es-GT)"),
-    ("🇪🇨 Ecuadorian Spanish",                 "Ecuadorian Spanish (es-EC)"),
-    ("🇧🇴 Bolivian Spanish",                   "Bolivian Spanish (es-BO)"),
-    ("🇺🇾 Uruguayan Spanish",                  "Uruguayan Spanish (es-UY)"),
-    ("🇵🇾 Paraguayan Spanish",                 "Paraguayan Spanish (es-PY)"),
-    ("🇭🇳 Honduran Spanish",                   "Honduran Spanish (es-HN)"),
-    ("🇸🇻 Salvadoran Spanish",                 "Salvadoran Spanish (es-SV)"),
-    ("🇳🇮 Nicaraguan Spanish",                 "Nicaraguan Spanish (es-NI)"),
-    ("🇨🇷 Costa Rican Spanish",                "Costa Rican Spanish (es-CR)"),
-    ("🇵🇦 Panamanian Spanish",                 "Panamanian Spanish (es-PA)"),
-    ("🇺🇸 US Latino Spanish",                  "US Latino Spanish (es-US)"),
-]
+# ── per-language regional variants ────────────────────────────────────────────
+# First entry in each list is the "auto / no hint" value; these are filtered out
+# before being passed to the backend so only meaningful hints are forwarded.
 
-FRENCH_VARIANTS = [
-    ("🌍 Auto (General French)",               "General French"),
-    ("🇫🇷 France French",                      "France French (fr-FR)"),
-    ("🇨🇦 Canadian French (Québécois)",        "Canadian French (fr-CA)"),
-    ("🇧🇪 Belgian French",                     "Belgian French (fr-BE)"),
-    ("🇨🇭 Swiss French",                       "Swiss French (fr-CH)"),
-    ("🌍 West African French",                 "West African French"),
-    ("🌍 North African French",                "North African French"),
-]
+LANGUAGE_VARIANTS = {
+    "en": [
+        ("🌍 Auto (General English)",          "General English"),
+        ("🇺🇸 American English",               "American English (en-US)"),
+        ("🇬🇧 British English",                "British English (en-GB)"),
+        ("🇦🇺 Australian English",             "Australian English (en-AU)"),
+        ("🇨🇦 Canadian English",               "Canadian English (en-CA)"),
+        ("🇮🇪 Irish English",                  "Irish English (en-IE)"),
+        ("🏴 Scottish English",                "Scottish English"),
+        ("🇿🇦 South African English",          "South African English (en-ZA)"),
+        ("🇮🇳 Indian English",                 "Indian English (en-IN)"),
+        ("🇸🇬 Singaporean English",            "Singaporean English (en-SG)"),
+        ("🇵🇭 Filipino English",               "Filipino English (en-PH)"),
+        ("🌍 Nigerian English",                "Nigerian English"),
+        ("🇯🇲 Caribbean English",              "Caribbean English"),
+    ],
+    "es": [
+        ("🌎 Auto (General Spanish)",          "General Spanish"),
+        ("🇨🇴 Colombian Spanish",              "Colombian Spanish (es-CO)"),
+        ("🇲🇽 Mexican Spanish",                "Mexican Spanish (es-MX)"),
+        ("🇪🇸 Castilian Spanish (Spain)",      "Castilian Spanish (es-ES)"),
+        ("🇦🇷 Argentinian Spanish",            "Argentinian Spanish (es-AR)"),
+        ("🇨🇱 Chilean Spanish",                "Chilean Spanish (es-CL)"),
+        ("🇻🇪 Venezuelan Spanish",             "Venezuelan Spanish (es-VE)"),
+        ("🇵🇪 Peruvian Spanish",               "Peruvian Spanish (es-PE)"),
+        ("🇨🇺 Cuban Spanish",                  "Cuban Spanish (es-CU)"),
+        ("🇵🇷 Puerto Rican Spanish",           "Puerto Rican Spanish (es-PR)"),
+        ("🇩🇴 Dominican Spanish",              "Dominican Spanish (es-DO)"),
+        ("🇬🇹 Guatemalan Spanish",             "Guatemalan Spanish (es-GT)"),
+        ("🇪🇨 Ecuadorian Spanish",             "Ecuadorian Spanish (es-EC)"),
+        ("🇧🇴 Bolivian Spanish",               "Bolivian Spanish (es-BO)"),
+        ("🇺🇾 Uruguayan Spanish",              "Uruguayan Spanish (es-UY)"),
+        ("🇵🇾 Paraguayan Spanish",             "Paraguayan Spanish (es-PY)"),
+        ("🇭🇳 Honduran Spanish",               "Honduran Spanish (es-HN)"),
+        ("🇸🇻 Salvadoran Spanish",             "Salvadoran Spanish (es-SV)"),
+        ("🇳🇮 Nicaraguan Spanish",             "Nicaraguan Spanish (es-NI)"),
+        ("🇨🇷 Costa Rican Spanish",            "Costa Rican Spanish (es-CR)"),
+        ("🇵🇦 Panamanian Spanish",             "Panamanian Spanish (es-PA)"),
+        ("🇺🇸 US Latino Spanish",              "US Latino Spanish (es-US)"),
+    ],
+    "fr": [
+        ("🌍 Auto (General French)",           "General French"),
+        ("🇫🇷 France French",                  "France French (fr-FR)"),
+        ("🇨🇦 Canadian French (Québécois)",    "Canadian French (fr-CA)"),
+        ("🇧🇪 Belgian French",                 "Belgian French (fr-BE)"),
+        ("🇨🇭 Swiss French",                   "Swiss French (fr-CH)"),
+        ("🌍 West African French",             "West African French"),
+        ("🌍 North African French",            "North African French"),
+        ("🇲🇬 Malagasy French",               "Malagasy French"),
+    ],
+    "pt": [
+        ("🌍 Auto (General Portuguese)",       "General Portuguese"),
+        ("🇧🇷 Brazilian Portuguese",           "Brazilian Portuguese (pt-BR)"),
+        ("🇵🇹 European Portuguese",            "European Portuguese (pt-PT)"),
+        ("🇦🇴 Angolan Portuguese",             "Angolan Portuguese (pt-AO)"),
+        ("🇲🇿 Mozambican Portuguese",          "Mozambican Portuguese (pt-MZ)"),
+        ("🇨🇻 Cape Verdean Portuguese",        "Cape Verdean Portuguese"),
+        ("🇸🇹 São Tomé Portuguese",            "São Tomé Portuguese"),
+    ],
+    "de": [
+        ("🌍 Auto (General German)",           "General German"),
+        ("🇩🇪 Standard German (Germany)",      "Standard German (de-DE)"),
+        ("🇦🇹 Austrian German",                "Austrian German (de-AT)"),
+        ("🇨🇭 Swiss German",                   "Swiss German (de-CH)"),
+        ("🇱🇺 Luxembourg German",              "Luxembourg German"),
+        ("🌍 Bavarian dialect",                "Bavarian German"),
+        ("🌍 Low German (Plattdeutsch)",        "Low German"),
+    ],
+    "it": [
+        ("🌍 Auto (General Italian)",          "General Italian"),
+        ("🇮🇹 Standard Italian",               "Standard Italian (it-IT)"),
+        ("🇨🇭 Swiss Italian",                  "Swiss Italian (it-CH)"),
+        ("🌍 Sicilian",                        "Sicilian Italian"),
+        ("🌍 Neapolitan",                      "Neapolitan Italian"),
+        ("🌍 Venetian dialect",                "Venetian Italian"),
+        ("🌍 Roman dialect",                   "Roman Italian"),
+    ],
+    "zh": [
+        ("🌍 Auto (General Chinese)",          "General Chinese"),
+        ("🇨🇳 Mandarin Simplified (Mainland)", "Mainland Mandarin (zh-CN)"),
+        ("🇹🇼 Mandarin Traditional (Taiwan)",  "Taiwan Mandarin (zh-TW)"),
+        ("🇭🇰 Cantonese (Hong Kong)",          "Cantonese (zh-HK)"),
+        ("🇸🇬 Singaporean Mandarin",           "Singaporean Mandarin (zh-SG)"),
+        ("🌍 Shanghainese / Wu",               "Shanghainese (Wu dialect)"),
+    ],
+    "ja": [
+        ("🌍 Auto (General Japanese)",         "General Japanese"),
+        ("🇯🇵 Standard Japanese (Tokyo)",      "Standard Japanese (Tokyo)"),
+        ("🌍 Kansai / Osaka dialect",          "Kansai dialect"),
+        ("🌍 Kyushu dialect",                  "Kyushu dialect"),
+        ("🌍 Tohoku dialect",                  "Tohoku dialect"),
+    ],
+    "ko": [
+        ("🌍 Auto (General Korean)",           "General Korean"),
+        ("🇰🇷 Standard Korean (Seoul)",        "Standard Korean (Seoul)"),
+        ("🌍 Gyeongsang dialect",              "Gyeongsang dialect"),
+        ("🌍 Jeolla dialect",                  "Jeolla dialect"),
+        ("🌍 Jeju dialect",                    "Jeju dialect"),
+    ],
+    "ar": [
+        ("🌍 Auto / Modern Standard Arabic",   "Modern Standard Arabic"),
+        ("🇪🇬 Egyptian Arabic",                "Egyptian Arabic"),
+        ("🇸🇦 Saudi Arabic",                   "Saudi Arabic"),
+        ("🇦🇪 Gulf Arabic",                    "Gulf Arabic"),
+        ("🇱🇧 Levantine Arabic",               "Levantine Arabic"),
+        ("🇲🇦 Moroccan Arabic (Darija)",       "Moroccan Arabic"),
+        ("🇮🇶 Iraqi Arabic",                   "Iraqi Arabic"),
+        ("🇹🇳 Tunisian Arabic",                "Tunisian Arabic"),
+        ("🇩🇿 Algerian Arabic",                "Algerian Arabic"),
+        ("🇾🇪 Yemeni Arabic",                  "Yemeni Arabic"),
+        ("🇸🇩 Sudanese Arabic",                "Sudanese Arabic"),
+    ],
+    "ru": [
+        ("🌍 Auto (General Russian)",          "General Russian"),
+        ("🇷🇺 Standard Russian (Moscow)",      "Standard Russian"),
+        ("🌍 St. Petersburg Russian",          "St. Petersburg Russian"),
+        ("🌍 Siberian Russian",                "Siberian Russian"),
+        ("🌍 Ural Russian",                    "Ural Russian"),
+    ],
+    # ── Indian languages ────────────────────────────────────────────────────
+    "hi": [
+        ("🔍 Auto (General Hindi)",            "General Hindi"),
+        ("🇮🇳 Standard Hindi (Delhi)",         "Standard Hindi (Delhi)"),
+        ("🇮🇳 Mumbai Hindi",                   "Mumbai Hindi"),
+        ("🇮🇳 Bihari Hindi",                   "Bihari Hindi"),
+        ("🇮🇳 Rajasthani Hindi",               "Rajasthani Hindi"),
+        ("🇮🇳 Bhojpuri-accented Hindi",        "Bhojpuri-accented Hindi"),
+    ],
+    "bn": [
+        ("🔍 Auto (General Bengali)",          "General Bengali"),
+        ("🇮🇳 Indian Bengali (Kolkata)",       "Indian Bengali (Kolkata)"),
+        ("🇧🇩 Bangladeshi Bengali (Dhaka)",    "Bangladeshi Bengali (Dhaka)"),
+        ("🌍 Sylheti dialect",                 "Sylheti dialect"),
+        ("🌍 Chittagonian dialect",            "Chittagonian dialect"),
+    ],
+    "ta": [
+        ("🔍 Auto (General Tamil)",            "General Tamil"),
+        ("🇮🇳 Indian Tamil (Chennai)",         "Indian Tamil (Chennai)"),
+        ("🇱🇰 Sri Lankan Tamil",               "Sri Lankan Tamil"),
+        ("🇸🇬 Singaporean Tamil",              "Singaporean Tamil"),
+        ("🇲🇾 Malaysian Tamil",                "Malaysian Tamil"),
+    ],
+    "te": [
+        ("🔍 Auto (General Telugu)",           "General Telugu"),
+        ("🇮🇳 Standard Telugu (Hyderabad)",    "Standard Telugu (Hyderabad)"),
+        ("🇮🇳 Coastal Andhra Telugu",          "Coastal Andhra Telugu"),
+        ("🇮🇳 Rayalaseema Telugu",             "Rayalaseema Telugu"),
+    ],
+    "gu": [
+        ("🔍 Auto (General Gujarati)",         "General Gujarati"),
+        ("🇮🇳 Standard Gujarati (Ahmedabad)",  "Standard Gujarati"),
+        ("🇮🇳 Saurashtra Gujarati",            "Saurashtra Gujarati"),
+        ("🇬🇧 British Gujarati",               "British Gujarati"),
+        ("🇺🇸 American Gujarati",              "American Gujarati"),
+    ],
+    "kn": [
+        ("🔍 Auto (General Kannada)",          "General Kannada"),
+        ("🇮🇳 Standard Kannada (Bangalore)",   "Standard Kannada (Bangalore)"),
+        ("🇮🇳 Dharwad Kannada",                "Dharwad Kannada"),
+        ("🇮🇳 Old Mysore Kannada",             "Old Mysore Kannada"),
+    ],
+    "ml": [
+        ("🔍 Auto (General Malayalam)",        "General Malayalam"),
+        ("🇮🇳 Standard Malayalam (Kerala)",    "Standard Malayalam"),
+        ("🇮🇳 Central Kerala dialect",         "Central Kerala dialect"),
+        ("🇮🇳 North Kerala (Malabar) dialect", "North Kerala dialect"),
+        ("🌍 Gulf Malayalam",                  "Gulf Malayalam"),
+    ],
+    "mr": [
+        ("🔍 Auto (General Marathi)",          "General Marathi"),
+        ("🇮🇳 Standard Marathi (Pune/Mumbai)", "Standard Marathi"),
+        ("🇮🇳 Nagpuri Marathi",               "Nagpuri Marathi"),
+        ("🇮🇳 Konkani-accented Marathi",       "Konkani-accented Marathi"),
+    ],
+    "pa": [
+        ("🔍 Auto (General Punjabi)",          "General Punjabi"),
+        ("🇮🇳 Indian Punjabi (Amritsar)",      "Indian Punjabi"),
+        ("🇵🇰 Pakistani Punjabi (Lahore)",     "Pakistani Punjabi"),
+        ("🇬🇧 British Punjabi",               "British Punjabi"),
+        ("🇨🇦 Canadian Punjabi",              "Canadian Punjabi"),
+    ],
+    "ur": [
+        ("🌍 Auto (General Urdu)",             "General Urdu"),
+        ("🇵🇰 Pakistani Urdu",                 "Pakistani Urdu"),
+        ("🇮🇳 Indian Urdu",                    "Indian Urdu"),
+        ("🌍 Deccani Urdu",                    "Deccani Urdu"),
+    ],
+    # ── Other languages ─────────────────────────────────────────────────────
+    "nl": [
+        ("🌍 Auto (General Dutch)",            "General Dutch"),
+        ("🇳🇱 Netherlands Dutch",              "Netherlands Dutch (nl-NL)"),
+        ("🇧🇪 Belgian Dutch / Flemish",        "Belgian Dutch / Flemish (nl-BE)"),
+        ("🇸🇷 Surinamese Dutch",               "Surinamese Dutch"),
+    ],
+    "tr": [
+        ("🌍 Auto (General Turkish)",          "General Turkish"),
+        ("🇹🇷 Istanbul Turkish",               "Istanbul Turkish"),
+        ("🌍 Anatolian Turkish",               "Anatolian Turkish"),
+        ("🇨🇾 Cypriot Turkish",                "Cypriot Turkish"),
+    ],
+    "vi": [
+        ("🌍 Auto (General Vietnamese)",       "General Vietnamese"),
+        ("🇻🇳 Northern Vietnamese (Hanoi)",    "Northern Vietnamese"),
+        ("🇻🇳 Southern Vietnamese (Ho Chi Minh City)", "Southern Vietnamese"),
+        ("🇻🇳 Central Vietnamese",             "Central Vietnamese"),
+    ],
+    "sv": [
+        ("🌍 Auto (General Swedish)",          "General Swedish"),
+        ("🇸🇪 Sweden Swedish",                 "Sweden Swedish"),
+        ("🇫🇮 Finland Swedish",                "Finland Swedish"),
+    ],
+    "no": [
+        ("🌍 Auto (General Norwegian)",        "General Norwegian"),
+        ("🌍 Bokmål",                          "Norwegian Bokmål"),
+        ("🌍 Nynorsk",                         "Norwegian Nynorsk"),
+    ],
+    "pl": [
+        ("🌍 Auto (General Polish)",           "General Polish"),
+        ("🌍 Warsaw Polish",                   "Warsaw Polish"),
+        ("🌍 Silesian-accented Polish",        "Silesian-accented Polish"),
+        ("🌍 Kashubian-accented Polish",       "Kashubian-accented Polish"),
+    ],
+    "th": [
+        ("🌍 Auto (General Thai)",             "General Thai"),
+        ("🇹🇭 Central Thai (Bangkok)",         "Central Thai"),
+        ("🌍 Northern Thai (Kham Mueang)",     "Northern Thai"),
+        ("🌍 Northeastern Thai (Isan)",        "Northeastern Thai"),
+        ("🌍 Southern Thai",                   "Southern Thai"),
+    ],
+    "el": [
+        ("🌍 Auto (General Greek)",            "General Greek"),
+        ("🇬🇷 Standard Modern Greek",          "Standard Modern Greek"),
+        ("🇨🇾 Cypriot Greek",                  "Cypriot Greek"),
+    ],
+    "he": [
+        ("🌍 Auto (General Hebrew)",           "General Hebrew"),
+        ("🇮🇱 Modern Israeli Hebrew",          "Modern Israeli Hebrew"),
+        ("🌍 Mizrahi-accented Hebrew",         "Mizrahi-accented Hebrew"),
+        ("🌍 Ashkenazi-accented Hebrew",       "Ashkenazi-accented Hebrew"),
+    ],
+    "ro": [
+        ("🌍 Auto (General Romanian)",         "General Romanian"),
+        ("🇷🇴 Romanian (Romania)",             "Romanian (ro-RO)"),
+        ("🇲🇩 Moldovan Romanian",              "Moldovan Romanian"),
+    ],
+    "hu": [
+        ("🌍 Auto (General Hungarian)",        "General Hungarian"),
+        ("🇭🇺 Standard Hungarian",             "Standard Hungarian"),
+        ("🇷🇴 Transylvanian Hungarian",        "Transylvanian Hungarian"),
+        ("🇸🇰 Slovak Hungarian",               "Slovak Hungarian"),
+    ],
+    "cs": [
+        ("🌍 Auto (General Czech)",            "General Czech"),
+        ("🇨🇿 Bohemian Czech",                 "Bohemian Czech"),
+        ("🌍 Moravian Czech",                  "Moravian Czech"),
+        ("🌍 Silesian Czech",                  "Silesian Czech"),
+    ],
+    "fi": [
+        ("🌍 Auto (General Finnish)",          "General Finnish"),
+        ("🇫🇮 Standard Finnish",               "Standard Finnish"),
+        ("🇫🇮 Helsinki Finnish",               "Helsinki Finnish"),
+        ("🌍 Finland Swedish-accented Finnish","Finland Swedish-accented Finnish"),
+    ],
+    "da": [
+        ("🌍 Auto (General Danish)",           "General Danish"),
+        ("🇩🇰 Standard Danish (Copenhagen)",   "Standard Danish"),
+        ("🌍 Jutlandic Danish",                "Jutlandic Danish"),
+    ],
+    "uk": [
+        ("🌍 Auto (General Ukrainian)",        "General Ukrainian"),
+        ("🇺🇦 Standard Ukrainian (Kyiv)",      "Standard Ukrainian"),
+        ("🌍 Western Ukrainian",               "Western Ukrainian"),
+        ("🌍 Eastern Ukrainian",               "Eastern Ukrainian"),
+    ],
+    "id": [
+        ("🌍 Auto (General Indonesian)",       "General Indonesian"),
+        ("🇮🇩 Standard Bahasa Indonesia",      "Standard Bahasa Indonesia"),
+        ("🌍 Javanese-accented",               "Javanese-accented Indonesian"),
+        ("🌍 Sundanese-accented",              "Sundanese-accented Indonesian"),
+        ("🌍 Balinese-accented",               "Balinese-accented Indonesian"),
+        ("🌍 Batak-accented",                  "Batak-accented Indonesian"),
+    ],
+}
 
-INDIAN_VARIANTS = [
-    ("🔍 Auto (detect dialect)",               "Auto Indian"),
-    ("🇮🇳 Standard Hindi (Delhi)",             "Standard Hindi"),
-    ("🇮🇳 Mumbai Hindi",                       "Mumbai Hindi"),
-    ("🇮🇳 Standard Bengali (Kolkata)",         "Standard Bengali"),
-    ("🇮🇳 Standard Tamil (Chennai)",           "Standard Tamil"),
-    ("🇮🇳 Standard Telugu (Hyderabad)",        "Standard Telugu"),
-    ("🇮🇳 Indian English",                     "Indian English"),
-]
+# Values that represent "no specific variant" — filtered out before passing to backend
+_VARIANT_AUTO_VALUES = {v[0][1] for v in LANGUAGE_VARIANTS.values()}
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -619,9 +865,7 @@ def process_file(
     num_speakers,
     whisper_model,
     language_input,
-    spanish_variant,
-    french_variant,
-    indian_variant,
+    language_variant,
     report_style,
     inc_summary,
     inc_key_points,
@@ -687,14 +931,11 @@ def process_file(
     )
     speakers = int(num_speakers) if (num_speakers and num_speakers >= 2) else None
     lang_code = language_input if language_input and language_input != "auto" else None
-    if language_input == "es" and spanish_variant and spanish_variant != "General Spanish":
-        lang_variant = spanish_variant
-    elif language_input == "fr" and french_variant and french_variant != "General French":
-        lang_variant = french_variant
-    elif language_input in _INDIAN_LANG_CODES and indian_variant and indian_variant != "Auto Indian":
-        lang_variant = indian_variant
-    else:
-        lang_variant = None
+    lang_variant = (
+        language_variant
+        if language_variant and language_variant not in _VARIANT_AUTO_VALUES
+        else None
+    )
     stem     = Path(uploaded_file).stem
     job_id   = uuid.uuid4().hex[:8]
     job_dir  = OUT_DIR / f"{stem}_{job_id}"
@@ -909,14 +1150,11 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
-_INDIAN_LANG_CODES = {"hi", "bn", "ta", "te", "gu", "kn", "ml", "mr", "pa", "ur"}
-
-def toggle_language_variants(lang):
-    return (
-        gr.update(visible=(lang == "es")),
-        gr.update(visible=(lang == "fr")),
-        gr.update(visible=(lang in _INDIAN_LANG_CODES)),
-    )
+def toggle_language_variant(lang):
+    variants = LANGUAGE_VARIANTS.get(lang, [])
+    if variants:
+        return gr.update(choices=variants, value=variants[0][1], visible=True)
+    return gr.update(choices=[], value=None, visible=False)
 
 
 # ── build theme ────────────────────────────────────────────────────────────────
@@ -1178,23 +1416,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     choices=LANGUAGES,
                     value="auto",
                 )
-                spanish_variant = gr.Dropdown(
-                    label="Spanish regional variant",
-                    choices=SPANISH_VARIANTS,
-                    value="General Spanish",
+                language_variant = gr.Dropdown(
+                    label="Regional variant / dialect",
+                    choices=[],
+                    value=None,
                     visible=False,
-                )
-                french_variant = gr.Dropdown(
-                    label="French regional variant",
-                    choices=FRENCH_VARIANTS,
-                    value="General French",
-                    visible=False,
-                )
-                indian_variant = gr.Dropdown(
-                    label="Indian dialect / accent hint",
-                    choices=INDIAN_VARIANTS,
-                    value="Auto Indian",
-                    visible=False,
+                    info="Appears automatically when a language with known regional dialects is selected.",
                 )
 
             with gr.Accordion("Report Format", open=False):
@@ -1290,9 +1517,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
     # ── event wiring ──────────────────────────────────────────────────────────
     panel_toggle.change(fn=toggle_speakers, inputs=panel_toggle, outputs=speakers_input)
     language_input.change(
-        fn=toggle_language_variants,
+        fn=toggle_language_variant,
         inputs=language_input,
-        outputs=[spanish_variant, french_variant, indian_variant],
+        outputs=language_variant,
     )
 
     process_btn.click(
@@ -1300,7 +1527,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_input, whisper_input,
-            language_input, spanish_variant, french_variant, indian_variant,
+            language_input, language_variant,
             report_style,
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,

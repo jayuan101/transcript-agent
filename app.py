@@ -186,7 +186,6 @@ footer { display: none !important; }
 
 /* page */
 body { background: #f1f5f9 !important; }
-html.dark body { background: #0f172a !important; }
 
 /* process button */
 .big-btn button {
@@ -209,7 +208,7 @@ html.dark body { background: #0f172a !important; }
     transform: translateY(-1px) !important;
 }
 
-/* scrollable dropdowns (language list etc.) */
+/* scrollable dropdowns */
 [role="listbox"] {
     max-height: 220px !important;
     overflow-y: auto !important;
@@ -225,6 +224,53 @@ html.dark body { background: #0f172a !important; }
     border-color: #1e3a5f !important;
     border-radius: 8px !important;
 }
+
+/* Fix banner text — Gradio overrides <strong> color to white */
+#api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
+#api-banner-sub { color: #92400e !important; }
+
+/* ── Dark mode — applied when JS adds html.dark ── */
+html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
+    background: #0f172a !important; color: #e2e8f0 !important;
+}
+html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact {
+    background: #1e293b !important; border-color: #334155 !important;
+}
+html.dark input, html.dark input[type="text"], html.dark input[type="password"],
+html.dark textarea, html.dark select {
+    background: #0f172a !important; color: #e2e8f0 !important;
+    border-color: #475569 !important;
+}
+html.dark .label-wrap span, html.dark span.svelte-1b6s6g, html.dark .block-label,
+html.dark label span, html.dark .info {
+    color: #94a3b8 !important;
+}
+html.dark .tabs > .tab-nav button {
+    color: #94a3b8 !important; background: #1e293b !important;
+    border-color: #334155 !important;
+}
+html.dark .tabs > .tab-nav button.selected {
+    color: #e2e8f0 !important; border-bottom-color: #3b82f6 !important;
+}
+html.dark .tabitem { background: #0f172a !important; }
+html.dark .prose, html.dark .prose p, html.dark .prose h1, html.dark .prose h2,
+html.dark .prose h3, html.dark .prose li, html.dark .markdown {
+    color: #e2e8f0 !important;
+}
+html.dark [role="listbox"] { background: #1e293b !important; border-color: #334155 !important; }
+html.dark [role="option"] { color: #e2e8f0 !important; background: #1e293b !important; }
+html.dark [role="option"]:hover, html.dark [role="option"][aria-selected="true"] {
+    background: #334155 !important;
+}
+html.dark .accordion, html.dark details {
+    background: #1e293b !important; border-color: #334155 !important;
+}
+html.dark .accordion .label-wrap, html.dark details summary { color: #e2e8f0 !important; }
+html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
+html.dark #live-log textarea { background: #020617 !important; }
+html.dark .wrap { background: #1e293b !important; }
+html.dark .dropdown-arrow svg { fill: #94a3b8 !important; }
+html.dark .file-preview { background: #1e293b !important; color: #e2e8f0 !important; }
 
 """
 
@@ -1301,8 +1347,8 @@ _API_BANNER = """
   <div id="api-banner-icon" style="font-size:1.6em;transition:all 0.3s;">🔑</div>
   <div style="flex:1;">
     <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.9em;transition:color 0.3s;">API Key Required</div>
-    <div id="api-banner-sub" style="color:#a16207;font-size:0.8em;margin-top:2px;transition:color 0.3s;">
-      Enter your <strong>Anthropic API key</strong> below. Usage is billed directly to your account — nothing is stored here.
+    <div id="api-banner-sub" style="color:#92400e;font-size:0.8em;margin-top:2px;transition:color 0.3s;">
+      Enter your <span style="font-weight:700;color:#78350f;">Anthropic API key</span> below. Usage is billed directly to your account — nothing is stored here.
     </div>
   </div>
   <div id="api-banner-badge" style="display:none;background:#22c55e;color:#fff;font-size:0.72em;
@@ -1351,12 +1397,24 @@ _THEME_TOGGLE = """
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* force-override Gradio containers via injected style */
+    /* force-override via injected style (dark mode toggle) */
     st.textContent = dark
-      ? 'body,html{background:#0f172a !important;}'
-        + '.gradio-container{background:#0f172a !important;}'
-      : 'body,html{background:#f1f5f9 !important;}'
-        + '.gradio-container{background:#f1f5f9 !important;}';
+      ? 'body,html,.gradio-container,.main,.contain{background:#0f172a !important;color:#e2e8f0 !important;}'
+        + '.block,.form,.panel-full-width,.compact{background:#1e293b !important;border-color:#334155 !important;}'
+        + 'input,input[type=text],input[type=password],textarea,select{background:#0f172a !important;color:#e2e8f0 !important;border-color:#475569 !important;}'
+        + '.label-wrap span,.block-label,label span,.info{color:#94a3b8 !important;}'
+        + '.tabs>.tab-nav button{color:#94a3b8 !important;background:#1e293b !important;border-color:#334155 !important;}'
+        + '.tabs>.tab-nav button.selected{color:#e2e8f0 !important;border-bottom-color:#3b82f6 !important;}'
+        + '.tabitem{background:#0f172a !important;}'
+        + '.prose,.prose p,.prose h1,.prose h2,.prose h3,.prose li,.markdown{color:#e2e8f0 !important;}'
+        + '[role=listbox]{background:#1e293b !important;border-color:#334155 !important;}'
+        + '[role=option]{color:#e2e8f0 !important;background:#1e293b !important;}'
+        + '[role=option]:hover,[role=option][aria-selected=true]{background:#334155 !important;}'
+        + '.accordion,details{background:#1e293b !important;border-color:#334155 !important;}'
+        + '.accordion .label-wrap,details summary{color:#e2e8f0 !important;}'
+        + '.wrap{background:#1e293b !important;}'
+        + '.file-preview{background:#1e293b !important;color:#e2e8f0 !important;}'
+      : 'body,html,.gradio-container{background:#f1f5f9 !important;}';
 
     /* update switch visuals via inline style (100% reliable) */
     var widget = document.getElementById('ta-widget');

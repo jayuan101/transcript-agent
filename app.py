@@ -311,7 +311,18 @@ LANGUAGES = [
     ("🇰🇷 Korean",                    "ko"),
     ("🇸🇦 Arabic",                    "ar"),
     ("🇷🇺 Russian",                   "ru"),
+    # ── Indian languages ─────────────────────────────────────────────────────
     ("🇮🇳 Hindi",                     "hi"),
+    ("🇮🇳 Bengali",                   "bn"),
+    ("🇮🇳 Tamil",                     "ta"),
+    ("🇮🇳 Telugu",                    "te"),
+    ("🇮🇳 Gujarati",                  "gu"),
+    ("🇮🇳 Kannada",                   "kn"),
+    ("🇮🇳 Malayalam",                 "ml"),
+    ("🇮🇳 Marathi",                   "mr"),
+    ("🇮🇳 Punjabi",                   "pa"),
+    ("🇮🇳 Urdu",                      "ur"),
+    # ── Other languages ───────────────────────────────────────────────────────
     ("🇳🇱 Dutch",                     "nl"),
     ("🇵🇱 Polish",                    "pl"),
     ("🇹🇷 Turkish",                   "tr"),
@@ -353,6 +364,26 @@ SPANISH_VARIANTS = [
     ("🇨🇷 Costa Rican Spanish",                "Costa Rican Spanish (es-CR)"),
     ("🇵🇦 Panamanian Spanish",                 "Panamanian Spanish (es-PA)"),
     ("🇺🇸 US Latino Spanish",                  "US Latino Spanish (es-US)"),
+]
+
+FRENCH_VARIANTS = [
+    ("🌍 Auto (General French)",               "General French"),
+    ("🇫🇷 France French",                      "France French (fr-FR)"),
+    ("🇨🇦 Canadian French (Québécois)",        "Canadian French (fr-CA)"),
+    ("🇧🇪 Belgian French",                     "Belgian French (fr-BE)"),
+    ("🇨🇭 Swiss French",                       "Swiss French (fr-CH)"),
+    ("🌍 West African French",                 "West African French"),
+    ("🌍 North African French",                "North African French"),
+]
+
+INDIAN_VARIANTS = [
+    ("🔍 Auto (detect dialect)",               "Auto Indian"),
+    ("🇮🇳 Standard Hindi (Delhi)",             "Standard Hindi"),
+    ("🇮🇳 Mumbai Hindi",                       "Mumbai Hindi"),
+    ("🇮🇳 Standard Bengali (Kolkata)",         "Standard Bengali"),
+    ("🇮🇳 Standard Tamil (Chennai)",           "Standard Tamil"),
+    ("🇮🇳 Standard Telugu (Hyderabad)",        "Standard Telugu"),
+    ("🇮🇳 Indian English",                     "Indian English"),
 ]
 
 
@@ -589,6 +620,8 @@ def process_file(
     whisper_model,
     language_input,
     spanish_variant,
+    french_variant,
+    indian_variant,
     report_style,
     inc_summary,
     inc_key_points,
@@ -654,7 +687,14 @@ def process_file(
     )
     speakers = int(num_speakers) if (num_speakers and num_speakers >= 2) else None
     lang_code = language_input if language_input and language_input != "auto" else None
-    lang_variant = spanish_variant if (language_input == "es" and spanish_variant and spanish_variant != "General Spanish") else None
+    if language_input == "es" and spanish_variant and spanish_variant != "General Spanish":
+        lang_variant = spanish_variant
+    elif language_input == "fr" and french_variant and french_variant != "General French":
+        lang_variant = french_variant
+    elif language_input in _INDIAN_LANG_CODES and indian_variant and indian_variant != "Auto Indian":
+        lang_variant = indian_variant
+    else:
+        lang_variant = None
     stem     = Path(uploaded_file).stem
     job_id   = uuid.uuid4().hex[:8]
     job_dir  = OUT_DIR / f"{stem}_{job_id}"
@@ -869,8 +909,14 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
-def toggle_spanish_variant(lang):
-    return gr.update(visible=(lang == "es"))
+_INDIAN_LANG_CODES = {"hi", "bn", "ta", "te", "gu", "kn", "ml", "mr", "pa", "ur"}
+
+def toggle_language_variants(lang):
+    return (
+        gr.update(visible=(lang == "es")),
+        gr.update(visible=(lang == "fr")),
+        gr.update(visible=(lang in _INDIAN_LANG_CODES)),
+    )
 
 
 # ── build theme ────────────────────────────────────────────────────────────────
@@ -919,7 +965,7 @@ _HERO = """
     <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📄 Documents</span>
     <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🗣️ Speaker Diarization</span>
     <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📊 Speech Analytics</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🌐 28+ Languages</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🌐 37+ Languages</span>
   </div>
 </div>
 """
@@ -1138,6 +1184,18 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="General Spanish",
                     visible=False,
                 )
+                french_variant = gr.Dropdown(
+                    label="French regional variant",
+                    choices=FRENCH_VARIANTS,
+                    value="General French",
+                    visible=False,
+                )
+                indian_variant = gr.Dropdown(
+                    label="Indian dialect / accent hint",
+                    choices=INDIAN_VARIANTS,
+                    value="Auto Indian",
+                    visible=False,
+                )
 
             with gr.Accordion("Report Format", open=False):
                 report_style = gr.Dropdown(
@@ -1231,14 +1289,18 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     # ── event wiring ──────────────────────────────────────────────────────────
     panel_toggle.change(fn=toggle_speakers, inputs=panel_toggle, outputs=speakers_input)
-    language_input.change(fn=toggle_spanish_variant, inputs=language_input, outputs=spanish_variant)
+    language_input.change(
+        fn=toggle_language_variants,
+        inputs=language_input,
+        outputs=[spanish_variant, french_variant, indian_variant],
+    )
 
     process_btn.click(
         fn=process_file,
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_input, whisper_input,
-            language_input, spanish_variant,
+            language_input, spanish_variant, french_variant, indian_variant,
             report_style,
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,
@@ -1266,10 +1328,10 @@ if __name__ == "__main__":
         server_port=_port,
         theme=_THEME,
         css=CSS,
-        allowed_paths=[str(OUT_DIR)],
+        allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         max_file_size="4gb",
         inbrowser=not _docker,
         show_error=True,
-        share=True,
+        share=not _docker,
         strict_cors=not _docker,
     )

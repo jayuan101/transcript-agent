@@ -1607,10 +1607,17 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     choices=LANGUAGES,
                     value="auto",
                 )
+                # Pre-load every possible variant value so Gradio never rejects
+                # a value update because the new value isn't in the current choices.
+                _all_variant_choices = [
+                    (label, val)
+                    for variants in LANGUAGE_VARIANTS.values()
+                    for label, val in variants
+                ]
                 language_variant = gr.Dropdown(
                     label="Regional variant / dialect",
-                    choices=LANGUAGE_VARIANTS["es"],
-                    value=LANGUAGE_VARIANTS["es"][0][1],
+                    choices=_all_variant_choices,
+                    value=None,
                     visible=False,
                 )
 

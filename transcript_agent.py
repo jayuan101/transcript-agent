@@ -162,6 +162,7 @@ class TranscriptResult:
     speaker_map: dict = field(default_factory=dict)
     speaker_profiles: dict = field(default_factory=dict)
     speaker_stats: list = field(default_factory=list)
+    detected_language: str = ""   # human-readable, e.g. "English" or "Spanish (es-CO)"
 
 
 # ── file loaders ──────────────────────────────────────────────────────────────
@@ -246,7 +247,9 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
             _progress_cb = None
 
     total_words = sum(len(s["text"].split()) for s in result.get("segments", []))
-    _log(f"Transcription complete! ~{total_words:,} words detected{dur_note}.")
+    detected = result.get("language", "")
+    _log(f"Transcription complete! ~{total_words:,} words detected{dur_note}."
+         + (f"  Language: {detected}" if detected and not language else ""))
 
     if tmp_path:
         os.unlink(tmp_path)
@@ -254,7 +257,7 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     lines = []
     for seg in result["segments"]:
         lines.append(f"[{_fmt_ts(seg['start'])}] {seg['text'].strip()}")
-    return "\n".join(lines)
+    return "\n".join(lines), detected
 
 
 def load_audio_video_panel(
@@ -275,13 +278,13 @@ def load_audio_video_panel(
         import torch
     except ImportError:
         _log("WhisperX not installed — falling back to standard Whisper (no diarization)")
-        text = load_audio_video(path, model_size, language=language, on_log=on_log)
+        text, _ = load_audio_video(path, model_size, language=language, on_log=on_log)
         return text, {}
 
     hf_token = os.environ.get("HF_TOKEN", "")
     if not hf_token:
         _log("HF_TOKEN not set — falling back to standard Whisper (no diarization)")
-        text = load_audio_video(path, model_size, language=language, on_log=on_log)
+        text, _ = load_audio_video(path, model_size, language=language, on_log=on_log)
         return text, {}
 
     audio_path = path
@@ -726,6 +729,10 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
     thin = "-" * 40
     sections = []
 
+    if result.detected_language:
+        sections += ["DOCUMENT INFO", thin,
+                     f"  Language : {result.detected_language}", ""]
+
     if config.include_summary:
         sections += [divider, "SUMMARY", divider, result.summary, ""]
 
@@ -778,7 +785,10 @@ def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str
     Path(paths["speakers"]).write_text(result.speaker_dialogue, encoding="utf-8")
     Path(paths["combined"]).write_text(build_combined_report(result, config), encoding="utf-8")
 
-    report_lines = [f"# {stem}", "", "## Summary", result.summary, ""]
+    report_lines = [f"# {stem}", ""]
+    if result.detected_language:
+        report_lines += [f"**Language:** {result.detected_language}", ""]
+    report_lines += ["## Summary", result.summary, ""]
     if result.key_points:
         report_lines += ["## Key Points", *[f"- {p}" for p in result.key_points], ""]
     if result.action_items:
@@ -838,6 +848,7 @@ def run(
         _log(f"Language: {language_variant or language}")
 
     raw_whisperx = {}
+    _detected_lang = ""
 
     if panel_mode and ext in (AUDIO_EXTS | VIDEO_EXTS):
         _log("Mode: Panel (multi-speaker diarization)")
@@ -845,11 +856,12 @@ def run(
         raw_text, raw_whisperx = load_audio_video_panel(
             file_path, whisper_model, num_speakers, language=language, on_log=on_log
         )
+        _detected_lang = raw_whisperx.get("language", "")
         fmt = "panel audio/video (diarized)"
     elif ext in (AUDIO_EXTS | VIDEO_EXTS):
         _log(f"Mode: Standard audio/video  |  Whisper model: {whisper_model}")
         if on_stage_change: on_stage_change("extracting")
-        raw_text = load_audio_video(
+        raw_text, _detected_lang = load_audio_video(
             file_path, whisper_model,
             on_progress=on_whisper_progress,
             on_stage_change=on_stage_change,
@@ -880,6 +892,10 @@ def run(
         language_variant=language_variant,
         on_log=on_log,
     )
+
+    # Resolve display language: prefer user-specified variant label, then ISO code,
+    # then Whisper-detected code, fall back to "Auto-detected".
+    result.detected_language = language_variant or language or _detected_lang or "Auto-detected"
 
     paths = save_results(result, config, output_dir, Path(file_path).stem)
     _log(f"Outputs saved to: {output_dir}/")

@@ -14,22 +14,94 @@ import mimetypes
 import tempfile
 from pathlib import Path
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent / ".env")
+except ImportError:
+    pass
+
+
+def _get_proxyscrape_proxies() -> list:
+    """Return proxy URLs to try when a direct download is blocked (403)."""
+    import requests as _r
+    api_key = os.environ.get("PROXYSCRAPE_API_KEY", "").strip()
+    params = {
+        "request": "displayproxies",
+        "proxy_format": "protocolipport",
+        "format": "text",
+        "anonymity": "elite,anonymous",
+        "timeout": "8000",
+        "country": "US,GB,DE,CA,AU,NL",
+    }
+    if api_key:
+        params["apiKey"] = api_key
+    try:
+        r = _r.get(
+            "https://api.proxyscrape.com/v3/free-proxy-list/get",
+            params=params,
+            timeout=10,
+        )
+        if r.ok:
+            lines = [l.strip() for l in r.text.splitlines() if l.strip()]
+            return ["http://" + l if "://" not in l else l for l in lines[:20]]
+    except Exception:
+        pass
+    return []
+
+
+def _resolve_nextcloud_token_url(url: str):
+    """
+    Decode a Nextcloud share token URL and return a direct S3 object URL.
+    Supports nextim.itcapp.ai and path-style s3.amazonaws.com share URLs.
+    """
+    import base64, json
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if "/api/nextcloud/share" not in parsed.path:
+            return None
+        qs = urllib.parse.parse_qs(parsed.query)
+        token_b64 = qs.get("token", [""])[0]
+        if not token_b64:
+            return None
+        pad = (4 - len(token_b64) % 4) % 4
+        token_data = json.loads(base64.b64decode(token_b64 + "=" * pad).decode())
+        file_key = token_data.get("key", "")
+        if not file_key:
+            return None
+        host = parsed.hostname or ""
+        if host == "s3.amazonaws.com":
+            # path-style: /s3.amazonaws.com/{bucket}/api/nextcloud/share
+            bucket = parsed.path.lstrip("/").split("/")[0]
+        elif "itcapp.ai" in host or "nextim" in host:
+            # ITC App Nextcloud server — recordings live in this S3 bucket
+            bucket = "nextcloud-talk-recordings-itc-eit"
+        else:
+            return None
+        if not bucket:
+            return None
+        encoded_key = urllib.parse.quote(file_key, safe="")
+        return f"https://{bucket}.s3.amazonaws.com/{encoded_key}"
+    except Exception:
+        return None
+
 
 def _download_url(url: str, dest_dir: Path) -> Path:
     """Download a URL to dest_dir; uses Content-Disposition to pick filename.
 
     Handles S3 application-level redirects (PermanentRedirect XML response with
     HTTP 200/301) by retrying against the correct endpoint.
+    On 403 Forbidden, retries via ProxyScrape proxy (uses PROXYSCRAPE_API_KEY env var).
     """
     import requests
 
-    def _do_get(u: str):
+    def _do_get(u: str, proxies=None, timeout=300):
         return requests.get(
             u,
             stream=True,
-            timeout=300,
+            timeout=timeout,
             headers={"User-Agent": "TranscriptAgent/1.0"},
             allow_redirects=True,
+            proxies=proxies,
         )
 
     resp = _do_get(url)
@@ -39,6 +111,43 @@ def _download_url(url: str, dest_dir: Path) -> Path:
             "The URL requires a login (401 Unauthorized). "
             "Download the file manually and paste its local path instead."
         )
+
+    if resp.status_code == 403:
+        resp.close()
+        resp = None
+
+        # Strategy 1: decode Nextcloud share token → direct S3 object URL
+        direct_url = _resolve_nextcloud_token_url(url)
+        if direct_url:
+            try:
+                _r = _do_get(direct_url)
+                if _r.ok:
+                    resp = _r
+                else:
+                    _r.close()
+            except Exception:
+                pass
+
+        # Strategy 2: retry via ProxyScrape proxy
+        if resp is None:
+            for proxy_url in _get_proxyscrape_proxies():
+                try:
+                    pr = {"http": proxy_url, "https": proxy_url}
+                    _r = _do_get(url, proxies=pr, timeout=90)
+                    if _r.ok:
+                        resp = _r
+                        break
+                    _r.close()
+                except Exception:
+                    continue
+
+        if resp is None:
+            raise ValueError(
+                "403 Forbidden — the server denied access to this URL.\n"
+                "The share link may require a company VPN or internal network access.\n"
+                "Download the file manually and paste its local path instead."
+            )
+
     resp.raise_for_status()
 
     # Peek at the first chunk so we can detect S3 XML-style errors that arrive
@@ -65,22 +174,37 @@ def _download_url(url: str, dest_dir: Path) -> Path:
         m_ep     = re.search(r"<Endpoint>([^<]+)</Endpoint>", body)
         m_bucket = re.search(r"<Bucket>([^<]+)</Bucket>", body)
         if m_code and m_code.group(1) == "PermanentRedirect" and m_ep:
-            parsed = urllib.parse.urlparse(url)
+            # Use resp.url (the actual S3 URL after following HTTP redirects) not
+            # the original URL, so we get the correct object path.
+            parsed = urllib.parse.urlparse(resp.url)
             new_host = m_ep.group(1).strip()
-            # If the suggested endpoint is the bare regional/global host (e.g.
-            # "s3.amazonaws.com"), keep the bucket on the path; otherwise use
-            # the endpoint as-is (it already includes the bucket).
             bucket = m_bucket.group(1).strip() if m_bucket else ""
+            # Strip region-specific presigned params — they're invalid at the new endpoint.
+            _qs = parsed.query
+            _is_presigned = any(k in _qs for k in ("X-Amz-Algorithm", "X-Amz-Credential", "AWSAccessKeyId"))
+            _new_qs = "" if _is_presigned else _qs
             if bucket and not new_host.startswith(bucket + "."):
                 new_path = "/" + bucket.strip("/") + "/" + parsed.path.lstrip("/")
             else:
                 new_path = parsed.path
             new_url = urllib.parse.urlunparse(
                 (parsed.scheme or "https", new_host, new_path,
-                 parsed.params, parsed.query, parsed.fragment)
+                 parsed.params, _new_qs, parsed.fragment)
             )
             resp.close()
             resp = _do_get(new_url)
+            if resp.status_code in (400, 403) and _is_presigned:
+                # Presigned URL for wrong region — server-side misconfiguration.
+                _orig_host = urllib.parse.urlparse(url).hostname or ""
+                _hint = (
+                    f"Open {_orig_host} in your browser, download the recording, "
+                    "then drag the file into the app or paste its local path."
+                ) if _orig_host else "Download the file manually and paste its local path."
+                raise ValueError(
+                    f"The recording server ({_orig_host}) generated a presigned URL "
+                    "for the wrong AWS region — this is a server configuration issue "
+                    "that cannot be worked around automatically.\n\n" + _hint
+                )
             resp.raise_for_status()
             chunks = resp.iter_content(chunk_size=65536)
             try:
@@ -716,22 +840,130 @@ def stats_to_markdown(speaker_stats) -> str:
 # ── processing — generator streams every update live to the UI ────────────────
 #
 # Output order (15 items, must match outputs= list in .click()):
+def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
+    """Render the combined report as a formatted PDF using fpdf2."""
+    from fpdf import FPDF
+
+    class _PDF(FPDF):
+        def footer(self):
+            self.set_y(-12)
+            self.set_font("Helvetica", "I", 8)
+            self.set_text_color(150, 150, 150)
+            self.cell(0, 10, f"Page {self.page_no()}", align="C")
+
+    def _safe(text: str) -> str:
+        return (text
+                .replace("☐", "[ ]").replace("☑", "[x]")
+                .replace("•", "-").replace("’", "'")
+                .replace("“", '"').replace("”", '"')
+                .replace("–", "-").replace("—", "--")
+                .encode("latin-1", errors="replace").decode("latin-1"))
+
+    pdf = _PDF()
+    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.add_page()
+    pdf.set_margins(20, 20, 20)
+
+    # Title
+    pdf.set_font("Helvetica", "B", 20)
+    pdf.cell(0, 12, _safe(stem), new_x="LMARGIN", new_y="NEXT", align="C")
+    pdf.set_draw_color(80, 80, 80)
+    pdf.set_line_width(0.5)
+    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.ln(5)
+    pdf.set_font("Helvetica", "", 10)
+
+    for line in combined_text.splitlines():
+        stripped = line.rstrip()
+        # Skip pure divider lines (===... or ---...)
+        if stripped and set(stripped) <= {"=", "-", " "} and len(stripped) > 4:
+            continue
+        if not stripped:
+            pdf.ln(2)
+            continue
+        inner = stripped.strip()
+        # ALL-CAPS section headers
+        if (inner.isupper() and 2 < len(inner) < 60
+                and not set(inner) <= {"=", "-", " "}):
+            pdf.ln(5)
+            pdf.set_fill_color(235, 235, 235)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.cell(0, 7, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True)
+            pdf.ln(2)
+            pdf.set_font("Helvetica", "", 10)
+        else:
+            pdf.multi_cell(0, 5, _safe(stripped))
+
+    pdf.output(str(path))
+    return str(path)
+
+
 #   0  status_bar       1  summary_out      2  transcript_out   3  dialogue_out
 #   4  profiles_out     5  analytics_out    6  combined_out
 #   7  dl_transcript    8  dl_speakers      9  dl_report
-#   10 dl_combined      11 dl_json          12 download_accordion
-#   13 log_out          14 eta_panel
+#   10 dl_combined      11 dl_json          12 dl_pdf
+#   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 15   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 17   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
          combined=gr.update(), dl_t=gr.update(), dl_s=gr.update(),
-         dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(), dl_acc=gr.update(),
-         log=gr.update(), eta=gr.update()):
+         dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
+         dl_acc=gr.update(), log=gr.update(), eta=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
-            combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_acc, log, eta)
+            combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p, dl_acc, log, eta, rs)
+
+
+_PDF_LANGUAGES = [
+    "Same as source",
+    "English", "Spanish", "French", "German", "Portuguese",
+    "Italian", "Dutch", "Russian", "Chinese (Simplified)",
+    "Japanese", "Korean", "Arabic", "Hindi", "Turkish",
+]
+
+
+def _translate_combined_text(combined_text: str, target_language: str, api_key: str) -> str:
+    """Translate the combined report text to target_language using Claude."""
+    import anthropic as _ant
+    client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
+    resp = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=8192,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Translate the following transcript report to {target_language}. "
+                "Preserve ALL formatting exactly — keep the section headers in ALL CAPS, "
+                "keep divider lines (=== and ---), bullet characters (•, ☐), "
+                "and timestamps in [HH:MM:SS] format unchanged. "
+                "Only return the translated text, nothing else.\n\n"
+                + combined_text
+            ),
+        }],
+    )
+    return resp.content[0].text
+
+
+def generate_pdf_in_language(result_state, target_lang: str, api_key: str):
+    """Generate (or re-generate) the PDF in the chosen language."""
+    if not result_state:
+        return gr.update()
+    stem         = result_state["stem"]
+    combined     = result_state["combined_text"]
+    detected     = result_state.get("detected_language", "")
+    out_dir      = Path(result_state["out_dir"])
+
+    if target_lang and target_lang != "Same as source":
+        combined = _translate_combined_text(combined, target_lang, api_key)
+        pdf_name = f"{stem}_report_{target_lang.replace(' ', '_')}.pdf"
+    else:
+        pdf_name = f"{stem}_report.pdf"
+
+    pdf_path = out_dir / pdf_name
+    _generate_pdf(f"{stem}  [{detected or target_lang}]", combined, pdf_path)
+    return str(pdf_path)
 
 
 def _step_tracker_html(stage: str, done: bool = False) -> str:
@@ -1213,6 +1445,12 @@ def process_file(
             f_r = str(job_dir / f"{stem}_report.md")
             f_c = str(job_dir / f"{stem}_combined.txt")
             f_j = str(job_dir / f"{stem}_full.json")
+            f_p_path = job_dir / f"{stem}_report.pdf"
+            try:
+                _generate_pdf(stem, combined_text, f_p_path)
+                f_p = str(f_p_path)
+            except Exception:
+                f_p = None
 
             total_elapsed = _elapsed()
             log_text = _add_log(f"All done! Total time: {total_elapsed}")
@@ -1225,8 +1463,11 @@ def process_file(
                 profiles=profiles_md,
                 analytics=analytics_md,
                 combined=combined_text,
-                dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j,
+                dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_acc=gr.update(open=True),
+                rs={"stem": stem, "combined_text": combined_text,
+                    "detected_language": result.detected_language,
+                    "out_dir": str(job_dir)},
                 log=log_text,
             )
             break
@@ -1650,13 +1891,25 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 elem_classes=["big-btn"],
             )
 
+            result_state = gr.State(value=None)
+
             download_accordion = gr.Accordion("Download Outputs", open=False)
             with download_accordion:
                 dl_transcript = gr.File(label="Transcript (.txt)")
                 dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
                 dl_report     = gr.File(label="Report (.md)")
+                dl_pdf        = gr.File(label="Report (.pdf)")
                 dl_combined   = gr.File(label="Combined Report (.txt)")
                 dl_json       = gr.File(label="Raw Data (.json)")
+                gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
+                with gr.Row():
+                    pdf_lang_input = gr.Dropdown(
+                        label="PDF transcript language",
+                        choices=_PDF_LANGUAGES,
+                        value="Same as source",
+                        scale=3,
+                    )
+                    pdf_regen_btn = gr.Button("Generate PDF", scale=1, size="sm")
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -1734,11 +1987,18 @@ with gr.Blocks(title="Transcript Agent") as demo:
             status_bar,
             summary_out, transcript_out, dialogue_out,
             profiles_out, analytics_out, combined_out,
-            dl_transcript, dl_speakers, dl_report, dl_combined, dl_json,
+            dl_transcript, dl_speakers, dl_report, dl_combined, dl_json, dl_pdf,
             download_accordion,
             log_out,
             eta_panel,
+            result_state,
         ],
+    )
+
+    pdf_regen_btn.click(
+        fn=generate_pdf_in_language,
+        inputs=[result_state, pdf_lang_input, user_api_key],
+        outputs=[dl_pdf],
     )
 
 

@@ -2114,27 +2114,57 @@ _THEME_JS = """
     else     el.style.removeProperty(prop);
   }
 
+  /* _SKIP: elements whose colors we manage separately */
+  function _skip(el) {
+    return el.closest('#ta-widget') || el.closest('#api-banner') || el.closest('#ta-wake-notice');
+  }
+
   function patchDOM(dark) {
     var bg0 = dark ? '#0f172a' : null;
     var bg1 = dark ? '#1e293b' : null;
     var fg  = dark ? '#e2e8f0' : null;
     var fg2 = dark ? '#94a3b8' : null;
     var bd  = dark ? '#334155' : null;
+
+    /* Page containers */
     document.querySelectorAll('.gradio-container,.main,.contain,body').forEach(function(el){
       _sp(el,'background',bg0); _sp(el,'color',fg);
     });
-    document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact').forEach(function(el){
+
+    /* Blocks, forms, accordions — backgrounds */
+    document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact,details,summary').forEach(function(el){
       _sp(el,'background',bg1); _sp(el,'border-color',bd);
+      if(fg) _sp(el,'color',fg);
     });
+
+    /* Inputs */
     document.querySelectorAll('input,textarea,select').forEach(function(el){
       _sp(el,'background',bg0); _sp(el,'color',fg); _sp(el,'border-color',dark?'#475569':null);
     });
-    document.querySelectorAll('.label-wrap span,.block-label,label>span,.info').forEach(function(el){
-      _sp(el,'color',fg2);
+
+    /* Nuclear text patch — every text node inside .gradio-container gets the
+       correct color. We skip: images, buttons, our own widgets, and the banner.
+       This ensures accordion labels, info text, step numbers, etc. are visible. */
+    var SKIP_TAGS = {IMG:1,VIDEO:1,CANVAS:1,SVG:1,PATH:1,INPUT:1,TEXTAREA:1,SELECT:1};
+    document.querySelectorAll('.gradio-container *').forEach(function(el){
+      if (SKIP_TAGS[el.tagName]) return;
+      if (_skip(el)) return;
+      /* Labels/info get subdued color; everything else gets full white */
+      var isLabel = el.classList.contains('block-label') ||
+                    (el.parentElement && (el.parentElement.classList.contains('label-wrap') ||
+                                          el.parentElement.classList.contains('info')));
+      _sp(el, 'color', dark ? (isLabel ? '#94a3b8' : '#e2e8f0') : null);
     });
-    /* Force text color on common text containers */
-    document.querySelectorAll('.block p,.block span,.block div,.block td,.block li').forEach(function(el){
-      _sp(el,'color',fg);
+
+    /* Dropdowns specifically */
+    document.querySelectorAll('[role=listbox],[role=option],[role=combobox]').forEach(function(el){
+      _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
+    });
+
+    /* Big button — keep it blue */
+    document.querySelectorAll('.big-btn button').forEach(function(el){
+      _sp(el,'background',dark?'linear-gradient(135deg,#1e40af,#3b82f6)':null);
+      _sp(el,'color',dark?'#fff':null);
     });
   }
 

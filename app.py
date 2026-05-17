@@ -2315,17 +2315,68 @@ _IDLE_STATUS = """
 """
 
 _FORMATS = """
-<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 16px;
-     font-size:0.78em;color:#64748b;line-height:1.8;">
-  <strong style="color:#334155;">Audio:</strong> mp3 &nbsp;wav &nbsp;m4a &nbsp;flac &nbsp;ogg &nbsp;aac &nbsp;&nbsp;
-  <strong style="color:#334155;">Video:</strong> mp4 &nbsp;mov &nbsp;avi &nbsp;mkv &nbsp;webm<br>
-  <strong style="color:#334155;">Docs:</strong> pdf &nbsp;docx &nbsp;txt &nbsp;md &nbsp;srt &nbsp;vtt
+<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);
+     border-radius:10px;padding:14px 16px;font-family:sans-serif;">
+  <div style="display:flex;flex-direction:column;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:0.78em;font-weight:700;text-transform:uppercase;
+            letter-spacing:0.06em;color:var(--ta-card-sub);min-width:38px;">🎵 Audio</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">mp3</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">wav</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">m4a</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">flac</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">ogg</span>
+      <span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">aac</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:0.78em;font-weight:700;text-transform:uppercase;
+            letter-spacing:0.06em;color:var(--ta-card-sub);min-width:38px;">🎬 Video</span>
+      <span style="background:var(--ta-step-done-bg);color:var(--ta-step-done-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">mp4</span>
+      <span style="background:var(--ta-step-done-bg);color:var(--ta-step-done-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">mov</span>
+      <span style="background:var(--ta-step-done-bg);color:var(--ta-step-done-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">avi</span>
+      <span style="background:var(--ta-step-done-bg);color:var(--ta-step-done-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">mkv</span>
+      <span style="background:var(--ta-step-done-bg);color:var(--ta-step-done-clr);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">webm</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:0.78em;font-weight:700;text-transform:uppercase;
+            letter-spacing:0.06em;color:var(--ta-card-sub);min-width:38px;">📄 Docs</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">pdf</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">docx</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">txt</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">md</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">srt</span>
+      <span style="background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            border:1px solid var(--ta-card-border);
+            font-size:0.75em;font-weight:600;padding:2px 8px;border-radius:5px;">vtt</span>
+    </div>
+  </div>
 </div>
 """
 
 _SECTION = lambda label: f"""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
-     color:#94a3b8;margin:4px 0 2px;">{label}</div>
+     color:var(--ta-card-sub);margin:4px 0 2px;">{label}</div>
 """
 
 # ── UI ──────────────────────────────────────────────────────────────────────────

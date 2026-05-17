@@ -12,11 +12,26 @@ Outputs:  clean transcript, speaker-labelled dialogue, summary, key points,
 import os
 import sys
 
-# ensure stdout/stderr use UTF-8 on Windows so emoji/special chars don't crash prints
+# ── Force UTF-8 everywhere so no Unicode character can crash transcription ──────
+# Set env var BEFORE any library imports so subprocesses inherit it too
+os.environ.setdefault("PYTHONIOENCODING", "utf-8:replace")
+os.environ.setdefault("PYTHONUTF8", "1")
+
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+def _safe_print(*args, **kwargs):
+    """print() that never raises on encoding errors."""
+    try:
+        print(*args, **kwargs)
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        safe = " ".join(str(a).encode("ascii", errors="replace").decode("ascii") for a in args)
+        try:
+            print(safe, **{k: v for k, v in kwargs.items() if k != "file"})
+        except Exception:
+            pass
 import json
 import re
 import tempfile
@@ -260,7 +275,7 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     language: ISO-639-1 code (e.g. "es", "en") or None for auto-detect.
     """
     def _log(m):
-        print(f"  {m}")
+        _safe_print(f"  {m}")
         if on_log: on_log(m)
 
     global _progress_cb
@@ -349,7 +364,7 @@ def load_audio_video_panel(
     language: ISO-639-1 code or None for auto-detect.
     """
     def _log(m):
-        print(f"  {m}")
+        _safe_print(f"  {m}")
         if on_log: on_log(m)
 
     try:
@@ -369,7 +384,7 @@ def load_audio_video_panel(
     audio_path = path
     tmp_path = None
     if Path(path).suffix.lower() in VIDEO_EXTS:
-        print("  Extracting audio from video...")
+        _safe_print("  Extracting audio from video...")
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp_path = tmp.name
         tmp.close()
@@ -481,7 +496,7 @@ def load_file(path: str, whisper_model: str = "base") -> tuple:
         raise FileNotFoundError(f"File not found: {path}")
 
     ext = p.suffix.lower()
-    print(f"  Format detected: {ext or 'text'}")
+    _safe_print(f"  Format detected: {ext or 'text'}")
 
     if ext in AUDIO_EXTS:
         return load_audio_video(path, whisper_model), "audio recording"
@@ -699,7 +714,7 @@ def _chunk(text: str, max_chars: int = 600_000) -> list:
 
 
 def _merge_summaries(client, results: list) -> str:
-    print("  Merging summaries...")
+    _safe_print("  Merging summaries...")
     combined = "\n".join(f"- {r.get('summary', '')}" for r in results)
     return client.chat(
         system="You are a helpful assistant.",
@@ -721,7 +736,7 @@ def process_transcript(
     on_log=None,
 ) -> TranscriptResult:
     def _log(m):
-        print(f"  {m}")
+        _safe_print(f"  {m}")
         if on_log: on_log(m)
 
     config = config or ReportConfig()
@@ -912,12 +927,12 @@ def run(
     on_log=None,                    # callable(msg: str) — human-readable step log
 ) -> TranscriptResult:
     def _log(m):
-        print(f"  {m}")
+        _safe_print(f"  {m}")
         if on_log: on_log(m)
 
     config = config or ReportConfig()
     print(f"\nTranscript Agent {'(Panel)' if panel_mode else ''}")
-    print("=" * 50)
+    _safe_print("=" * 50)
 
     fname = Path(file_path).name
     ext   = Path(file_path).suffix.lower()
@@ -981,11 +996,11 @@ def run(
 
     print(f"\n✓ Done! Outputs saved to: {output_dir}/")
     print(f"\n{'─'*50}\nSUMMARY\n{'─'*50}")
-    print(result.summary)
+    _safe_print(result.summary)
     if result.key_points:
         print(f"\nKEY POINTS (first 5 of {len(result.key_points)})")
         for p in result.key_points[:5]:
-            print(f"  • {p}")
+            _safe_print(f"  • {p}")
 
     return result
 

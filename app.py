@@ -253,13 +253,25 @@ def _download_url(url: str, dest_dir: Path) -> Path:
 
     dest = dest_dir / filename
     total = 0
+    last_progress = time.time()
     with open(dest, "wb") as f:
         if first:
             f.write(first)
             total += len(first)
+            last_progress = time.time()
         for chunk in chunks:
+            if not chunk:
+                # empty keep-alive chunk — check for stall
+                if time.time() - last_progress > 60:
+                    raise ValueError(
+                        "Download stalled — no data received for 60 seconds. "
+                        "The server dropped the connection. Download the file via "
+                        "your browser and drag it into the app instead."
+                    )
+                continue
             f.write(chunk)
             total += len(chunk)
+            last_progress = time.time()
 
     # Sanity check: a real audio/video file is never just a few hundred bytes.
     if total < 1024:
@@ -305,29 +317,110 @@ _PROVIDERS = {
         "type": "anthropic",
         "placeholder": "sk-ant-api03-…",
         "info": "console.anthropic.com → API keys → Create key",
-        "models": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+        "models": [
+            "claude-opus-4-7",
+            "claude-sonnet-4-6",
+            "claude-haiku-4-5-20251001",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-haiku-20241022",
+            "claude-3-opus-20240229",
+        ],
         "base_url": None,
     },
     "OpenAI": {
         "type": "openai",
         "placeholder": "sk-…",
         "info": "platform.openai.com → API keys",
-        "models": ["gpt-4o", "gpt-4-turbo", "gpt-4o-mini"],
+        "models": [
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo",
+            "o1",
+            "o1-mini",
+            "o3-mini",
+            "gpt-3.5-turbo",
+        ],
         "base_url": None,
     },
     "Google Gemini": {
         "type": "openai_compat",
         "placeholder": "AIzaSy…",
         "info": "aistudio.google.com → Get API key",
-        "models": ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"],
+        "models": [
+            "gemini-2.5-pro-preview-05-06",
+            "gemini-2.0-flash-exp",
+            "gemini-2.0-flash-thinking-exp",
+            "gemini-1.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.5-flash-8b",
+        ],
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
     },
     "Groq": {
         "type": "openai_compat",
         "placeholder": "gsk_…",
         "info": "console.groq.com → API keys",
-        "models": ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"],
+        "models": [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-70b-versatile",
+            "llama3-70b-8192",
+            "llama3-8b-8192",
+            "mixtral-8x7b-32768",
+            "gemma2-9b-it",
+        ],
         "base_url": "https://api.groq.com/openai/v1",
+    },
+    "Mistral": {
+        "type": "openai_compat",
+        "placeholder": "…",
+        "info": "console.mistral.ai → API keys",
+        "models": [
+            "mistral-large-latest",
+            "mistral-medium-latest",
+            "mistral-small-latest",
+            "open-mixtral-8x22b",
+            "open-mistral-nemo",
+        ],
+        "base_url": "https://api.mistral.ai/v1",
+    },
+    "Together AI": {
+        "type": "openai_compat",
+        "placeholder": "…",
+        "info": "api.together.ai → Settings → API keys",
+        "models": [
+            "meta-llama/Llama-3-70b-chat-hf",
+            "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
+            "mistralai/Mixtral-8x22B-Instruct-v0.1",
+            "Qwen/Qwen2-72B-Instruct",
+            "google/gemma-2-27b-it",
+        ],
+        "base_url": "https://api.together.xyz/v1",
+    },
+    "Perplexity": {
+        "type": "openai_compat",
+        "placeholder": "pplx-…",
+        "info": "perplexity.ai → Settings → API",
+        "models": [
+            "llama-3.1-sonar-large-128k-online",
+            "llama-3.1-sonar-huge-128k-online",
+            "llama-3.1-sonar-small-128k-online",
+            "llama-3.1-70b-instruct",
+        ],
+        "base_url": "https://api.perplexity.ai",
+    },
+    "Ollama (Local)": {
+        "type": "openai_compat",
+        "placeholder": "none required",
+        "info": "ollama.ai — run models locally, no API key needed",
+        "models": [
+            "llama3.2",
+            "llama3.1:70b",
+            "mistral",
+            "gemma2:27b",
+            "qwen2.5:72b",
+            "phi3.5",
+        ],
+        "base_url": "http://localhost:11434/v1",
     },
 }
 
@@ -372,10 +465,28 @@ body { background: #f1f5f9 !important; }
     transform: translateY(-1px) !important;
 }
 
-/* scrollable dropdowns */
+/* scrollable dropdowns — generic */
 [role="listbox"] {
     max-height: 220px !important;
     overflow-y: auto !important;
+}
+
+/* provider + model dropdowns — taller scroll area, thin scrollbar */
+#provider-sel [role="listbox"],
+#model-sel [role="listbox"] {
+    max-height: 280px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+}
+#provider-sel [role="listbox"]::-webkit-scrollbar,
+#model-sel [role="listbox"]::-webkit-scrollbar { width: 6px !important; }
+#provider-sel [role="listbox"]::-webkit-scrollbar-thumb,
+#model-sel [role="listbox"]::-webkit-scrollbar-thumb {
+    background: #94a3b8 !important; border-radius: 4px !important;
+}
+html.dark #provider-sel [role="listbox"]::-webkit-scrollbar-thumb,
+html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
+    background: #475569 !important;
 }
 
 /* live log dark terminal */
@@ -1256,10 +1367,10 @@ def process_file(
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
-    if not api_key:
+    provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
+    if not api_key and provider_name != "Ollama (Local)":
         yield _err(f"Please enter your {provider_name} API key at the top of the page.")
         return
-    provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
     _prevent_sleep()
@@ -1809,10 +1920,12 @@ _THEME_TOGGLE = """
 
   /* ── 🔑 API key banner — multi-provider aware ───────────────────────────── */
   var KEY_PROVIDERS = [
-    { prefix: 'sk-ant',  name: 'Anthropic' },
-    { prefix: 'sk-',     name: 'OpenAI'    },
+    { prefix: 'sk-ant',  name: 'Anthropic'   },
+    { prefix: 'sk-',     name: 'OpenAI'      },
     { prefix: 'AIzaSy',  name: 'Google Gemini' },
-    { prefix: 'gsk_',    name: 'Groq'      },
+    { prefix: 'gsk_',    name: 'Groq'        },
+    { prefix: 'pplx-',   name: 'Perplexity'  },
+    { prefix: 'ollama',  name: 'Ollama'      },
   ];
 
   function detectProvider(v) {
@@ -1928,12 +2041,15 @@ with gr.Blocks(title="Transcript Agent") as demo:
             choices=list(_PROVIDERS.keys()),
             value="Claude (Anthropic)",
             scale=1,
+            elem_id="provider-sel",
         )
         model_dropdown = gr.Dropdown(
             label="Model",
             choices=_PROVIDERS["Claude (Anthropic)"]["models"],
             value=_PROVIDERS["Claude (Anthropic)"]["models"][0],
             scale=2,
+            allow_custom_value=True,
+            elem_id="model-sel",
         )
 
     user_api_key = gr.Textbox(

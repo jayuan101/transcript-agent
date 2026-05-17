@@ -479,23 +479,61 @@ footer { display: none !important; }
 /* page */
 body { background: #f1f5f9 !important; }
 
-/* ── Checkbox visibility — both modes ── */
+/* ── Checkbox — fully custom so both checked and unchecked are visible ── */
 input[type="checkbox"] {
-    accent-color: #2563eb !important;
-    width: 16px !important;
-    height: 16px !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    width: 18px !important;
+    height: 18px !important;
+    min-width: 18px !important;
+    border: 2px solid #2563eb !important;
+    border-radius: 4px !important;
+    background: #ffffff !important;
     cursor: pointer !important;
+    position: relative !important;
+    vertical-align: middle !important;
+    transition: background 0.15s, border-color 0.15s !important;
+    flex-shrink: 0 !important;
 }
+input[type="checkbox"]:checked {
+    background: #2563eb !important;
+    border-color: #2563eb !important;
+}
+input[type="checkbox"]:checked::after {
+    content: '' !important;
+    position: absolute !important;
+    left: 4px !important;
+    top: 1px !important;
+    width: 6px !important;
+    height: 10px !important;
+    border: 2px solid #fff !important;
+    border-top: none !important;
+    border-left: none !important;
+    transform: rotate(45deg) !important;
+    display: block !important;
+}
+input[type="checkbox"]:hover { border-color: #1d4ed8 !important; }
+input[type="checkbox"]:focus { outline: 2px solid #93c5fd !important; outline-offset: 2px !important; }
+
+/* Dark mode checkboxes */
 html.dark input[type="checkbox"] {
-    accent-color: #3b82f6 !important;
-    outline: 1px solid #475569 !important;
-    outline-offset: 1px !important;
+    background: #1e293b !important;
+    border-color: #60a5fa !important;
 }
+html.dark input[type="checkbox"]:checked {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+html.dark input[type="checkbox"]:hover { border-color: #93c5fd !important; }
+
 .checkbox-wrap { align-items: center !important; gap: 8px !important; }
 .checkbox-group label, .checkbox-wrap label {
     font-size: 0.9em !important;
     font-weight: 500 !important;
     cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
 }
 html.dark .checkbox-group label span,
 html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
@@ -2015,9 +2053,12 @@ _THEME_JS = """
     ps.textContent = [
       /* Light mode page base */
       'body{background:#f1f5f9!important}',
-      /* Checkbox visibility */
-      'input[type=checkbox]{accent-color:#2563eb!important;width:16px!important;height:16px!important;cursor:pointer!important}',
-      'html.dark input[type=checkbox]{accent-color:#3b82f6!important;outline:1px solid #475569!important;outline-offset:1px!important}',
+      /* Custom checkboxes — visible in both modes */
+      'input[type=checkbox]{-webkit-appearance:none!important;appearance:none!important;width:18px!important;height:18px!important;min-width:18px!important;border:2px solid #2563eb!important;border-radius:4px!important;background:#fff!important;cursor:pointer!important;position:relative!important;vertical-align:middle!important;flex-shrink:0!important}',
+      'input[type=checkbox]:checked{background:#2563eb!important;border-color:#2563eb!important}',
+      'input[type=checkbox]:checked::after{content:""!important;position:absolute!important;left:4px!important;top:1px!important;width:6px!important;height:10px!important;border:2px solid #fff!important;border-top:none!important;border-left:none!important;transform:rotate(45deg)!important;display:block!important}',
+      'html.dark input[type=checkbox]{background:#1e293b!important;border-color:#60a5fa!important}',
+      'html.dark input[type=checkbox]:checked{background:#3b82f6!important;border-color:#3b82f6!important}',
       '.checkbox-wrap{align-items:center!important;gap:8px!important}',
       /* CSS vars — light defaults for step tracker + ETA panel */
       ':root{--ta-card-bg:#f8fafc;--ta-card-border:#e2e8f0;--ta-card-text:#1e293b;--ta-card-sub:#64748b;--ta-card-val:#111827;',

@@ -1631,9 +1631,12 @@ def process_file(
         yield _err(f"File not found: {uploaded_file}")
         return
 
-    log = _add_log(f"📂  File ready: {Path(uploaded_file).name}")
+    _fname = Path(uploaded_file).name
+    log = _add_log(f"📂  File ready: {_fname}")
+    # Tell the browser a job is starting — survives page refresh
+    _job_js = f"<script>window.taJobStart && window.taJobStart({repr(_fname)})</script>"
     yield _out(
-        status=_status_compact("⏳", "Starting…", _elapsed()),
+        status=_status_compact("⏳", "Starting…", _elapsed()) + _job_js,
         eta=_eta_panel_html("loading", elapsed=_elapsed()),
         log=log,
     )
@@ -1871,7 +1874,8 @@ def process_file(
             log_text = _add_header("✅  COMPLETE")
             log_text = _add_log(f"All done in {total_elapsed}. Results ready in all tabs.", "done")
             yield _out(
-                status=_status_compact("✅", "Done! All tabs are ready.", total_elapsed),
+                status=_status_compact("✅", "Done! All tabs are ready.", total_elapsed)
+                      + "<script>window.taJobEnd && window.taJobEnd()</script>",
                 eta=_eta_panel_html("done", elapsed=total_elapsed, done=True),
                 summary=summary_md,
                 transcript=result.clean_transcript,
@@ -2527,6 +2531,53 @@ _THEME_JS = """
         setTimeout(function(){ if(n.parentElement) n.remove(); }, 8000);
       }
     }, 3000);
+  })();
+
+  /* ── 🔄 Background job tracker ──────────────────────────────────────────────
+     Saves the current job state to localStorage so if the page crashes or
+     the user navigates away, a banner shows on return: "Job still running".
+     app.py Python side sets 'ta-job-active' when processing starts/ends. */
+  (function(){
+    function showJobBanner(msg, sub) {
+      if (document.getElementById('ta-job-banner')) return;
+      var b = document.createElement('div');
+      b.id = 'ta-job-banner';
+      b.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
+        + 'z-index:99998;background:#1e3a5f;color:#e2e8f0;padding:14px 22px;border-radius:12px;'
+        + 'font-family:sans-serif;font-size:0.88em;font-weight:600;border:1px solid #2563eb;'
+        + 'box-shadow:0 4px 20px rgba(0,0,0,0.5);display:flex;align-items:center;gap:12px;max-width:380px;';
+      b.innerHTML = '<span style="font-size:1.3em;">⚙️</span>'
+        + '<div><div>' + msg + '</div>'
+        + '<div style="color:#93c5fd;font-size:0.82em;margin-top:2px;">' + sub + '</div></div>'
+        + '<button onclick="this.parentElement.remove()" style="margin-left:auto;background:none;'
+        + 'border:none;color:#94a3b8;cursor:pointer;font-size:1.1em;flex-shrink:0;">✕</button>';
+      document.body.appendChild(b);
+      setTimeout(function(){ if(b.parentElement) b.remove(); }, 12000);
+    }
+
+    /* On page load: check if a job was running when the page was last closed */
+    var jobInfo = localStorage.getItem('ta-job-running');
+    if (jobInfo) {
+      try {
+        var j = JSON.parse(jobInfo);
+        var elapsed = Math.round((Date.now() - j.started) / 1000);
+        var mins = Math.floor(elapsed / 60), secs = elapsed % 60;
+        showJobBanner(
+          'Processing continued in background',
+          (j.file || 'File') + ' — ' + mins + 'm ' + secs + 's elapsed. Check outputs or wait for results.'
+        );
+      } catch(e) {}
+    }
+
+    /* Expose helpers for the Python→JS bridge (set via gr.HTML status updates) */
+    window.taJobStart = function(filename) {
+      localStorage.setItem('ta-job-running', JSON.stringify({ file: filename, started: Date.now() }));
+    };
+    window.taJobEnd = function() {
+      localStorage.removeItem('ta-job-running');
+      var b = document.getElementById('ta-job-banner');
+      if (b) b.remove();
+    };
   })();
 })();
 """

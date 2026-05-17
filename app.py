@@ -1424,6 +1424,7 @@ def process_file(
     }
 
     def _render_log():
+        import re as _re
         parts = []
         for kind, ts, text in log_entries:
             color, bold = _KIND_COLORS.get(kind, ('#94a3b8', False))
@@ -1431,7 +1432,21 @@ def process_file(
             if kind == 'header':
                 parts.append(
                     f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
-                    f'padding-top:6px;">{text}</div>'
+                    f'padding-top:6px;letter-spacing:0.05em;">{text}</div>'
+                )
+            elif kind == 'progress':
+                # render as HTML progress bar instead of ASCII
+                m = _re.search(r'(\d+)%', text)
+                pct = int(m.group(1)) if m else 0
+                eta_part = text.split('—')[-1].strip() if '—' in text else ''
+                parts.append(
+                    f'<div style="margin:3px 0;">'
+                    f'<span style="color:#334155;">[{ts}]</span> '
+                    f'<span style="color:{color};font-weight:700;">{pct}%</span>'
+                    + (f' <span style="color:#64748b;font-size:0.9em;">ETA {eta_part}</span>' if eta_part else '') +
+                    f'<div style="margin:2px 0 1px;background:#1e3a5f;border-radius:4px;height:6px;overflow:hidden;">'
+                    f'<div style="width:{pct}%;height:100%;background:linear-gradient(90deg,#22d3ee,#86efac);'
+                    f'border-radius:4px;transition:width 0.4s;"></div></div></div>'
                 )
             else:
                 parts.append(
@@ -1697,9 +1712,11 @@ def process_file(
             elapsed     = _elapsed()
             eta_s       = _eta_secs(whisper_pct)
             eta_txt     = _eta_str(whisper_pct)
-            bar         = "█" * int(whisper_pct * 20) + "░" * (20 - int(whisper_pct * 20))
+            pct_int     = int(whisper_pct * 100)
+            filled      = int(whisper_pct * 30)
+            bar         = "█" * filled + "░" * (30 - filled)
             log_text    = _add_log(
-                f"[{bar}] {whisper_pct*100:.0f}%{('  ETA ' + eta_txt) if eta_txt else ''}",
+                f"[{bar}] {pct_int}%{('  —  ETA ' + eta_txt) if eta_txt else ''}",
                 "progress"
             )
             yield _out(
@@ -1939,41 +1956,93 @@ _THEME_JS = """
   st.id = 'ta-override';
   if (!st.parentNode) document.head.appendChild(st);
 
-  var DARK_RULES = [
-    'html.dark{color-scheme:dark}',
-    /* Gradio CSS custom-property overrides (Gradio 4 reads these vars) */
-    'html.dark{--color-background-primary:#0f172a;--color-background-secondary:#1e293b;',
-    '--color-border-primary:#334155;--color-text-body:#e2e8f0;',
-    '--color-text-subdued:#94a3b8;--input-background-fill:#0f172a;',
-    '--block-background-fill:#1e293b;--block-border-color:#334155;',
-    '--panel-background-fill:#1e293b;--panel-border-color:#334155;',
-    '--body-background-fill:#0f172a;--background-fill-primary:#0f172a;',
-    '--background-fill-secondary:#1e293b;}',
-    /* Element overrides */
-    'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain,html.dark .gap,html.dark .gap-2,html.dark .gap-4{background:#0f172a!important;color:#e2e8f0!important}',
-    'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container{background:#1e293b!important;border-color:#334155!important}',
-    'html.dark input,html.dark input[type=text],html.dark input[type=password],html.dark input[type=number],html.dark textarea,html.dark select{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
-    'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#94a3b8!important}',
+  /* All Gradio 6 CSS variable names */
+  var DARK_VARS = 'html.dark{'
+    + 'color-scheme:dark;color:#e2e8f0;background:#0f172a;'
+    + '--body-background-fill:#0f172a;--background-fill-primary:#0f172a;--background-fill-secondary:#1e293b;'
+    + '--block-background-fill:#1e293b;--block-border-color:#334155;--block-label-text-color:#94a3b8;'
+    + '--input-background-fill:#0f172a;--input-border-color:#475569;--input-text:#e2e8f0;'
+    + '--panel-background-fill:#1e293b;--panel-border-color:#334155;'
+    + '--border-color-primary:#334155;--border-color-accent:#3b82f6;'
+    + '--color-accent:#3b82f6;--neutral-100:#1e293b;--neutral-200:#334155;'
+    + '--neutral-700:#94a3b8;--neutral-800:#cbd5e1;--neutral-900:#e2e8f0;'
+    + '--link-text-color:#60a5fa;--body-text-color:#e2e8f0;--body-text-color-subdued:#94a3b8;'
+    + '--checkbox-background-color:#1e293b;--table-even-background-fill:#1e293b;'
+    + '--table-odd-background-fill:#162032;--table-border-color:#334155;--table-text:#e2e8f0;'
+    + '}';
+
+  var DARK_RULES = DARK_VARS + [
+    /* containers & layout */
+    'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain{background:#0f172a!important;color:#e2e8f0!important}',
+    'html.dark .gap,html.dark .gap-2,html.dark .gap-4,html.dark .flex,html.dark .grid{color:#e2e8f0}',
+    /* blocks */
+    'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container,html.dark .padded{background:#1e293b!important;border-color:#334155!important}',
+    /* ALL text — cascade from html.dark, fallback for anything missed */
+    'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th{color:#e2e8f0}',
+    /* labels & info */
+    'html.dark .label-wrap span,html.dark .block-label,html.dark label span,html.dark .info,html.dark .file-name,.label-wrap .text{color:#94a3b8!important}',
+    /* inputs */
+    'html.dark input,html.dark textarea,html.dark select{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
+    'html.dark input::placeholder,html.dark textarea::placeholder{color:#64748b!important}',
+    /* tabs */
     'html.dark .tabs>.tab-nav button{color:#94a3b8!important;background:#1e293b!important;border-color:#334155!important}',
     'html.dark .tabs>.tab-nav button.selected{color:#e2e8f0!important;border-bottom-color:#3b82f6!important}',
     'html.dark .tabitem{background:#0f172a!important}',
-    'html.dark .prose,html.dark .markdown,html.dark p,html.dark h1,html.dark h2,html.dark h3,html.dark li{color:#e2e8f0!important}',
+    /* markdown / prose */
+    'html.dark .prose,html.dark .markdown{color:#e2e8f0!important;background:transparent!important}',
+    'html.dark .prose *,html.dark .markdown *{color:#e2e8f0!important}',
+    'html.dark .prose a,html.dark .markdown a{color:#60a5fa!important}',
+    'html.dark .prose code,html.dark .markdown code{background:#0f172a!important;color:#86efac!important}',
+    /* dropdowns */
     'html.dark [role=listbox]{background:#1e293b!important;border-color:#334155!important}',
     'html.dark [role=option]{color:#e2e8f0!important;background:#1e293b!important}',
     'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#334155!important}',
+    'html.dark [role=combobox]{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
+    /* accordion */
     'html.dark .accordion,html.dark details{background:#1e293b!important;border-color:#334155!important}',
-    'html.dark .accordion .label-wrap,html.dark details summary{color:#e2e8f0!important}',
+    'html.dark .accordion .label-wrap,html.dark details summary,html.dark .accordion .label-wrap span{color:#e2e8f0!important}',
     'html.dark .checkbox-group label span,html.dark .radio-group label span{color:#cbd5e1!important}',
     'html.dark .file-preview{background:#1e293b!important;color:#e2e8f0!important}',
+    'html.dark svg{color:#94a3b8}',
     'html.dark .dropdown-arrow svg{fill:#94a3b8!important}',
-    'html.dark #live-log textarea{background:#020617!important}',
-    'html.dark button:not(#ta-widget *){background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
-    'html.dark button.selected:not(#ta-widget *){background:#334155!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important}',
+    /* buttons — exclude theme toggle */
+    'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
+    'html.dark button.selected{background:#334155!important}',
+    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important}',
+    /* restore theme toggle buttons */
+    'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
+    'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
+    /* scrollbars */
     'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
     'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
   ].join('');
+
+  /* ── DOM patcher: directly set inline styles on elements Gradio may have styled ── */
+  function patchDOM(dark) {
+    var bg0 = dark ? '#0f172a' : '', bg1 = dark ? '#1e293b' : '';
+    var fg  = dark ? '#e2e8f0' : '', fg2 = dark ? '#94a3b8' : '';
+    var bd  = dark ? '#334155' : '';
+    ['.gradio-container','.main','.contain','body'].forEach(function(s){
+      document.querySelectorAll(s).forEach(function(el){
+        el.style.setProperty('background',bg0,'important');
+        el.style.setProperty('color',fg,'important');
+      });
+    });
+    ['.block','.form','.wrap','.panel-full-width','.compact'].forEach(function(s){
+      document.querySelectorAll(s).forEach(function(el){
+        el.style.setProperty('background',bg1,'important');
+        if(bd) el.style.setProperty('border-color',bd,'important');
+      });
+    });
+    document.querySelectorAll('input,textarea').forEach(function(el){
+      el.style.setProperty('background',bg0,'important');
+      el.style.setProperty('color',fg,'important');
+    });
+    document.querySelectorAll('.label-wrap span,.block-label,label span,.info').forEach(function(el){
+      el.style.setProperty('color',fg2,'important');
+    });
+  }
 
   /* ── Core apply function ────────────────────────────────────────────────── */
   function applyTheme(dark) {
@@ -1981,6 +2050,7 @@ _THEME_JS = """
     document.documentElement.classList.toggle('dark', dark);
     document.body.classList.toggle('dark', dark);
     st.textContent = dark ? DARK_RULES : '';
+    patchDOM(dark);
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');

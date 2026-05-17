@@ -1398,6 +1398,63 @@ def process_file(
         yield _err("Please drag a file, paste a file path, or paste a URL above.")
         return
 
+    # ── Log helpers (must be defined before download section uses them) ────────
+    start_time    = time.time()
+    log_entries   = []
+
+    def _ts():
+        secs = int(time.time() - start_time)
+        m, s = divmod(secs, 60)
+        return f"{m:02d}:{s:02d}"
+
+    def _elapsed():
+        secs = int(time.time() - start_time)
+        m, s = divmod(secs, 60)
+        return f"{m}m {s:02d}s" if m else f"{s}s"
+
+    _KIND_COLORS = {
+        'header':   ('#f8fafc', True),
+        'info':     ('#94a3b8', False),
+        'progress': ('#86efac', False),
+        'warn':     ('#fbbf24', False),
+        'error':    ('#f87171', False),
+        'done':     ('#4ade80', True),
+        'download': ('#22d3ee', False),
+        'ai':       ('#c4b5fd', False),
+    }
+
+    def _render_log():
+        parts = []
+        for kind, ts, text in log_entries:
+            color, bold = _KIND_COLORS.get(kind, ('#94a3b8', False))
+            weight = 'font-weight:700;' if bold else ''
+            if kind == 'header':
+                parts.append(
+                    f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
+                    f'padding-top:6px;">{text}</div>'
+                )
+            else:
+                parts.append(
+                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<span style="color:{color};{weight}">{text}</span></div>'
+                )
+        scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
+        inner = "".join(parts) + scroll if parts else '<span style="color:#334155;">Starting…</span>'
+        return (
+            '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+            'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
+            'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;line-height:1.7;">'
+            + inner + '</div>'
+        )
+
+    def _add_log(text, kind='info'):
+        log_entries.append((kind, _ts(), text))
+        return _render_log()
+
+    def _add_header(text):
+        log_entries.append(('header', _ts(), text))
+        return _render_log()
+
     # ── Download remote URL (threaded so we can stream progress to the log) ───
     if isinstance(uploaded_file, str) and (
         uploaded_file.startswith("http://") or uploaded_file.startswith("https://")
@@ -1542,20 +1599,8 @@ def process_file(
     raw_shown       = False
     claude_started  = False
     stage           = "loading"
-    start_time      = time.time()
-    last_activity   = time.time()   # reset on every queue message
-    stall_warned    = set()         # tracks which stall thresholds already logged
-    log_entries     = []            # list of (kind, ts, text)
-
-    def _elapsed():
-        secs = int(time.time() - start_time)
-        m, s = divmod(secs, 60)
-        return f"{m}m {s:02d}s" if m else f"{s}s"
-
-    def _ts():
-        secs = int(time.time() - start_time)
-        m, s = divmod(secs, 60)
-        return f"{m:02d}:{s:02d}"
+    last_activity   = time.time()
+    stall_warned    = set()
 
     def _eta_secs(pct):
         if pct <= 0.01:
@@ -1568,50 +1613,6 @@ def process_file(
             return ""
         em, es = divmod(s, 60)
         return f"~{em}m {es:02d}s" if em else f"~{es}s"
-
-    # kind: 'header' | 'info' | 'progress' | 'warn' | 'error' | 'done'
-    _KIND_COLORS = {
-        'header':   ('#f8fafc', True),
-        'info':     ('#94a3b8', False),
-        'progress': ('#86efac', False),
-        'warn':     ('#fbbf24', False),
-        'error':    ('#f87171', False),
-        'done':     ('#4ade80', True),
-        'download': ('#22d3ee', False),
-        'ai':       ('#c4b5fd', False),
-    }
-
-    def _render_log():
-        parts = []
-        for kind, ts, text in log_entries:
-            color, bold = _KIND_COLORS.get(kind, ('#94a3b8', False))
-            weight = 'font-weight:700;' if bold else ''
-            if kind == 'header':
-                parts.append(
-                    f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
-                    f'padding-top:6px;">{text}</div>'
-                )
-            else:
-                parts.append(
-                    f'<div><span style="color:#334155;">[{ts}]</span> '
-                    f'<span style="color:{color};{weight}">{text}</span></div>'
-                )
-        scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
-        inner = "".join(parts) + scroll if parts else '<span style="color:#334155;">Waiting for job to start…</span>'
-        return (
-            '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
-            'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
-            'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;line-height:1.7;">'
-            + inner + '</div>'
-        )
-
-    def _add_log(text, kind='info'):
-        log_entries.append((kind, _ts(), text))
-        return _render_log()
-
-    def _add_header(text):
-        log_entries.append(('header', _ts(), text))
-        return _render_log()
 
     try:
      while True:
@@ -1924,8 +1925,11 @@ _THEME_TOGGLE = """
     🌙 Dark
   </button>
 </div>
+"""
 
-<script>
+# ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
+# path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
+_THEME_JS = """
 (function(){
   var _dark = false;
 
@@ -2142,7 +2146,6 @@ _THEME_TOGGLE = """
   setTimeout(watchApiKey, 800);
   setTimeout(watchApiKey, 2200);
 })();
-</script>
 """
 
 _IDLE_STATUS = """
@@ -2175,7 +2178,7 @@ _SECTION = lambda label: f"""
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Transcript Agent") as demo:
+with gr.Blocks(title="Transcript Agent", js=_THEME_JS) as demo:
 
     gr.HTML(_THEME_TOGGLE)
     gr.HTML(_HERO)

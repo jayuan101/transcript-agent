@@ -561,6 +561,50 @@ html.dark ::-webkit-scrollbar-track { background: #0f172a !important; }
 html.dark ::-webkit-scrollbar-thumb { background: #334155 !important; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
 
+/* ── Adaptive CSS variables used by step-tracker and ETA panel ── */
+:root {
+    --ta-card-bg:          #f8fafc;
+    --ta-card-border:      #e2e8f0;
+    --ta-card-text:        #1e293b;
+    --ta-card-sub:         #64748b;
+    --ta-card-val:         #111827;
+    --ta-step-done-bg:     #dcfce7;
+    --ta-step-done-bdr:    #22c55e;
+    --ta-step-done-clr:    #166534;
+    --ta-step-act-bg:      #dbeafe;
+    --ta-step-act-bdr:     #2563eb;
+    --ta-step-act-clr:     #1d4ed8;
+    --ta-step-wait-bg:     #f1f5f9;
+    --ta-step-wait-bdr:    #e2e8f0;
+    --ta-step-wait-clr:    #94a3b8;
+    --ta-conn-line-done:   #22c55e;
+    --ta-conn-line-wait:   #e2e8f0;
+    --ta-stat-bg:          rgba(255,255,255,0.7);
+    --ta-stat-label:       #1e40af;
+    --ta-stat-val:         #1d4ed8;
+}
+html.dark {
+    --ta-card-bg:          #1e293b;
+    --ta-card-border:      #334155;
+    --ta-card-text:        #e2e8f0;
+    --ta-card-sub:         #94a3b8;
+    --ta-card-val:         #f1f5f9;
+    --ta-step-done-bg:     #14532d;
+    --ta-step-done-bdr:    #4ade80;
+    --ta-step-done-clr:    #4ade80;
+    --ta-step-act-bg:      #1e3a5f;
+    --ta-step-act-bdr:     #60a5fa;
+    --ta-step-act-clr:     #93c5fd;
+    --ta-step-wait-bg:     #0f172a;
+    --ta-step-wait-bdr:    #334155;
+    --ta-step-wait-clr:    #475569;
+    --ta-conn-line-done:   #4ade80;
+    --ta-conn-line-wait:   #334155;
+    --ta-stat-bg:          rgba(15,23,42,0.6);
+    --ta-stat-label:       #93c5fd;
+    --ta-stat-val:         #e2e8f0;
+}
+
 """
 
 _SB = (
@@ -582,10 +626,12 @@ def _fmt_eta(eta_secs: int) -> str:
 
 def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
     """Minimal one-line status — used when eta_panel carries the detail."""
-    elap = (f'<span style="color:#6b7280;font-size:.85em;margin-left:10px;">'
+    elap = (f'<span style="color:var(--ta-card-sub);font-size:.85em;margin-left:10px;">'
             f'elapsed: {elapsed}</span>') if elapsed else ""
-    return (f'<div style="{_SB}">'
-            f'<div style="color:#111827;font-weight:700;font-size:1em;">'
+    return (f'<div style="background:var(--ta-card-bg);border:3px solid #2563eb;border-radius:10px;'
+            f'padding:16px 20px;font-size:1.05em;font-family:sans-serif;min-height:60px;'
+            f'box-shadow:0 2px 10px rgba(37,99,235,0.15);">'
+            f'<div style="color:var(--ta-card-text);font-weight:700;font-size:1em;">'
             f'{icon} {title}{elap}</div></div>')
 
 
@@ -1160,22 +1206,25 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     parts  = []
     for i, ((icon, label), state) in enumerate(zip(labels, states)):
         if state == "done":
-            bg, border, color, dot = "#dcfce7", "#22c55e", "#166534", "✓"
+            bg = "var(--ta-step-done-bg)"; bdr = "var(--ta-step-done-bdr)"
+            clr = "var(--ta-step-done-clr)"; dot = "✓"
         elif state == "active":
-            bg, border, color, dot = "#dbeafe", "#2563eb", "#1d4ed8", "●"
+            bg = "var(--ta-step-act-bg)"; bdr = "var(--ta-step-act-bdr)"
+            clr = "var(--ta-step-act-clr)"; dot = "●"
         else:
-            bg, border, color, dot = "#f1f5f9", "#e2e8f0", "#94a3b8", "○"
+            bg = "var(--ta-step-wait-bg)"; bdr = "var(--ta-step-wait-bdr)"
+            clr = "var(--ta-step-wait-clr)"; dot = "○"
         parts.append(
             f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;">'
-            f'<div style="background:{bg};border:2px solid {border};border-radius:50%;'
+            f'<div style="background:{bg};border:2px solid {bdr};border-radius:50%;'
             f'width:38px;height:38px;display:flex;align-items:center;justify-content:center;'
-            f'font-size:1.05em;font-weight:800;color:{color};transition:all 0.4s;">{dot}</div>'
-            f'<div style="font-size:0.68em;font-weight:700;color:{color};text-align:center;'
+            f'font-size:1.05em;font-weight:800;color:{clr};transition:all 0.4s;">{dot}</div>'
+            f'<div style="font-size:0.68em;font-weight:700;color:{clr};text-align:center;'
             f'text-transform:uppercase;letter-spacing:0.06em;">{icon} {label}</div>'
             f'</div>'
         )
         if i < 2:
-            lc = "#22c55e" if states[i] == "done" else "#e2e8f0"
+            lc = "var(--ta-conn-line-done)" if states[i] == "done" else "var(--ta-conn-line-wait)"
             parts.append(
                 f'<div style="flex:0.6;height:2px;background:{lc};margin-top:19px;'
                 f'border-radius:2px;transition:background 0.4s;"></div>'
@@ -1183,7 +1232,8 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 
     return (
         '<div style="display:flex;align-items:flex-start;padding:10px 16px 8px;'
-        'background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:10px;">'
+        'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+        'border-radius:12px;margin-bottom:10px;">'
         + "".join(parts) + "</div>"
     )
 
@@ -1232,115 +1282,88 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         if eta_secs and eta_secs > 0:
             finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
 
+        def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
+            return (
+                f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
+                f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
+                f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:0.08em;color:var({label_var});">{label_txt}</div>'
+                f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
+                f'font-family:monospace;">{val_txt}</div></div>'
+            )
+
         return tracker + (
-            '<div style="background:linear-gradient(135deg,#eff6ff,#dbeafe);'
-            'border:2px solid #2563eb;border-radius:16px;padding:24px 28px;'
-            'font-family:sans-serif;">'
-
-            # Step label
+            '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
+            'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.1em;color:#1e40af;margin-bottom:12px;">'
+            'letter-spacing:0.1em;color:var(--ta-step-act-clr);margin-bottom:12px;">'
             'Step 1 of 2 &nbsp;&mdash;&nbsp; Transcribing Audio</div>'
-
-            # Big percentage
             '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:#1d4ed8;'
+            f'<div style="font-size:4.5em;font-weight:900;color:var(--ta-step-act-clr);'
             f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">{pct_int}</div>'
-            '<div style="font-size:2em;font-weight:700;color:#3b82f6;'
-            'margin-bottom:6px;">%</div>'
-            '</div>'
-
-            # Progress bar
-            '<div style="background:#bfdbfe;border-radius:8px;height:14px;'
+            '<div style="font-size:2em;font-weight:700;color:var(--ta-step-act-bdr);'
+            'margin-bottom:6px;">%</div></div>'
+            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
             'overflow:hidden;margin-bottom:10px;">'
             f'<div style="width:{bar_fill};height:100%;'
-            'background:linear-gradient(90deg,#1d4ed8,#3b82f6);'
-            'border-radius:8px;transition:width 0.5s ease;"></div>'
-            '</div>'
-
-            # Stats row
+            'background:linear-gradient(90deg,var(--ta-step-act-bdr),var(--ta-step-act-clr));'
+            'border-radius:8px;transition:width 0.5s ease;"></div></div>'
             '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-            '<div style="background:rgba(255,255,255,0.7);border-radius:8px;'
-            'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
-            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#1e40af;">Time Left</div>'
-            f'<div style="font-size:1.3em;font-weight:800;color:#1d4ed8;'
-            f'font-family:monospace;">{eta_str}</div>'
-            '</div>'
-            + (
-                '<div style="background:rgba(255,255,255,0.7);border-radius:8px;'
-                'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
-                '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-                'letter-spacing:0.08em;color:#166534;">Done By</div>'
-                f'<div style="font-size:1.3em;font-weight:800;color:#15803d;">{finish_str}</div>'
-                '</div>' if finish_str else ""
-            ) +
-            '<div style="background:rgba(255,255,255,0.7);border-radius:8px;'
-            'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
-            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#6b7280;">Elapsed</div>'
-            f'<div style="font-size:1.3em;font-weight:800;color:#374151;'
-            f'font-family:monospace;">{elapsed}</div>'
-            '</div>'
-            '</div>'
-            '</div>'
+            + _stat("Time Left", eta_str)
+            + (_stat("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
+            + _stat("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
+            '</div></div>'
         )
 
-    # ── Other stages (loading / extracting / claude) ──────────────────────────
+    # ── Other stages (loading / extracting / claude / whisper indeterminate) ──
     stage_cfg = {
-        "loading":    ("#f59e0b", "#fef3c7", "#92400e", "Starting up…",          "Step 0 of 2"),
-        "extracting": ("#8b5cf6", "#ede9fe", "#4c1d95", "Extracting audio…",     "Step 1 of 2"),
-        "whisper":    ("#2563eb", "#dbeafe", "#1e40af", "Transcribing audio…",   "Step 1 of 2"),
-        "claude":     ("#7c3aed", "#ede9fe", "#3b0764", "Analyzing with Claude…","Step 2 of 2"),
+        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",        "Step 0 of 2", "var(--ta-step-act-clr)"),
+        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",   "Step 1 of 2", "var(--ta-step-done-clr)"),
+        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…", "Step 1 of 2", "var(--ta-step-act-clr)"),
+        "claude":     ("#a855f7",                 "Analyzing with AI…",  "Step 2 of 2", "#c4b5fd"),
     }
-    color, bg, text_dark, label, step = stage_cfg.get(
-        stage, ("#6b7280", "#f1f5f9", "#1f2937", "Processing…", "")
+    color, label, step, text_clr = stage_cfg.get(
+        stage, ("var(--ta-card-border)", "Processing…", "", "var(--ta-card-sub)")
     )
 
-    # For claude, show an estimated overall % (50–99 range, indeterminate)
     overlay_pct = ""
     if stage == "claude":
         overlay_pct = (
             '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:{color};'
+            f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
             f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">50</div>'
             f'<div style="font-size:2em;font-weight:700;color:{color};margin-bottom:6px;">%+</div>'
             '</div>'
-            f'<div style="font-size:0.82em;color:{text_dark};margin-bottom:12px;font-weight:500;">'
-            'Claude is reading the transcript and writing your report…</div>'
+            f'<div style="font-size:0.82em;color:var(--ta-card-sub);margin-bottom:12px;">'
+            'AI is reading the transcript and writing your report…</div>'
         )
     elif stage in ("loading", "extracting"):
         overlay_pct = (
             '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:{color};'
-            f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">—</div>'
-            '</div>'
+            f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
+            f'font-family:monospace;line-height:1;">—</div></div>'
         )
 
     return tracker + (
-        f'<div style="background:linear-gradient(135deg,#f8fafc,{bg});'
-        f'border:2px solid {color};border-radius:16px;padding:24px 28px;'
-        f'font-family:sans-serif;">'
+        f'<div style="background:var(--ta-card-bg);border:2px solid {color};'
+        f'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
         f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.1em;color:{color};margin-bottom:12px;">'
+        f'letter-spacing:0.1em;color:{text_clr};margin-bottom:12px;">'
         f'{step} &nbsp;&mdash;&nbsp; {label}</div>'
         f'{overlay_pct}'
         f'{_slide_css}'
-        f'<div style="background:#e2e8f0;border-radius:8px;height:14px;'
+        f'<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
         f'overflow:hidden;position:relative;margin-bottom:10px;">'
         f'<div style="position:absolute;width:40%;height:100%;background:{color};'
-        f'border-radius:8px;opacity:0.75;animation:pgslide 1.6s ease-in-out infinite;"></div>'
+        f'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
         f'</div>'
         f'<div style="display:flex;gap:8px;">'
-        f'<div style="background:rgba(255,255,255,0.7);border-radius:8px;'
-        f'padding:8px 14px;text-align:center;">'
+        f'<div style="background:var(--ta-stat-bg);border-radius:8px;padding:8px 14px;">'
         f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.08em;color:#6b7280;">Elapsed</div>'
-        f'<div style="font-size:1.3em;font-weight:800;color:#374151;'
+        f'letter-spacing:0.08em;color:var(--ta-card-sub);">Elapsed</div>'
+        f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
         f'font-family:monospace;">{elapsed}</div>'
-        f'</div>'
-        f'</div>'
-        f'</div>'
+        f'</div></div></div>'
     )
 
 

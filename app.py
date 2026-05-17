@@ -2270,55 +2270,75 @@ _THEME_JS = """
     var inp = document.querySelector('input[type="password"]');
     if (!inp) { setTimeout(watchApiKey, 600); return; }
 
+    /* Use setProperty(...,'important') so banner colors win over our broad
+       html.dark div{color:...!important} rule that would otherwise make
+       light text invisible on light-green backgrounds. */
+    function _bs(el, prop, val) {
+      if (el) el.style.setProperty(prop, val, 'important');
+    }
+
     function refreshBanner() {
-      var v      = inp.value.trim();
-      var banner = document.getElementById('api-banner');
-      var icon   = document.getElementById('api-banner-icon');
-      var title  = document.getElementById('api-banner-title');
-      var sub    = document.getElementById('api-banner-sub');
-      var badge  = document.getElementById('api-banner-badge');
+      var v        = inp.value.trim();
+      var banner   = document.getElementById('api-banner');
+      var icon     = document.getElementById('api-banner-icon');
+      var title    = document.getElementById('api-banner-title');
+      var sub      = document.getElementById('api-banner-sub');
+      var badge    = document.getElementById('api-banner-badge');
       var provider = detectProvider(v);
 
-      if (provider) {
-        /* ── Recognised key ── */
+      if (provider || v.length >= 20) {
+        /* ── Approved ── */
         banner.dataset.state = 'approved';
-        if (banner) { banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
-        if (icon)   icon.textContent = '✅';
-        if (title) { title.textContent = provider + ' Key Approved'; title.style.color='#166534'; }
-        if (sub)   { sub.innerHTML = 'Your <strong>' + provider + '</strong> key is set. Ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
-        if (badge)   badge.style.display = 'block';
-      } else if (v.length >= 20) {
-        /* ── Long key, unrecognised prefix — accept it ── */
-        banner.dataset.state = 'approved';
-        if (banner) { banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
-        if (icon)   icon.textContent = '✅';
-        if (title) { title.textContent = 'API Key Set'; title.style.color='#166534'; }
-        if (sub)   { sub.innerHTML = 'Key entered. Ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
-        if (badge)   badge.style.display = 'block';
+        var label = provider ? (provider + ' Key Approved') : 'API Key Set';
+        var detail = provider
+          ? ('Your <strong>' + provider + '</strong> key is set. Ready to <strong>Analyze File</strong>.')
+          : 'Key entered. Ready to <strong>Analyze File</strong>.';
+        if (_dark) {
+          _bs(banner, 'background', 'linear-gradient(135deg,#052e16,#14532d)');
+          _bs(banner, 'border-color', '#22c55e');
+          if (title) { title.textContent = label; _bs(title, 'color', '#4ade80'); }
+          if (sub)   { sub.innerHTML = detail;    _bs(sub,   'color', '#86efac'); }
+        } else {
+          _bs(banner, 'background', 'linear-gradient(135deg,#f0fdf4,#dcfce7)');
+          _bs(banner, 'border-color', '#22c55e');
+          if (title) { title.textContent = label; _bs(title, 'color', '#166534'); }
+          if (sub)   { sub.innerHTML = detail;    _bs(sub,   'color', '#15803d'); }
+        }
+        if (icon)  icon.textContent = '✅';
+        if (badge) badge.style.display = 'block';
+
       } else if (v.length > 0) {
         /* ── Too short ── */
         banner.dataset.state = 'error';
-        if (banner) { banner.style.background='linear-gradient(135deg,#fef2f2,#fee2e2)'; banner.style.borderColor='#ef4444'; }
-        if (icon)   icon.textContent = '⚠️';
-        if (title) { title.textContent = 'Key Too Short'; title.style.color='#991b1b'; }
-        if (sub)   { sub.innerHTML = 'Paste your full API key (Anthropic, OpenAI, Gemini, or Groq).'; sub.style.color='#b91c1c'; }
-        if (badge)   badge.style.display = 'none';
+        _bs(banner, 'background',   'linear-gradient(135deg,#fef2f2,#fee2e2)');
+        _bs(banner, 'border-color', '#ef4444');
+        if (icon)  icon.textContent = '⚠️';
+        if (title) { title.textContent = 'Key Too Short'; _bs(title, 'color', '#991b1b'); }
+        if (sub)   { sub.innerHTML = 'Paste your full API key (Anthropic, OpenAI, Gemini, Groq, etc.)'; _bs(sub, 'color', '#b91c1c'); }
+        if (badge) badge.style.display = 'none';
+
       } else {
         /* ── Empty ── */
         delete banner.dataset.state;
-        if (banner) { banner.style.background='linear-gradient(135deg,#fffbeb,#fef3c7)'; banner.style.borderColor='#f59e0b'; }
-        if (icon)   icon.textContent = '🔑';
-        if (title) { title.textContent = 'API Key Required'; title.style.color='#92400e'; }
-        if (sub)   { sub.innerHTML = 'Enter your API key below (Anthropic, OpenAI, Gemini, or Groq). Billed directly to your account — nothing stored here.'; sub.style.color='#a16207'; }
-        if (badge)   badge.style.display = 'none';
-        /* Re-apply banner theme colours when returning to empty state */
         if (_dark) {
-          if (banner) { banner.style.background='linear-gradient(135deg,#292107,#3b2d00)'; banner.style.borderColor='#d97706'; }
-          if (title)  title.style.color = '#fbbf24';
-          if (sub)    sub.style.color   = '#fcd34d';
+          _bs(banner, 'background',   'linear-gradient(135deg,#292107,#3b2d00)');
+          _bs(banner, 'border-color', '#d97706');
+          if (title) { title.textContent = 'API Key Required'; _bs(title, 'color', '#fbbf24'); }
+          if (sub)   { sub.innerHTML = 'Enter your API key below. Billed to your account — nothing stored here.'; _bs(sub, 'color', '#fcd34d'); }
+        } else {
+          _bs(banner, 'background',   'linear-gradient(135deg,#fffbeb,#fef3c7)');
+          _bs(banner, 'border-color', '#f59e0b');
+          if (title) { title.textContent = 'API Key Required'; _bs(title, 'color', '#92400e'); }
+          if (sub)   { sub.innerHTML = 'Enter your API key below (Anthropic, OpenAI, Gemini, Groq, etc.). Billed to your account — nothing stored here.'; _bs(sub, 'color', '#a16207'); }
         }
+        if (icon)  icon.textContent = '🔑';
+        if (badge) badge.style.display = 'none';
       }
     }
+
+    /* Re-run banner colors whenever dark mode changes */
+    var _origApply = applyTheme;
+    applyTheme = function(dark) { _origApply(dark); setTimeout(refreshBanner, 50); };
 
     inp.addEventListener('input',  refreshBanner);
     inp.addEventListener('change', refreshBanner);

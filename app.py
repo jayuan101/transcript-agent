@@ -296,30 +296,38 @@ def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
     return dest
 
 # ── Windows sleep prevention ──────────────────────────────────────────────────
-_ES_CONTINUOUS       = 0x80000000
-_ES_SYSTEM_REQUIRED  = 0x00000001
-_ES_DISPLAY_REQUIRED = 0x00000002
-_sleep_active        = False
-_sleep_thread        = None
+_ES_CONTINUOUS      = 0x80000000
+_ES_SYSTEM_REQUIRED = 0x00000001   # blocks idle auto-sleep; screen can still turn off
+_sleep_active       = False
+_sleep_thread       = None
+
+def _set_lid_action(action: int):
+    """Set lid-close power action: 0=do nothing, 1=sleep. Requires no elevation on most systems."""
+    if sys.platform != "win32":
+        return
+    import subprocess
+    for idx in ("setacvalueindex", "setdcvalueindex"):
+        subprocess.run(
+            ["powercfg", f"/{idx}", "SCHEME_CURRENT", "SUB_BUTTONS", "LIDACTION", str(action)],
+            capture_output=True, check=False,
+        )
+    subprocess.run(["powercfg", "/setactive", "SCHEME_CURRENT"], capture_output=True, check=False)
 
 def _prevent_sleep():
-    """Block system sleep AND display sleep. Spawns a refresh thread so Windows
-    never silently drops the flag (some versions reset it after ~15 min)."""
+    """Block idle sleep (screen can turn off). Prevent lid-close sleep.
+    Refresh thread re-asserts every 60 s — Windows can silently drop the flag."""
     global _sleep_active, _sleep_thread
     if sys.platform != "win32":
         return
     import ctypes
     _sleep_active = True
-    ctypes.windll.kernel32.SetThreadExecutionState(
-        _ES_CONTINUOUS | _ES_SYSTEM_REQUIRED | _ES_DISPLAY_REQUIRED
-    )
+    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+    _set_lid_action(0)   # lid close → do nothing (keep running)
     if _sleep_thread is None or not _sleep_thread.is_alive():
         def _refresh():
             import ctypes as _ct
             while _sleep_active:
-                _ct.windll.kernel32.SetThreadExecutionState(
-                    _ES_CONTINUOUS | _ES_SYSTEM_REQUIRED | _ES_DISPLAY_REQUIRED
-                )
+                _ct.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
                 time.sleep(60)
         _sleep_thread = threading.Thread(target=_refresh, daemon=True)
         _sleep_thread.start()
@@ -327,9 +335,11 @@ def _prevent_sleep():
 def _allow_sleep():
     global _sleep_active
     _sleep_active = False
-    if sys.platform == "win32":
-        import ctypes
-        ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
+    if sys.platform != "win32":
+        return
+    import ctypes
+    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
+    _set_lid_action(1)   # restore: lid close → sleep
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,
@@ -2249,40 +2259,33 @@ _THEME_JS = """
   setTimeout(watchApiKey, 800);
   setTimeout(watchApiKey, 2200);
 
-  /* ── 💤 Sleep/wake detection — keep session alive ───────────────────────────
-     When the laptop sleeps, the JavaScript event loop pauses. On wake, we
-     compare the clock and if more than 10s has passed the connection likely
-     dropped. Ping the server; if it responds, reload to restore the session. */
+  /* ── 💤 Wake detection — passive indicator, NO auto-reload ─────────────────
+     Server-side sleep prevention keeps the CPU running and the connection alive.
+     If the system DID suspend (overriding our prevention), we just show a
+     "Processing continued in background" notice — no forced reload. */
   (function(){
     var _last = Date.now();
-    var _banner = null;
-
-    function showReconnectBanner(){
-      if (_banner) return;
-      _banner = document.createElement('div');
-      _banner.id = 'ta-reconnect-banner';
-      _banner.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);'
-        + 'z-index:99999;background:#1e40af;color:#fff;padding:12px 24px;border-radius:12px;'
-        + 'font-family:sans-serif;font-size:0.9em;font-weight:600;'
-        + 'box-shadow:0 4px 20px rgba(0,0,0,0.4);display:flex;align-items:center;gap:12px;';
-      _banner.innerHTML = '<span>⚡ Reconnecting after sleep…</span>'
-        + '<button onclick="location.reload()" style="background:rgba(255,255,255,0.25);'
-        + 'border:1px solid rgba(255,255,255,0.5);border-radius:6px;color:#fff;'
-        + 'padding:4px 12px;cursor:pointer;font-weight:700;">Reload now</button>';
-      document.body.appendChild(_banner);
-    }
-
     setInterval(function(){
       var now = Date.now();
       var gap = now - _last;
       _last = now;
-      /* gap >> interval means the timer was suspended (computer was asleep) */
       if (gap > 10000) {
-        showReconnectBanner();
-        /* ping server — if it's alive, auto-reload after 2s */
-        fetch(window.location.origin + '/info', { method: 'GET', cache: 'no-store' })
-          .then(function(){ setTimeout(function(){ location.reload(); }, 2000); })
-          .catch(function(){ /* server not ready yet — banner stays visible */ });
+        /* Computer was suspended/resumed — show a non-intrusive notice */
+        var existing = document.getElementById('ta-wake-notice');
+        if (existing) return;
+        var n = document.createElement('div');
+        n.id = 'ta-wake-notice';
+        n.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;'
+          + 'background:#0f172a;color:#e2e8f0;padding:12px 18px;border-radius:10px;'
+          + 'font-family:sans-serif;font-size:0.85em;border:1px solid #334155;'
+          + 'box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:280px;';
+        n.innerHTML = '💤 Woke from sleep — processing continued in background.'
+          + '<br><span style="color:#64748b;font-size:0.85em;">Results will appear when complete.</span>'
+          + '<button onclick="this.parentElement.remove()" style="float:right;margin-left:8px;'
+          + 'background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.1em;">✕</button>';
+        document.body.appendChild(n);
+        /* auto-hide after 8s */
+        setTimeout(function(){ if(n.parentElement) n.remove(); }, 8000);
       }
     }, 3000);
   })();

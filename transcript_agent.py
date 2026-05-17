@@ -146,9 +146,16 @@ WHISPER_SPEED = {"tiny": 32, "base": 16, "small": 6, "medium": 2, "large": 1}
 
 
 def _get_audio_duration(path: str) -> float:
-    """Return audio/video duration in seconds using ffprobe, or 0.0 if unavailable."""
+    """Return audio/video duration in seconds, or 0.0 if unavailable.
+
+    Uses ffprobe (same directory as ffmpeg) with an ffmpeg -i fallback.
+    The old str.replace("ffmpeg","ffprobe") replaced every occurrence including
+    the directory name, producing a non-existent path on Windows imageio bundles.
+    """
+    # ── Strategy 1: ffprobe in the same directory as the ffmpeg binary ────────
     try:
-        ffprobe = FFMPEG_EXE.replace("ffmpeg", "ffprobe")
+        _p = Path(FFMPEG_EXE)
+        ffprobe = str(_p.with_name(_p.name.replace("ffmpeg", "ffprobe")))
         result = _sp.run(
             [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", path],
             capture_output=True, text=True, timeout=10,
@@ -156,7 +163,21 @@ def _get_audio_duration(path: str) -> float:
         data = json.loads(result.stdout)
         return float(data["format"]["duration"])
     except Exception:
-        return 0.0
+        pass
+
+    # ── Strategy 2: parse duration from ffmpeg -i stderr output ───────────────
+    try:
+        result = _sp.run(
+            [FFMPEG_EXE, "-i", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.?\d*)", result.stderr)
+        if m:
+            return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+    except Exception:
+        pass
+
+    return 0.0
 
 
 def _fmt_duration(secs: float) -> str:

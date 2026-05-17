@@ -733,6 +733,7 @@ def process_transcript(
     raw_whisperx: dict = None,
     language: str = None,
     language_variant: str = None,
+    speaker_names: str = None,
     on_log=None,
 ) -> TranscriptResult:
     def _log(m):
@@ -763,6 +764,12 @@ def process_transcript(
         else:
             sys_prompt = STANDARD_SYSTEM_PROMPT
             prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant)
+
+        if speaker_names:
+            prompt = (
+                f"The people in this recording are: {speaker_names}\n"
+                f"Use these names when identifying who said what in the transcript.\n\n"
+            ) + prompt
 
         if n > 1:
             prompt = f"[Part {i} of {n}]\n\n" + prompt
@@ -921,6 +928,7 @@ def run(
     base_url: str = None,           # base URL for openai_compat providers
     language: str = None,           # ISO-639-1 code e.g. "es", "en", or None for auto
     language_variant: str = None,   # e.g. "Colombian Spanish (es-CO)"
+    speaker_names: str = None,      # e.g. "Jay Pendley, John Smith (Interviewer)"
     on_whisper_progress=None,       # callable(pct: float) — live Whisper % updates
     on_raw_transcript=None,         # callable(text: str) — fired the moment Whisper finishes
     on_stage_change=None,           # callable(stage: str) — "extracting" | "whisper" | "claude"
@@ -976,6 +984,8 @@ def run(
     if on_stage_change: on_stage_change("claude")
     _model = model or ("claude-opus-4-7" if provider == "anthropic" else "gpt-4o")
     client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    if speaker_names:
+        _log(f"Speaker names provided: {speaker_names}")
     result = process_transcript(
         client, raw_text, fmt,
         panel_mode=panel_mode,
@@ -984,6 +994,7 @@ def run(
         raw_whisperx=raw_whisperx,
         language=language,
         language_variant=language_variant,
+        speaker_names=speaker_names,
         on_log=on_log,
     )
 

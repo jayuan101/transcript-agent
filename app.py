@@ -1650,7 +1650,9 @@ def process_file(
         include_speaker_profiles=inc_profiles,
         include_speech_analytics=inc_analytics,
     )
-    speakers = int(num_speakers) if (num_speakers and num_speakers >= 2) else None
+    # num_speakers is now a text field of speaker names; pass as context to Claude
+    speaker_names = (num_speakers or "").strip() if isinstance(num_speakers, str) else None
+    speakers = None  # WhisperX diarization disabled (requires HF_TOKEN)
     lang_code = language_input if language_input and language_input != "auto" else None
     lang_variant = (
         language_variant
@@ -1685,8 +1687,8 @@ def process_file(
                 file_path=uploaded_file,
                 output_dir=str(job_dir),
                 whisper_model=whisper_model,
-                panel_mode=panel_mode,
-                num_speakers=speakers,
+                panel_mode=False,
+                num_speakers=None,
                 config=config,
                 api_key=api_key,
                 provider=provider_type,
@@ -1694,6 +1696,7 @@ def process_file(
                 base_url=base_url,
                 language=lang_code,
                 language_variant=lang_variant,
+                speaker_names=speaker_names or None,
                 on_whisper_progress=on_whisper_progress if is_av else None,
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
@@ -2712,15 +2715,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Processing Options", open=True):
-                panel_toggle = gr.Checkbox(
-                    label="Panel Mode (multiple speakers)",
-                    value=False,
-                    info="Enables speaker diarization. Requires HF_TOKEN env var.",
-                )
-                speakers_input = gr.Number(
-                    label="Number of speakers (optional, 2–20)",
-                    minimum=2, maximum=20, step=1,
-                    value=2, visible=False,
+                speakers_input = gr.Textbox(
+                    label="Speaker names (optional)",
+                    placeholder="e.g.  Jay Pendley, John Smith (Interviewer)",
+                    info="List the people in this recording — AI will use these names when labelling who said what.",
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model",
@@ -2728,6 +2726,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="base",
                     info="tiny = fastest   |   large = most accurate",
                 )
+                # panel_toggle kept as hidden dummy so existing wiring doesn't break
+                panel_toggle = gr.Checkbox(value=False, visible=False)
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -2882,7 +2882,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[model_dropdown, user_api_key],
     )
 
-    panel_toggle.change(fn=toggle_speakers, inputs=panel_toggle, outputs=speakers_input)
+    # panel_toggle is hidden dummy — no change handler needed
     language_input.change(
         fn=toggle_language_variant,
         inputs=language_input,

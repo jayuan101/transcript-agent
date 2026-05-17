@@ -113,10 +113,15 @@ try:
 
     class _TrackingTqdm(_tqdm_mod.tqdm):
         def update(self, n=1):
-            super().update(n)
+            # Bypass tqdm's progress bar rendering — it outputs Unicode chars like
+            # ▼ (U+25BC) to stderr, which crashes on ASCII-encoded terminals/pipes.
+            # Manually update self.n instead of calling super().update().
+            if self.n is None:
+                self.n = 0
+            self.n += n
             with _progress_lock:
                 cb = _progress_cb
-            if cb and self.total:
+            if cb and self.total and self.total > 0:
                 cb(min(self.n / self.total, 1.0))
 
     _wt.tqdm = _TrackingTqdm

@@ -2005,7 +2005,46 @@ _THEME_JS = """
 (function(){
   var _dark = false;
 
-  /* ── Injected <style> tag ────────────────────────────────────────────────────
+  /* ── PERMANENT static CSS injected directly into <head> ─────────────────────
+     Gradio 6 embeds css=CSS as JSON data in <script> tags and injects it later
+     via its own pipeline — we can't rely on it being in the DOM at toggle time.
+     We inject all our static CSS here so it's guaranteed to be real CSS. */
+  if (!document.getElementById('ta-static')) {
+    var ps = document.createElement('style');
+    ps.id = 'ta-static';
+    ps.textContent = [
+      /* Light mode page base */
+      'body{background:#f1f5f9!important}',
+      /* Checkbox visibility */
+      'input[type=checkbox]{accent-color:#2563eb!important;width:16px!important;height:16px!important;cursor:pointer!important}',
+      'html.dark input[type=checkbox]{accent-color:#3b82f6!important;outline:1px solid #475569!important;outline-offset:1px!important}',
+      '.checkbox-wrap{align-items:center!important;gap:8px!important}',
+      /* CSS vars — light defaults for step tracker + ETA panel */
+      ':root{--ta-card-bg:#f8fafc;--ta-card-border:#e2e8f0;--ta-card-text:#1e293b;--ta-card-sub:#64748b;--ta-card-val:#111827;',
+      '--ta-step-done-bg:#dcfce7;--ta-step-done-bdr:#22c55e;--ta-step-done-clr:#166534;',
+      '--ta-step-act-bg:#dbeafe;--ta-step-act-bdr:#2563eb;--ta-step-act-clr:#1d4ed8;',
+      '--ta-step-wait-bg:#f1f5f9;--ta-step-wait-bdr:#e2e8f0;--ta-step-wait-clr:#94a3b8;',
+      '--ta-conn-line-done:#22c55e;--ta-conn-line-wait:#e2e8f0;--ta-stat-bg:rgba(255,255,255,0.7);',
+      '--ta-stat-label:#1e40af;--ta-stat-val:#1d4ed8}',
+      /* CSS vars — dark overrides */
+      'html.dark{--ta-card-bg:#1e293b;--ta-card-border:#334155;--ta-card-text:#e2e8f0;--ta-card-sub:#94a3b8;--ta-card-val:#f1f5f9;',
+      '--ta-step-done-bg:#14532d;--ta-step-done-bdr:#4ade80;--ta-step-done-clr:#4ade80;',
+      '--ta-step-act-bg:#1e3a5f;--ta-step-act-bdr:#60a5fa;--ta-step-act-clr:#93c5fd;',
+      '--ta-step-wait-bg:#0f172a;--ta-step-wait-bdr:#334155;--ta-step-wait-clr:#475569;',
+      '--ta-conn-line-done:#4ade80;--ta-conn-line-wait:#334155;--ta-stat-bg:rgba(15,23,42,0.6);',
+      '--ta-stat-label:#93c5fd;--ta-stat-val:#e2e8f0}',
+      /* Process button */
+      '.big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(29,78,216,0.40)!important}',
+      /* Scrollable dropdowns */
+      '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
+      '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
+      /* Live log terminal */
+      '#live-log textarea{background:#0f172a!important;color:#86efac!important;font-family:"Courier New",monospace!important;font-size:0.80em!important;border-color:#1e3a5f!important}',
+    ].join('');
+    document.head.appendChild(ps);
+  }
+
+  /* ── Dynamic dark/light override tag ─────────────────────────────────────────
      Re-appended to END of <head> on every toggle so it always wins cascade ties
      against Gradio's own stylesheets (last stylesheet wins when both !important). */
   var st = document.getElementById('ta-override') || document.createElement('style');

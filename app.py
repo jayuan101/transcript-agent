@@ -539,54 +539,45 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 #api-banner-sub { color: #92400e !important; }
 
-/* ── Dark mode — activated when JS adds .dark to <html> ── */
-html.dark { color-scheme: dark; }
-html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain,
-html.dark .gap, html.dark .gap-2, html.dark .gap-4 {
+/* ── Dark mode static rules (JS-injected sheet wins by cascade order) ── */
+html.dark { color-scheme: dark; color: #e2e8f0 !important; background: #0f172a !important; }
+html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
     background: #0f172a !important; color: #e2e8f0 !important;
 }
 html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact,
 html.dark .wrap, html.dark .upload-container {
     background: #1e293b !important; border-color: #334155 !important;
 }
-html.dark input, html.dark input[type="text"], html.dark input[type="password"],
-html.dark input[type="number"], html.dark textarea, html.dark select {
-    background: #0f172a !important; color: #e2e8f0 !important;
-    border-color: #475569 !important;
+html.dark input, html.dark textarea, html.dark select {
+    background: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important;
 }
-html.dark .label-wrap span, html.dark span.svelte-1b6s6g, html.dark .block-label,
-html.dark label span, html.dark .info, html.dark .file-name {
-    color: #94a3b8 !important;
-}
+html.dark span, html.dark p, html.dark div, html.dark h1, html.dark h2,
+html.dark h3, html.dark h4, html.dark li, html.dark td { color: #e2e8f0 !important; }
+html.dark .label-wrap span, html.dark .block-label, html.dark label span,
+html.dark .info, html.dark .file-name { color: #94a3b8 !important; }
 html.dark .tabs > .tab-nav button {
-    color: #94a3b8 !important; background: #1e293b !important;
-    border-color: #334155 !important;
+    color: #94a3b8 !important; background: #1e293b !important; border-color: #334155 !important;
 }
 html.dark .tabs > .tab-nav button.selected {
-    color: #e2e8f0 !important; border-bottom-color: #3b82f6 !important;
+    color: #e2e8f0 !important; border-bottom-color: #3b82f6 !important; background: #0f172a !important;
 }
 html.dark .tabitem { background: #0f172a !important; }
-html.dark .prose, html.dark .prose p, html.dark .prose h1, html.dark .prose h2,
-html.dark .prose h3, html.dark .prose li, html.dark .markdown {
-    color: #e2e8f0 !important;
-}
+html.dark .prose, html.dark .markdown { color: #e2e8f0 !important; }
+html.dark .prose *, html.dark .markdown * { color: #e2e8f0 !important; }
 html.dark [role="listbox"] { background: #1e293b !important; border-color: #334155 !important; }
 html.dark [role="option"] { color: #e2e8f0 !important; background: #1e293b !important; }
 html.dark [role="option"]:hover, html.dark [role="option"][aria-selected="true"] {
-    background: #334155 !important;
+    background: #334155 !important; color: #fff !important;
 }
-html.dark .accordion, html.dark details {
-    background: #1e293b !important; border-color: #334155 !important;
-}
+html.dark .accordion, html.dark details { background: #1e293b !important; border-color: #334155 !important; }
 html.dark .accordion .label-wrap, html.dark details summary { color: #e2e8f0 !important; }
 html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
-html.dark #live-log textarea { background: #020617 !important; }
-html.dark .dropdown-arrow svg { fill: #94a3b8 !important; }
 html.dark .file-preview { background: #1e293b !important; color: #e2e8f0 !important; }
-html.dark button:not(.big-btn button):not(#ta-widget *) {
-    background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important;
-}
-html.dark button.selected:not(#ta-widget *) { background: #334155 !important; }
+html.dark .dropdown-arrow svg { fill: #94a3b8 !important; }
+html.dark button { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
+html.dark .big-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; }
+html.dark #ta-btn-light { background: transparent !important; color: #94a3b8 !important; }
+html.dark #ta-btn-dark  { background: #3b82f6 !important; color: #fff !important; }
 html.dark ::-webkit-scrollbar-track { background: #0f172a !important; }
 html.dark ::-webkit-scrollbar-thumb { background: #334155 !important; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
@@ -1993,45 +1984,41 @@ _THEME_JS = """
 (function(){
   var _dark = false;
 
-  /* ── Injected <style> — ALL rules scoped to html.dark so removing the class
-     atomically resets everything. Light mode = st is cleared = zero leftover styles. */
+  /* ── Injected <style> tag ────────────────────────────────────────────────────
+     Re-appended to END of <head> on every toggle so it always wins cascade ties
+     against Gradio's own stylesheets (last stylesheet wins when both !important). */
   var st = document.getElementById('ta-override') || document.createElement('style');
   st.id = 'ta-override';
-  if (!st.parentNode) document.head.appendChild(st);
 
-  /* All Gradio 6 CSS variable names */
-  var DARK_VARS = 'html.dark{'
-    + 'color-scheme:dark;color:#e2e8f0;background:#0f172a;'
-    + '--body-background-fill:#0f172a;--background-fill-primary:#0f172a;--background-fill-secondary:#1e293b;'
-    + '--block-background-fill:#1e293b;--block-border-color:#334155;--block-label-text-color:#94a3b8;'
-    + '--input-background-fill:#0f172a;--input-border-color:#475569;--input-text:#e2e8f0;'
-    + '--panel-background-fill:#1e293b;--panel-border-color:#334155;'
-    + '--border-color-primary:#334155;--border-color-accent:#3b82f6;'
-    + '--color-accent:#3b82f6;--neutral-100:#1e293b;--neutral-200:#334155;'
-    + '--neutral-700:#94a3b8;--neutral-800:#cbd5e1;--neutral-900:#e2e8f0;'
-    + '--link-text-color:#60a5fa;--body-text-color:#e2e8f0;--body-text-color-subdued:#94a3b8;'
-    + '--checkbox-background-color:#1e293b;--table-even-background-fill:#1e293b;'
-    + '--table-odd-background-fill:#162032;--table-border-color:#334155;--table-text:#e2e8f0;'
-    + '}';
-
-  var DARK_RULES = DARK_VARS + [
-    /* containers & layout */
+  /* Gradio 6 CSS variable overrides + element rules. Every color/bg has !important
+     so Gradio inline styles can't win. */
+  var DARK_RULES = [
+    /* CSS variables — set on html.dark so they cascade into all Gradio components */
+    'html.dark{color-scheme:dark;color:#e2e8f0!important;background:#0f172a!important;'
+      +'--body-background-fill:#0f172a;--background-fill-primary:#0f172a;'
+      +'--background-fill-secondary:#1e293b;--block-background-fill:#1e293b;'
+      +'--block-border-color:#334155;--block-label-text-color:#94a3b8;'
+      +'--input-background-fill:#0f172a;--input-border-color:#475569;'
+      +'--panel-background-fill:#1e293b;--panel-border-color:#334155;'
+      +'--border-color-primary:#334155;--body-text-color:#e2e8f0;'
+      +'--body-text-color-subdued:#94a3b8;--neutral-100:#1e293b;--neutral-200:#334155;'
+      +'--neutral-700:#94a3b8;--neutral-800:#cbd5e1;--neutral-900:#e2e8f0;}',
+    /* page & containers */
     'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain{background:#0f172a!important;color:#e2e8f0!important}',
-    'html.dark .gap,html.dark .gap-2,html.dark .gap-4,html.dark .flex,html.dark .grid{color:#e2e8f0}',
     /* blocks */
     'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container,html.dark .padded{background:#1e293b!important;border-color:#334155!important}',
-    /* ALL text — cascade from html.dark, fallback for anything missed */
-    'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th{color:#e2e8f0}',
-    /* labels & info */
-    'html.dark .label-wrap span,html.dark .block-label,html.dark label span,html.dark .info,html.dark .file-name,.label-wrap .text{color:#94a3b8!important}',
+    /* text — !important so Gradio's inline color= can't override */
+    'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th,html.dark strong,html.dark em{color:#e2e8f0!important}',
+    /* labels */
+    'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#94a3b8!important}',
     /* inputs */
-    'html.dark input,html.dark textarea,html.dark select{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
-    'html.dark input::placeholder,html.dark textarea::placeholder{color:#64748b!important}',
+    'html.dark input,html.dark textarea,html.dark select,[role=combobox]{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
+    'html.dark input::placeholder,html.dark textarea::placeholder{color:#64748b!important;opacity:1!important}',
     /* tabs */
     'html.dark .tabs>.tab-nav button{color:#94a3b8!important;background:#1e293b!important;border-color:#334155!important}',
-    'html.dark .tabs>.tab-nav button.selected{color:#e2e8f0!important;border-bottom-color:#3b82f6!important}',
+    'html.dark .tabs>.tab-nav button.selected{color:#e2e8f0!important;border-bottom-color:#3b82f6!important;background:#0f172a!important}',
     'html.dark .tabitem{background:#0f172a!important}',
-    /* markdown / prose */
+    /* markdown */
     'html.dark .prose,html.dark .markdown{color:#e2e8f0!important;background:transparent!important}',
     'html.dark .prose *,html.dark .markdown *{color:#e2e8f0!important}',
     'html.dark .prose a,html.dark .markdown a{color:#60a5fa!important}',
@@ -2039,20 +2026,18 @@ _THEME_JS = """
     /* dropdowns */
     'html.dark [role=listbox]{background:#1e293b!important;border-color:#334155!important}',
     'html.dark [role=option]{color:#e2e8f0!important;background:#1e293b!important}',
-    'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#334155!important}',
-    'html.dark [role=combobox]{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
+    'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#334155!important;color:#fff!important}',
     /* accordion */
     'html.dark .accordion,html.dark details{background:#1e293b!important;border-color:#334155!important}',
-    'html.dark .accordion .label-wrap,html.dark details summary,html.dark .accordion .label-wrap span{color:#e2e8f0!important}',
+    'html.dark .accordion .label-wrap,html.dark details summary{color:#e2e8f0!important}',
     'html.dark .checkbox-group label span,html.dark .radio-group label span{color:#cbd5e1!important}',
     'html.dark .file-preview{background:#1e293b!important;color:#e2e8f0!important}',
-    'html.dark svg{color:#94a3b8}',
     'html.dark .dropdown-arrow svg{fill:#94a3b8!important}',
-    /* buttons — exclude theme toggle */
+    /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
     'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important}',
-    /* restore theme toggle buttons */
+    /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
     /* scrollbars */
@@ -2061,38 +2046,49 @@ _THEME_JS = """
     'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
   ].join('');
 
-  /* ── DOM patcher: directly set inline styles on elements Gradio may have styled ── */
+  /* ── DOM patcher ─────────────────────────────────────────────────────────────
+     Sets/removes inline styles directly on elements Gradio styles inline.
+     Uses removeProperty() in light mode — setProperty('x','') is a no-op. */
+  function _sp(el, prop, val) {
+    if (val) el.style.setProperty(prop, val, 'important');
+    else     el.style.removeProperty(prop);
+  }
+
   function patchDOM(dark) {
-    var bg0 = dark ? '#0f172a' : '', bg1 = dark ? '#1e293b' : '';
-    var fg  = dark ? '#e2e8f0' : '', fg2 = dark ? '#94a3b8' : '';
-    var bd  = dark ? '#334155' : '';
-    ['.gradio-container','.main','.contain','body'].forEach(function(s){
-      document.querySelectorAll(s).forEach(function(el){
-        el.style.setProperty('background',bg0,'important');
-        el.style.setProperty('color',fg,'important');
-      });
+    var bg0 = dark ? '#0f172a' : null;
+    var bg1 = dark ? '#1e293b' : null;
+    var fg  = dark ? '#e2e8f0' : null;
+    var fg2 = dark ? '#94a3b8' : null;
+    var bd  = dark ? '#334155' : null;
+    document.querySelectorAll('.gradio-container,.main,.contain,body').forEach(function(el){
+      _sp(el,'background',bg0); _sp(el,'color',fg);
     });
-    ['.block','.form','.wrap','.panel-full-width','.compact'].forEach(function(s){
-      document.querySelectorAll(s).forEach(function(el){
-        el.style.setProperty('background',bg1,'important');
-        if(bd) el.style.setProperty('border-color',bd,'important');
-      });
+    document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact').forEach(function(el){
+      _sp(el,'background',bg1); _sp(el,'border-color',bd);
     });
-    document.querySelectorAll('input,textarea').forEach(function(el){
-      el.style.setProperty('background',bg0,'important');
-      el.style.setProperty('color',fg,'important');
+    document.querySelectorAll('input,textarea,select').forEach(function(el){
+      _sp(el,'background',bg0); _sp(el,'color',fg); _sp(el,'border-color',dark?'#475569':null);
     });
-    document.querySelectorAll('.label-wrap span,.block-label,label span,.info').forEach(function(el){
-      el.style.setProperty('color',fg2,'important');
+    document.querySelectorAll('.label-wrap span,.block-label,label>span,.info').forEach(function(el){
+      _sp(el,'color',fg2);
+    });
+    /* Force text color on common text containers */
+    document.querySelectorAll('.block p,.block span,.block div,.block td,.block li').forEach(function(el){
+      _sp(el,'color',fg);
     });
   }
 
-  /* ── Core apply function ────────────────────────────────────────────────── */
+  /* ── Core apply function ─────────────────────────────────────────────────── */
   function applyTheme(dark) {
     _dark = dark;
+
+    /* Re-append st to END of head so our rules always win cascade order */
+    if (st.parentNode) st.parentNode.removeChild(st);
+    document.head.appendChild(st);
+    st.textContent = dark ? DARK_RULES : '';
+
     document.documentElement.classList.toggle('dark', dark);
     document.body.classList.toggle('dark', dark);
-    st.textContent = dark ? DARK_RULES : '';
     patchDOM(dark);
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
@@ -2126,7 +2122,9 @@ _THEME_JS = """
     }
   }
 
-  /* ── MutationObserver: stop Gradio re-renders from stripping .dark ──────── */
+  /* ── MutationObservers ───────────────────────────────────────────────────────
+     1. Prevent Gradio from stripping .dark off <html>
+     2. Re-patch DOM when Gradio adds new nodes (throttled — max once per 300ms) */
   new MutationObserver(function(muts) {
     if (!_dark) return;
     muts.forEach(function(m) {
@@ -2134,6 +2132,16 @@ _THEME_JS = """
         m.target.classList.add('dark');
     });
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  var _patchTimer = null;
+  new MutationObserver(function(muts) {
+    if (!_dark) return;
+    var hasNodes = muts.some(function(m){ return m.addedNodes.length > 0; });
+    if (!hasNodes) return;
+    if (_patchTimer) return;
+    _patchTimer = setTimeout(function(){ _patchTimer = null; patchDOM(true); }, 300);
+  }).observe(document.body || document.documentElement,
+    { childList: true, subtree: true });
 
   /* ── Init — single init guard prevents double event-listener bug ─────────── */
   var _inited = false;

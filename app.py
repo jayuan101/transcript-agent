@@ -1650,8 +1650,12 @@ def process_file(
         include_speaker_profiles=inc_profiles,
         include_speech_analytics=inc_analytics,
     )
-    # num_speakers is now a text field of speaker names; pass as context to Claude
-    speaker_names = (num_speakers or "").strip() if isinstance(num_speakers, str) else None
+    # num_speakers is a numeric count of speakers; convert to a context string for Claude
+    try:
+        _n = int(num_speakers) if num_speakers not in (None, "") else None
+    except (ValueError, TypeError):
+        _n = None
+    speaker_names = f"{_n} speakers" if _n and _n > 0 else None
     speakers = None  # WhisperX diarization disabled (requires HF_TOKEN)
     lang_code = language_input if language_input and language_input != "auto" else None
     lang_variant = (
@@ -2715,10 +2719,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Processing Options", open=True):
-                speakers_input = gr.Textbox(
-                    label="Speaker names (optional)",
-                    placeholder="e.g.  Jay Pendley, John Smith (Interviewer)",
-                    info="List the people in this recording — AI will use these names when labelling who said what.",
+                speakers_input = gr.Number(
+                    label="Number of speakers (optional)",
+                    value=None,
+                    minimum=1,
+                    maximum=20,
+                    step=1,
+                    info="How many people are speaking? AI will label them as Speaker 1, Speaker 2, etc.",
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model",

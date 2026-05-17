@@ -767,8 +767,8 @@ def process_transcript(
 
         if speaker_names:
             prompt = (
-                f"The people in this recording are: {speaker_names}\n"
-                f"Use these names when identifying who said what in the transcript.\n\n"
+                f"There are {speaker_names} in this recording.\n"
+                f"Label each speaker distinctly as Speaker 1, Speaker 2, etc. when identifying who said what.\n\n"
             ) + prompt
 
         if n > 1:
@@ -985,7 +985,7 @@ def run(
     _model = model or ("claude-opus-4-7" if provider == "anthropic" else "gpt-4o")
     client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
     if speaker_names:
-        _log(f"Speaker names provided: {speaker_names}")
+        _log(f"Speaker count provided: {speaker_names}")
     result = process_transcript(
         client, raw_text, fmt,
         panel_mode=panel_mode,

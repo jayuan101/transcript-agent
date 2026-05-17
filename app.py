@@ -479,6 +479,27 @@ footer { display: none !important; }
 /* page */
 body { background: #f1f5f9 !important; }
 
+/* ── Checkbox visibility — both modes ── */
+input[type="checkbox"] {
+    accent-color: #2563eb !important;
+    width: 16px !important;
+    height: 16px !important;
+    cursor: pointer !important;
+}
+html.dark input[type="checkbox"] {
+    accent-color: #3b82f6 !important;
+    outline: 1px solid #475569 !important;
+    outline-offset: 1px !important;
+}
+.checkbox-wrap { align-items: center !important; gap: 8px !important; }
+.checkbox-group label, .checkbox-wrap label {
+    font-size: 0.9em !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+}
+html.dark .checkbox-group label span,
+html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
+
 /* process button */
 .big-btn button {
     background: linear-gradient(135deg,#1e40af,#3b82f6) !important;
@@ -2478,18 +2499,32 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     ],
                     value="formal",
                 )
-                gr.HTML(_SECTION("Include in report"))
+                gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:8px 0 4px;">
+  Include in report
+</div>
+<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);
+     border-radius:8px;padding:10px 14px;font-size:0.88em;">
+  <div style="color:var(--ta-card-sub);font-size:0.78em;margin-bottom:6px;">
+    Tick what to include — untick to skip
+  </div>
+</div>""")
                 with gr.Row():
-                    with gr.Column(min_width=120):
+                    with gr.Column(min_width=130):
                         inc_summary    = gr.Checkbox(label="Summary",          value=True)
                         inc_key_points = gr.Checkbox(label="Key points",       value=True)
                         inc_action     = gr.Checkbox(label="Action items",     value=True)
-                    with gr.Column(min_width=120):
+                    with gr.Column(min_width=130):
                         inc_transcript = gr.Checkbox(label="Full transcript",  value=True)
                         inc_profiles   = gr.Checkbox(label="Speaker profiles", value=True)
                         inc_analytics  = gr.Checkbox(label="Speech analytics", value=True)
 
-            gr.HTML(_SECTION("Step 3 — Run"))
+            gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:8px 0 4px;">
+  Step 3 — Run
+</div>""")
             process_btn = gr.Button(
                 "Analyze File",
                 variant="primary", size="lg",

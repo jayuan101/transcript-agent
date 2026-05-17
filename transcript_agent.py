@@ -23,7 +23,50 @@ import tempfile
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional
-import anthropic
+# ── LLM client abstraction ───────────────────────────────────────────────────
+
+class LLMClient:
+    """Thin wrapper normalising Anthropic and OpenAI-compatible provider SDKs."""
+
+    def __init__(self, provider: str, api_key: str, model: str, base_url: str = None):
+        self.provider = provider  # "anthropic" | "openai" | "openai_compat"
+        self.model = model
+        if provider == "anthropic":
+            import anthropic as _ant
+            self._client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
+        else:
+            import openai as _oai
+            kw = {}
+            if api_key:
+                kw["api_key"] = api_key
+            if base_url:
+                kw["base_url"] = base_url
+            self._client = _oai.OpenAI(**kw)
+
+    def chat(self, system: str, user: str, max_tokens: int, thinking: bool = False) -> str:
+        if self.provider == "anthropic":
+            kw = {}
+            if thinking:
+                kw["thinking"] = {"type": "adaptive"}
+            resp = self._client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": user}],
+                **kw,
+            )
+            return next((b.text for b in resp.content if b.type == "text"), "")
+        else:
+            resp = self._client.chat.completions.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            )
+            return resp.choices[0].message.content or ""
+
 
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──
 import subprocess as _sp
@@ -622,13 +665,11 @@ def _chunk(text: str, max_chars: int = 600_000) -> list:
 def _merge_summaries(client, results: list) -> str:
     print("  Merging summaries...")
     combined = "\n".join(f"- {r.get('summary', '')}" for r in results)
-    resp = client.messages.create(
-        model="claude-opus-4-7",
+    return client.chat(
+        system="You are a helpful assistant.",
+        user=f"Combine into one 3-5 sentence executive summary:\n{combined}",
         max_tokens=512,
-        messages=[{"role": "user", "content":
-            f"Combine into one 3-5 sentence executive summary:\n{combined}"}],
-    )
-    return next((b.text for b in resp.content if b.type == "text"), combined)
+    ) or combined
 
 
 def process_transcript(
@@ -675,14 +716,12 @@ def process_transcript(
         if n > 1:
             prompt = f"[Part {i} of {n}]\n\n" + prompt
 
-        response = client.messages.create(
-            model="claude-opus-4-7",
-            max_tokens=16000,
-            thinking={"type": "adaptive"},
+        raw = client.chat(
             system=sys_prompt,
-            messages=[{"role": "user", "content": prompt}],
+            user=prompt,
+            max_tokens=16000,
+            thinking=(client.provider == "anthropic"),
         )
-        raw = next((b.text for b in response.content if b.type == "text"), "")
         results.append(_parse_json(raw))
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")
 
@@ -826,6 +865,9 @@ def run(
     num_speakers: int = None,
     config: ReportConfig = None,
     api_key: str = None,
+    provider: str = "anthropic",    # "anthropic" | "openai" | "openai_compat"
+    model: str = None,              # defaults per-provider if None
+    base_url: str = None,           # base URL for openai_compat providers
     language: str = None,           # ISO-639-1 code e.g. "es", "en", or None for auto
     language_variant: str = None,   # e.g. "Colombian Spanish (es-CO)"
     on_whisper_progress=None,       # callable(pct: float) — live Whisper % updates
@@ -878,10 +920,11 @@ def run(
     if on_raw_transcript:
         on_raw_transcript(raw_text)
 
-    _log(f"Text ready: ~{len(raw_text.split()):,} words  |  Passing to Claude…")
+    _log(f"Text ready: ~{len(raw_text.split()):,} words  |  Passing to AI…")
 
     if on_stage_change: on_stage_change("claude")
-    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
+    _model = model or ("claude-opus-4-7" if provider == "anthropic" else "gpt-4o")
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
     result = process_transcript(
         client, raw_text, fmt,
         panel_mode=panel_mode,

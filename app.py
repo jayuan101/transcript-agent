@@ -179,22 +179,30 @@ def _download_url(url: str, dest_dir: Path) -> Path:
             parsed = urllib.parse.urlparse(resp.url)
             new_host = m_ep.group(1).strip()
             bucket = m_bucket.group(1).strip() if m_bucket else ""
-            # Strip region-specific presigned params — they're invalid at the new endpoint.
             _qs = parsed.query
             _is_presigned = any(k in _qs for k in ("X-Amz-Algorithm", "X-Amz-Credential", "AWSAccessKeyId"))
-            _new_qs = "" if _is_presigned else _qs
             if bucket and not new_host.startswith(bucket + "."):
                 new_path = "/" + bucket.strip("/") + "/" + parsed.path.lstrip("/")
             else:
                 new_path = parsed.path
+            # Try with presigned params preserved first — the credential region
+            # often already matches the redirect target (global → regional endpoint).
             new_url = urllib.parse.urlunparse(
                 (parsed.scheme or "https", new_host, new_path,
-                 parsed.params, _new_qs, parsed.fragment)
+                 parsed.params, _qs, parsed.fragment)
             )
             resp.close()
             resp = _do_get(new_url)
             if resp.status_code in (400, 403) and _is_presigned:
-                # Presigned URL for wrong region — server-side misconfiguration.
+                # Params didn't work at the new endpoint — truly wrong region.
+                # Try without presigned params as a last resort (public bucket).
+                new_url_no_auth = urllib.parse.urlunparse(
+                    (parsed.scheme or "https", new_host, new_path,
+                     parsed.params, "", parsed.fragment)
+                )
+                resp.close()
+                resp = _do_get(new_url_no_auth)
+            if resp.status_code in (400, 403):
                 _orig_host = urllib.parse.urlparse(url).hostname or ""
                 _hint = (
                     f"Open {_orig_host} in your browser, download the recording, "
@@ -287,9 +295,41 @@ def _allow_sleep():
         ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
 
 from transcript_agent import (
-    run, ReportConfig, build_combined_report,
+    run, ReportConfig, build_combined_report, LLMClient,
     AUDIO_EXTS, VIDEO_EXTS,
 )
+
+# ── AI provider configuration ─────────────────────────────────────────────────
+_PROVIDERS = {
+    "Claude (Anthropic)": {
+        "type": "anthropic",
+        "placeholder": "sk-ant-api03-…",
+        "info": "console.anthropic.com → API keys → Create key",
+        "models": ["claude-opus-4-7", "claude-sonnet-4-6", "claude-haiku-4-5-20251001"],
+        "base_url": None,
+    },
+    "OpenAI": {
+        "type": "openai",
+        "placeholder": "sk-…",
+        "info": "platform.openai.com → API keys",
+        "models": ["gpt-4o", "gpt-4-turbo", "gpt-4o-mini"],
+        "base_url": None,
+    },
+    "Google Gemini": {
+        "type": "openai_compat",
+        "placeholder": "AIzaSy…",
+        "info": "aistudio.google.com → Get API key",
+        "models": ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash"],
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+    },
+    "Groq": {
+        "type": "openai_compat",
+        "placeholder": "gsk_…",
+        "info": "console.groq.com → API keys",
+        "models": ["llama-3.3-70b-versatile", "llama3-70b-8192", "mixtral-8x7b-32768"],
+        "base_url": "https://api.groq.com/openai/v1",
+    },
+}
 
 OUT_DIR = Path(__file__).parent / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
@@ -353,20 +393,23 @@ body { background: #f1f5f9 !important; }
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 #api-banner-sub { color: #92400e !important; }
 
-/* ── Dark mode — applied when JS adds html.dark ── */
-html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
+/* ── Dark mode — activated when JS adds .dark to <html> ── */
+html.dark { color-scheme: dark; }
+html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain,
+html.dark .gap, html.dark .gap-2, html.dark .gap-4 {
     background: #0f172a !important; color: #e2e8f0 !important;
 }
-html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact {
+html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact,
+html.dark .wrap, html.dark .upload-container {
     background: #1e293b !important; border-color: #334155 !important;
 }
 html.dark input, html.dark input[type="text"], html.dark input[type="password"],
-html.dark textarea, html.dark select {
+html.dark input[type="number"], html.dark textarea, html.dark select {
     background: #0f172a !important; color: #e2e8f0 !important;
     border-color: #475569 !important;
 }
 html.dark .label-wrap span, html.dark span.svelte-1b6s6g, html.dark .block-label,
-html.dark label span, html.dark .info {
+html.dark label span, html.dark .info, html.dark .file-name {
     color: #94a3b8 !important;
 }
 html.dark .tabs > .tab-nav button {
@@ -392,9 +435,15 @@ html.dark .accordion, html.dark details {
 html.dark .accordion .label-wrap, html.dark details summary { color: #e2e8f0 !important; }
 html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
 html.dark #live-log textarea { background: #020617 !important; }
-html.dark .wrap { background: #1e293b !important; }
 html.dark .dropdown-arrow svg { fill: #94a3b8 !important; }
 html.dark .file-preview { background: #1e293b !important; color: #e2e8f0 !important; }
+html.dark button:not(.big-btn button):not(#ta-widget *) {
+    background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important;
+}
+html.dark button.selected:not(#ta-widget *) { background: #334155 !important; }
+html.dark ::-webkit-scrollbar-track { background: #0f172a !important; }
+html.dark ::-webkit-scrollbar-thumb { background: #334155 !important; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
 
 """
 
@@ -924,29 +973,29 @@ _PDF_LANGUAGES = [
 ]
 
 
-def _translate_combined_text(combined_text: str, target_language: str, api_key: str) -> str:
-    """Translate the combined report text to target_language using Claude."""
-    import anthropic as _ant
-    client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
-    resp = client.messages.create(
-        model="claude-sonnet-4-6",
+def _translate_combined_text(
+    combined_text: str, target_language: str, api_key: str,
+    provider: str = "anthropic", model: str = None, base_url: str = None,
+) -> str:
+    """Translate the combined report text to target_language using the selected provider."""
+    _model = model or ("claude-sonnet-4-6" if provider == "anthropic" else "gpt-4o")
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    return client.chat(
+        system="You are a professional translator.",
+        user=(
+            f"Translate the following transcript report to {target_language}. "
+            "Preserve ALL formatting exactly — keep the section headers in ALL CAPS, "
+            "keep divider lines (=== and ---), bullet characters (•, ☐), "
+            "and timestamps in [HH:MM:SS] format unchanged. "
+            "Only return the translated text, nothing else.\n\n"
+            + combined_text
+        ),
         max_tokens=8192,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Translate the following transcript report to {target_language}. "
-                "Preserve ALL formatting exactly — keep the section headers in ALL CAPS, "
-                "keep divider lines (=== and ---), bullet characters (•, ☐), "
-                "and timestamps in [HH:MM:SS] format unchanged. "
-                "Only return the translated text, nothing else.\n\n"
-                + combined_text
-            ),
-        }],
     )
-    return resp.content[0].text
 
 
-def generate_pdf_in_language(result_state, target_lang: str, api_key: str):
+def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
+                              provider_name: str = "Claude (Anthropic)", model_name: str = None):
     """Generate (or re-generate) the PDF in the chosen language."""
     if not result_state:
         return gr.update()
@@ -956,7 +1005,11 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str):
     out_dir      = Path(result_state["out_dir"])
 
     if target_lang and target_lang != "Same as source":
-        combined = _translate_combined_text(combined, target_lang, api_key)
+        cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
+        combined = _translate_combined_text(
+            combined, target_lang, api_key,
+            provider=cfg["type"], model=model_name, base_url=cfg["base_url"],
+        )
         pdf_name = f"{stem}_report_{target_lang.replace(' ', '_')}.pdf"
     else:
         pdf_name = f"{stem}_report.pdf"
@@ -1198,12 +1251,17 @@ def process_file(
     inc_profiles,
     inc_analytics,
     user_api_key,
+    provider_name,
+    model_name,
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     if not api_key:
-        yield _err("Please enter your Anthropic API key at the top of the page.")
+        yield _err(f"Please enter your {provider_name} API key at the top of the page.")
         return
+    provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
+    provider_type = provider_cfg["type"]
+    base_url      = provider_cfg["base_url"]
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop
@@ -1292,6 +1350,9 @@ def process_file(
                 num_speakers=speakers,
                 config=config,
                 api_key=api_key,
+                provider=provider_type,
+                model=model_name,
+                base_url=base_url,
                 language=lang_code,
                 language_variant=lang_variant,
                 on_whisper_progress=on_whisper_progress if is_av else None,
@@ -1620,89 +1681,119 @@ _THEME_TOGGLE = """
 (function(){
   var _dark = false;
 
-  /* inject override style tag into <head> */
+  /* ── Injected <style> tag ───────────────────────────────────────────────
+     ALL rules here start with "html.dark" so removing that class from <html>
+     atomically deactivates every rule — no partial-reset bug on light toggle. */
   var st = document.createElement('style');
   st.id  = 'ta-override';
   document.head.appendChild(st);
 
-  function applyTheme(dark){
+  /* Extra-specificity rules duplicating the static CSS for elements Gradio
+     renders after initial paint (dropdowns, dynamic blocks, etc.). */
+  var DARK_RULES = [
+    'html.dark{color-scheme:dark}',
+    'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain,html.dark .gap,html.dark .gap-2,html.dark .gap-4{background:#0f172a!important;color:#e2e8f0!important}',
+    'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container{background:#1e293b!important;border-color:#334155!important}',
+    'html.dark input,html.dark input[type=text],html.dark input[type=password],html.dark input[type=number],html.dark textarea,html.dark select{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
+    'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#94a3b8!important}',
+    'html.dark .tabs>.tab-nav button{color:#94a3b8!important;background:#1e293b!important;border-color:#334155!important}',
+    'html.dark .tabs>.tab-nav button.selected{color:#e2e8f0!important;border-bottom-color:#3b82f6!important}',
+    'html.dark .tabitem{background:#0f172a!important}',
+    'html.dark .prose,html.dark .markdown,html.dark p,html.dark h1,html.dark h2,html.dark h3,html.dark li{color:#e2e8f0!important}',
+    'html.dark [role=listbox]{background:#1e293b!important;border-color:#334155!important}',
+    'html.dark [role=option]{color:#e2e8f0!important;background:#1e293b!important}',
+    'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#334155!important}',
+    'html.dark .accordion,html.dark details{background:#1e293b!important;border-color:#334155!important}',
+    'html.dark .accordion .label-wrap,html.dark details summary{color:#e2e8f0!important}',
+    'html.dark .checkbox-group label span,html.dark .radio-group label span{color:#cbd5e1!important}',
+    'html.dark .file-preview{background:#1e293b!important;color:#e2e8f0!important}',
+    'html.dark .dropdown-arrow svg{fill:#94a3b8!important}',
+    'html.dark #live-log textarea{background:#020617!important}',
+    'html.dark button:not(.big-btn button):not(#ta-widget *){background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
+    'html.dark button.selected:not(#ta-widget *){background:#334155!important}',
+    'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
+    'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
+    'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
+  ].join('');
+
+  /* ── Core toggle function ───────────────────────────────────────────────── */
+  function applyTheme(dark) {
     _dark = dark;
 
-    /* toggle dark class on html + body */
-    [document.documentElement, document.body].forEach(function(el){
-      dark ? el.classList.add('dark') : el.classList.remove('dark');
-    });
+    /* Toggle .dark on <html> — this one change activates/deactivates ALL
+       html.dark rules in both the static stylesheet AND the st tag above. */
+    document.documentElement.classList.toggle('dark', dark);
+    document.body.classList.toggle('dark', dark);
 
-    /* sync Gradio localStorage keys */
+    /* Set / clear the extra-specificity rules.
+       In light mode we clear this completely — no leftover dark styles. */
+    st.textContent = dark ? DARK_RULES : '';
+
+    /* Persist preference */
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* force-override via injected style (dark mode toggle) */
-    st.textContent = dark
-      ? 'body,html,.gradio-container,.main,.contain{background:#0f172a !important;color:#e2e8f0 !important;}'
-        + '.block,.form,.panel-full-width,.compact{background:#1e293b !important;border-color:#334155 !important;}'
-        + 'input,input[type=text],input[type=password],textarea,select{background:#0f172a !important;color:#e2e8f0 !important;border-color:#475569 !important;}'
-        + '.label-wrap span,.block-label,label span,.info{color:#94a3b8 !important;}'
-        + '.tabs>.tab-nav button{color:#94a3b8 !important;background:#1e293b !important;border-color:#334155 !important;}'
-        + '.tabs>.tab-nav button.selected{color:#e2e8f0 !important;border-bottom-color:#3b82f6 !important;}'
-        + '.tabitem{background:#0f172a !important;}'
-        + '.prose,.prose p,.prose h1,.prose h2,.prose h3,.prose li,.markdown{color:#e2e8f0 !important;}'
-        + '[role=listbox]{background:#1e293b !important;border-color:#334155 !important;}'
-        + '[role=option]{color:#e2e8f0 !important;background:#1e293b !important;}'
-        + '[role=option]:hover,[role=option][aria-selected=true]{background:#334155 !important;}'
-        + '.accordion,details{background:#1e293b !important;border-color:#334155 !important;}'
-        + '.accordion .label-wrap,details summary{color:#e2e8f0 !important;}'
-        + '.wrap{background:#1e293b !important;}'
-        + '.file-preview{background:#1e293b !important;color:#e2e8f0 !important;}'
-      : 'body,html,.gradio-container{background:#f1f5f9 !important;}';
-
-    /* update switch visuals via inline style (100% reliable) */
+    /* Update toggle widget visuals */
     var widget = document.getElementById('ta-widget');
     var track  = document.getElementById('ta-track');
     var knob   = document.getElementById('ta-knob');
-    if(widget){
-      widget.style.background   = dark ? 'rgba(15,23,42,0.93)' : 'rgba(255,255,255,0.93)';
-      widget.style.borderColor  = dark ? '#334155' : '#e2e8f0';
+    if (widget) {
+      widget.style.background  = dark ? 'rgba(15,23,42,0.93)' : 'rgba(255,255,255,0.93)';
+      widget.style.borderColor = dark ? '#334155' : '#e2e8f0';
     }
-    if(track) track.style.background  = dark ? '#3b82f6' : '#cbd5e1';
-    if(knob)  knob.style.transform    = dark ? 'translateX(21px)' : 'translateX(0)';
+    if (track) track.style.background = dark ? '#3b82f6' : '#cbd5e1';
+    if (knob)  knob.style.transform   = dark ? 'translateX(21px)' : 'translateX(0)';
 
-    /* update amber API banner */
+    /* Update API banner if it's in idle/required state */
     var banner = document.getElementById('api-banner');
     var title  = document.getElementById('api-banner-title');
     var sub    = document.getElementById('api-banner-sub');
-    if(banner){
+    if (banner && !banner.dataset.state) {
       banner.style.background  = dark
         ? 'linear-gradient(135deg,#292107,#3b2d00)'
         : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
       banner.style.borderColor = dark ? '#d97706' : '#f59e0b';
+      if (title) title.style.color = dark ? '#fbbf24' : '#92400e';
+      if (sub)   sub.style.color   = dark ? '#fcd34d' : '#a16207';
     }
-    if(title) title.style.color = dark ? '#fbbf24' : '#92400e';
-    if(sub)   sub.style.color   = dark ? '#fcd34d' : '#a16207';
   }
 
-  /* wire the widget click */
-  function init(){
+  /* ── MutationObserver ───────────────────────────────────────────────────────
+     Gradio's Svelte runtime occasionally strips custom classes during reactive
+     re-renders. Watch the <html> element and immediately re-add .dark if needed. */
+  new MutationObserver(function(muts) {
+    if (!_dark) return;
+    muts.forEach(function(m) {
+      if (m.attributeName === 'class' && !m.target.classList.contains('dark')) {
+        m.target.classList.add('dark');
+      }
+    });
+  }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+  /* ── Init: wire click, restore saved pref ──────────────────────────────── */
+  function init() {
     var widget = document.getElementById('ta-widget');
-    if(!widget){ setTimeout(init, 250); return; }
-    var saved = localStorage.getItem('ta-dark') === 'true';
-    applyTheme(saved);
-    widget.addEventListener('click', function(){ applyTheme(!_dark); });
+    if (!widget) { setTimeout(init, 300); return; }
+    applyTheme(localStorage.getItem('ta-dark') === 'true');
+    widget.addEventListener('click', function() { applyTheme(!_dark); });
   }
-  setTimeout(init, 200);
+  document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 150); })
+    : setTimeout(init, 150);
+  setTimeout(init, 700); /* fallback for slow Gradio mounts */
 
-  /* 👁 show/hide eye on password inputs */
-  function addEyes(){
-    document.querySelectorAll('input[type="password"]').forEach(function(inp){
-      if(inp.dataset.eye) return;
+  /* ── 👁 Password show/hide eye ─────────────────────────────────────────── */
+  function addEyes() {
+    document.querySelectorAll('input[type="password"]').forEach(function(inp) {
+      if (inp.dataset.eye) return;
       inp.dataset.eye = '1';
       var eye = document.createElement('button');
       eye.type = 'button';
       eye.textContent = '👁';
       eye.style.cssText = 'position:absolute;right:10px;top:50%;transform:translateY(-50%);'
         + 'background:none;border:none;cursor:pointer;font-size:1em;opacity:0.5;z-index:20;padding:2px;';
-      eye.addEventListener('click', function(){
+      eye.addEventListener('click', function() {
         var show = inp.type === 'password';
         inp.type = show ? 'text' : 'password';
         eye.textContent  = show ? '🙈' : '👁';
@@ -1713,52 +1804,84 @@ _THEME_TOGGLE = """
     });
   }
   setTimeout(addEyes, 600);
-  setTimeout(addEyes, 1600);
-  setTimeout(addEyes, 3200);
+  setTimeout(addEyes, 1800);
+  setTimeout(addEyes, 3500);
 
-  /* 🔑 API key banner — turns green when a valid key is typed */
-  function watchApiKey(){
+  /* ── 🔑 API key banner — multi-provider aware ───────────────────────────── */
+  var KEY_PROVIDERS = [
+    { prefix: 'sk-ant',  name: 'Anthropic' },
+    { prefix: 'sk-',     name: 'OpenAI'    },
+    { prefix: 'AIzaSy',  name: 'Google Gemini' },
+    { prefix: 'gsk_',    name: 'Groq'      },
+  ];
+
+  function detectProvider(v) {
+    for (var i = 0; i < KEY_PROVIDERS.length; i++) {
+      if (v.startsWith(KEY_PROVIDERS[i].prefix)) return KEY_PROVIDERS[i].name;
+    }
+    return null;
+  }
+
+  function watchApiKey() {
     var inp = document.querySelector('input[type="password"]');
-    if(!inp){ setTimeout(watchApiKey, 600); return; }
+    if (!inp) { setTimeout(watchApiKey, 600); return; }
 
-    function refreshBanner(){
+    function refreshBanner() {
       var v      = inp.value.trim();
       var banner = document.getElementById('api-banner');
       var icon   = document.getElementById('api-banner-icon');
       var title  = document.getElementById('api-banner-title');
       var sub    = document.getElementById('api-banner-sub');
       var badge  = document.getElementById('api-banner-badge');
+      var provider = detectProvider(v);
 
-      if(v.startsWith('sk-ant')){
-        /* ── Approved ── */
-        if(banner){ banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
-        if(icon)   icon.textContent = '✅';
-        if(title){ title.textContent='API Key Approved'; title.style.color='#166534'; }
-        if(sub){   sub.innerHTML='Your Anthropic key is set. You\'re ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
-        if(badge)  badge.style.display='block';
-      } else if(v.length > 0){
-        /* ── Wrong format ── */
-        if(banner){ banner.style.background='linear-gradient(135deg,#fef2f2,#fee2e2)'; banner.style.borderColor='#ef4444'; }
-        if(icon)   icon.textContent = '⚠️';
-        if(title){ title.textContent='Invalid Key Format'; title.style.color='#991b1b'; }
-        if(sub){   sub.innerHTML='Key should start with <strong>sk-ant-api03-</strong>…'; sub.style.color='#b91c1c'; }
-        if(badge)  badge.style.display='none';
+      if (provider) {
+        /* ── Recognised key ── */
+        banner.dataset.state = 'approved';
+        if (banner) { banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
+        if (icon)   icon.textContent = '✅';
+        if (title) { title.textContent = provider + ' Key Approved'; title.style.color='#166534'; }
+        if (sub)   { sub.innerHTML = 'Your <strong>' + provider + '</strong> key is set. Ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
+        if (badge)   badge.style.display = 'block';
+      } else if (v.length >= 20) {
+        /* ── Long key, unrecognised prefix — accept it ── */
+        banner.dataset.state = 'approved';
+        if (banner) { banner.style.background='linear-gradient(135deg,#f0fdf4,#dcfce7)'; banner.style.borderColor='#22c55e'; }
+        if (icon)   icon.textContent = '✅';
+        if (title) { title.textContent = 'API Key Set'; title.style.color='#166534'; }
+        if (sub)   { sub.innerHTML = 'Key entered. Ready to <strong>Analyze File</strong>.'; sub.style.color='#15803d'; }
+        if (badge)   badge.style.display = 'block';
+      } else if (v.length > 0) {
+        /* ── Too short ── */
+        banner.dataset.state = 'error';
+        if (banner) { banner.style.background='linear-gradient(135deg,#fef2f2,#fee2e2)'; banner.style.borderColor='#ef4444'; }
+        if (icon)   icon.textContent = '⚠️';
+        if (title) { title.textContent = 'Key Too Short'; title.style.color='#991b1b'; }
+        if (sub)   { sub.innerHTML = 'Paste your full API key (Anthropic, OpenAI, Gemini, or Groq).'; sub.style.color='#b91c1c'; }
+        if (badge)   badge.style.display = 'none';
       } else {
         /* ── Empty ── */
-        if(banner){ banner.style.background='linear-gradient(135deg,#fffbeb,#fef3c7)'; banner.style.borderColor='#f59e0b'; }
-        if(icon)   icon.textContent = '🔑';
-        if(title){ title.textContent='API Key Required'; title.style.color='#92400e'; }
-        if(sub){   sub.innerHTML='Enter your <strong>Anthropic API key</strong> below. Usage is billed directly to your account — nothing is stored here.'; sub.style.color='#a16207'; }
-        if(badge)  badge.style.display='none';
+        delete banner.dataset.state;
+        if (banner) { banner.style.background='linear-gradient(135deg,#fffbeb,#fef3c7)'; banner.style.borderColor='#f59e0b'; }
+        if (icon)   icon.textContent = '🔑';
+        if (title) { title.textContent = 'API Key Required'; title.style.color='#92400e'; }
+        if (sub)   { sub.innerHTML = 'Enter your API key below (Anthropic, OpenAI, Gemini, or Groq). Billed directly to your account — nothing stored here.'; sub.style.color='#a16207'; }
+        if (badge)   badge.style.display = 'none';
+        /* Re-apply banner theme colours when returning to empty state */
+        if (_dark) {
+          if (banner) { banner.style.background='linear-gradient(135deg,#292107,#3b2d00)'; banner.style.borderColor='#d97706'; }
+          if (title)  title.style.color = '#fbbf24';
+          if (sub)    sub.style.color   = '#fcd34d';
+        }
       }
     }
 
-    inp.addEventListener('input', refreshBanner);
+    inp.addEventListener('input',  refreshBanner);
     inp.addEventListener('change', refreshBanner);
     refreshBanner();
   }
   setTimeout(watchApiKey, 800);
-  setTimeout(watchApiKey, 2000);
+  setTimeout(watchApiKey, 2200);
 })();
 </script>
 """
@@ -1799,8 +1922,22 @@ with gr.Blocks(title="Transcript Agent") as demo:
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
 
+    with gr.Row():
+        provider_dropdown = gr.Dropdown(
+            label="AI Provider",
+            choices=list(_PROVIDERS.keys()),
+            value="Claude (Anthropic)",
+            scale=1,
+        )
+        model_dropdown = gr.Dropdown(
+            label="Model",
+            choices=_PROVIDERS["Claude (Anthropic)"]["models"],
+            value=_PROVIDERS["Claude (Anthropic)"]["models"][0],
+            scale=2,
+        )
+
     user_api_key = gr.Textbox(
-        label="Anthropic API Key",
+        label="Claude (Anthropic) API Key",
         placeholder="sk-ant-api03-…",
         type="password",
         info="console.anthropic.com → API keys → Create key",
@@ -1965,6 +2102,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
     """)
 
     # ── event wiring ──────────────────────────────────────────────────────────
+    def on_provider_change(provider):
+        cfg = _PROVIDERS.get(provider, _PROVIDERS["Claude (Anthropic)"])
+        return (
+            gr.update(choices=cfg["models"], value=cfg["models"][0]),
+            gr.update(label=f"{provider} API Key", placeholder=cfg["placeholder"], info=cfg["info"]),
+        )
+
+    provider_dropdown.change(
+        fn=on_provider_change,
+        inputs=[provider_dropdown],
+        outputs=[model_dropdown, user_api_key],
+    )
+
     panel_toggle.change(fn=toggle_speakers, inputs=panel_toggle, outputs=speakers_input)
     language_input.change(
         fn=toggle_language_variant,
@@ -1982,6 +2132,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,
             user_api_key,
+            provider_dropdown, model_dropdown,
         ],
         outputs=[
             status_bar,
@@ -1997,7 +2148,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     pdf_regen_btn.click(
         fn=generate_pdf_in_language,
-        inputs=[result_state, pdf_lang_input, user_api_key],
+        inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
         outputs=[dl_pdf],
     )
 

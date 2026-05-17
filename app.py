@@ -2230,9 +2230,10 @@ _THEME_JS = """
     /* 4. Patch inline styles (handles elements Gradio styles inline) */
     patchDOM(dark);
 
-    localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
-    localStorage.setItem('theme',        dark ? 'dark'  : 'light');
-    localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
+    /* Direct body/html inline styles — these beat everything */
+    _sp(document.body, 'background', dark ? '#0f172a' : null);
+    _sp(document.body, 'color',      dark ? '#e2e8f0' : null);
+    _sp(document.documentElement, 'background', dark ? '#0f172a' : null);
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
@@ -2266,8 +2267,10 @@ _THEME_JS = """
   }
 
   /* ── MutationObservers ───────────────────────────────────────────────────────
-     1. Prevent Gradio from stripping .dark off <html>
-     2. Re-patch DOM when Gradio adds new nodes (throttled — max once per 300ms) */
+     1. Prevent Gradio stripping .dark off <html>
+     2. Watch <head> — when Gradio injects a new <style> after ta-override,
+        immediately move ta-override back to the END so our rules win cascade
+     3. Re-patch DOM when Gradio adds new body nodes */
   new MutationObserver(function(muts) {
     if (!_dark) return;
     muts.forEach(function(m) {
@@ -2276,6 +2279,20 @@ _THEME_JS = """
     });
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
+  /* Watch <head> for new <style> injections — move ta-override to end immediately */
+  new MutationObserver(function(muts) {
+    if (!_dark) return;
+    var newStyle = muts.some(function(m){
+      return Array.prototype.some.call(m.addedNodes, function(n){
+        return n.nodeType === 1 && n.tagName === 'STYLE' && n.id !== 'ta-override' && n.id !== 'ta-static';
+      });
+    });
+    if (newStyle && st.parentNode) {
+      st.parentNode.removeChild(st);
+      document.head.appendChild(st);
+    }
+  }).observe(document.head, { childList: true });
+
   var _patchTimer = null;
   new MutationObserver(function(muts) {
     if (!_dark) return;
@@ -2283,8 +2300,18 @@ _THEME_JS = """
     if (!hasNodes) return;
     if (_patchTimer) return;
     _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(true); patchDOM(true); }, 50);
-  }).observe(document.body || document.documentElement,
-    { childList: true, subtree: true });
+  }).observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+  /* Periodic re-apply in dark mode — catches any Gradio re-renders we miss */
+  setInterval(function() {
+    if (!_dark) return;
+    /* Re-append ta-override to ensure it stays last */
+    if (st.parentNode && st.parentNode.lastChild !== st) {
+      st.parentNode.removeChild(st);
+      document.head.appendChild(st);
+    }
+    setGradioVars(true);
+  }, 1000);
 
   /* ── Init — single init guard prevents double event-listener bug ─────────── */
   var _inited = false;

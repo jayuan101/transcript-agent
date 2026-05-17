@@ -2178,7 +2178,7 @@ _SECTION = lambda label: f"""
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Transcript Agent", js=_THEME_JS) as demo:
+with gr.Blocks(title="Transcript Agent") as demo:
 
     gr.HTML(_THEME_TOGGLE)
     gr.HTML(_HERO)
@@ -2429,6 +2429,7 @@ if __name__ == "__main__":
     demo.launch(
         server_name=_host,
         server_port=_port,
+        js=_THEME_JS,
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

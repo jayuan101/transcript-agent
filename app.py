@@ -2168,18 +2168,71 @@ _THEME_JS = """
     });
   }
 
+  /* ── Gradio CSS variable names — set as inline props on <html> ──────────────
+     Inline custom properties on documentElement beat ALL :root CSS rules,
+     which is how Gradio reads them. This is the only approach that reliably
+     overrides Gradio's Soft theme variables regardless of specificity. */
+  var DARK_VARS = {
+    '--body-background-fill':      '#0f172a',
+    '--background-fill-primary':   '#0f172a',
+    '--background-fill-secondary': '#1e293b',
+    '--block-background-fill':     '#1e293b',
+    '--input-background-fill':     '#0f172a',
+    '--panel-background-fill':     '#1e293b',
+    '--chatbot-background-fill':   '#1e293b',
+    '--body-text-color':           '#e2e8f0',
+    '--block-label-text-color':    '#94a3b8',
+    '--block-title-text-color':    '#e2e8f0',
+    '--block-info-text-color':     '#94a3b8',
+    '--block-border-color':        '#334155',
+    '--block-border-width':        '1px',
+    '--input-border-color':        '#475569',
+    '--border-color-primary':      '#334155',
+    '--border-color-accent':       '#3b82f6',
+    '--neutral-100':               '#1e293b',
+    '--neutral-200':               '#334155',
+    '--neutral-300':               '#475569',
+    '--neutral-400':               '#64748b',
+    '--neutral-500':               '#94a3b8',
+    '--neutral-600':               '#cbd5e1',
+    '--neutral-700':               '#e2e8f0',
+    '--neutral-800':               '#f1f5f9',
+    '--neutral-900':               '#f8fafc',
+    '--color-accent':              '#3b82f6',
+    '--link-text-color':           '#60a5fa',
+    '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.5)',
+  };
+
+  function setGradioVars(dark) {
+    var root = document.documentElement;
+    Object.keys(DARK_VARS).forEach(function(k) {
+      if (dark) root.style.setProperty(k, DARK_VARS[k]);
+      else      root.style.removeProperty(k);
+    });
+  }
+
   /* ── Core apply function ─────────────────────────────────────────────────── */
   function applyTheme(dark) {
     _dark = dark;
 
-    /* Re-append st to END of head so our rules always win cascade order */
+    /* 1. Set Gradio CSS vars inline on <html> — beats all :root theme rules */
+    setGradioVars(dark);
+
+    /* 2. Toggle .dark class for our html.dark CSS rules */
+    document.documentElement.classList.toggle('dark', dark);
+    document.body.classList.toggle('dark', dark);
+
+    /* 3. Re-append override sheet last in <head> */
     if (st.parentNode) st.parentNode.removeChild(st);
     document.head.appendChild(st);
     st.textContent = dark ? DARK_RULES : '';
 
-    document.documentElement.classList.toggle('dark', dark);
-    document.body.classList.toggle('dark', dark);
+    /* 4. Patch inline styles (handles elements Gradio styles inline) */
     patchDOM(dark);
+
+    localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
+    localStorage.setItem('theme',        dark ? 'dark'  : 'light');
+    localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
@@ -2229,7 +2282,7 @@ _THEME_JS = """
     var hasNodes = muts.some(function(m){ return m.addedNodes.length > 0; });
     if (!hasNodes) return;
     if (_patchTimer) return;
-    _patchTimer = setTimeout(function(){ _patchTimer = null; patchDOM(true); }, 300);
+    _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(true); patchDOM(true); }, 50);
   }).observe(document.body || document.documentElement,
     { childList: true, subtree: true });
 

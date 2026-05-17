@@ -36,9 +36,9 @@ class LLMClient:
             self._client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
         else:
             import openai as _oai
-            kw = {}
-            if api_key:
-                kw["api_key"] = api_key
+            # Always pass api_key — OpenAI SDK v2.x requires it even with a
+            # custom base_url. Use "none" for local models (Ollama) that ignore it.
+            kw = {"api_key": api_key if api_key else "none"}
             if base_url:
                 kw["base_url"] = base_url
             self._client = _oai.OpenAI(**kw)
@@ -57,15 +57,25 @@ class LLMClient:
             )
             return next((b.text for b in resp.content if b.type == "text"), "")
         else:
-            resp = self._client.chat.completions.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                messages=[
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": user},
-                ],
-            )
-            return resp.choices[0].message.content or ""
+            try:
+                resp = self._client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    messages=[
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                )
+                return resp.choices[0].message.content or ""
+            except Exception as e:
+                err = str(e)
+                if "authentication" in err.lower() or "api_key" in err.lower() or "credentials" in err.lower() or "401" in err:
+                    raise ValueError(
+                        f"API key rejected by {self.provider} ({self.model}). "
+                        "Check that you pasted the correct key for the selected provider. "
+                        f"Original error: {err}"
+                    )
+                raise
 
 
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──

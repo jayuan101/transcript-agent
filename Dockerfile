@@ -37,7 +37,7 @@ RUN pip install --no-cache-dir python-dotenv imageio-ffmpeg
 # Copy application source
 COPY app.py transcript_agent.py launch.py api.py ./
 COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Outputs directory (mount as volume so files persist across restarts)
 RUN mkdir -p /app/outputs

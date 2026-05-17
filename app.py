@@ -85,12 +85,13 @@ def _resolve_nextcloud_token_url(url: str):
         return None
 
 
-def _download_url(url: str, dest_dir: Path) -> Path:
+def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
     """Download a URL to dest_dir; uses Content-Disposition to pick filename.
 
     Handles S3 application-level redirects (PermanentRedirect XML response with
     HTTP 200/301) by retrying against the correct endpoint.
     On 403 Forbidden, retries via ProxyScrape proxy (uses PROXYSCRAPE_API_KEY env var).
+    on_progress(bytes_received, total_bytes_or_0): called periodically during download.
     """
     import requests
 
@@ -254,6 +255,8 @@ def _download_url(url: str, dest_dir: Path) -> Path:
     dest = dest_dir / filename
     total = 0
     last_progress = time.time()
+    last_report   = time.time()
+    total_size    = int(resp.headers.get("Content-Length", 0) or 0)
     with open(dest, "wb") as f:
         if first:
             f.write(first)
@@ -261,7 +264,6 @@ def _download_url(url: str, dest_dir: Path) -> Path:
             last_progress = time.time()
         for chunk in chunks:
             if not chunk:
-                # empty keep-alive chunk — check for stall
                 if time.time() - last_progress > 60:
                     raise ValueError(
                         "Download stalled — no data received for 60 seconds. "
@@ -272,6 +274,9 @@ def _download_url(url: str, dest_dir: Path) -> Path:
             f.write(chunk)
             total += len(chunk)
             last_progress = time.time()
+            if on_progress and time.time() - last_report >= 2:
+                on_progress(total, total_size)
+                last_report = time.time()
 
     # Sanity check: a real audio/video file is never just a few hundred bytes.
     if total < 1024:
@@ -573,6 +578,15 @@ _ANIM = (
 def _fmt_eta(eta_secs: int) -> str:
     m, s = divmod(max(0, eta_secs), 60)
     return f"{m}m {s:02d}s" if m else f"{s}s"
+
+
+def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
+    """Minimal one-line status — used when eta_panel carries the detail."""
+    elap = (f'<span style="color:#6b7280;font-size:.85em;margin-left:10px;">'
+            f'elapsed: {elapsed}</span>') if elapsed else ""
+    return (f'<div style="{_SB}">'
+            f'<div style="color:#111827;font-weight:700;font-size:1em;">'
+            f'{icon} {title}{elap}</div></div>')
 
 
 def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
@@ -1384,33 +1398,78 @@ def process_file(
         yield _err("Please drag a file, paste a file path, or paste a URL above.")
         return
 
-    # Download remote file before anything else
+    # ── Download remote URL (threaded so we can stream progress to the log) ───
     if isinstance(uploaded_file, str) and (
         uploaded_file.startswith("http://") or uploaded_file.startswith("https://")
     ):
+        _dl_log = _add_header("📥  DOWNLOADING FILE")
         yield _out(
-            status=_status_html(
-                "⬇️", "Downloading file from URL…",
-                subtitle="Fetching remote file — this may take a moment for large recordings…",
-            ),
+            status=_status_compact("⬇️", "Downloading file from URL…", "0s"),
             eta=_eta_panel_html("loading", elapsed="0s"),
+            log=_dl_log,
         )
-        _dl_dir = Path(tempfile.mkdtemp(prefix="ta_dl_"))
-        try:
-            uploaded_file = str(_download_url(uploaded_file, _dl_dir))
-        except Exception as _e:
-            yield _err(f"Download failed: {_e}")
-            return
+        _dl_dir  = Path(tempfile.mkdtemp(prefix="ta_dl_"))
+        _dl_q    = Q.Queue()
+        _dl_done = False
+
+        def _dl_worker():
+            def _on_progress(received, total):
+                _dl_q.put(("dl_progress", received, total))
+            try:
+                path = _download_url(uploaded_file, _dl_dir, on_progress=_on_progress)
+                _dl_q.put(("dl_done", str(path)))
+            except Exception as exc:
+                _dl_q.put(("dl_error", str(exc)))
+
+        threading.Thread(target=_dl_worker, daemon=True).start()
+
+        _dl_stall = 0
+        while True:
+            try:
+                dmsg = _dl_q.get(timeout=1.0)
+                _dl_stall = 0
+                last_activity = time.time()
+                if dmsg[0] == "dl_done":
+                    uploaded_file = dmsg[1]
+                    log = _add_log(f"✅ Download complete — {Path(uploaded_file).name}", "done")
+                    yield _out(log=log)
+                    break
+                elif dmsg[0] == "dl_error":
+                    yield _err(f"Download failed: {dmsg[1]}")
+                    return
+                elif dmsg[0] == "dl_progress":
+                    recv, total = dmsg[1], dmsg[2]
+                    if total:
+                        pct = recv / total * 100
+                        log = _add_log(f"⬇️  {recv//1024//1024} MB / {total//1024//1024} MB  ({pct:.0f}%)", "download")
+                    else:
+                        log = _add_log(f"⬇️  {recv//1024//1024} MB received…", "download")
+                    yield _out(
+                        status=_status_compact("⬇️", "Downloading…", _elapsed()),
+                        log=log,
+                    )
+            except Q.Empty:
+                _dl_stall += 1
+                elapsed = _elapsed()
+                if _dl_stall == 30:
+                    log = _add_log("⚠️  Still downloading… (30s with no data). Large file or slow connection.", "warn")
+                    yield _out(log=log)
+                elif _dl_stall == 55:
+                    log = _add_log("🚨  About to timeout (5s left). If this fails, download manually via browser.", "error")
+                    yield _out(log=log)
+                else:
+                    yield _out(status=_status_compact("⬇️", "Downloading…", elapsed))
 
     from pathlib import Path as _P
     if not _P(uploaded_file).exists():
         yield _err(f"File not found: {uploaded_file}")
         return
 
-    # Initial yield so Gradio 6 always has a value before processing begins
+    log = _add_log(f"📂  File ready: {Path(uploaded_file).name}")
     yield _out(
-        status=_status_html("⏳", "Starting…", subtitle="Preparing your file for processing…"),
-        eta=_eta_panel_html("loading", elapsed="0s"),
+        status=_status_compact("⏳", "Starting…", _elapsed()),
+        eta=_eta_panel_html("loading", elapsed=_elapsed()),
+        log=log,
     )
 
     config = ReportConfig(
@@ -1479,12 +1538,14 @@ def process_file(
     t.start()
 
     # ── live update loop ──────────────────────────────────────────────────────
-    whisper_pct    = 0.0
-    raw_shown      = False
-    claude_started = False
-    stage          = "loading"   # loading | extracting | whisper | claude
-    start_time     = time.time()
-    log_lines      = []          # accumulates all log messages
+    whisper_pct     = 0.0
+    raw_shown       = False
+    claude_started  = False
+    stage           = "loading"
+    start_time      = time.time()
+    last_activity   = time.time()   # reset on every queue message
+    stall_warned    = set()         # tracks which stall thresholds already logged
+    log_entries     = []            # list of (kind, ts, text)
 
     def _elapsed():
         secs = int(time.time() - start_time)
@@ -1494,10 +1555,9 @@ def process_file(
     def _ts():
         secs = int(time.time() - start_time)
         m, s = divmod(secs, 60)
-        return f"[{m:02d}:{s:02d}]"
+        return f"{m:02d}:{s:02d}"
 
     def _eta_secs(pct):
-        """Return remaining seconds as int, or None if not calculable."""
         if pct <= 0.01:
             return None
         return max(0, int((time.time() - start_time) * (1.0 - pct) / pct))
@@ -1509,68 +1569,140 @@ def process_file(
         em, es = divmod(s, 60)
         return f"~{em}m {es:02d}s" if em else f"~{es}s"
 
-    def _add_log(msg):
-        log_lines.append(f"{_ts()} {msg}")
-        return "\n".join(log_lines)
+    # kind: 'header' | 'info' | 'progress' | 'warn' | 'error' | 'done'
+    _KIND_COLORS = {
+        'header':   ('#f8fafc', True),
+        'info':     ('#94a3b8', False),
+        'progress': ('#86efac', False),
+        'warn':     ('#fbbf24', False),
+        'error':    ('#f87171', False),
+        'done':     ('#4ade80', True),
+        'download': ('#22d3ee', False),
+        'ai':       ('#c4b5fd', False),
+    }
+
+    def _render_log():
+        parts = []
+        for kind, ts, text in log_entries:
+            color, bold = _KIND_COLORS.get(kind, ('#94a3b8', False))
+            weight = 'font-weight:700;' if bold else ''
+            if kind == 'header':
+                parts.append(
+                    f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
+                    f'padding-top:6px;">{text}</div>'
+                )
+            else:
+                parts.append(
+                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<span style="color:{color};{weight}">{text}</span></div>'
+                )
+        scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
+        inner = "".join(parts) + scroll if parts else '<span style="color:#334155;">Waiting for job to start…</span>'
+        return (
+            '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+            'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
+            'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;line-height:1.7;">'
+            + inner + '</div>'
+        )
+
+    def _add_log(text, kind='info'):
+        log_entries.append((kind, _ts(), text))
+        return _render_log()
+
+    def _add_header(text):
+        log_entries.append(('header', _ts(), text))
+        return _render_log()
 
     try:
      while True:
         try:
             msg = q.get(timeout=1.0)
+            last_activity = time.time()
         except Q.Empty:
-            elapsed = _elapsed()
-            if stage == "extracting":
-                status  = _status_html("🎬", "Extracting audio from video…", elapsed=elapsed)
-                eta_upd = _eta_panel_html("extracting", elapsed=elapsed)
-            elif stage == "whisper" or (not raw_shown and is_av):
+            elapsed  = _elapsed()
+            quiet    = int(time.time() - last_activity)
+            eta_upd  = gr.update()
+
+            # ── stall detection ──────────────────────────────────────────────
+            stall_key = f"{stage}_{quiet}"
+            if stage == "loading" and quiet == 60 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("⚠️  Still preparing… (60s). Large file or slow start.", "warn")
+                yield _out(log=log)
+            elif stage == "extracting" and quiet == 120 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("⚠️  Audio extraction taking 2+ min. Large video file — still working.", "warn")
+                yield _out(log=log)
+            elif stage == "whisper" and quiet == 300 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("⚠️  Whisper running 5 min without a progress update. CPU transcription is slow for long recordings — still active.", "warn")
+                yield _out(log=log)
+            elif stage == "whisper" and quiet == 900 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("🚨  15 min with no Whisper update. If progress bar is frozen, consider restarting and using a smaller Whisper model (tiny/base).", "error")
+                yield _out(log=log)
+            elif stage == "claude" and quiet == 120 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("⚠️  AI analysis taking 2+ min. Long transcript or slow API — still waiting.", "warn")
+                yield _out(log=log)
+            elif stage == "claude" and quiet == 600 and stall_key not in stall_warned:
+                stall_warned.add(stall_key)
+                log = _add_log("🚨  10 min waiting for AI response. Check your API key quota or try a faster model.", "error")
+                yield _out(log=log)
+
+            # ── eta panel update ─────────────────────────────────────────────
+            if stage in ("whisper",):
                 eta_s   = _eta_secs(whisper_pct) if whisper_pct > 0 else None
-                status  = _status_html("🎤", "Step 1/2 — Transcribing audio",
-                                       subtitle="Whisper is processing your file…",
-                                       elapsed=elapsed,
-                                       pct=whisper_pct if whisper_pct > 0 else None,
-                                       eta_secs=eta_s)
-                eta_upd = _eta_panel_html("whisper", pct=whisper_pct if whisper_pct > 0 else None,
+                eta_upd = _eta_panel_html("whisper", pct=whisper_pct or None,
                                           eta_secs=eta_s, elapsed=elapsed)
-            elif stage == "claude" or claude_started:
-                status  = _status_html("🤖", "Step 2/2 — Analysing with Claude",
-                                       subtitle="Summary, key points and speaker analysis coming up…",
-                                       elapsed=elapsed)
-                eta_upd = _eta_panel_html("claude", elapsed=elapsed)
+                yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed), eta=eta_upd)
+            elif stage == "extracting":
+                yield _out(status=_status_compact("🎬", "Extracting audio…", elapsed),
+                           eta=_eta_panel_html("extracting", elapsed=elapsed))
+            elif stage in ("claude",) or claude_started:
+                yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
+                           eta=_eta_panel_html("claude", elapsed=elapsed))
             else:
-                status  = _status_html("⏳", "Loading…", elapsed=elapsed)
-                eta_upd = _eta_panel_html("loading", elapsed=elapsed)
-            yield _out(status=status, eta=eta_upd)
+                yield _out(status=_status_compact("⏳", "Loading…", elapsed),
+                           eta=_eta_panel_html("loading", elapsed=elapsed))
             continue
 
         kind = msg[0]
 
         if kind == "log":
-            log_text = _add_log(msg[1])
+            log_text = _add_log(msg[1], "info")
             yield _out(log=log_text)
 
         elif kind == "stage":
-            stage = msg[1]
+            stage   = msg[1]
             elapsed = _elapsed()
             if stage == "extracting":
-                yield _out(status=_status_html("🎬", "Extracting audio from video…", elapsed=elapsed),
-                           eta=_eta_panel_html("extracting", elapsed=elapsed))
+                log = _add_header("🎬  EXTRACTING AUDIO")
+                yield _out(status=_status_compact("🎬", "Extracting audio from video…", elapsed),
+                           eta=_eta_panel_html("extracting", elapsed=elapsed), log=log)
             elif stage == "whisper":
-                yield _out(status=_status_html("🎤", "Step 1/2 — Starting Whisper transcription…", elapsed=elapsed),
-                           eta=_eta_panel_html("whisper", elapsed=elapsed))
+                log = _add_header("🎤  TRANSCRIBING AUDIO  (Step 1 of 2)")
+                log = _add_log("Whisper model loaded — transcription in progress…", "info")
+                yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed),
+                           eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
             elif stage == "claude":
-                yield _out(status=_status_html("🤖", "Step 2/2 — Sending to Claude…", elapsed=elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed))
+                log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
+                log = _add_log("Sending transcript to AI for analysis…", "ai")
+                yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
+                           eta=_eta_panel_html("claude", elapsed=elapsed), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
             elapsed     = _elapsed()
             eta_s       = _eta_secs(whisper_pct)
-            eta         = _eta_str(whisper_pct)
-            log_text    = _add_log(f"Whisper: {whisper_pct*100:.0f}%{('  ETA ' + eta) if eta else ''}")
+            eta_txt     = _eta_str(whisper_pct)
+            bar         = "█" * int(whisper_pct * 20) + "░" * (20 - int(whisper_pct * 20))
+            log_text    = _add_log(
+                f"[{bar}] {whisper_pct*100:.0f}%{('  ETA ' + eta_txt) if eta_txt else ''}",
+                "progress"
+            )
             yield _out(
-                status=_status_html("🎤", "Step 1/2 — Transcribing audio",
-                                    subtitle="Whisper is processing your file…",
-                                    elapsed=elapsed, pct=whisper_pct, eta_secs=eta_s),
+                status=_status_compact("🎤", "Transcribing audio…", elapsed),
                 eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed),
                 log=log_text,
             )
@@ -1578,11 +1710,11 @@ def process_file(
         elif kind == "transcript":
             raw_shown = True
             elapsed   = _elapsed()
-            log_text  = _add_log("Transcription complete! Sending to Claude for analysis…")
+            log_text  = _add_log("✅ Transcription complete!", "done")
+            log_text  = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
+            log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
             yield _out(
-                status=_status_html("🤖", "Step 2/2 — Whisper done! Analysing with Claude…",
-                                    subtitle="Summary and speaker analysis coming shortly…",
-                                    elapsed=elapsed),
+                status=_status_compact("🤖", "Analyzing with AI…", elapsed),
                 eta=_eta_panel_html("claude", elapsed=elapsed),
                 transcript=msg[1],
                 log=log_text,
@@ -1625,9 +1757,10 @@ def process_file(
                 f_p = None
 
             total_elapsed = _elapsed()
-            log_text = _add_log(f"All done! Total time: {total_elapsed}")
+            log_text = _add_header("✅  COMPLETE")
+            log_text = _add_log(f"All done in {total_elapsed}. Results ready in all tabs.", "done")
             yield _out(
-                status=_status_html("✅", "Done! All tabs are ready.", subtitle="Downloads opened below.", pct=1.0),
+                status=_status_compact("✅", "Done! All tabs are ready.", total_elapsed),
                 eta=_eta_panel_html("done", elapsed=total_elapsed, done=True),
                 summary=summary_md,
                 transcript=result.clean_transcript,
@@ -1645,6 +1778,8 @@ def process_file(
             break
 
         elif kind == "error":
+            log_text = _add_log(f"🚨 {msg[1]}", "error")
+            yield _out(log=log_text)
             yield _err(f"Processing failed: {msg[1]}")
             break
     finally:
@@ -1770,39 +1905,47 @@ _API_BANNER = """
 """
 
 _THEME_TOGGLE = """
-<!-- pill switch — all inline styles so Gradio can't strip them -->
-<div id="ta-widget" title="Toggle light / dark mode"
+<!-- segmented light / dark control — inline styles so Gradio can't strip them -->
+<div id="ta-widget"
   style="position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;
-         gap:8px;background:rgba(255,255,255,0.93);backdrop-filter:blur(8px);
-         border:1px solid #e2e8f0;border-radius:28px;padding:6px 14px;
-         box-shadow:0 2px 10px rgba(0,0,0,0.13);cursor:pointer;transition:background 0.3s,border-color 0.3s;">
-  <span style="font-size:0.95em;line-height:1;">☀️</span>
-  <div id="ta-track"
-    style="width:42px;height:24px;background:#cbd5e1;border-radius:24px;
-           position:relative;transition:background 0.3s;flex-shrink:0;">
-    <div id="ta-knob"
-      style="position:absolute;width:18px;height:18px;background:#fff;border-radius:50%;
-             top:3px;left:3px;box-shadow:0 1px 4px rgba(0,0,0,0.28);
-             transition:transform 0.28s cubic-bezier(.4,0,.2,1);"></div>
-  </div>
-  <span style="font-size:0.95em;line-height:1;">🌙</span>
+         background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);
+         border:1px solid #e2e8f0;border-radius:28px;padding:4px;
+         box-shadow:0 2px 12px rgba(0,0,0,0.12);gap:2px;">
+  <button id="ta-btn-light" title="Light mode"
+    style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:22px;
+           border:none;cursor:pointer;font-size:0.82em;font-weight:600;
+           background:#3b82f6;color:#fff;transition:all 0.2s;">
+    ☀️ Light
+  </button>
+  <button id="ta-btn-dark" title="Dark mode"
+    style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:22px;
+           border:none;cursor:pointer;font-size:0.82em;font-weight:600;
+           background:transparent;color:#64748b;transition:all 0.2s;">
+    🌙 Dark
+  </button>
 </div>
 
 <script>
 (function(){
   var _dark = false;
 
-  /* ── Injected <style> tag ───────────────────────────────────────────────
-     ALL rules here start with "html.dark" so removing that class from <html>
-     atomically deactivates every rule — no partial-reset bug on light toggle. */
-  var st = document.createElement('style');
-  st.id  = 'ta-override';
-  document.head.appendChild(st);
+  /* ── Injected <style> — ALL rules scoped to html.dark so removing the class
+     atomically resets everything. Light mode = st is cleared = zero leftover styles. */
+  var st = document.getElementById('ta-override') || document.createElement('style');
+  st.id = 'ta-override';
+  if (!st.parentNode) document.head.appendChild(st);
 
-  /* Extra-specificity rules duplicating the static CSS for elements Gradio
-     renders after initial paint (dropdowns, dynamic blocks, etc.). */
   var DARK_RULES = [
     'html.dark{color-scheme:dark}',
+    /* Gradio CSS custom-property overrides (Gradio 4 reads these vars) */
+    'html.dark{--color-background-primary:#0f172a;--color-background-secondary:#1e293b;',
+    '--color-border-primary:#334155;--color-text-body:#e2e8f0;',
+    '--color-text-subdued:#94a3b8;--input-background-fill:#0f172a;',
+    '--block-background-fill:#1e293b;--block-border-color:#334155;',
+    '--panel-background-fill:#1e293b;--panel-border-color:#334155;',
+    '--body-background-fill:#0f172a;--background-fill-primary:#0f172a;',
+    '--background-fill-secondary:#1e293b;}',
+    /* Element overrides */
     'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain,html.dark .gap,html.dark .gap-2,html.dark .gap-4{background:#0f172a!important;color:#e2e8f0!important}',
     'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container{background:#1e293b!important;border-color:#334155!important}',
     'html.dark input,html.dark input[type=text],html.dark input[type=password],html.dark input[type=number],html.dark textarea,html.dark select{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
@@ -1820,79 +1963,82 @@ _THEME_TOGGLE = """
     'html.dark .file-preview{background:#1e293b!important;color:#e2e8f0!important}',
     'html.dark .dropdown-arrow svg{fill:#94a3b8!important}',
     'html.dark #live-log textarea{background:#020617!important}',
-    'html.dark button:not(.big-btn button):not(#ta-widget *){background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
+    'html.dark button:not(#ta-widget *){background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected:not(#ta-widget *){background:#334155!important}',
+    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important}',
     'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
     'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
   ].join('');
 
-  /* ── Core toggle function ───────────────────────────────────────────────── */
+  /* ── Core apply function ────────────────────────────────────────────────── */
   function applyTheme(dark) {
     _dark = dark;
-
-    /* Toggle .dark on <html> — this one change activates/deactivates ALL
-       html.dark rules in both the static stylesheet AND the st tag above. */
     document.documentElement.classList.toggle('dark', dark);
     document.body.classList.toggle('dark', dark);
-
-    /* Set / clear the extra-specificity rules.
-       In light mode we clear this completely — no leftover dark styles. */
     st.textContent = dark ? DARK_RULES : '';
 
-    /* Persist preference */
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* Update toggle widget visuals */
-    var widget = document.getElementById('ta-widget');
-    var track  = document.getElementById('ta-track');
-    var knob   = document.getElementById('ta-knob');
-    if (widget) {
-      widget.style.background  = dark ? 'rgba(15,23,42,0.93)' : 'rgba(255,255,255,0.93)';
-      widget.style.borderColor = dark ? '#334155' : '#e2e8f0';
+    /* Update button visuals */
+    var bl = document.getElementById('ta-btn-light');
+    var bd = document.getElementById('ta-btn-dark');
+    var wg = document.getElementById('ta-widget');
+    if (bl && bd) {
+      bl.style.background = dark ? 'transparent' : '#3b82f6';
+      bl.style.color      = dark ? '#94a3b8'     : '#fff';
+      bd.style.background = dark ? '#3b82f6'     : 'transparent';
+      bd.style.color      = dark ? '#fff'         : '#64748b';
     }
-    if (track) track.style.background = dark ? '#3b82f6' : '#cbd5e1';
-    if (knob)  knob.style.transform   = dark ? 'translateX(21px)' : 'translateX(0)';
+    if (wg) {
+      wg.style.background  = dark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)';
+      wg.style.borderColor = dark ? '#334155' : '#e2e8f0';
+    }
 
-    /* Update API banner if it's in idle/required state */
+    /* API banner */
     var banner = document.getElementById('api-banner');
     var title  = document.getElementById('api-banner-title');
     var sub    = document.getElementById('api-banner-sub');
     if (banner && !banner.dataset.state) {
-      banner.style.background  = dark
-        ? 'linear-gradient(135deg,#292107,#3b2d00)'
-        : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
+      banner.style.background  = dark ? 'linear-gradient(135deg,#292107,#3b2d00)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
       banner.style.borderColor = dark ? '#d97706' : '#f59e0b';
       if (title) title.style.color = dark ? '#fbbf24' : '#92400e';
       if (sub)   sub.style.color   = dark ? '#fcd34d' : '#a16207';
     }
   }
 
-  /* ── MutationObserver ───────────────────────────────────────────────────────
-     Gradio's Svelte runtime occasionally strips custom classes during reactive
-     re-renders. Watch the <html> element and immediately re-add .dark if needed. */
+  /* ── MutationObserver: stop Gradio re-renders from stripping .dark ──────── */
   new MutationObserver(function(muts) {
     if (!_dark) return;
     muts.forEach(function(m) {
-      if (m.attributeName === 'class' && !m.target.classList.contains('dark')) {
+      if (m.attributeName === 'class' && !m.target.classList.contains('dark'))
         m.target.classList.add('dark');
-      }
     });
   }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
-  /* ── Init: wire click, restore saved pref ──────────────────────────────── */
+  /* ── Init — single init guard prevents double event-listener bug ─────────── */
+  var _inited = false;
   function init() {
-    var widget = document.getElementById('ta-widget');
-    if (!widget) { setTimeout(init, 300); return; }
+    if (_inited) return;
+    var bl = document.getElementById('ta-btn-light');
+    var bd = document.getElementById('ta-btn-dark');
+    if (!bl || !bd) { setTimeout(init, 250); return; }
+    _inited = true;
     applyTheme(localStorage.getItem('ta-dark') === 'true');
-    widget.addEventListener('click', function() { applyTheme(!_dark); });
+    bl.addEventListener('click', function() { applyTheme(false); });
+    bd.addEventListener('click', function() { applyTheme(true);  });
   }
+  /* Use event delegation as belt-and-suspenders so re-mounts can't break it */
+  document.addEventListener('click', function(e) {
+    var t = e.target.closest('#ta-btn-light,#ta-btn-dark');
+    if (!t) return;
+    applyTheme(t.id === 'ta-btn-dark');
+  });
   document.readyState === 'loading'
     ? document.addEventListener('DOMContentLoaded', function() { setTimeout(init, 150); })
     : setTimeout(init, 150);
-  setTimeout(init, 700); /* fallback for slow Gradio mounts */
 
   /* ── 👁 Password show/hide eye ─────────────────────────────────────────── */
   function addEyes() {
@@ -2169,12 +2315,15 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             status_bar = gr.HTML(value=_IDLE_STATUS)
             eta_panel  = gr.HTML(value="")
-            log_out    = gr.Textbox(
-                label="Live Processing Log",
-                lines=7, max_lines=7,
-                placeholder="Progress appears here once you click Analyze File…",
-                interactive=False,
+            log_out    = gr.HTML(
+                value='<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+                      'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
+                      'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;'
+                      'line-height:1.7;color:#475569;">'
+                      '<span style="color:#334155;">Progress appears here once you click Analyze File…</span>'
+                      '</div>',
                 elem_id="live-log",
+                label="Live Processing Log",
             )
 
             with gr.Tabs():

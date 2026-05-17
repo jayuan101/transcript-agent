@@ -1447,7 +1447,6 @@ def process_file(
     }
 
     def _render_log():
-        import re as _re
         parts = []
         for kind, ts, text in log_entries:
             color, bold = _KIND_COLORS.get(kind, ('#94a3b8', False))
@@ -1458,18 +1457,10 @@ def process_file(
                     f'padding-top:6px;letter-spacing:0.05em;">{text}</div>'
                 )
             elif kind == 'progress':
-                # render as HTML progress bar instead of ASCII
-                m = _re.search(r'(\d+)%', text)
-                pct = int(m.group(1)) if m else 0
-                eta_part = text.split('—')[-1].strip() if '—' in text else ''
+                # text-only line in log — the ETA panel owns the visual bar
                 parts.append(
-                    f'<div style="margin:3px 0;">'
-                    f'<span style="color:#334155;">[{ts}]</span> '
-                    f'<span style="color:{color};font-weight:700;">{pct}%</span>'
-                    + (f' <span style="color:#64748b;font-size:0.9em;">ETA {eta_part}</span>' if eta_part else '') +
-                    f'<div style="margin:2px 0 1px;background:#1e3a5f;border-radius:4px;height:6px;overflow:hidden;">'
-                    f'<div style="width:{pct}%;height:100%;background:linear-gradient(90deg,#22d3ee,#86efac);'
-                    f'border-radius:4px;transition:width 0.4s;"></div></div></div>'
+                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
             else:
                 parts.append(
@@ -1736,14 +1727,13 @@ def process_file(
             eta_s       = _eta_secs(whisper_pct)
             eta_txt     = _eta_str(whisper_pct)
             pct_int     = int(whisper_pct * 100)
-            filled      = int(whisper_pct * 30)
-            bar         = "█" * filled + "░" * (30 - filled)
-            log_text    = _add_log(
-                f"[{bar}] {pct_int}%{('  —  ETA ' + eta_txt) if eta_txt else ''}",
+            # Log: clean text only — ETA panel owns the visual bar
+            log_text = _add_log(
+                f"🎤 {pct_int}%{('  —  ETA ' + eta_txt) if eta_txt else ''}",
                 "progress"
             )
             yield _out(
-                status=_status_compact("🎤", "Transcribing audio…", elapsed),
+                status=_status_compact("🎤", f"Transcribing…  {pct_int}%", elapsed),
                 eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed),
                 log=log_text,
             )

@@ -1,0 +1,36 @@
+# Runtime outputs
+outputs/
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs and runtime files
+*.log
+startup_out.txt
+startup_err.txt
+
+# Environment and secrets
+.env
+.env.*
+
+# Gradio internals
+.gradio/
+
+# Test files
+test_audio.mp3
+test_sample.txt
+test_exe/
+
+# Claude memory / IDE files
+.claude/
+
+# Logs
+app_log.txt
+
+# Temp build artefacts
+releases-readme.md
+%TEMP%/
+
+# Share dir — generated files only
+share/docker-compose.yml
+share/outputs/

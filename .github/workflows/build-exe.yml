@@ -6,12 +6,11 @@ on:
       - "v*"
   workflow_dispatch:
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build-windows:
     runs-on: windows-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
@@ -72,6 +71,8 @@ jobs:
 
   build-mac:
     runs-on: macos-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
@@ -122,7 +123,6 @@ jobs:
       - name: Create macOS DMG
         run: |
           APP="dist/TranscriptAgent.app"
-          # If onefile produces a binary rather than .app, wrap it
           if [ ! -d "$APP" ]; then
             mkdir -p "$APP/Contents/MacOS"
             cp dist/TranscriptAgent "$APP/Contents/MacOS/TranscriptAgent"
@@ -165,6 +165,8 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
 
@@ -219,7 +221,6 @@ jobs:
           cp dist/TranscriptAgent AppDir/usr/bin/TranscriptAgent
           chmod +x AppDir/usr/bin/TranscriptAgent
 
-          # Desktop entry
           cat > AppDir/usr/share/applications/transcript-agent.desktop << 'EOF'
           [Desktop Entry]
           Name=Transcript Agent
@@ -230,17 +231,14 @@ jobs:
           Categories=Utility;AudioVideo;
           EOF
 
-          # AppDir root symlinks required by AppImage spec
           cp AppDir/usr/share/applications/transcript-agent.desktop AppDir/transcript-agent.desktop
           ln -s usr/bin/TranscriptAgent AppDir/AppRun
           touch AppDir/usr/share/icons/hicolor/256x256/apps/transcript-agent.png
 
-          # Download appimagetool
           wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
           chmod +x appimagetool
           ARCH=x86_64 ./appimagetool AppDir TranscriptAgent-linux.AppImage 2>&1 || true
 
-          # Fallback to tar.gz if AppImage creation fails
           if [ ! -f TranscriptAgent-linux.AppImage ]; then
             tar -czf TranscriptAgent-linux.tar.gz -C dist TranscriptAgent
           fi
@@ -256,6 +254,8 @@ jobs:
   release:
     needs: [build-windows, build-mac, build-linux]
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4

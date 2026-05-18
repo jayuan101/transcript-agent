@@ -123,14 +123,13 @@ _progress_lock  = _threading.Lock()
 _progress_cb    = None   # set to a callable(float) before each transcribe call
 
 try:
+    import sys as _sys
     import tqdm as _tqdm_mod
-    import whisper.transcribe as _wt
 
     class _TrackingTqdm(_tqdm_mod.tqdm):
         def update(self, n=1):
-            # Bypass tqdm's progress bar rendering — it outputs Unicode chars like
-            # ▼ (U+25BC) to stderr, which crashes on ASCII-encoded terminals/pipes.
-            # Manually update self.n instead of calling super().update().
+            # Do NOT call super().update() — it renders Unicode progress chars
+            # (e.g. ▼ U+25BC) to stderr which crashes ASCII-encoded terminals.
             if self.n is None:
                 self.n = 0
             self.n += n
@@ -139,7 +138,12 @@ try:
             if cb and self.total and self.total > 0:
                 cb(min(self.n / self.total, 1.0))
 
-    _wt.tqdm = _TrackingTqdm
+    # whisper.transcribe calls tqdm.tqdm(...) where tqdm is the MODULE.
+    # Patching the function object (_wt = whisper.transcribe the function) does
+    # nothing. We must patch tqdm.tqdm on the real submodule via sys.modules.
+    import whisper.transcribe as _wt_unused  # ensures module is loaded
+    _real_wt = _sys.modules["whisper.transcribe"]
+    _real_wt.tqdm.tqdm = _TrackingTqdm
 except Exception:
     pass
 

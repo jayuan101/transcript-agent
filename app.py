@@ -44,6 +44,7 @@ def _check_for_update():
             "version": latest,
             "changelog": data.get("body", "").strip() or "See release page for details.",
             "url": exe_url,
+            "assets": data.get("assets", []),
         })
     except Exception:
         pass
@@ -73,27 +74,60 @@ def _get_update_banner():
 
 
 def _do_update():
-    if not _update_info.get("url"):
-        return gr.update(value="No download URL found — please update manually.")
     if not getattr(sys, "frozen", False):
-        return gr.update(value="Auto-update only works in the .exe build.")
-    import urllib.request, subprocess
+        return gr.update(value="Auto-update only works in the packaged app build.")
+
+    is_mac = sys.platform == "darwin"
+    is_win = sys.platform == "win32"
+
+    # Pick the right asset for this platform
+    assets = _update_info.get("assets", [])
+    if not assets:
+        # Fall back to the stored url
+        url = _update_info.get("url")
+    elif is_mac:
+        url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".zip")), None)
+    else:
+        url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".exe")), None)
+
+    if not url:
+        return gr.update(value="No download URL found — please update manually from the releases page.")
+
+    import urllib.request, subprocess, zipfile
     exe_path = Path(sys.executable).resolve()
-    new_path = exe_path.parent / "TranscriptAgent_update.exe"
+
     try:
-        urllib.request.urlretrieve(_update_info["url"], str(new_path))
+        if is_win:
+            new_path = exe_path.parent / "TranscriptAgent_update.exe"
+            urllib.request.urlretrieve(url, str(new_path))
+            script = exe_path.parent / "_ta_update.bat"
+            script.write_text(
+                "@echo off\ntimeout /t 3 /nobreak >nul\n"
+                f'del /f "{exe_path}"\nmove /y "{new_path}" "{exe_path}"\n'
+                f'start "" "{exe_path}"\ndel /f "%~f0"\n'
+            )
+            subprocess.Popen(str(script), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
+        elif is_mac:
+            zip_path = exe_path.parent / "TranscriptAgent_update.zip"
+            urllib.request.urlretrieve(url, str(zip_path))
+            script = exe_path.parent / "_ta_update.sh"
+            script.write_text(
+                "#!/bin/bash\nsleep 3\n"
+                f'rm -rf "{exe_path}"\n'
+                f'cd "{exe_path.parent}" && unzip -o "{zip_path}" -d . && rm -f "{zip_path}"\n'
+                f'open "{exe_path}"\n'
+                f'rm -- "$0"\n'
+            )
+            script.chmod(0o755)
+            subprocess.Popen(["bash", str(script)])
+
+        else:
+            return gr.update(value="Auto-update is not supported on this platform.")
+
     except Exception as e:
         return gr.update(value=f"Download failed: {e}")
-    bat = exe_path.parent / "_ta_update.bat"
-    bat.write_text(
-        "@echo off\n"
-        "timeout /t 3 /nobreak >nul\n"
-        f'del /f "{exe_path}"\n'
-        f'move /y "{new_path}" "{exe_path}"\n'
-        f'start "" "{exe_path}"\n'
-        'del /f "%~f0"\n'
-    )
-    subprocess.Popen(str(bat), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+
     sys.exit(0)
 
 
@@ -390,32 +424,42 @@ def _set_lid_action(action: int):
     subprocess.run(["powercfg", "/setactive", "SCHEME_CURRENT"], capture_output=True, check=False)
 
 def _prevent_sleep():
-    """Block idle sleep (screen can turn off). Prevent lid-close sleep.
-    Refresh thread re-asserts every 60 s — Windows can silently drop the flag."""
+    """Block idle sleep on Windows (Win32 API) and macOS (caffeinate)."""
     global _sleep_active, _sleep_thread
-    if sys.platform != "win32":
-        return
-    import ctypes
     _sleep_active = True
-    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
-    _set_lid_action(0)   # lid close → do nothing (keep running)
-    if _sleep_thread is None or not _sleep_thread.is_alive():
-        def _refresh():
-            import ctypes as _ct
-            while _sleep_active:
-                _ct.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
-                time.sleep(60)
-        _sleep_thread = threading.Thread(target=_refresh, daemon=True)
-        _sleep_thread.start()
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+        _set_lid_action(0)
+        if _sleep_thread is None or not _sleep_thread.is_alive():
+            def _refresh():
+                import ctypes as _ct
+                while _sleep_active:
+                    _ct.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+                    time.sleep(60)
+            _sleep_thread = threading.Thread(target=_refresh, daemon=True)
+            _sleep_thread.start()
+    elif sys.platform == "darwin":
+        if _sleep_thread is None or not _sleep_thread.is_alive():
+            def _caffeinate():
+                import subprocess as _sp
+                while _sleep_active:
+                    proc = _sp.Popen(["caffeinate", "-i", "-t", "3600"])
+                    while _sleep_active and proc.poll() is None:
+                        time.sleep(5)
+                    proc.kill()
+            _sleep_thread = threading.Thread(target=_caffeinate, daemon=True)
+            _sleep_thread.start()
+
 
 def _allow_sleep():
     global _sleep_active
     _sleep_active = False
-    if sys.platform != "win32":
-        return
-    import ctypes
-    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
-    _set_lid_action(1)   # restore: lid close → sleep
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
+        _set_lid_action(1)
+    # macOS: caffeinate thread exits naturally when _sleep_active turns False
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,

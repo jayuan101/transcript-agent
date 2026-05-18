@@ -77,16 +77,18 @@ def _do_update():
     if not getattr(sys, "frozen", False):
         return gr.update(value="Auto-update only works in the packaged app build.")
 
-    is_mac = sys.platform == "darwin"
-    is_win = sys.platform == "win32"
+    is_mac   = sys.platform == "darwin"
+    is_win   = sys.platform == "win32"
+    is_linux = sys.platform.startswith("linux")
 
     # Pick the right asset for this platform
     assets = _update_info.get("assets", [])
     if not assets:
-        # Fall back to the stored url
         url = _update_info.get("url")
     elif is_mac:
         url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".zip")), None)
+    elif is_linux:
+        url = next((a["browser_download_url"] for a in assets if "linux" in a["name"]), None)
     else:
         url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".exe")), None)
 
@@ -118,6 +120,21 @@ def _do_update():
                 f'cd "{exe_path.parent}" && unzip -o "{zip_path}" -d . && rm -f "{zip_path}"\n'
                 f'open "{exe_path}"\n'
                 f'rm -- "$0"\n'
+            )
+            script.chmod(0o755)
+            subprocess.Popen(["bash", str(script)])
+
+        elif is_linux:
+            tar_path = exe_path.parent / "TranscriptAgent_update.tar.gz"
+            urllib.request.urlretrieve(url, str(tar_path))
+            script = exe_path.parent / "_ta_update.sh"
+            script.write_text(
+                "#!/bin/bash\nsleep 3\n"
+                f'tar -xzf "{tar_path}" -C "{exe_path.parent}"\n'
+                f'rm -f "{tar_path}"\n'
+                f'chmod +x "{exe_path}"\n'
+                f'"{exe_path}" &\n'
+                'rm -- "$0"\n'
             )
             script.chmod(0o755)
             subprocess.Popen(["bash", str(script)])
@@ -451,6 +468,23 @@ def _prevent_sleep():
             _sleep_thread = threading.Thread(target=_caffeinate, daemon=True)
             _sleep_thread.start()
 
+    elif sys.platform.startswith("linux"):
+        if _sleep_thread is None or not _sleep_thread.is_alive():
+            def _inhibit():
+                import subprocess as _sp
+                while _sleep_active:
+                    proc = _sp.Popen(
+                        ["systemd-inhibit", "--what=sleep:idle",
+                         "--who=TranscriptAgent", "--why=Transcription in progress",
+                         "--mode=block", "sleep", "3600"],
+                        stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+                    )
+                    while _sleep_active and proc.poll() is None:
+                        time.sleep(5)
+                    proc.kill()
+            _sleep_thread = threading.Thread(target=_inhibit, daemon=True)
+            _sleep_thread.start()
+
 
 def _allow_sleep():
     global _sleep_active
@@ -459,7 +493,7 @@ def _allow_sleep():
         import ctypes
         ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
         _set_lid_action(1)
-    # macOS: caffeinate thread exits naturally when _sleep_active turns False
+    # macOS + Linux: background thread exits naturally when _sleep_active turns False
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,

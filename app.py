@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.1"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.2"""
 
 import gradio as gr
 import os
@@ -19,6 +19,82 @@ try:
     load_dotenv(Path(__file__).parent / ".env")
 except ImportError:
     pass
+
+# ── version & auto-update ─────────────────────────────────────────────────────
+APP_VERSION = "1.1"
+_RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
+_update_info: dict = {}
+
+
+def _check_for_update():
+    try:
+        import requests as _r
+        r = _r.get(_RELEASES_API, timeout=10, headers={"User-Agent": "TranscriptAgent"})
+        if r.status_code != 200:
+            return
+        data = r.json()
+        latest = data.get("tag_name", "").lstrip("v")
+        if not latest or latest == APP_VERSION:
+            return
+        exe_url = next(
+            (a["browser_download_url"] for a in data.get("assets", []) if a["name"].endswith(".exe")),
+            None,
+        )
+        _update_info.update({
+            "version": latest,
+            "changelog": data.get("body", "").strip() or "See release page for details.",
+            "url": exe_url,
+        })
+    except Exception:
+        pass
+
+
+threading.Thread(target=_check_for_update, daemon=True).start()
+
+
+def _get_update_banner():
+    if not _update_info:
+        return ""
+    v = _update_info["version"]
+    changelog = _update_info.get("changelog", "").replace("\n", "<br>")
+    return (
+        f'<div id="update-banner" style="background:#1e3a5f;border:1px solid #3b82f6;'
+        f'border-radius:8px;padding:12px 16px;margin:8px 0;color:#e2e8f0;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
+        f'<span style="font-size:1em;font-weight:600;">🆕 Update available — v{v}</span>'
+        f'<span style="font-size:0.8em;color:#94a3b8;">You have v{APP_VERSION}</span>'
+        f'</div>'
+        f'<details style="margin-top:8px;font-size:0.85em;color:#cbd5e1;">'
+        f'<summary style="cursor:pointer;color:#93c5fd;">Show changelog</summary>'
+        f'<div style="margin-top:6px;white-space:pre-wrap;">{changelog}</div>'
+        f'</details>'
+        f'</div>'
+    )
+
+
+def _do_update():
+    if not _update_info.get("url"):
+        return gr.update(value="No download URL found — please update manually.")
+    if not getattr(sys, "frozen", False):
+        return gr.update(value="Auto-update only works in the .exe build.")
+    import urllib.request, subprocess
+    exe_path = Path(sys.executable).resolve()
+    new_path = exe_path.parent / "TranscriptAgent_update.exe"
+    try:
+        urllib.request.urlretrieve(_update_info["url"], str(new_path))
+    except Exception as e:
+        return gr.update(value=f"Download failed: {e}")
+    bat = exe_path.parent / "_ta_update.bat"
+    bat.write_text(
+        "@echo off\n"
+        "timeout /t 3 /nobreak >nul\n"
+        f'del /f "{exe_path}"\n'
+        f'move /y "{new_path}" "{exe_path}"\n'
+        f'start "" "{exe_path}"\n'
+        'del /f "%~f0"\n'
+    )
+    subprocess.Popen(str(bat), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
+    sys.exit(0)
 
 
 def _get_proxyscrape_proxies() -> list:
@@ -456,6 +532,13 @@ _PROVIDERS = {
             "phi3.5",
         ],
         "base_url": "http://localhost:11434/v1",
+    },
+    "Custom (OpenAI-compatible)": {
+        "type": "openai_compat",
+        "placeholder": "sk-… or leave blank",
+        "info": "Enter your API base URL in the field below",
+        "models": ["custom-model"],
+        "base_url": "",
     },
 }
 
@@ -1594,15 +1677,20 @@ def process_file(
     user_api_key,
     provider_name,
     model_name,
+    custom_base_url="",
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
-    if not api_key and provider_name != "Ollama (Local)":
+    no_key_ok = provider_name in ("Ollama (Local)", "Custom (OpenAI-compatible)")
+    if not api_key and not no_key_ok:
         yield _err(f"Please enter your {provider_name} API key at the top of the page.")
         return
     provider_type = provider_cfg["type"]
-    base_url      = provider_cfg["base_url"]
+    base_url = (custom_base_url or "").strip() if provider_name == "Custom (OpenAI-compatible)" else provider_cfg["base_url"]
+    if provider_name == "Custom (OpenAI-compatible)" and not base_url:
+        yield _err("Please enter the API base URL for your custom provider.")
+        return
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop
@@ -2862,6 +2950,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
         'Safe to step away.</span></div>'
     )
 
+    # ── Update banner (populated on page load if update available) ───────────
+    update_banner = gr.HTML(value="")
+    with gr.Row(visible=False) as update_row:
+        update_btn = gr.Button("⬇️ Download & Install Update", variant="primary", size="sm")
+        update_status = gr.Markdown(visible=False)
+
     # ── Job status banner (updates on page load) ──────────────────────────────
     job_banner = gr.HTML(value=get_job_banner())
     with gr.Row():
@@ -2890,6 +2984,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
         placeholder="sk-ant-api03-…",
         type="password",
         info="console.anthropic.com → API keys → Create key",
+    )
+    custom_base_url = gr.Textbox(
+        label="Custom API Base URL",
+        placeholder="http://localhost:1234/v1",
+        info="e.g. LM Studio, vLLM, Azure OpenAI, or any OpenAI-compatible endpoint",
+        visible=False,
     )
 
     with gr.Row(equal_height=False):
@@ -3069,15 +3169,17 @@ with gr.Blocks(title="Transcript Agent") as demo:
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):
         cfg = _PROVIDERS.get(provider, _PROVIDERS["Claude (Anthropic)"])
+        is_custom = provider == "Custom (OpenAI-compatible)"
         return (
             gr.update(choices=cfg["models"], value=cfg["models"][0]),
             gr.update(label=f"{provider} API Key", placeholder=cfg["placeholder"], info=cfg["info"]),
+            gr.update(visible=is_custom),
         )
 
     provider_dropdown.change(
         fn=on_provider_change,
         inputs=[provider_dropdown],
-        outputs=[model_dropdown, user_api_key],
+        outputs=[model_dropdown, user_api_key, custom_base_url],
     )
 
     # panel_toggle is hidden dummy — no change handler needed
@@ -3099,6 +3201,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             inc_transcript, inc_profiles, inc_analytics,
             user_api_key,
             provider_dropdown, model_dropdown,
+            custom_base_url,
         ],
         outputs=[
             status_bar,
@@ -3131,8 +3234,24 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
 
 
-    # ── Refresh banner on page load ───────────────────────────────────────────
-    demo.load(fn=get_job_banner, inputs=[], outputs=[job_banner])
+    # ── Update button ─────────────────────────────────────────────────────────
+    update_btn.click(
+        fn=_do_update,
+        inputs=[],
+        outputs=[update_status],
+    )
+
+    # ── Refresh banners on page load ──────────────────────────────────────────
+    def _on_load():
+        banner_html = _get_update_banner()
+        has_update = bool(_update_info)
+        return (
+            get_job_banner(),
+            banner_html,
+            gr.update(visible=has_update),
+        )
+
+    demo.load(fn=_on_load, inputs=[], outputs=[job_banner, update_banner, update_row])
 
 
 if __name__ == "__main__":

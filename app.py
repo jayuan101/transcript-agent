@@ -1769,10 +1769,10 @@ def process_file(
         speaker_names = _names
     else:
         try:
-            _n = int(num_speakers) if num_speakers not in (None, "") else None
+            _n = int(num_speakers) if num_speakers not in (None, "", 0) else None
         except (ValueError, TypeError):
             _n = None
-        speaker_names = f"{_n} speakers" if _n and _n > 0 else None
+        speaker_names = f"{_n} speakers" if _n and _n >= 1 else None
     speakers = None  # WhisperX diarization disabled (requires HF_TOKEN)
     lang_code = language_input if language_input and language_input != "auto" else None
     lang_variant = (
@@ -2916,10 +2916,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 speakers_count_input = gr.Number(
                     label="Number of speakers (optional)",
                     value=None,
-                    minimum=1,
-                    maximum=20,
                     step=1,
-                    info="Don't know the names? Enter how many speakers — AI will label them Speaker 1, Speaker 2, etc.",
+                    info="How many people are speaking? AI will label them Speaker 1, Speaker 2, etc.",
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model",

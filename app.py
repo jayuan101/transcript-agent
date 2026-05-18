@@ -2866,7 +2866,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
     job_banner = gr.HTML(value=get_job_banner())
     with gr.Row():
         load_last_btn = gr.Button("📂 Load Last Result", size="sm", variant="secondary")
-        prevent_sleep_btn = gr.Button("☕ Prevent Sleep (copy command)", size="sm", variant="secondary")
         load_last_msg = gr.Markdown(visible=False)
 
     with gr.Row():
@@ -3130,30 +3129,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         ],
     )
 
-    # ── Prevent Sleep button — copies powercfg command to clipboard ──────────
-    prevent_sleep_btn.click(
-        fn=None,
-        js="""() => {
-            var cmd = 'powercfg /change standby-timeout-ac 0';
-            navigator.clipboard.writeText(cmd).then(function() {
-                var btn = document.querySelector('button[aria-label*="Prevent Sleep"], button');
-                /* find the button by its text content */
-                var btns = document.querySelectorAll('button');
-                for (var i = 0; i < btns.length; i++) {
-                    if (btns[i].innerText && btns[i].innerText.includes('Prevent Sleep')) {
-                        btns[i].innerText = '✅ Copied! Paste & run in PowerShell';
-                        setTimeout(function(b){ b.innerText = '☕ Prevent Sleep (copy command)'; }, 3000, btns[i]);
-                        break;
-                    }
-                }
-            }).catch(function() {
-                alert('Copy failed. Run this in PowerShell:\\n\\npowercfg /change standby-timeout-ac 0');
-            });
-            return [];
-        }""",
-        inputs=[],
-        outputs=[],
-    )
+
 
     # ── Refresh banner on page load ───────────────────────────────────────────
     demo.load(fn=get_job_banner, inputs=[], outputs=[job_banner])

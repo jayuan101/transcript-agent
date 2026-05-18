@@ -17,6 +17,11 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Disable sleep so long transcriptions are never interrupted
+powercfg /change standby-timeout-ac 0 >nul 2>&1
+powercfg /change monitor-timeout-ac 0 >nul 2>&1
+echo  Sleep prevention: ON
+
 echo  Pulling latest image from Docker Hub...
 docker pull sushi0934/transcript-agent:latest
 
@@ -39,6 +44,8 @@ docker run -d ^
 if errorlevel 1 (
     echo.
     echo  ERROR: Failed to start. Check Docker Desktop is running.
+    powercfg /change standby-timeout-ac 30 >nul 2>&1
+    powercfg /change monitor-timeout-ac 15 >nul 2>&1
     pause
     exit /b 1
 )
@@ -46,6 +53,7 @@ if errorlevel 1 (
 echo.
 echo  ============================================
 echo   App is running at: http://localhost:7860
+echo   Sleep: DISABLED (restored on exit)
 echo  ============================================
 echo.
 echo  Opening browser...
@@ -59,5 +67,10 @@ echo.
 echo  Stopping Transcript Agent...
 docker stop transcript-agent
 docker rm transcript-agent
+
+REM Restore normal sleep settings
+powercfg /change standby-timeout-ac 30 >nul 2>&1
+powercfg /change monitor-timeout-ac 15 >nul 2>&1
+echo  Sleep prevention: OFF (restored to normal)
 echo  Done. Goodbye!
 timeout /t 2 /nobreak >nul

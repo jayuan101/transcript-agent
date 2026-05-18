@@ -77,6 +77,9 @@ jobs:
             --collect-all "whisperx" `
             --collect-all "webview" `
             --collect-data "safehttpx" `
+            --exclude-module "webview.platforms.android" `
+            --exclude-module "torch.utils.tensorboard" `
+            --exclude-module "tensorboard" `
             --noconfirm
 
       - name: Upload Windows artifact
@@ -149,6 +152,9 @@ jobs:
             --collect-all "whisperx" \
             --collect-all "webview" \
             --collect-data "safehttpx" \
+            --exclude-module "webview.platforms.android" \
+            --exclude-module "torch.utils.tensorboard" \
+            --exclude-module "tensorboard" \
             --noconfirm
 
       - name: Create macOS DMG

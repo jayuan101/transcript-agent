@@ -1,0 +1,86 @@
+name: Build & Release .exe
+
+on:
+  push:
+    tags:
+      - "v*"          # trigger on version tags like v1.0, v1.2.3
+  workflow_dispatch:  # allow manual trigger from GitHub UI
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install whisperx pyinstaller
+
+      - name: Download ffmpeg
+        run: |
+          curl -L "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -o ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_bin
+          $ffmpeg = Get-ChildItem -Recurse -Filter "ffmpeg.exe" ffmpeg_bin | Select-Object -First 1
+          Copy-Item $ffmpeg.FullName ffmpeg.exe
+
+      - name: Build .exe with PyInstaller
+        run: |
+          pyinstaller launcher.py `
+            --name "TranscriptAgent" `
+            --onefile `
+            --windowed `
+            --add-data "app.py;." `
+            --add-data "transcript_agent.py;." `
+            --add-data "api.py;." `
+            --add-binary "ffmpeg.exe;." `
+            --hidden-import "gradio" `
+            --hidden-import "gradio.themes" `
+            --hidden-import "whisperx" `
+            --hidden-import "anthropic" `
+            --hidden-import "openai" `
+            --hidden-import "docx" `
+            --hidden-import "fpdf" `
+            --hidden-import "pdfplumber" `
+            --hidden-import "uvicorn" `
+            --hidden-import "fastapi" `
+            --collect-all "gradio" `
+            --collect-all "gradio_client" `
+            --collect-all "whisperx" `
+            --noconfirm
+
+      - name: Get version
+        id: version
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            echo "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          } else {
+            $short = "${{ github.sha }}".Substring(0, 7)
+            echo "tag=dev-$short" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Publish release to public repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          $tag = "${{ steps.version.outputs.tag }}"
+          $exe = "dist\TranscriptAgent.exe"
+          gh release create $tag $exe `
+            --repo jayuan101/transcript-agent-releases `
+            --title "Transcript Agent $tag" `
+            --notes "Download TranscriptAgent.exe below and double-click to run. No installation needed." `
+            --latest

@@ -32,6 +32,12 @@ jobs:
           path: ~\AppData\Local\pip\Cache
           key: pip-win-${{ hashFiles('requirements.txt') }}
 
+      - name: Install CPU-only PyTorch (avoids 3GB CUDA downloads)
+        run: |
+          pip install --no-cache-dir `
+            torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 `
+            --index-url https://download.pytorch.org/whl/cpu
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -102,6 +108,12 @@ jobs:
         with:
           path: ~/Library/Caches/pip
           key: pip-mac-${{ hashFiles('requirements.txt') }}
+
+      - name: Install CPU-only PyTorch (avoids 3GB CUDA downloads)
+        run: |
+          pip install --no-cache-dir \
+            torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 \
+            --index-url https://download.pytorch.org/whl/cpu
 
       - name: Install dependencies
         run: |
@@ -209,16 +221,22 @@ jobs:
           path: ~/.cache/pip
           key: pip-linux-${{ hashFiles('requirements.txt') }}
 
+      - name: Install system packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg libgtk-3-dev libwebkit2gtk-4.0-dev
+
+      - name: Install CPU-only PyTorch (avoids 3GB CUDA downloads)
+        run: |
+          pip install --no-cache-dir \
+            torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 \
+            --index-url https://download.pytorch.org/whl/cpu
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
           pip install --no-cache-dir whisperx pyinstaller pywebview
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y ffmpeg libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Build Linux binary
         run: |

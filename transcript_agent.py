@@ -248,6 +248,7 @@ class ReportConfig:
     include_transcript: bool = True
     include_speaker_profiles: bool = True
     include_speech_analytics: bool = True
+    include_interview_mode: bool = False
 
 
 @dataclass
@@ -261,6 +262,7 @@ class TranscriptResult:
     speaker_profiles: dict = field(default_factory=dict)
     speaker_stats: list = field(default_factory=list)
     detected_language: str = ""   # human-readable, e.g. "English" or "Spanish (es-CO)"
+    interview_questions: list = field(default_factory=list)  # interview mode output
 
 
 # ── file loaders ──────────────────────────────────────────────────────────────
@@ -593,7 +595,25 @@ You are an expert transcript processor.
 Analyze the transcript and return ONLY a valid JSON object — no markdown, no extra text."""
 
 
-def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=None, language_variant=None):
+_INTERVIEW_JSON_FIELD = '''\
+  "interview_questions": [
+    {
+      "question": "Exact question asked",
+      "your_answer_summary": "1-2 sentence summary of what the interviewee actually said",
+      "ideal_answer": "Detailed, strong answer to this question",
+      "verdict": "strong | acceptable | weak | missed",
+      "feedback": "Specific coaching — what was missing, what landed well, how to improve"
+    }
+  ]'''
+
+_INTERVIEW_INSTRUCTION = """\
+INTERVIEW MODE: Extract every distinct interview question from the transcript.
+For each question: summarise the actual answer given, write the ideal answer,
+verdict the response (strong/acceptable/weak/missed), and give coaching feedback.
+Only include questions — ignore small talk or off-topic exchanges."""
+
+
+def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=None, language_variant=None, interview_mode=False):
     style_note = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["formal"])
     speakers_hint = (
         f"Expected number of speakers: {num_speakers}"
@@ -613,11 +633,14 @@ def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=
     elif language and language != "auto":
         lang_section = f"\nTranscript language: {language}. Tailor accent analysis accordingly.\n"
 
+    interview_section = f"\n{_INTERVIEW_INSTRUCTION}\n" if interview_mode else ""
+    interview_field   = f",\n{_INTERVIEW_JSON_FIELD}" if interview_mode else ""
+
     return f"""\
 Format: {fmt}
 {speakers_hint}
 Style: {style_note}
-{speech_section}{lang_section}
+{speech_section}{lang_section}{interview_section}
 <transcript>
 {content}
 </transcript>
@@ -640,14 +663,14 @@ Return JSON with exactly these keys:
       "accent_confidence": "medium"
     }}
   ],
-  "action_items": ["action 1", ...]
+  "action_items": ["action 1", ...]{interview_field}
 }}
 
 For accent_indicators: analyze vocabulary, syntax, idiomatic expressions, and regional phrases.
 Always state confidence level (low/medium/high)."""
 
 
-def build_standard_prompt(content, fmt, style, overall_stats, language=None, language_variant=None):
+def build_standard_prompt(content, fmt, style, overall_stats, language=None, language_variant=None, interview_mode=False):
     style_note = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["formal"])
     stats_note = ""
     if overall_stats and overall_stats.get("overall_wpm"):
@@ -663,10 +686,13 @@ def build_standard_prompt(content, fmt, style, overall_stats, language=None, lan
     elif language and language != "auto":
         lang_note = f"\nTranscript language: {language}. Tailor accent analysis accordingly."
 
+    interview_section = f"\n{_INTERVIEW_INSTRUCTION}\n" if interview_mode else ""
+    interview_field   = f",\n{_INTERVIEW_JSON_FIELD}" if interview_mode else ""
+
     return f"""\
 Format: {fmt}
 Style: {style_note}
-{stats_note}{lang_note}
+{stats_note}{lang_note}{interview_section}
 
 <transcript>
 {content}
@@ -688,7 +714,7 @@ Return JSON with exactly these keys:
       "accent_confidence": "medium"
     }}
   ],
-  "action_items": []
+  "action_items": []{interview_field}
 }}"""
 
 
@@ -764,10 +790,10 @@ def process_transcript(
 
         if panel_mode:
             sys_prompt = PANEL_SYSTEM_PROMPT
-            prompt = build_panel_prompt(chunk, fmt, num_speakers, config.style, audio_speech_data, language, language_variant)
+            prompt = build_panel_prompt(chunk, fmt, num_speakers, config.style, audio_speech_data, language, language_variant, interview_mode=config.include_interview_mode)
         else:
             sys_prompt = STANDARD_SYSTEM_PROMPT
-            prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant)
+            prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant, interview_mode=config.include_interview_mode)
 
         if speaker_names:
             # If it looks like a count ("2 speakers"), use generic labels;
@@ -806,6 +832,7 @@ def process_transcript(
         action_items=r.get("action_items", []) if r else [a for x in results for a in x.get("action_items", [])],
         speaker_map=(r or results[0]).get("speaker_map", {}),
         speaker_profiles=r.get("speaker_profiles", {}) if r else {k: v for x in results for k, v in x.get("speaker_profiles", {}).items()},
+        interview_questions=r.get("interview_questions", []) if r else [q for x in results for q in x.get("interview_questions", [])],
     )
 
     raw_stats = (r or results[0]).get("speaker_stats", [])
@@ -871,6 +898,21 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
         sections += ["SPEAKER PROFILES", thin]
         for name, profile in result.speaker_profiles.items():
             sections += [f"  {name}", f"  {profile}", ""]
+
+    if config.include_interview_mode and result.interview_questions:
+        verdict_icon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+        sections += [divider, "INTERVIEW ANALYSIS", divider]
+        for i, q in enumerate(result.interview_questions, 1):
+            icon = verdict_icon.get(q.get("verdict", "").lower(), "•")
+            sections.append(f"Q{i}: {q.get('question', '')}")
+            sections.append(f"  Verdict : {icon} {q.get('verdict', '').upper()}")
+            if q.get("your_answer_summary"):
+                sections.append(f"  Your answer : {q['your_answer_summary']}")
+            if q.get("ideal_answer"):
+                sections.append(f"  Ideal answer : {q['ideal_answer']}")
+            if q.get("feedback"):
+                sections.append(f"  Coaching : {q['feedback']}")
+            sections.append("")
 
     if config.include_transcript:
         sections += [divider, "FULL TRANSCRIPT", divider, result.clean_transcript, ""]

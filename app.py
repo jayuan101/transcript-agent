@@ -1773,9 +1773,10 @@ def process_file(
     inc_transcript,
     inc_profiles,
     inc_analytics,
-    user_api_key,
-    provider_name,
-    model_name,
+    inc_interview=False,
+    user_api_key="",
+    provider_name="Claude (Anthropic)",
+    model_name="claude-sonnet-4-6",
     custom_base_url="",
     tz_name="",
 ):
@@ -1950,6 +1951,7 @@ def process_file(
         include_transcript=inc_transcript,
         include_speaker_profiles=inc_profiles,
         include_speech_analytics=inc_analytics,
+        include_interview_mode=inc_interview,
     )
     # Use names if provided, otherwise fall back to numeric count
     _names = (speaker_names_raw or "").strip()
@@ -3181,6 +3183,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         inc_transcript = gr.Checkbox(label="Full transcript",  value=True)
                         inc_profiles   = gr.Checkbox(label="Speaker profiles", value=True)
                         inc_analytics  = gr.Checkbox(label="Speech analytics", value=True)
+                with gr.Row():
+                    inc_interview = gr.Checkbox(
+                        label="🎤 Interview mode — extract questions, ideal answers & score responses",
+                        value=False,
+                    )
 
             gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
@@ -3302,6 +3309,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             report_style,
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,
+            inc_interview,
             user_api_key,
             provider_dropdown, model_dropdown,
             custom_base_url,

@@ -20,6 +20,13 @@ try:
 except ImportError:
     pass
 
+try:
+    import psutil as _psutil
+    _PSUTIL_OK = True
+except ImportError:
+    _psutil = None
+    _PSUTIL_OK = False
+
 # ── version & auto-update ─────────────────────────────────────────────────────
 APP_VERSION = "1.1"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
@@ -2233,6 +2240,73 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
+# ── bandwidth monitor ──────────────────────────────────────────────────────────
+_bw_state: dict = {}
+
+
+def _get_bandwidth_html() -> str:
+    if not _PSUTIL_OK:
+        return ""
+    now = time.time()
+    counters = _psutil.net_io_counters()
+    sent  = counters.bytes_sent
+    recv  = counters.bytes_recv
+
+    if _bw_state:
+        dt   = now - _bw_state["ts"]
+        ds   = (sent - _bw_state["sent"]) / max(dt, 0.001)
+        dr   = (recv - _bw_state["recv"]) / max(dt, 0.001)
+    else:
+        ds = dr = 0.0
+
+    _bw_state.update({"ts": now, "sent": sent, "recv": recv,
+                      "session_sent":  _bw_state.get("session_sent",  sent),
+                      "session_recv":  _bw_state.get("session_recv",  recv)})
+
+    def _fmt(bps: float) -> str:
+        if bps >= 1_048_576:  return f"{bps/1_048_576:.1f} MB/s"
+        if bps >= 1_024:      return f"{bps/1_024:.0f} KB/s"
+        return f"{bps:.0f} B/s"
+
+    def _fmt_total(b: int) -> str:
+        if b >= 1_073_741_824: return f"{b/1_073_741_824:.2f} GB"
+        if b >= 1_048_576:     return f"{b/1_048_576:.1f} MB"
+        if b >= 1_024:         return f"{b/1_024:.0f} KB"
+        return f"{b} B"
+
+    active = ds > 500 or dr > 500
+    dot_color = "#22c55e" if active else "#64748b"
+
+    total_sent = sent - _bw_state["session_sent"]
+    total_recv = recv - _bw_state["session_recv"]
+
+    return (
+        '<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+        'border-radius:10px;padding:10px 14px;margin-top:10px;">'
+        '<div style="display:flex;align-items:center;gap:7px;margin-bottom:8px;">'
+        f'<span style="width:9px;height:9px;border-radius:50%;background:{dot_color};'
+        f'display:inline-block;flex-shrink:0;{"animation:ta-pulse 1.2s infinite;" if active else ""}"></span>'
+        '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.08em;color:var(--ta-card-sub);">Network Activity</span>'
+        '</div>'
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+        # Upload
+        '<div style="background:var(--ta-stat-bg,rgba(255,255,255,0.7));border-radius:7px;padding:7px 10px;">'
+        '<div style="font-size:0.68em;color:var(--ta-stat-label,#1e40af);font-weight:600;margin-bottom:2px;">↑ Upload</div>'
+        f'<div style="font-size:0.95em;font-weight:700;color:var(--ta-stat-val,#1d4ed8);">{_fmt(ds)}</div>'
+        f'<div style="font-size:0.68em;color:var(--ta-card-sub);">session: {_fmt_total(total_sent)}</div>'
+        '</div>'
+        # Download
+        '<div style="background:var(--ta-stat-bg,rgba(255,255,255,0.7));border-radius:7px;padding:7px 10px;">'
+        '<div style="font-size:0.68em;color:var(--ta-stat-label,#1e40af);font-weight:600;margin-bottom:2px;">↓ Download</div>'
+        f'<div style="font-size:0.95em;font-weight:700;color:var(--ta-stat-val,#1d4ed8);">{_fmt(dr)}</div>'
+        f'<div style="font-size:0.68em;color:var(--ta-card-sub);">session: {_fmt_total(total_recv)}</div>'
+        '</div>'
+        '</div>'
+        '</div>'
+    )
+
+
 _VARIANT_LABELS = {
     "en": "English regional variant",
     "es": "Spanish regional variant",
@@ -2413,6 +2487,8 @@ _THEME_JS = """
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
       /* Live log terminal */
       '#live-log textarea{background:#0f172a!important;color:#86efac!important;font-family:"Courier New",monospace!important;font-size:0.80em!important;border-color:#1e3a5f!important}',
+      /* Bandwidth pulse animation */
+      '@keyframes ta-pulse{0%,100%{opacity:1}50%{opacity:0.3}}',
     ].join('');
     document.head.appendChild(ps);
   }
@@ -3220,6 +3296,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     )
                     pdf_regen_btn = gr.Button("Generate PDF", scale=1, size="sm")
 
+            bw_display = gr.HTML(value=_get_bandwidth_html(), visible=_PSUTIL_OK)
+            bw_timer   = gr.Timer(value=2, active=True)
+
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
 
@@ -3352,6 +3431,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
         inputs=[],
         outputs=[update_status],
     )
+
+    # ── Bandwidth timer ───────────────────────────────────────────────────────
+    if _PSUTIL_OK:
+        bw_timer.tick(fn=_get_bandwidth_html, inputs=[], outputs=[bw_display])
 
     # ── Refresh banners on page load ──────────────────────────────────────────
     def _on_load(browser_tz=""):

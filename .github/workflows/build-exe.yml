@@ -1,29 +1,25 @@
-name: Build & Release .exe
+name: Build & Release
 
 on:
   push:
     tags:
-      - "v*"          # trigger on version tags like v1.0, v1.2.3
-  workflow_dispatch:  # allow manual trigger from GitHub UI
+      - "v*"
+  workflow_dispatch:
 
 jobs:
-  build:
+  build-windows:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      - name: Cache pip
-        uses: actions/cache@v4
+      - uses: actions/cache@v4
         with:
           path: ~\AppData\Local\pip\Cache
-          key: pip-${{ hashFiles('requirements.txt') }}
+          key: pip-win-${{ hashFiles('requirements.txt') }}
 
       - name: Install dependencies
         run: |
@@ -38,7 +34,7 @@ jobs:
           $ffmpeg = Get-ChildItem -Recurse -Filter "ffmpeg.exe" ffmpeg_bin | Select-Object -First 1
           Copy-Item $ffmpeg.FullName ffmpeg.exe
 
-      - name: Build .exe with PyInstaller
+      - name: Build Windows .exe
         run: |
           pyinstaller launcher.py `
             --name "TranscriptAgent" `
@@ -63,24 +59,114 @@ jobs:
             --collect-all "whisperx" `
             --noconfirm
 
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/TranscriptAgent.exe
+
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/pip
+          key: pip-mac-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install whisperx pyinstaller
+
+      - name: Install ffmpeg
+        run: brew install ffmpeg
+
+      - name: Build macOS app
+        run: |
+          pyinstaller launcher.py \
+            --name "TranscriptAgent" \
+            --onefile \
+            --windowed \
+            --add-data "app.py:." \
+            --add-data "transcript_agent.py:." \
+            --add-data "api.py:." \
+            --hidden-import "gradio" \
+            --hidden-import "gradio.themes" \
+            --hidden-import "whisperx" \
+            --hidden-import "anthropic" \
+            --hidden-import "openai" \
+            --hidden-import "docx" \
+            --hidden-import "fpdf" \
+            --hidden-import "pdfplumber" \
+            --hidden-import "uvicorn" \
+            --hidden-import "fastapi" \
+            --collect-all "gradio" \
+            --collect-all "gradio_client" \
+            --collect-all "whisperx" \
+            --noconfirm
+
+      - name: Zip macOS app
+        run: |
+          cd dist
+          zip -r TranscriptAgent-mac.zip TranscriptAgent.app 2>/dev/null || zip -r TranscriptAgent-mac.zip TranscriptAgent
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-app
+          path: dist/TranscriptAgent-mac.zip
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: artifacts/windows
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-app
+          path: artifacts/mac
+
       - name: Get version
         id: version
         run: |
-          if ("${{ github.ref_type }}" -eq "tag") {
-            echo "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
-          } else {
-            $short = "${{ github.sha }}".Substring(0, 7)
-            echo "tag=dev-$short" >> $env:GITHUB_OUTPUT
-          }
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=dev-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
 
       - name: Publish release to public repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
         run: |
-          $tag = "${{ steps.version.outputs.tag }}"
-          $exe = "dist\TranscriptAgent.exe"
-          gh release create $tag $exe `
-            --repo jayuan101/transcript-agent-releases `
-            --title "Transcript Agent $tag" `
-            --notes "Download TranscriptAgent.exe below and double-click to run. No installation needed." `
+          TAG="${{ steps.version.outputs.tag }}"
+          gh release create "$TAG" \
+            artifacts/windows/TranscriptAgent.exe \
+            artifacts/mac/TranscriptAgent-mac.zip \
+            --repo jayuan101/transcript-agent-releases \
+            --title "Transcript Agent $TAG" \
+            --notes "$(cat <<'EOF'
+          ## Download
+
+          | Platform | File |
+          |----------|------|
+          | Windows  | TranscriptAgent.exe — double-click to run |
+          | macOS    | TranscriptAgent-mac.zip — unzip, then open TranscriptAgent |
+
+          No installation needed on either platform.
+          EOF
+          )" \
             --latest

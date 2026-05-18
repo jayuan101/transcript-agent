@@ -194,114 +194,8 @@ jobs:
           name: mac-dmg
           path: TranscriptAgent.dmg
 
-  build-linux:
-    runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Free disk space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: false
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: pip-linux-${{ hashFiles('requirements.txt') }}
-
-      - name: Install system packages
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y ffmpeg libgtk-3-dev libwebkit2gtk-4.0-dev
-
-      - name: Install CPU-only PyTorch (avoids 3GB CUDA downloads)
-        run: |
-          pip install --no-cache-dir \
-            torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 \
-            --index-url https://download.pytorch.org/whl/cpu
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir whisperx pyinstaller pywebview
-
-      - name: Build Linux binary
-        run: |
-          pyinstaller launcher.py \
-            --name "TranscriptAgent" \
-            --onefile \
-            --add-data "app.py:." \
-            --add-data "transcript_agent.py:." \
-            --add-data "api.py:." \
-            --hidden-import "gradio" \
-            --hidden-import "gradio.themes" \
-            --hidden-import "whisperx" \
-            --hidden-import "anthropic" \
-            --hidden-import "openai" \
-            --hidden-import "docx" \
-            --hidden-import "fpdf" \
-            --hidden-import "pdfplumber" \
-            --hidden-import "uvicorn" \
-            --hidden-import "fastapi" \
-            --hidden-import "webview" \
-            --collect-all "gradio" \
-            --collect-all "gradio_client" \
-            --collect-all "whisperx" \
-            --collect-all "webview" \
-            --collect-data "safehttpx" \
-            --noconfirm
-
-      - name: Create AppImage
-        run: |
-          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
-          cp dist/TranscriptAgent AppDir/usr/bin/TranscriptAgent
-          chmod +x AppDir/usr/bin/TranscriptAgent
-
-          cat > AppDir/usr/share/applications/transcript-agent.desktop << 'EOF'
-          [Desktop Entry]
-          Name=Transcript Agent
-          Comment=AI-powered transcription for interviews and meetings
-          Exec=TranscriptAgent
-          Icon=transcript-agent
-          Type=Application
-          Categories=Utility;AudioVideo;
-          EOF
-
-          cp AppDir/usr/share/applications/transcript-agent.desktop AppDir/transcript-agent.desktop
-          ln -s usr/bin/TranscriptAgent AppDir/AppRun
-          touch AppDir/usr/share/icons/hicolor/256x256/apps/transcript-agent.png
-
-          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
-          chmod +x appimagetool
-          ARCH=x86_64 ./appimagetool AppDir TranscriptAgent-linux.AppImage 2>&1 || true
-
-          if [ ! -f TranscriptAgent-linux.AppImage ]; then
-            tar -czf TranscriptAgent-linux.tar.gz -C dist TranscriptAgent
-          fi
-
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-app
-          path: |
-            TranscriptAgent-linux.AppImage
-            TranscriptAgent-linux.tar.gz
-
   release:
-    needs: [build-windows, build-mac, build-linux]
+    needs: [build-windows, build-mac]
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -328,8 +222,6 @@ jobs:
           FILES=""
           [ -f artifacts/windows-exe/TranscriptAgent.exe ] && FILES="$FILES artifacts/windows-exe/TranscriptAgent.exe"
           [ -f artifacts/mac-dmg/TranscriptAgent.dmg ]     && FILES="$FILES artifacts/mac-dmg/TranscriptAgent.dmg"
-          [ -f artifacts/linux-app/TranscriptAgent-linux.AppImage ] && FILES="$FILES artifacts/linux-app/TranscriptAgent-linux.AppImage"
-          [ -f artifacts/linux-app/TranscriptAgent-linux.tar.gz ]   && FILES="$FILES artifacts/linux-app/TranscriptAgent-linux.tar.gz"
 
           gh release create "$TAG" $FILES \
             --repo jayuan101/transcript-agent-releases \
@@ -341,9 +233,8 @@ jobs:
           |----------|------|----------------|
           | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
           | macOS | TranscriptAgent.dmg | Open DMG → drag to Applications → double-click |
-          | Linux | TranscriptAgent-linux.AppImage | chmod +x, then double-click or run directly |
 
-          All versions open as a standalone desktop app — no browser, no installation required.
+          Both versions open as a standalone desktop app — no browser, no installation required.
           EOF
           )" \
             --latest

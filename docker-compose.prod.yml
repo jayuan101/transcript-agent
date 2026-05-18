@@ -1,0 +1,34 @@
+# Pull from Docker Hub instead of building locally.
+# Usage:
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Set DOCKERHUB_USERNAME in your shell or .env before running.
+
+services:
+  transcript-agent:
+    image: ${DOCKERHUB_USERNAME}/transcript-agent:latest
+    container_name: transcript-agent
+    ports:
+      - "7860:7860"
+      - "8000:8000"
+    volumes:
+      - ./.env:/app/.env:ro
+      - ./outputs:/app/outputs
+      - whisper-cache:/app/.cache
+    env_file:
+      - .env
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  whisper-cache:
+    name: transcript-agent-whisper-cache

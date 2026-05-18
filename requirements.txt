@@ -1,0 +1,26 @@
+# Core
+anthropic>=0.52.0
+gradio>=4.0.0
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# Multi-provider LLM support (OpenAI, Gemini, Groq, etc.)
+openai>=1.0.0
+
+# Document formats
+python-docx>=1.1.0
+pdfplumber>=0.11.0
+fpdf2>=2.7.0
+
+# Audio / video transcription
+openai-whisper>=20231117
+
+# Panel mode (speaker diarization) — optional
+# whisperx          # pip install whisperx
+# torch             # installed automatically with whisperx
+
+# ffmpeg binary is also required for audio/video:
+#   macOS:   brew install ffmpeg
+#   Ubuntu:  sudo apt install ffmpeg
+#   Windows: https://ffmpeg.org/download.html  (add to PATH)

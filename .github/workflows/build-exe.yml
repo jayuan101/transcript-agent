@@ -70,6 +70,7 @@ jobs:
             --collect-all "gradio_client" `
             --collect-all "whisperx" `
             --collect-all "webview" `
+            --collect-data "safehttpx" `
             --noconfirm
 
       - name: Upload Windows artifact
@@ -135,6 +136,7 @@ jobs:
             --collect-all "gradio_client" \
             --collect-all "whisperx" \
             --collect-all "webview" \
+            --collect-data "safehttpx" \
             --noconfirm
 
       - name: Create macOS DMG
@@ -241,6 +243,7 @@ jobs:
             --collect-all "gradio_client" \
             --collect-all "whisperx" \
             --collect-all "webview" \
+            --collect-data "safehttpx" \
             --noconfirm
 
       - name: Create AppImage

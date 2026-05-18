@@ -14,6 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          Remove-Item -Recurse -Force "C:\Android" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\go" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\node" -ErrorAction SilentlyContinue
+          Remove-Item -Recurse -Force "C:\hostedtoolcache\windows\Ruby" -ErrorAction SilentlyContinue
+          Write-Host "Disk free after cleanup:"
+          Get-PSDrive C | Select-Object Used, Free
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -26,8 +35,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install whisperx pyinstaller pywebview
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir whisperx pyinstaller pywebview
 
       - name: Download ffmpeg
         run: |
@@ -76,6 +85,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes || true
+          sudo rm -rf ~/Library/Developer/Xcode/DerivedData || true
+          sudo rm -rf /Applications/Xcode.app || true
+          brew cleanup --prune=all || true
+          df -h /
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -88,8 +105,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install whisperx pyinstaller pywebview
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir whisperx pyinstaller pywebview
 
       - name: Install ffmpeg and create-dmg
         run: brew install ffmpeg create-dmg
@@ -170,6 +187,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: false
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -182,8 +210,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install whisperx pyinstaller pywebview
+          pip install --no-cache-dir -r requirements.txt
+          pip install --no-cache-dir whisperx pyinstaller pywebview
 
       - name: Install system packages
         run: |

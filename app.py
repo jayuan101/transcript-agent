@@ -895,8 +895,34 @@ _ANIM = (
 )
 
 def _fmt_eta(eta_secs: int) -> str:
-    m, s = divmod(max(0, eta_secs), 60)
-    return f"{m}m {s:02d}s" if m else f"{s}s"
+    secs = max(0, int(eta_secs))
+    if secs < 10:
+        return "almost done!"
+    if secs < 60:
+        return f"{secs} seconds left"
+    m, s = divmod(secs, 60)
+    if m == 1 and s == 0:
+        return "1 minute left"
+    if s == 0:
+        return f"{m} minutes left"
+    if m == 1:
+        return f"1 minute {s} sec left"
+    return f"{m} minutes {s} sec left"
+
+
+def _finish_time_str(eta_secs: int, tz_name: str = "") -> str:
+    from datetime import datetime, timedelta
+    try:
+        if tz_name:
+            from zoneinfo import ZoneInfo
+            now = datetime.now(tz=ZoneInfo(tz_name))
+        else:
+            now = datetime.now().astimezone()
+    except Exception:
+        now = datetime.now().astimezone()
+    finish = now + timedelta(seconds=eta_secs)
+    tz_abbr = finish.strftime("%Z")
+    return finish.strftime(f"%I:%M %p {tz_abbr}").lstrip("0")
 
 
 def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
@@ -911,9 +937,7 @@ def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
 
 
 def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
-                 pct: float = None, eta_secs: int = None) -> str:
-    import datetime as _dt
-
+                 pct: float = None, eta_secs: int = None, tz_name: str = "") -> str:
     elap = (
         f'<span style="color:#6b7280;font-size:.88em;margin-left:12px;font-weight:400;">'
         f'elapsed: {elapsed}</span>'
@@ -925,11 +949,11 @@ def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
 
     eta_html = ""
     if eta_secs is not None and eta_secs > 0:
-        finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
+        finish_str = _finish_time_str(eta_secs, tz_name)
         eta_html = (
             f'<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">'
             f'<span style="background:#dbeafe;border-radius:6px;padding:4px 12px;'
-            f'color:#1d4ed8;font-weight:700;">⏱ ETA {_fmt_eta(eta_secs)}</span>'
+            f'color:#1d4ed8;font-weight:700;">⏱ {_fmt_eta(eta_secs)}</span>'
             f'<span style="background:#f0fdf4;border-radius:6px;padding:4px 12px;'
             f'color:#15803d;font-weight:700;">🕐 Done by {finish_str}</span>'
             f'</div>'
@@ -1514,8 +1538,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 
 
 def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
-                    elapsed: str = "", done: bool = False) -> str:
-    import datetime as _dt
+                    elapsed: str = "", done: bool = False, tz_name: str = "") -> str:
 
     _slide_css = (
         "<style>@keyframes pgslide{0%{left:-45%}100%{left:110%}}</style>"
@@ -1553,9 +1576,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         pct_int    = int(pct * 100)
         bar_fill   = f"{pct_int}%"
         eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "—"
-        finish_str = ""
-        if eta_secs and eta_secs > 0:
-            finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
+        finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
 
         def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
             return (
@@ -1678,6 +1699,7 @@ def process_file(
     provider_name,
     model_name,
     custom_base_url="",
+    tz_name="",
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
@@ -1772,7 +1794,7 @@ def process_file(
         _dl_log = _add_header("📥  DOWNLOADING FILE")
         yield _out(
             status=_status_compact("⬇️", "Downloading file from URL…", "0s"),
-            eta=_eta_panel_html("loading", elapsed="0s"),
+            eta=_eta_panel_html("loading", elapsed="0s", tz_name=tz_name),
             log=_dl_log,
         )
         _dl_dir  = Path(tempfile.mkdtemp(prefix="ta_dl_"))
@@ -1838,7 +1860,7 @@ def process_file(
     _job_js = f"<script>window.taJobStart && window.taJobStart({repr(_fname)})</script>"
     yield _out(
         status=_status_compact("⏳", "Starting…", _elapsed()) + _job_js,
-        eta=_eta_panel_html("loading", elapsed=_elapsed()),
+        eta=_eta_panel_html("loading", elapsed=_elapsed(), tz_name=tz_name),
         log=log,
     )
 
@@ -1942,10 +1964,7 @@ def process_file(
 
     def _eta_str(pct):
         s = _eta_secs(pct)
-        if s is None:
-            return ""
-        em, es = divmod(s, 60)
-        return f"~{em}m {es:02d}s" if em else f"~{es}s"
+        return _fmt_eta(s) if s is not None else ""
 
     try:
      while True:
@@ -1988,17 +2007,17 @@ def process_file(
             if stage in ("whisper",):
                 eta_s   = _eta_secs(whisper_pct) if whisper_pct > 0 else None
                 eta_upd = _eta_panel_html("whisper", pct=whisper_pct or None,
-                                          eta_secs=eta_s, elapsed=elapsed)
+                                          eta_secs=eta_s, elapsed=elapsed, tz_name=tz_name)
                 yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed), eta=eta_upd)
             elif stage == "extracting":
                 yield _out(status=_status_compact("🎬", "Extracting audio…", elapsed),
-                           eta=_eta_panel_html("extracting", elapsed=elapsed))
+                           eta=_eta_panel_html("extracting", elapsed=elapsed, tz_name=tz_name))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed))
+                           eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name))
             else:
                 yield _out(status=_status_compact("⏳", "Loading…", elapsed),
-                           eta=_eta_panel_html("loading", elapsed=elapsed))
+                           eta=_eta_panel_html("loading", elapsed=elapsed, tz_name=tz_name))
             continue
 
         kind = msg[0]
@@ -2013,17 +2032,17 @@ def process_file(
             if stage == "extracting":
                 log = _add_header("🎬  EXTRACTING AUDIO")
                 yield _out(status=_status_compact("🎬", "Extracting audio from video…", elapsed),
-                           eta=_eta_panel_html("extracting", elapsed=elapsed), log=log)
+                           eta=_eta_panel_html("extracting", elapsed=elapsed, tz_name=tz_name), log=log)
             elif stage == "whisper":
                 log = _add_header("🎤  TRANSCRIBING AUDIO  (Step 1 of 2)")
                 log = _add_log("Whisper model loaded — transcription in progress…", "info")
                 yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed),
-                           eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
+                           eta=_eta_panel_html("whisper", elapsed=elapsed, tz_name=tz_name), log=log)
             elif stage == "claude":
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log("Sending transcript to AI for analysis…", "ai")
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed), log=log)
+                           eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
@@ -2038,7 +2057,7 @@ def process_file(
             )
             yield _out(
                 status=_status_compact("🎤", f"Transcribing…  {pct_int}%", elapsed),
-                eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed),
+                eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed, tz_name=tz_name),
                 log=log_text,
             )
 
@@ -2050,7 +2069,7 @@ def process_file(
             log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
             yield _out(
                 status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                eta=_eta_panel_html("claude", elapsed=elapsed),
+                eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name),
                 transcript=msg[1],
                 log=log_text,
             )
@@ -2103,7 +2122,7 @@ def process_file(
             yield _out(
                 status=_status_compact("✅", "Done! All tabs are ready.", total_elapsed)
                       + "<script>window.taJobEnd && window.taJobEnd()</script>",
-                eta=_eta_panel_html("done", elapsed=total_elapsed, done=True),
+                eta=_eta_panel_html("done", elapsed=total_elapsed, done=True, tz_name=tz_name),
                 summary=summary_md,
                 transcript=result.clean_transcript,
                 dialogue=result.speaker_dialogue,
@@ -3011,6 +3030,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Processing Options", open=True):
+                tz_input = gr.Textbox(
+                    label="Timezone",
+                    placeholder="e.g. America/New_York — auto-detected from your browser",
+                    info="Controls the 'Done By' finish time. Auto-filled on load; change to any IANA timezone.",
+                    value="",
+                )
                 speakers_name_input = gr.Textbox(visible=False, value="")
                 speakers_count_input = gr.Number(
                     label="Number of speakers (optional)",
@@ -3202,6 +3227,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             user_api_key,
             provider_dropdown, model_dropdown,
             custom_base_url,
+            tz_input,
         ],
         outputs=[
             status_bar,
@@ -3242,16 +3268,23 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
     # ── Refresh banners on page load ──────────────────────────────────────────
-    def _on_load():
+    def _on_load(browser_tz=""):
         banner_html = _get_update_banner()
         has_update = bool(_update_info)
+        tz_val = browser_tz if browser_tz else ""
         return (
             get_job_banner(),
             banner_html,
             gr.update(visible=has_update),
+            gr.update(value=tz_val, placeholder=f"Detected: {tz_val}" if tz_val else "e.g. America/New_York"),
         )
 
-    demo.load(fn=_on_load, inputs=[], outputs=[job_banner, update_banner, update_row])
+    demo.load(
+        fn=_on_load,
+        inputs=[tz_input],
+        outputs=[job_banner, update_banner, update_row, tz_input],
+        js="() => [Intl.DateTimeFormat().resolvedOptions().timeZone]",
+    )
 
 
 if __name__ == "__main__":

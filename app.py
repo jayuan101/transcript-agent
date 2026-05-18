@@ -3378,7 +3378,7 @@ if __name__ == "__main__":
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         max_file_size="4gb",
-        inbrowser=not _docker,
+        inbrowser=not _docker and not os.environ.get("TRANSCRIPT_AGENT_WINDOWED"),
         show_error=True,
         share=not _docker,
         strict_cors=not _docker,

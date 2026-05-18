@@ -25,7 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install whisperx pyinstaller
+          pip install whisperx pyinstaller pywebview
 
       - name: Download ffmpeg
         run: |
@@ -54,9 +54,11 @@ jobs:
             --hidden-import "pdfplumber" `
             --hidden-import "uvicorn" `
             --hidden-import "fastapi" `
+            --hidden-import "webview" `
             --collect-all "gradio" `
             --collect-all "gradio_client" `
             --collect-all "whisperx" `
+            --collect-all "webview" `
             --noconfirm
 
       - name: Upload Windows artifact
@@ -83,12 +85,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install whisperx pyinstaller
+          pip install whisperx pyinstaller pywebview
 
-      - name: Install ffmpeg
-        run: brew install ffmpeg
+      - name: Install ffmpeg and create-dmg
+        run: brew install ffmpeg create-dmg
 
-      - name: Build macOS app
+      - name: Build macOS .app
         run: |
           pyinstaller launcher.py \
             --name "TranscriptAgent" \
@@ -107,21 +109,56 @@ jobs:
             --hidden-import "pdfplumber" \
             --hidden-import "uvicorn" \
             --hidden-import "fastapi" \
+            --hidden-import "webview" \
             --collect-all "gradio" \
             --collect-all "gradio_client" \
             --collect-all "whisperx" \
+            --collect-all "webview" \
             --noconfirm
 
-      - name: Zip macOS app
+      - name: Create macOS DMG
         run: |
-          cd dist
-          zip -r TranscriptAgent-mac.zip TranscriptAgent.app 2>/dev/null || zip -r TranscriptAgent-mac.zip TranscriptAgent
+          APP="dist/TranscriptAgent.app"
+          # If onefile produces a binary rather than .app, wrap it
+          if [ ! -d "$APP" ]; then
+            mkdir -p "$APP/Contents/MacOS"
+            cp dist/TranscriptAgent "$APP/Contents/MacOS/TranscriptAgent"
+            cat > "$APP/Contents/Info.plist" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>CFBundleName</key><string>TranscriptAgent</string>
+            <key>CFBundleExecutable</key><string>TranscriptAgent</string>
+            <key>CFBundleIdentifier</key><string>com.jayuan101.transcriptagent</string>
+            <key>CFBundleVersion</key><string>1.0</string>
+            <key>CFBundlePackageType</key><string>APPL</string>
+          </dict></plist>
+          PLIST
+          fi
+          create-dmg \
+            --volname "Transcript Agent" \
+            --volicon "$APP/Contents/Resources/icon-windowed.icns" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 120 \
+            --icon "TranscriptAgent.app" 150 185 \
+            --hide-extension "TranscriptAgent.app" \
+            --app-drop-link 450 185 \
+            "TranscriptAgent.dmg" \
+            "$APP" 2>/dev/null || \
+          create-dmg \
+            --volname "Transcript Agent" \
+            --window-size 600 400 \
+            --icon-size 120 \
+            --app-drop-link 450 185 \
+            "TranscriptAgent.dmg" \
+            "$APP"
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mac-app
-          path: dist/TranscriptAgent-mac.zip
+          name: mac-dmg
+          path: TranscriptAgent.dmg
 
   build-linux:
     runs-on: ubuntu-latest
@@ -141,10 +178,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install whisperx pyinstaller
+          pip install whisperx pyinstaller pywebview
 
-      - name: Install ffmpeg
-        run: sudo apt-get install -y ffmpeg
+      - name: Install system packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y ffmpeg libgtk-3-dev libwebkit2gtk-4.0-dev
 
       - name: Build Linux binary
         run: |
@@ -164,43 +203,61 @@ jobs:
             --hidden-import "pdfplumber" \
             --hidden-import "uvicorn" \
             --hidden-import "fastapi" \
+            --hidden-import "webview" \
             --collect-all "gradio" \
             --collect-all "gradio_client" \
             --collect-all "whisperx" \
+            --collect-all "webview" \
             --noconfirm
 
-      - name: Package Linux binary
+      - name: Create AppImage
         run: |
-          cd dist
-          tar -czf TranscriptAgent-linux.tar.gz TranscriptAgent
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp dist/TranscriptAgent AppDir/usr/bin/TranscriptAgent
+          chmod +x AppDir/usr/bin/TranscriptAgent
+
+          # Desktop entry
+          cat > AppDir/usr/share/applications/transcript-agent.desktop << 'EOF'
+          [Desktop Entry]
+          Name=Transcript Agent
+          Comment=AI-powered transcription for interviews and meetings
+          Exec=TranscriptAgent
+          Icon=transcript-agent
+          Type=Application
+          Categories=Utility;AudioVideo;
+          EOF
+
+          # AppDir root symlinks required by AppImage spec
+          cp AppDir/usr/share/applications/transcript-agent.desktop AppDir/transcript-agent.desktop
+          ln -s usr/bin/TranscriptAgent AppDir/AppRun
+          touch AppDir/usr/share/icons/hicolor/256x256/apps/transcript-agent.png
+
+          # Download appimagetool
+          wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" -O appimagetool
+          chmod +x appimagetool
+          ARCH=x86_64 ./appimagetool AppDir TranscriptAgent-linux.AppImage 2>&1 || true
+
+          # Fallback to tar.gz if AppImage creation fails
+          if [ ! -f TranscriptAgent-linux.AppImage ]; then
+            tar -czf TranscriptAgent-linux.tar.gz -C dist TranscriptAgent
+          fi
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
-          name: linux-bin
-          path: dist/TranscriptAgent-linux.tar.gz
+          name: linux-app
+          path: |
+            TranscriptAgent-linux.AppImage
+            TranscriptAgent-linux.tar.gz
 
   release:
     needs: [build-windows, build-mac, build-linux]
     runs-on: ubuntu-latest
     steps:
-      - name: Download Windows artifact
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-exe
-          path: artifacts/windows
-
-      - name: Download macOS artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: mac-app
-          path: artifacts/mac
-
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-bin
-          path: artifacts/linux
+          path: artifacts
 
       - name: Get version
         id: version
@@ -216,22 +273,25 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
         run: |
           TAG="${{ steps.version.outputs.tag }}"
-          gh release create "$TAG" \
-            artifacts/windows/TranscriptAgent.exe \
-            artifacts/mac/TranscriptAgent-mac.zip \
-            artifacts/linux/TranscriptAgent-linux.tar.gz \
+          FILES=""
+          [ -f artifacts/windows-exe/TranscriptAgent.exe ] && FILES="$FILES artifacts/windows-exe/TranscriptAgent.exe"
+          [ -f artifacts/mac-dmg/TranscriptAgent.dmg ]     && FILES="$FILES artifacts/mac-dmg/TranscriptAgent.dmg"
+          [ -f artifacts/linux-app/TranscriptAgent-linux.AppImage ] && FILES="$FILES artifacts/linux-app/TranscriptAgent-linux.AppImage"
+          [ -f artifacts/linux-app/TranscriptAgent-linux.tar.gz ]   && FILES="$FILES artifacts/linux-app/TranscriptAgent-linux.tar.gz"
+
+          gh release create "$TAG" $FILES \
             --repo jayuan101/transcript-agent-releases \
             --title "Transcript Agent $TAG" \
             --notes "$(cat <<'EOF'
           ## Download
 
-          | Platform | File | How to run |
-          |----------|------|------------|
-          | Windows  | TranscriptAgent.exe | Double-click to run |
-          | macOS    | TranscriptAgent-mac.zip | Unzip, then open TranscriptAgent |
-          | Linux    | TranscriptAgent-linux.tar.gz | Extract, then run: chmod +x TranscriptAgent && ./TranscriptAgent |
+          | Platform | File | How to install |
+          |----------|------|----------------|
+          | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
+          | macOS | TranscriptAgent.dmg | Open DMG → drag to Applications → double-click |
+          | Linux | TranscriptAgent-linux.AppImage | chmod +x, then double-click or run directly |
 
-          No installation needed on any platform.
+          All versions open as a standalone desktop app — no browser, no installation required.
           EOF
           )" \
             --latest

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.2"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5"""
 
 import gradio as gr
 import os
@@ -28,7 +28,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "1.1"
+APP_VERSION = "2.5"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 

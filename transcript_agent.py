@@ -249,6 +249,8 @@ class ReportConfig:
     include_speaker_profiles: bool = True
     include_speech_analytics: bool = True
     include_interview_mode: bool = False
+    include_interview_deep: bool = False   # deflection + % + prep guide (optional)
+    interview_resume_context: str = ""     # user's resume/narratives for context
 
 
 @dataclass
@@ -262,7 +264,9 @@ class TranscriptResult:
     speaker_profiles: dict = field(default_factory=dict)
     speaker_stats: list = field(default_factory=list)
     detected_language: str = ""   # human-readable, e.g. "English" or "Spanish (es-CO)"
-    interview_questions: list = field(default_factory=list)  # interview mode output
+    interview_questions: list = field(default_factory=list)
+    round_advance_probability: int = -1   # -1 = not calculated (deep mode off)
+    prep_guide: list = field(default_factory=list)
 
 
 # ── file loaders ──────────────────────────────────────────────────────────────
@@ -606,14 +610,53 @@ _INTERVIEW_JSON_FIELD = '''\
     }
   ]'''
 
+_INTERVIEW_JSON_FIELD_DEEP = '''\
+  "interview_questions": [
+    {
+      "question": "Exact question asked",
+      "your_answer_summary": "1-2 sentence summary of what the interviewee actually said",
+      "ideal_answer": "Detailed, strong answer to this question tailored to the candidate's background if resume context is provided",
+      "verdict": "strong | acceptable | weak | missed",
+      "deflection_detected": false,
+      "deflection_note": "Only populate if deflection_detected is true — describe how the candidate deflected or stalled",
+      "feedback": "Specific coaching — what was missing, what landed well, how to improve"
+    }
+  ],
+  "round_advance_probability": 72,
+  "prep_guide": [
+    {
+      "question": "Repeat of a weak or missed question",
+      "why_it_matters": "Why interviewers ask this and what they are really probing for",
+      "suggested_answer": "A strong, concrete answer the candidate could give next time"
+    }
+  ]'''
+
 _INTERVIEW_INSTRUCTION = """\
 INTERVIEW MODE: Extract every distinct interview question from the transcript.
 For each question: summarise the actual answer given, write the ideal answer,
 verdict the response (strong/acceptable/weak/missed), and give coaching feedback.
 Only include questions — ignore small talk or off-topic exchanges."""
 
+_INTERVIEW_INSTRUCTION_DEEP = """\
+INTERVIEW MODE (Deep Analysis): Extract every distinct interview question from the transcript.
+For each question:
+- Summarise the actual answer given
+- Write the ideal answer (use the candidate's resume/narratives context below if provided)
+- Verdict the response: strong | acceptable | weak | missed
+- deflection_detected: true if the candidate used filler phrases, stalled, or answered around the question without directly addressing it
+- deflection_note: only if deflection_detected is true — briefly describe the deflection behaviour
+- Coaching feedback: specific, actionable
 
-def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=None, language_variant=None, interview_mode=False):
+After scoring all questions, set round_advance_probability (0-100) based on the overall quality of answers.
+Rough guide: 80+ = strong candidate, 60-79 = competitive, 40-59 = borderline, <40 = unlikely.
+
+Also produce a prep_guide: for each question with verdict weak or missed, explain why interviewers ask it
+and provide a strong suggested answer the candidate can practise. Only include weak/missed questions in prep_guide.
+
+Only include real interview questions — ignore small talk or off-topic exchanges."""
+
+
+def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=None, language_variant=None, interview_mode=False, interview_deep=False, resume_context=""):
     style_note = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["formal"])
     speakers_hint = (
         f"Expected number of speakers: {num_speakers}"
@@ -633,14 +676,24 @@ def build_panel_prompt(content, fmt, num_speakers, style, speech_data, language=
     elif language and language != "auto":
         lang_section = f"\nTranscript language: {language}. Tailor accent analysis accordingly.\n"
 
-    interview_section = f"\n{_INTERVIEW_INSTRUCTION}\n" if interview_mode else ""
-    interview_field   = f",\n{_INTERVIEW_JSON_FIELD}" if interview_mode else ""
+    if interview_mode and interview_deep:
+        _instr = _INTERVIEW_INSTRUCTION_DEEP
+        _field = _INTERVIEW_JSON_FIELD_DEEP
+        _resume_section = f"\n<candidate_context>\n{resume_context.strip()}\n</candidate_context>\n" if resume_context and resume_context.strip() else ""
+    elif interview_mode:
+        _instr = _INTERVIEW_INSTRUCTION
+        _field = _INTERVIEW_JSON_FIELD
+        _resume_section = ""
+    else:
+        _instr = _field = _resume_section = ""
+    interview_section = f"\n{_instr}\n" if _instr else ""
+    interview_field   = f",\n{_field}" if _field else ""
 
     return f"""\
 Format: {fmt}
 {speakers_hint}
 Style: {style_note}
-{speech_section}{lang_section}{interview_section}
+{speech_section}{lang_section}{_resume_section}{interview_section}
 <transcript>
 {content}
 </transcript>
@@ -670,7 +723,7 @@ For accent_indicators: analyze vocabulary, syntax, idiomatic expressions, and re
 Always state confidence level (low/medium/high)."""
 
 
-def build_standard_prompt(content, fmt, style, overall_stats, language=None, language_variant=None, interview_mode=False):
+def build_standard_prompt(content, fmt, style, overall_stats, language=None, language_variant=None, interview_mode=False, interview_deep=False, resume_context=""):
     style_note = STYLE_INSTRUCTIONS.get(style, STYLE_INSTRUCTIONS["formal"])
     stats_note = ""
     if overall_stats and overall_stats.get("overall_wpm"):
@@ -686,13 +739,23 @@ def build_standard_prompt(content, fmt, style, overall_stats, language=None, lan
     elif language and language != "auto":
         lang_note = f"\nTranscript language: {language}. Tailor accent analysis accordingly."
 
-    interview_section = f"\n{_INTERVIEW_INSTRUCTION}\n" if interview_mode else ""
-    interview_field   = f",\n{_INTERVIEW_JSON_FIELD}" if interview_mode else ""
+    if interview_mode and interview_deep:
+        _instr = _INTERVIEW_INSTRUCTION_DEEP
+        _field = _INTERVIEW_JSON_FIELD_DEEP
+        _resume_section = f"\n<candidate_context>\n{resume_context.strip()}\n</candidate_context>" if resume_context and resume_context.strip() else ""
+    elif interview_mode:
+        _instr = _INTERVIEW_INSTRUCTION
+        _field = _INTERVIEW_JSON_FIELD
+        _resume_section = ""
+    else:
+        _instr = _field = _resume_section = ""
+    interview_section = f"\n{_instr}\n" if _instr else ""
+    interview_field   = f",\n{_field}" if _field else ""
 
     return f"""\
 Format: {fmt}
 Style: {style_note}
-{stats_note}{lang_note}{interview_section}
+{stats_note}{lang_note}{_resume_section}{interview_section}
 
 <transcript>
 {content}
@@ -790,10 +853,10 @@ def process_transcript(
 
         if panel_mode:
             sys_prompt = PANEL_SYSTEM_PROMPT
-            prompt = build_panel_prompt(chunk, fmt, num_speakers, config.style, audio_speech_data, language, language_variant, interview_mode=config.include_interview_mode)
+            prompt = build_panel_prompt(chunk, fmt, num_speakers, config.style, audio_speech_data, language, language_variant, interview_mode=config.include_interview_mode, interview_deep=config.include_interview_deep, resume_context=config.interview_resume_context)
         else:
             sys_prompt = STANDARD_SYSTEM_PROMPT
-            prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant, interview_mode=config.include_interview_mode)
+            prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant, interview_mode=config.include_interview_mode, interview_deep=config.include_interview_deep, resume_context=config.interview_resume_context)
 
         if speaker_names:
             # If it looks like a count ("2 speakers"), use generic labels;
@@ -833,6 +896,8 @@ def process_transcript(
         speaker_map=(r or results[0]).get("speaker_map", {}),
         speaker_profiles=r.get("speaker_profiles", {}) if r else {k: v for x in results for k, v in x.get("speaker_profiles", {}).items()},
         interview_questions=r.get("interview_questions", []) if r else [q for x in results for q in x.get("interview_questions", [])],
+        round_advance_probability=r.get("round_advance_probability", -1) if r else (results[0].get("round_advance_probability", -1) if results else -1),
+        prep_guide=r.get("prep_guide", []) if r else [g for x in results for g in x.get("prep_guide", [])],
     )
 
     raw_stats = (r or results[0]).get("speaker_stats", [])
@@ -902,10 +967,26 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
     if config.include_interview_mode and result.interview_questions:
         verdict_icon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
         sections += [divider, "INTERVIEW ANALYSIS", divider]
+
+        if result.round_advance_probability >= 0:
+            prob = result.round_advance_probability
+            if prob >= 80:
+                prob_label = "Strong"
+            elif prob >= 60:
+                prob_label = "Competitive"
+            elif prob >= 40:
+                prob_label = "Borderline"
+            else:
+                prob_label = "Unlikely"
+            sections.append(f"  Likelihood of advancing : {prob}% — {prob_label}")
+            sections.append("")
+
         for i, q in enumerate(result.interview_questions, 1):
             icon = verdict_icon.get(q.get("verdict", "").lower(), "•")
             sections.append(f"Q{i}: {q.get('question', '')}")
             sections.append(f"  Verdict : {icon} {q.get('verdict', '').upper()}")
+            if q.get("deflection_detected"):
+                sections.append(f"  ⚡ Deflection : {q.get('deflection_note', 'Candidate deflected or stalled')}")
             if q.get("your_answer_summary"):
                 sections.append(f"  Your answer : {q['your_answer_summary']}")
             if q.get("ideal_answer"):
@@ -913,6 +994,16 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             if q.get("feedback"):
                 sections.append(f"  Coaching : {q['feedback']}")
             sections.append("")
+
+        if config.include_interview_deep and result.prep_guide:
+            sections += [divider, "PREP GUIDE — Questions to Practise", divider]
+            for i, g in enumerate(result.prep_guide, 1):
+                sections.append(f"P{i}: {g.get('question', '')}")
+                if g.get("why_it_matters"):
+                    sections.append(f"  Why they ask it : {g['why_it_matters']}")
+                if g.get("suggested_answer"):
+                    sections.append(f"  Suggested answer : {g['suggested_answer']}")
+                sections.append("")
 
     if config.include_transcript:
         sections += [divider, "FULL TRANSCRIPT", divider, result.clean_transcript, ""]

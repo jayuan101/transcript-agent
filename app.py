@@ -1781,6 +1781,8 @@ def process_file(
     inc_profiles,
     inc_analytics,
     inc_interview=False,
+    inc_interview_deep=False,
+    resume_context="",
     user_api_key="",
     provider_name="Claude (Anthropic)",
     model_name="claude-sonnet-4-6",
@@ -1959,6 +1961,8 @@ def process_file(
         include_speaker_profiles=inc_profiles,
         include_speech_analytics=inc_analytics,
         include_interview_mode=inc_interview,
+        include_interview_deep=inc_interview_deep,
+        interview_resume_context=resume_context or "",
     )
     # Use names if provided, otherwise fall back to numeric count
     _names = (speaker_names_raw or "").strip()
@@ -3265,6 +3269,26 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         value=False,
                     )
 
+                with gr.Column(visible=False) as interview_advanced_col:
+                    gr.HTML('<div style="font-size:0.75em;color:var(--ta-card-sub);margin:4px 0 2px;">Advanced — optional</div>')
+                    inc_interview_deep = gr.Checkbox(
+                        label="Deep analysis — deflection detection, % likelihood of advancing & prep guide",
+                        value=False,
+                    )
+                    resume_context_input = gr.Textbox(
+                        label="Your resume / narratives (optional — personalizes ideal answers and prep guide)",
+                        placeholder="Paste a summary of your background, key accomplishments, or STAR stories…",
+                        lines=4,
+                        max_lines=10,
+                        visible=True,
+                    )
+
+                inc_interview.change(
+                    fn=lambda v: gr.update(visible=v),
+                    inputs=inc_interview,
+                    outputs=interview_advanced_col,
+                )
+
             gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:8px 0 4px;">
@@ -3388,7 +3412,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             report_style,
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,
-            inc_interview,
+            inc_interview, inc_interview_deep, resume_context_input,
             user_api_key,
             provider_dropdown, model_dropdown,
             custom_base_url,

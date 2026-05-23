@@ -42,7 +42,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir whisperx pyinstaller pywebview
+          pip install --no-cache-dir whisperx pyinstaller pywebview pystray pillow
 
       - name: Download ffmpeg
         run: |
@@ -51,12 +51,16 @@ jobs:
           $ffmpeg = Get-ChildItem -Recurse -Filter "ffmpeg.exe" ffmpeg_bin | Select-Object -First 1
           Copy-Item $ffmpeg.FullName ffmpeg.exe
 
+      - name: Generate app icon
+        run: python icon.py
+
       - name: Build Windows .exe
         run: |
           pyinstaller launcher.py `
             --name "TranscriptAgent" `
             --onefile `
             --windowed `
+            --icon "icon.ico" `
             --add-data "app.py;." `
             --add-data "transcript_agent.py;." `
             --add-data "api.py;." `
@@ -72,10 +76,16 @@ jobs:
             --hidden-import "uvicorn" `
             --hidden-import "fastapi" `
             --hidden-import "webview" `
+            --hidden-import "pystray" `
+            --hidden-import "PIL" `
+            --hidden-import "PIL.Image" `
+            --hidden-import "PIL.ImageDraw" `
             --collect-all "gradio" `
             --collect-all "gradio_client" `
             --collect-all "whisperx" `
             --collect-all "webview" `
+            --collect-all "pystray" `
+            --collect-all "PIL" `
             --collect-data "safehttpx" `
             --exclude-module "webview.platforms.android" `
             --exclude-module "torch.utils.tensorboard" `
@@ -122,10 +132,23 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install --no-cache-dir -r requirements.txt
-          pip install --no-cache-dir whisperx pyinstaller pywebview
+          pip install --no-cache-dir whisperx pyinstaller pywebview pystray pillow
 
       - name: Install ffmpeg and create-dmg
         run: brew install ffmpeg create-dmg
+
+      - name: Generate app icon
+        run: python icon.py
+
+      - name: Convert PNG to ICNS (macOS app icon)
+        run: |
+          mkdir -p icon.iconset
+          for size in 16 32 64 128 256 512; do
+            sips -z $size $size icon.png --out icon.iconset/icon_${size}x${size}.png
+            double=$((size * 2))
+            sips -z $double $double icon.png --out icon.iconset/icon_${size}x${size}@2x.png
+          done
+          iconutil -c icns icon.iconset -o icon.icns
 
       - name: Build macOS .app
         run: |
@@ -133,6 +156,7 @@ jobs:
             --name "TranscriptAgent" \
             --onefile \
             --windowed \
+            --icon "icon.icns" \
             --add-data "app.py:." \
             --add-data "transcript_agent.py:." \
             --add-data "api.py:." \
@@ -147,10 +171,16 @@ jobs:
             --hidden-import "uvicorn" \
             --hidden-import "fastapi" \
             --hidden-import "webview" \
+            --hidden-import "pystray" \
+            --hidden-import "PIL" \
+            --hidden-import "PIL.Image" \
+            --hidden-import "PIL.ImageDraw" \
             --collect-all "gradio" \
             --collect-all "gradio_client" \
             --collect-all "whisperx" \
             --collect-all "webview" \
+            --collect-all "pystray" \
+            --collect-all "PIL" \
             --collect-data "safehttpx" \
             --exclude-module "webview.platforms.android" \
             --exclude-module "torch.utils.tensorboard" \
@@ -172,12 +202,13 @@ jobs:
             <key>CFBundleIdentifier</key><string>com.jayuan101.transcriptagent</string>
             <key>CFBundleVersion</key><string>1.0</string>
             <key>CFBundlePackageType</key><string>APPL</string>
+            <key>CFBundleIconFile</key><string>icon</string>
           </dict></plist>
           PLIST
           fi
           create-dmg \
             --volname "Transcript Agent" \
-            --volicon "$APP/Contents/Resources/icon-windowed.icns" \
+            --volicon "icon.icns" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 120 \
@@ -240,7 +271,8 @@ jobs:
           | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
           | macOS | TranscriptAgent.dmg | Open DMG → drag to Applications → double-click |
 
-          Both versions open as a standalone desktop app — no browser, no installation required.
+          Opens as a standalone desktop app — no browser tab, no installation required.
+          Minimize the window to keep it running in the system tray.
           EOF
           )" \
             --latest

@@ -30,12 +30,14 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.1"
+APP_VERSION = "3.2"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 
 
 def _check_for_update():
+    if not getattr(sys, "frozen", False):
+        return
     try:
         import requests as _r
         r = _r.get(_RELEASES_API, timeout=10, headers={"User-Agent": "TranscriptAgent"})
@@ -63,6 +65,8 @@ threading.Thread(target=_check_for_update, daemon=True).start()
 
 
 def _get_update_banner():
+    if not getattr(sys, "frozen", False):
+        return ""
     current_badge = (
         f'<span style="display:inline-block;background:#0f2a1a;border:1px solid #166534;'
         f'border-radius:6px;padding:3px 10px;font-size:0.8em;color:#86efac;margin-bottom:6px;">'

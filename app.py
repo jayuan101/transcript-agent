@@ -42,7 +42,8 @@ def _silent_download():
     try:
         import urllib.request
         exe_path = Path(sys.executable).resolve()
-        new_path = exe_path.parent / "TranscriptAgent_update.exe"
+        suffix = ".exe" if sys.platform == "win32" else ""
+        new_path = exe_path.parent / f"TranscriptAgent_update{suffix}"
         urllib.request.urlretrieve(_update_info.get("url", ""), str(new_path))
         _update_new_path[0] = new_path
         _update_downloaded.set()
@@ -141,22 +142,21 @@ def _do_update():
         new_path = _update_new_path[0]
         yield "📦 Update already downloaded — restarting in 3 seconds..."
         time.sleep(3)
-    elif sys.platform == "darwin":
-        v = _update_info.get("version", "")
-        import webbrowser
-        webbrowser.open(f"https://github.com/jayuan101/transcript-agent-releases/releases/tag/v{v}")
-        yield f"Opening download page for v{v} — install the DMG and relaunch."
-        return
     else:
-        url = _update_info.get("url") or next(
+        is_mac = sys.platform == "darwin"
+        def _asset_match(name):
+            if is_mac:
+                return "mac" in name.lower() or (not name.endswith(".exe") and "." not in name)
+            return name.endswith(".exe")
+        url = next(
             (a["browser_download_url"] for a in _update_info.get("assets", [])
-             if a["name"].endswith(".exe")), None
+             if _asset_match(a["name"])), None
         )
         if not url:
             yield "❌ No download URL found. Visit the releases page to update manually."
             return
 
-        new_path = exe_path.parent / "TranscriptAgent_update.exe"
+        new_path = exe_path.parent / ("TranscriptAgent_update.exe" if is_win else "TranscriptAgent_update")
         _progress = {"pct": 0}
 
         def _hook(count, block, total):

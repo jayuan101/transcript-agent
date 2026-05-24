@@ -1,0 +1,124 @@
+name: Build Desktop App
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g. 3.3) — leave blank to skip release'
+        required: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: TranscriptAgent.exe
+            asset_name: TranscriptAgent.exe
+          - os: macos-latest
+            artifact_name: TranscriptAgent
+            asset_name: TranscriptAgent-mac
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install PyTorch (CPU)
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller pywebview pystray
+
+      - name: Install Windows-only deps
+        if: runner.os == 'Windows'
+        run: pip install pythonnet
+
+      - name: Install macOS-only deps
+        if: runner.os == 'macOS'
+        run: pip install pyobjc-framework-Cocoa pyobjc-framework-WebKit
+
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          python -m PyInstaller launcher.py `
+            --name TranscriptAgent `
+            --onefile --noconsole `
+            --collect-all gradio `
+            --collect-all gradio_client `
+            --collect-all whisper `
+            --hidden-import app `
+            --hidden-import transcript_agent `
+            --hidden-import api `
+            --hidden-import pystray._win32 `
+            --hidden-import webview.platforms.edgechromium `
+            --hidden-import webview.platforms.winforms `
+            --hidden-import webview.platforms.mshtml `
+            --hidden-import anthropic `
+            --hidden-import openai `
+            --hidden-import fpdf `
+            --hidden-import pdfplumber `
+            --hidden-import docx `
+            --hidden-import psutil `
+            --hidden-import dotenv `
+            --hidden-import tiktoken `
+            --hidden-import bottle `
+            --hidden-import pythonnet `
+            --add-data "app.py;." `
+            --add-data "transcript_agent.py;." `
+            --add-data "api.py;." `
+            --add-data "icon.py;."
+
+      - name: Build (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          python -m PyInstaller launcher.py \
+            --name TranscriptAgent \
+            --onefile --noconsole \
+            --collect-all gradio \
+            --collect-all gradio_client \
+            --collect-all whisper \
+            --hidden-import app \
+            --hidden-import transcript_agent \
+            --hidden-import api \
+            --hidden-import pystray._osx \
+            --hidden-import webview.platforms.cocoa \
+            --hidden-import anthropic \
+            --hidden-import openai \
+            --hidden-import fpdf \
+            --hidden-import pdfplumber \
+            --hidden-import docx \
+            --hidden-import psutil \
+            --hidden-import dotenv \
+            --hidden-import tiktoken \
+            --hidden-import bottle \
+            --add-data "app.py:." \
+            --add-data "transcript_agent.py:." \
+            --add-data "api.py:." \
+            --add-data "icon.py:."
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.artifact_name }}
+          retention-days: 7
+
+      - name: Publish to releases repo
+        if: github.event.inputs.release_version != ''
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: |
+          gh release upload v${{ github.event.inputs.release_version }} \
+            dist/${{ matrix.artifact_name }}#${{ matrix.asset_name }} \
+            --repo jayuan101/transcript-agent-releases \
+            --clobber

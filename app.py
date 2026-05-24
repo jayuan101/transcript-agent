@@ -50,8 +50,13 @@ def _silent_download():
         pass
 
 
+def _is_installed_app() -> bool:
+    """True only when running as the installed .exe launched by launcher.py."""
+    return getattr(sys, "frozen", False) and bool(os.environ.get("TRANSCRIPT_AGENT_WINDOWED"))
+
+
 def _check_for_update():
-    if not getattr(sys, "frozen", False):
+    if not _is_installed_app():
         return
     try:
         import requests as _r
@@ -82,7 +87,7 @@ threading.Thread(target=_check_for_update, daemon=True).start()
 
 
 def _get_update_banner():
-    if not getattr(sys, "frozen", False):
+    if not _is_installed_app():
         return ""
     current_badge = (
         f'<span style="display:inline-block;background:#0f2a1a;border:1px solid #166534;'
@@ -119,8 +124,8 @@ def _get_update_banner():
 
 
 def _do_update():
-    if not getattr(sys, "frozen", False):
-        yield "⚠️ Auto-update only works in the packaged .exe — not the source version."
+    if not _is_installed_app():
+        yield "⚠️ Auto-update only works in the installed .exe — not the source version."
         return
 
     if not _update_info:

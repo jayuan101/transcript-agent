@@ -3508,10 +3508,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
 
-if __name__ == "__main__":
-    _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
-    _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
-    _docker = _host == "0.0.0.0"
+def main():
+    _host     = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
+    _port     = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
+    _docker   = _host == "0.0.0.0"
+    _windowed = bool(os.environ.get("TRANSCRIPT_AGENT_WINDOWED"))
     demo.queue(max_size=5, default_concurrency_limit=1)
     demo.launch(
         server_name=_host,
@@ -3521,8 +3522,11 @@ if __name__ == "__main__":
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         max_file_size="4gb",
-        inbrowser=not _docker and not os.environ.get("TRANSCRIPT_AGENT_WINDOWED"),
+        inbrowser=not _docker and not _windowed,
         show_error=True,
-        share=not _docker,
+        share=not _docker and not _windowed,
         strict_cors=not _docker,
     )
+
+if __name__ == "__main__":
+    main()

@@ -26,6 +26,24 @@ os.environ["GRADIO_SERVER_NAME"]        = "127.0.0.1"
 os.environ["GRADIO_SERVER_PORT"]        = str(PORT)
 os.environ["TRANSCRIPT_AGENT_WINDOWED"] = "1"
 
+# ── Single-instance guard ─────────────────────────────────────────────────────
+_is_first_instance = True
+if sys.platform == "win32":
+    import ctypes as _ct
+    _mutex = _ct.windll.kernel32.CreateMutexW(None, False, "TranscriptAgent_SingleInstance")
+    if _ct.windll.kernel32.GetLastError() == 183:  # ERROR_ALREADY_EXISTS
+        _is_first_instance = False
+
+if not _is_first_instance:
+    # Another copy is already running — open it in the browser and exit
+    import webbrowser
+    try:
+        _ur.urlopen(APP_URL, timeout=2)
+        webbrowser.open(APP_URL)
+    except Exception:
+        webbrowser.open(APP_URL)
+    sys.exit(0)
+
 # ── In-window loading page (shown while Gradio starts) ────────────────────────
 _LOADING_HTML = """\
 <!DOCTYPE html>
@@ -154,7 +172,11 @@ def _build_tray():
 # ── Boot sequence ─────────────────────────────────────────────────────────────
 
 # 1. Start Gradio server in background
-threading.Thread(target=lambda: __import__("app"), daemon=True).start()
+def _start_server():
+    import app
+    app.main()
+
+threading.Thread(target=_start_server, daemon=True).start()
 
 # 2. Start tray
 tray = None

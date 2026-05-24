@@ -33,6 +33,21 @@ except ImportError:
 APP_VERSION = "3.2"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
+_update_downloaded = threading.Event()
+_update_new_path: list = [None]   # [Path | None]
+
+
+def _silent_download():
+    """Download the update exe in the background as soon as an update is detected."""
+    try:
+        import urllib.request
+        exe_path = Path(sys.executable).resolve()
+        new_path = exe_path.parent / "TranscriptAgent_update.exe"
+        urllib.request.urlretrieve(_update_info.get("url", ""), str(new_path))
+        _update_new_path[0] = new_path
+        _update_downloaded.set()
+    except Exception:
+        pass
 
 
 def _check_for_update():
@@ -57,6 +72,8 @@ def _check_for_update():
             "url": exe_url,
             "assets": data.get("assets", []),
         })
+        if exe_url:
+            threading.Thread(target=_silent_download, daemon=True).start()
     except Exception:
         pass
 
@@ -103,89 +120,104 @@ def _get_update_banner():
 
 def _do_update():
     if not getattr(sys, "frozen", False):
-        yield "⚠️ Auto-update only works in the packaged app — not the dev/source version."
+        yield "⚠️ Auto-update only works in the packaged .exe — not the source version."
         return
 
-    is_mac  = sys.platform == "darwin"
-    is_win  = sys.platform == "win32"
-
-    assets = _update_info.get("assets", [])
-    if is_win:
-        url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".exe")), None)
-    elif is_mac:
-        # DMG requires user interaction — open the releases page instead
-        import webbrowser
-        v = _update_info.get("version", "")
-        webbrowser.open(f"https://github.com/jayuan101/transcript-agent-releases/releases/tag/v{v}")
-        yield f"Opening download page for v{v} — open the DMG and drag to Applications, then relaunch."
-        return
-    else:
-        url = next((a["browser_download_url"] for a in assets if "linux" in a["name"]), None)
-
-    if not url:
-        yield "❌ No download URL found. Visit the releases page to update manually."
+    if not _update_info:
+        yield "No update available."
         return
 
     import urllib.request, subprocess
     exe_path = Path(sys.executable).resolve()
+    is_win   = sys.platform == "win32"
 
-    # Track download progress
-    _progress = {"pct": 0}
-    def _hook(count, block, total):
-        if total > 0:
-            _progress["pct"] = min(100, int(count * block * 100 / total))
+    # ── Acquire the downloaded file (or download now with progress) ───────────
+    if _update_downloaded.is_set() and _update_new_path[0] and _update_new_path[0].exists():
+        new_path = _update_new_path[0]
+        yield "📦 Update already downloaded — restarting in 3 seconds..."
+        time.sleep(3)
+    elif sys.platform == "darwin":
+        v = _update_info.get("version", "")
+        import webbrowser
+        webbrowser.open(f"https://github.com/jayuan101/transcript-agent-releases/releases/tag/v{v}")
+        yield f"Opening download page for v{v} — install the DMG and relaunch."
+        return
+    else:
+        url = _update_info.get("url") or next(
+            (a["browser_download_url"] for a in _update_info.get("assets", [])
+             if a["name"].endswith(".exe")), None
+        )
+        if not url:
+            yield "❌ No download URL found. Visit the releases page to update manually."
+            return
 
-    try:
-        yield "⬇️ Downloading update — 0%..."
-        if is_win:
-            new_path = exe_path.parent / "TranscriptAgent_update.exe"
-            _dl_done = threading.Event()
+        new_path = exe_path.parent / "TranscriptAgent_update.exe"
+        _progress = {"pct": 0}
 
-            def _dl():
+        def _hook(count, block, total):
+            if total > 0:
+                _progress["pct"] = min(100, int(count * block * 100 / total))
+
+        _dl_done = threading.Event()
+
+        def _dl():
+            try:
                 urllib.request.urlretrieve(url, str(new_path), reporthook=_hook)
+            finally:
                 _dl_done.set()
 
-            threading.Thread(target=_dl, daemon=True).start()
-            while not _dl_done.is_set():
-                time.sleep(0.5)
-                yield f"⬇️ Downloading update — {_progress['pct']}%..."
-            yield "📦 Download complete — installing now, app will restart in 3 seconds..."
-            time.sleep(1)
+        yield "⬇️ Downloading update — 0%..."
+        threading.Thread(target=_dl, daemon=True).start()
+        while not _dl_done.is_set():
+            time.sleep(0.5)
+            yield f"⬇️ Downloading — {_progress['pct']}%..."
 
+        if not new_path.exists():
+            yield "❌ Download failed. Check your connection and try again."
+            return
+
+        yield "📦 Download complete — restarting in 3 seconds..."
+        time.sleep(3)
+
+    # ── Apply update ──────────────────────────────────────────────────────────
+    try:
+        if is_win:
+            # Rename the running exe (allowed on Windows), move new one in, relaunch.
+            old_name = exe_path.stem + "_old" + exe_path.suffix
             script = exe_path.parent / "_ta_update.bat"
             script.write_text(
-                "@echo off\ntimeout /t 3 /nobreak >nul\n"
-                f'del /f "{exe_path}"\nmove /y "{new_path}" "{exe_path}"\n'
-                f'start "" "{exe_path}"\ndel /f "%~f0"\n'
+                "@echo off\n"
+                "timeout /t 2 /nobreak >nul\n"
+                f'ren "{exe_path}" "{old_name}"\n'
+                f'move /y "{new_path}" "{exe_path}"\n'
+                f'start "" "{exe_path}"\n'
+                "ping -n 6 127.0.0.1 >nul\n"
+                f'del /f "{exe_path.parent}\\{old_name}" 2>nul\n'
+                'del /f "%~f0"\n',
+                encoding="utf-8",
             )
-            subprocess.Popen(str(script), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
-
+            subprocess.Popen(
+                str(script),
+                shell=True,
+                creationflags=subprocess.CREATE_NO_WINDOW,
+                cwd=str(exe_path.parent),
+            )
         else:
-            new_path = exe_path.parent / "TranscriptAgent_update"
-            _dl_done = threading.Event()
-
-            def _dl():
-                urllib.request.urlretrieve(url, str(new_path), reporthook=_hook)
-                _dl_done.set()
-
-            threading.Thread(target=_dl, daemon=True).start()
-            while not _dl_done.is_set():
-                time.sleep(0.5)
-                yield f"⬇️ Downloading update — {_progress['pct']}%..."
-            yield "📦 Download complete — installing, app will restart in 3 seconds..."
-            time.sleep(1)
-
             script = exe_path.parent / "_ta_update.sh"
             script.write_text(
-                "#!/bin/bash\nsleep 3\n"
-                f'rm -f "{exe_path}"\nmv "{new_path}" "{exe_path}"\n'
-                f'chmod +x "{exe_path}"\n"{exe_path}" &\nrm -- "$0"\n'
+                "#!/bin/bash\nsleep 2\n"
+                f'mv "{exe_path}" "{exe_path}_old"\n'
+                f'mv "{new_path}" "{exe_path}"\n'
+                f'chmod +x "{exe_path}"\n'
+                f'"{exe_path}" &\n'
+                "sleep 5\n"
+                f'rm -f "{exe_path}_old"\n'
+                'rm -- "$0"\n'
             )
             script.chmod(0o755)
             subprocess.Popen(["bash", str(script)])
-
     except Exception as e:
-        yield f"❌ Download failed: {e}"
+        yield f"❌ Install failed: {e}"
         return
 
     sys.exit(0)
@@ -3502,17 +3534,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
     # ── Refresh banners on page load ──────────────────────────────────────────
     def _on_load(browser_tz=""):
         tz_val = browser_tz if browser_tz else ""
+        btn_label = "Restart to Apply Update" if _update_downloaded.is_set() else "Download & Install Update"
         return (
             get_job_banner(),
             _get_update_banner(),
             gr.update(visible=bool(_update_info)),
             gr.update(value=tz_val, placeholder=f"Detected: {tz_val}" if tz_val else "e.g. America/New_York"),
+            gr.update(value=btn_label),
         )
 
     demo.load(
         fn=_on_load,
         inputs=[tz_input],
-        outputs=[job_banner, update_banner, update_row, tz_input],
+        outputs=[job_banner, update_banner, update_row, tz_input, update_btn],
         js="() => [Intl.DateTimeFormat().resolvedOptions().timeZone]",
     )
 

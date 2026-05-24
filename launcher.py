@@ -185,14 +185,22 @@ try:
 
     def _navigate_when_ready():
         """Poll until Gradio is up, then swap the loading page for the real app."""
-        for _ in range(360):          # up to 3 minutes
+        start = time.time()
+        for _ in range(600):          # up to 5 minutes
             try:
                 _ur.urlopen(APP_URL, timeout=1)
                 _win.load_url(APP_URL)
                 return
             except Exception:
+                elapsed = int(time.time() - start)
+                try:
+                    _win.evaluate_js(
+                        f"document.querySelector('p') && "
+                        f"(document.querySelector('p').textContent = 'Starting up\\u2026 {elapsed}s')"
+                    )
+                except Exception:
+                    pass
                 time.sleep(0.5)
-        # Server never came up — show error inside the window
         _win.load_html(_ERROR_HTML)
 
     _win.events.closing += _on_closing

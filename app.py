@@ -16,7 +16,9 @@ from pathlib import Path
 
 try:
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).parent / ".env")
+    # When frozen (.exe), load .env from the .exe's directory, not the temp extraction dir
+    _env_dir = Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).parent
+    load_dotenv(_env_dir / ".env")
 except ImportError:
     pass
 
@@ -657,7 +659,10 @@ _PROVIDERS = {
     },
 }
 
-OUT_DIR = Path(__file__).parent / "outputs"
+# When frozen (.exe), respect TRANSCRIPT_OUTPUT_DIR set by launcher.py so outputs
+# land in ~/TranscriptAgent/outputs rather than the temp extraction directory
+_out_override = os.environ.get("TRANSCRIPT_OUTPUT_DIR", "")
+OUT_DIR = Path(_out_override) if _out_override else Path(__file__).parent / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
 
 JOB_STATUS_FILE = OUT_DIR / ".job_status.json"

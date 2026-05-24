@@ -28,7 +28,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "2.9"
+APP_VERSION = "3.0"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 
@@ -61,20 +61,35 @@ threading.Thread(target=_check_for_update, daemon=True).start()
 
 
 def _get_update_banner():
+    current_badge = (
+        f'<span style="display:inline-block;background:#0f2a1a;border:1px solid #166534;'
+        f'border-radius:6px;padding:3px 10px;font-size:0.8em;color:#86efac;margin-bottom:6px;">'
+        f'v{APP_VERSION} installed</span>'
+    )
     if not _update_info:
-        return ""
+        return (
+            f'<div style="padding:6px 0;">{current_badge}'
+            f'<span style="font-size:0.8em;color:#64748b;margin-left:8px;">Up to date</span></div>'
+        )
     v = _update_info["version"]
-    changelog = _update_info.get("changelog", "").replace("\n", "<br>")
+    changelog_lines = _update_info.get("changelog", "").strip().splitlines()
+    changelog_html  = "".join(
+        f'<li style="margin:3px 0;">{ln.lstrip("- ").strip()}</li>'
+        for ln in changelog_lines if ln.strip()
+    )
     return (
         f'<div id="update-banner" style="background:#1e3a5f;border:1px solid #3b82f6;'
-        f'border-radius:8px;padding:12px 16px;margin:8px 0;color:#e2e8f0;">'
-        f'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">'
-        f'<span style="font-size:1em;font-weight:600;">🆕 Update available — v{v}</span>'
-        f'<span style="font-size:0.8em;color:#94a3b8;">You have v{APP_VERSION}</span>'
+        f'border-radius:8px;padding:12px 16px;margin:4px 0 8px;color:#e2e8f0;">'
+        f'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">'
+        f'{current_badge}'
+        f'<span style="font-size:0.8em;color:#94a3b8;">&#8594;</span>'
+        f'<span style="display:inline-block;background:#1e3a5f;border:1px solid #3b82f6;'
+        f'border-radius:6px;padding:3px 10px;font-size:0.8em;color:#93c5fd;font-weight:600;">'
+        f'v{v} available</span>'
         f'</div>'
-        f'<details style="margin-top:8px;font-size:0.85em;color:#cbd5e1;">'
-        f'<summary style="cursor:pointer;color:#93c5fd;">Show changelog</summary>'
-        f'<div style="margin-top:6px;white-space:pre-wrap;">{changelog}</div>'
+        f'<details style="font-size:0.85em;color:#cbd5e1;">'
+        f'<summary style="cursor:pointer;color:#93c5fd;user-select:none;">What\'s new in v{v}</summary>'
+        f'<ul style="margin:8px 0 0 16px;padding:0;line-height:1.6;">{changelog_html}</ul>'
         f'</details>'
         f'</div>'
     )
@@ -82,33 +97,55 @@ def _get_update_banner():
 
 def _do_update():
     if not getattr(sys, "frozen", False):
-        return gr.update(value="Auto-update only works in the packaged app build.")
+        yield "⚠️ Auto-update only works in the packaged app — not the dev/source version."
+        return
 
-    is_mac   = sys.platform == "darwin"
-    is_win   = sys.platform == "win32"
-    is_linux = sys.platform.startswith("linux")
+    is_mac  = sys.platform == "darwin"
+    is_win  = sys.platform == "win32"
 
-    # Pick the right asset for this platform
     assets = _update_info.get("assets", [])
-    if not assets:
-        url = _update_info.get("url")
-    elif is_mac:
-        url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".zip")), None)
-    elif is_linux:
-        url = next((a["browser_download_url"] for a in assets if "linux" in a["name"]), None)
-    else:
+    if is_win:
         url = next((a["browser_download_url"] for a in assets if a["name"].endswith(".exe")), None)
+    elif is_mac:
+        # DMG requires user interaction — open the releases page instead
+        import webbrowser
+        v = _update_info.get("version", "")
+        webbrowser.open(f"https://github.com/jayuan101/transcript-agent-releases/releases/tag/v{v}")
+        yield f"Opening download page for v{v} — open the DMG and drag to Applications, then relaunch."
+        return
+    else:
+        url = next((a["browser_download_url"] for a in assets if "linux" in a["name"]), None)
 
     if not url:
-        return gr.update(value="No download URL found — please update manually from the releases page.")
+        yield "❌ No download URL found. Visit the releases page to update manually."
+        return
 
-    import urllib.request, subprocess, zipfile
+    import urllib.request, subprocess
     exe_path = Path(sys.executable).resolve()
 
+    # Track download progress
+    _progress = {"pct": 0}
+    def _hook(count, block, total):
+        if total > 0:
+            _progress["pct"] = min(100, int(count * block * 100 / total))
+
     try:
+        yield "⬇️ Downloading update — 0%..."
         if is_win:
             new_path = exe_path.parent / "TranscriptAgent_update.exe"
-            urllib.request.urlretrieve(url, str(new_path))
+            _dl_done = threading.Event()
+
+            def _dl():
+                urllib.request.urlretrieve(url, str(new_path), reporthook=_hook)
+                _dl_done.set()
+
+            threading.Thread(target=_dl, daemon=True).start()
+            while not _dl_done.is_set():
+                time.sleep(0.5)
+                yield f"⬇️ Downloading update — {_progress['pct']}%..."
+            yield "📦 Download complete — installing now, app will restart in 3 seconds..."
+            time.sleep(1)
+
             script = exe_path.parent / "_ta_update.bat"
             script.write_text(
                 "@echo off\ntimeout /t 3 /nobreak >nul\n"
@@ -117,40 +154,33 @@ def _do_update():
             )
             subprocess.Popen(str(script), shell=True, creationflags=subprocess.CREATE_NO_WINDOW)
 
-        elif is_mac:
-            zip_path = exe_path.parent / "TranscriptAgent_update.zip"
-            urllib.request.urlretrieve(url, str(zip_path))
-            script = exe_path.parent / "_ta_update.sh"
-            script.write_text(
-                "#!/bin/bash\nsleep 3\n"
-                f'rm -rf "{exe_path}"\n'
-                f'cd "{exe_path.parent}" && unzip -o "{zip_path}" -d . && rm -f "{zip_path}"\n'
-                f'open "{exe_path}"\n'
-                f'rm -- "$0"\n'
-            )
-            script.chmod(0o755)
-            subprocess.Popen(["bash", str(script)])
-
-        elif is_linux:
-            tar_path = exe_path.parent / "TranscriptAgent_update.tar.gz"
-            urllib.request.urlretrieve(url, str(tar_path))
-            script = exe_path.parent / "_ta_update.sh"
-            script.write_text(
-                "#!/bin/bash\nsleep 3\n"
-                f'tar -xzf "{tar_path}" -C "{exe_path.parent}"\n'
-                f'rm -f "{tar_path}"\n'
-                f'chmod +x "{exe_path}"\n'
-                f'"{exe_path}" &\n'
-                'rm -- "$0"\n'
-            )
-            script.chmod(0o755)
-            subprocess.Popen(["bash", str(script)])
-
         else:
-            return gr.update(value="Auto-update is not supported on this platform.")
+            new_path = exe_path.parent / "TranscriptAgent_update"
+            _dl_done = threading.Event()
+
+            def _dl():
+                urllib.request.urlretrieve(url, str(new_path), reporthook=_hook)
+                _dl_done.set()
+
+            threading.Thread(target=_dl, daemon=True).start()
+            while not _dl_done.is_set():
+                time.sleep(0.5)
+                yield f"⬇️ Downloading update — {_progress['pct']}%..."
+            yield "📦 Download complete — installing, app will restart in 3 seconds..."
+            time.sleep(1)
+
+            script = exe_path.parent / "_ta_update.sh"
+            script.write_text(
+                "#!/bin/bash\nsleep 3\n"
+                f'rm -f "{exe_path}"\nmv "{new_path}" "{exe_path}"\n'
+                f'chmod +x "{exe_path}"\n"{exe_path}" &\nrm -- "$0"\n'
+            )
+            script.chmod(0o755)
+            subprocess.Popen(["bash", str(script)])
 
     except Exception as e:
-        return gr.update(value=f"Download failed: {e}")
+        yield f"❌ Download failed: {e}"
+        return
 
     sys.exit(0)
 
@@ -3129,11 +3159,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
         'Safe to step away.</span></div>'
     )
 
-    # ── Update banner (populated on page load if update available) ───────────
-    update_banner = gr.HTML(value="")
+    # ── Version / update banner (always visible) ─────────────────────────────
+    update_banner = gr.HTML(value=_get_update_banner())
     with gr.Row(visible=False) as update_row:
-        update_btn = gr.Button("⬇️ Download & Install Update", variant="primary", size="sm")
-        update_status = gr.Markdown(visible=False)
+        update_btn    = gr.Button("Download & Install Update", variant="primary", size="sm")
+        update_status = gr.Markdown(value="", visible=True)
 
     # ── Job status banner (updates on page load) ──────────────────────────────
     job_banner = gr.HTML(value=get_job_banner())
@@ -3454,7 +3484,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=_do_update,
         inputs=[],
         outputs=[update_status],
-    )
+    ).then(fn=None)  # keep generator alive until done
 
     # ── Bandwidth timer ───────────────────────────────────────────────────────
     if _PSUTIL_OK:
@@ -3462,13 +3492,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     # ── Refresh banners on page load ──────────────────────────────────────────
     def _on_load(browser_tz=""):
-        banner_html = _get_update_banner()
-        has_update = bool(_update_info)
         tz_val = browser_tz if browser_tz else ""
         return (
             get_job_banner(),
-            banner_html,
-            gr.update(visible=has_update),
+            _get_update_banner(),
+            gr.update(visible=bool(_update_info)),
             gr.update(value=tz_val, placeholder=f"Detected: {tz_val}" if tz_val else "e.g. America/New_York"),
         )
 

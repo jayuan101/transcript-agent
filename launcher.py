@@ -125,32 +125,6 @@ def _icon_path():
     return path
 
 
-# ── Tkinter splash (shown while pywebview initialises) ────────────────────────
-def _show_splash():
-    try:
-        import tkinter as tk
-        from tkinter import ttk
-        root = tk.Tk()
-        root.title(APP_NAME)
-        root.overrideredirect(True)
-        root.configure(bg="#1e3a5f")
-        root.attributes("-alpha", 0.96)
-        w, h = 400, 185
-        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        root.geometry(f"{w}x{h}+{(sw - w) // 2}+{(sh - h) // 2}")
-        root.lift()
-        root.attributes("-topmost", True)
-        tk.Label(root, text=APP_NAME, fg="#ffffff", bg="#1e3a5f",
-                 font=("Helvetica", 22, "bold")).pack(pady=(36, 6))
-        tk.Label(root, text="Starting up…", fg="#94a3b8", bg="#1e3a5f",
-                 font=("Helvetica", 11)).pack()
-        bar = ttk.Progressbar(root, mode="indeterminate", length=300)
-        bar.pack(pady=18)
-        bar.start(10)
-        root.update()
-        return root
-    except Exception:
-        return None
 
 
 # ── System tray ───────────────────────────────────────────────────────────────
@@ -182,10 +156,7 @@ def _build_tray():
 # 1. Start Gradio server in background
 threading.Thread(target=lambda: __import__("app"), daemon=True).start()
 
-# 2. Show tkinter splash immediately
-splash = _show_splash()
-
-# 3. Start tray
+# 2. Start tray
 tray = None
 try:
     tray = _build_tray()
@@ -204,14 +175,6 @@ try:
         height=900,
         min_size=(900, 600),
     )
-
-    def _on_shown():
-        """Dismiss tkinter splash the moment the native window appears."""
-        if splash:
-            try:
-                splash.destroy()
-            except Exception:
-                pass
 
     def _on_closing():
         """Hide to tray on X — don't quit."""
@@ -232,7 +195,6 @@ try:
         # Server never came up — show error inside the window
         _win.load_html(_ERROR_HTML)
 
-    _win.events.shown   += _on_shown
     _win.events.closing += _on_closing
 
     threading.Thread(target=_navigate_when_ready, daemon=True).start()
@@ -241,11 +203,6 @@ try:
 
 except ImportError:
     # No pywebview — fall back to browser
-    if splash:
-        try:
-            splash.destroy()
-        except Exception:
-            pass
     for _ in range(120):
         try:
             _ur.urlopen(APP_URL, timeout=1)

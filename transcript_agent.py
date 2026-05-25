@@ -783,10 +783,39 @@ Return JSON with exactly these keys:
 
 # ── processing ────────────────────────────────────────────────────────────────
 
+def _repair_truncated_json(raw: str) -> dict:
+    """Close any open strings/braces left by a token-limit cutoff and re-parse."""
+    in_string = False
+    escape = False
+    stack = []
+    for ch in raw:
+        if escape:
+            escape = False
+        elif in_string:
+            if ch == '\\':
+                escape = True
+            elif ch == '"':
+                in_string = False
+        else:
+            if ch == '"':
+                in_string = True
+            elif ch in '{[':
+                stack.append(ch)
+            elif ch in '}]' and stack:
+                stack.pop()
+    suffix = ('"' if in_string else '') + ''.join(
+        '}' if c == '{' else ']' for c in reversed(stack)
+    )
+    return json.loads(raw + suffix)
+
+
 def _parse_json(raw: str) -> dict:
     raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
     raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return _repair_truncated_json(raw)
 
 
 def _chunk(text: str, max_chars: int = 600_000) -> list:

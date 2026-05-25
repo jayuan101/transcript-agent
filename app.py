@@ -939,15 +939,18 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
     background: #475569 !important;
 }
 
-/* live log dark terminal */
-#live-log textarea {
-    background: #0f172a !important;
-    color: #86efac !important;
-    font-family: 'Courier New', monospace !important;
-    font-size: 0.80em !important;
-    line-height: 1.65 !important;
-    border-color: #1e3a5f !important;
-    border-radius: 8px !important;
+/* log panel CSS vars — set light defaults here so they exist before JS fires */
+:root {
+    --ta-log-bg: #f8fafc;
+    --ta-log-border: #e2e8f0;
+    --ta-log-ts: #64748b;
+    --ta-log-hdr: #334155;
+}
+html.dark {
+    --ta-log-bg: #0f172a;
+    --ta-log-border: #1e3a5f;
+    --ta-log-ts: #64748b;
+    --ta-log-hdr: #e2e8f0;
 }
 
 /* Fix banner text — Gradio overrides <strong> color to white */
@@ -1920,24 +1923,21 @@ def process_file(
             weight = 'font-weight:700;' if bold else ''
             if kind == 'header':
                 parts.append(
-                    f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
+                    f'<div style="color:var(--ta-log-hdr,#f8fafc);{weight}margin-top:8px;'
+                    f'border-top:1px solid var(--ta-log-border,#1e3a5f);'
                     f'padding-top:6px;letter-spacing:0.05em;">{text}</div>'
                 )
-            elif kind == 'progress':
-                # text-only line in log — the ETA panel owns the visual bar
-                parts.append(
-                    f'<div><span style="color:#334155;">[{ts}]</span> '
-                    f'<span style="color:{color};{weight}">{text}</span></div>'
-                )
             else:
+                # text-only line in log — the ETA panel owns the visual bar for 'progress'
                 parts.append(
-                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<div><span style="color:var(--ta-log-ts,#64748b);">[{ts}]</span> '
                     f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
         scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
-        inner = "".join(parts) + scroll if parts else '<span style="color:#334155;">Starting…</span>'
+        inner = "".join(parts) + scroll if parts else '<span style="color:var(--ta-log-ts,#64748b);">Starting…</span>'
         return (
-            '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+            '<div id="ta-log-wrap" style="background:var(--ta-log-bg,#0f172a);'
+            'border:1px solid var(--ta-log-border,#1e3a5f);'
             'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
             'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;line-height:1.7;">'
             + inner + '</div>'
@@ -2552,14 +2552,16 @@ _THEME_JS = """
       '--ta-step-act-bg:#e8f0fe;--ta-step-act-bdr:#1a73e8;--ta-step-act-clr:#1557b0;',
       '--ta-step-wait-bg:#f8f9fa;--ta-step-wait-bdr:#dadce0;--ta-step-wait-clr:#9aa0a6;',
       '--ta-conn-line-done:#34a853;--ta-conn-line-wait:#dadce0;--ta-stat-bg:rgba(255,255,255,0.85);',
-      '--ta-stat-label:#1557b0;--ta-stat-val:#1a73e8}',
+      '--ta-stat-label:#1557b0;--ta-stat-val:#1a73e8;',
+      '--ta-log-bg:#f8fafc;--ta-log-border:#e2e8f0;--ta-log-ts:#64748b;--ta-log-hdr:#334155}',
       /* CSS vars — dark overrides */
       'html.dark{--ta-card-bg:#292a2d;--ta-card-border:#5f6368;--ta-card-text:#e8eaed;--ta-card-sub:#9aa0a6;--ta-card-val:#e8eaed;',
       '--ta-step-done-bg:#0d3b1e;--ta-step-done-bdr:#34a853;--ta-step-done-clr:#81c995;',
       '--ta-step-act-bg:#0d2b5e;--ta-step-act-bdr:#8ab4f8;--ta-step-act-clr:#aecbfa;',
       '--ta-step-wait-bg:#202124;--ta-step-wait-bdr:#5f6368;--ta-step-wait-clr:#9aa0a6;',
       '--ta-conn-line-done:#34a853;--ta-conn-line-wait:#5f6368;--ta-stat-bg:rgba(32,33,36,0.85);',
-      '--ta-stat-label:#8ab4f8;--ta-stat-val:#e8eaed}',
+      '--ta-stat-label:#8ab4f8;--ta-stat-val:#e8eaed;',
+      '--ta-log-bg:#0f172a;--ta-log-border:#1e3a5f;--ta-log-ts:#64748b;--ta-log-hdr:#e2e8f0}',
       /* Process button */
       '.big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(29,78,216,0.40)!important}',
       /* Scrollable dropdowns */
@@ -3405,11 +3407,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
             status_bar = gr.HTML(value=_IDLE_STATUS)
             eta_panel  = gr.HTML(value="")
             log_out    = gr.HTML(
-                value='<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+                value='<div id="ta-log-wrap" style="background:var(--ta-log-bg,#0f172a);'
+                      'border:1px solid var(--ta-log-border,#1e3a5f);'
                       'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
                       'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;'
-                      'line-height:1.7;color:#475569;">'
-                      '<span style="color:#334155;">Progress appears here once you click Analyze File…</span>'
+                      'line-height:1.7;">'
+                      '<span style="color:var(--ta-log-ts,#64748b);">Progress appears here once you click Analyze File…</span>'
                       '</div>',
                 elem_id="live-log",
                 label="Live Processing Log",

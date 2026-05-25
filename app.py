@@ -778,20 +778,20 @@ def get_job_banner():
         if age_hours > 4:
             return (
                 '<div id="job-banner" style="background:#422006;border:1px solid #f97316;border-radius:8px;'
-                'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+                'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#fed7aa!important;">'
                 '<span style="font-size:1.3em">⚠️</span>'
-                '<div><strong style="color:#fdba74">Previous job did not complete</strong>'
-                f'<div style="color:#fed7aa;font-size:0.85em">{name} — started {updated} but never finished '
+                '<div><strong style="color:#fdba74!important;">Previous job did not complete</strong>'
+                f'<div style="color:#fed7aa!important;font-size:0.85em">{name} — started {updated} but never finished '
                 '(browser disconnected or computer slept). Click <strong>Load Last Result</strong> to check '
                 'if any results were saved, or run a new job.</div>'
                 '</div></div>'
             )
         return (
             '<div id="job-banner" style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:8px;'
-            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#cbd5e1!important;">'
             '<span style="font-size:1.3em">⏳</span>'
-            '<div><strong style="color:#93c5fd">Transcription in progress</strong>'
-            f'<div style="color:#cbd5e1;font-size:0.85em">{name} — started {updated}. '
+            '<div><strong style="color:#93c5fd!important;">Transcription in progress</strong>'
+            f'<div style="color:#cbd5e1!important;font-size:0.85em">{name} — started {updated}. '
             'Keep this tab open to see results, or come back later and click <strong>Load Last Result</strong>.</div>'
             '</div></div>'
         )
@@ -799,20 +799,20 @@ def get_job_banner():
         completed = status.get("completed", "")[:16].replace("T", " ")
         return (
             '<div id="job-banner" style="background:#14532d;border:1px solid #4ade80;border-radius:8px;'
-            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#bbf7d0!important;">'
             '<span style="font-size:1.3em">✅</span>'
-            '<div><strong style="color:#4ade80">Last transcription completed</strong>'
-            f'<div style="color:#bbf7d0;font-size:0.85em">{name} — finished {completed}. '
+            '<div><strong style="color:#4ade80!important;">Last transcription completed</strong>'
+            f'<div style="color:#bbf7d0!important;font-size:0.85em">{name} — finished {completed}. '
             'Click <strong>Load Last Result</strong> to view it.</div>'
             '</div></div>'
         )
     elif s == "error":
         return (
             '<div id="job-banner" style="background:#450a0a;border:1px solid #f87171;border-radius:8px;'
-            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;">'
+            'padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#fca5a5!important;">'
             '<span style="font-size:1.3em">🚨</span>'
-            '<div><strong style="color:#f87171">Last transcription failed</strong>'
-            f'<div style="color:#fca5a5;font-size:0.85em">{name} — {updated}. '
+            '<div><strong style="color:#f87171!important;">Last transcription failed</strong>'
+            f'<div style="color:#fca5a5!important;font-size:0.85em">{name} — {updated}. '
             f'Error: {status.get("error","unknown")}</div>'
             '</div></div>'
         )
@@ -938,6 +938,10 @@ html.dark #provider-sel [role="listbox"]::-webkit-scrollbar-thumb,
 html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
     background: #475569 !important;
 }
+
+/* Hero banner always uses white text — dark gradient background in both modes */
+#ta-hero, #ta-hero * { color: #fff !important; }
+#ta-hero .subtitle { color: #93c5fd !important; }
 
 /* log panel CSS vars — set light defaults here so they exist before JS fires */
 :root {
@@ -2464,23 +2468,23 @@ _THEME = gr.themes.Soft(
 
 # ── HTML snippets ───────────────────────────────────────────────────────────────
 _HERO = """
-<div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#2563eb 100%);
+<div id="ta-hero" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#2563eb 100%);
      border-radius:16px;padding:36px 44px 32px;color:#fff;margin-bottom:8px;">
   <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
     <div style="font-size:3em;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3));">🎙️</div>
     <div>
-      <div style="font-size:1.9em;font-weight:800;letter-spacing:-0.03em;line-height:1.1;">Transcript Agent</div>
-      <div style="color:#93c5fd;font-size:0.95em;font-weight:500;margin-top:5px;">
+      <div style="font-size:1.9em;font-weight:800;letter-spacing:-0.03em;line-height:1.1;color:#fff!important;">Transcript Agent</div>
+      <div style="color:#93c5fd!important;font-size:0.95em;font-weight:500;margin-top:5px;">
         AI-powered transcription &amp; analysis &mdash; Whisper + Claude
       </div>
     </div>
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🎵 Audio &amp; Video</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📄 Documents</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🗣️ Speaker Diarization</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📊 Speech Analytics</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🌐 37+ Languages</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🎵 Audio &amp; Video</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">📄 Documents</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🗣️ Speaker Diarization</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">📊 Speech Analytics</span>
+    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🌐 37+ Languages</span>
   </div>
 </div>
 """

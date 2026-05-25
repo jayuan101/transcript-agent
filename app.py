@@ -727,7 +727,16 @@ def load_last_result():
     """Load the most recently completed job and return its results for all output tabs."""
     import json
     status = _read_job_status()
-    if not status or status.get("status") != "done":
+    if not status:
+        return [gr.update()] * 13 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
+    s = status.get("status")
+    if s == "running":
+        name = status.get("stem", "Unknown file")
+        return [gr.update()] * 13 + [gr.update(
+            value=f"⏳ **Transcription still in progress** — {name}. Keep this tab open and results will load automatically when done.",
+            visible=True,
+        )]
+    if s not in ("done", "error"):
         return [gr.update()] * 13 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
     try:
         job_dir = Path(status["job_dir"])
@@ -739,8 +748,12 @@ def load_last_result():
         f_c = str(job_dir / f"{stem}_combined.txt")
         f_j = str(job_dir / f"{stem}_full.json")
         f_p = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
-        completed = status.get("completed", "")[:16].replace("T", " ")
-        msg = f"✅ Loaded: **{stem}** (completed {completed})"
+        if s == "done":
+            completed = status.get("completed", "")[:16].replace("T", " ")
+            msg = f"✅ Loaded: **{stem}** (completed {completed})"
+        else:
+            err = status.get("error", "unknown error")
+            msg = f"⚠️ Last job failed — partial results for **{stem}**: {err}"
         return [
             data.get("summary", ""),
             data.get("transcript", ""),

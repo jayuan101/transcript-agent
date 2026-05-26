@@ -37,7 +37,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.4"
+APP_VERSION = "3.8"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -992,6 +992,12 @@ FORMATS_MD = """
 
 CSS = """
 footer { display: none !important; }
+
+/* Hide Gradio HTML blocks that have no content (prevents ghost oval shapes) */
+[data-testid="html"]:not(:has(*)),
+[data-testid="html"] > .prose:empty {
+    display: none !important;
+}
 
 /* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
@@ -3857,13 +3863,15 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
     # ── Version / update banner (always visible) ─────────────────────────────
-    update_banner = gr.HTML(value=_get_update_banner())
+    _init_ub = _get_update_banner()
+    update_banner = gr.HTML(value=_init_ub, visible=bool(_init_ub.strip()))
     with gr.Row(visible=False) as update_row:
         update_btn    = gr.Button("Download & Install Update", variant="primary", size="sm")
         update_status = gr.Markdown(value="", visible=True)
 
     # ── Job status banner (updates on page load) ──────────────────────────────
-    job_banner = gr.HTML(value=get_job_banner())
+    _init_jb = get_job_banner()
+    job_banner = gr.HTML(value=_init_jb, visible=bool(_init_jb.strip()))
     with gr.Row():
         load_last_btn = gr.Button("📂 Load Last Result", size="sm", variant="secondary")
         load_last_msg = gr.Markdown(visible=False)
@@ -4291,9 +4299,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
     def _on_load(browser_tz=""):
         tz_val = browser_tz if browser_tz else ""
         btn_label = "Restart to Apply Update" if _update_downloaded.is_set() else "Download & Install Update"
+        jb = get_job_banner()
+        ub = _get_update_banner()
         return (
-            get_job_banner(),
-            _get_update_banner(),
+            gr.update(value=jb, visible=bool(jb.strip())),
+            gr.update(value=ub, visible=bool(ub.strip())),
             gr.update(visible=bool(_update_info)),
             gr.update(value=tz_val, placeholder=f"Detected: {tz_val}" if tz_val else "e.g. America/New_York"),
             gr.update(value=btn_label),

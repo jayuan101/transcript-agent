@@ -1209,15 +1209,14 @@ input[type="radio"] {
     accent-color: var(--ta-primary) !important;
 }
 
-/* ── Blocks — glassmorphism cards ────────────────────────────────────────── */
+/* ── Blocks — elevated cards (no backdrop-filter: avoids stacking context
+     that traps Gradio dropdown listboxes) ──────────────────────────────── */
 .block, .form, .panel-full-width {
-    background: var(--ta-glass-bg) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid var(--ta-glass-border) !important;
+    background: rgba(255,255,255,0.94) !important;
+    border: 1px solid rgba(225,225,240,0.80) !important;
     border-radius: var(--ta-radius-lg) !important;
     box-shadow: var(--ta-shadow-md) !important;
-    transition: box-shadow 0.25s ease, transform 0.2s ease !important;
+    transition: box-shadow 0.25s ease !important;
 }
 .block:hover, .form:hover {
     box-shadow: var(--ta-shadow-lg) !important;
@@ -1320,9 +1319,7 @@ html.dark .gradio-container, html.dark .main, html.dark .contain {
 }
 html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact,
 html.dark .wrap {
-    background: rgba(30,30,42,0.85) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
+    background: #1e1e2a !important;
     border-color: rgba(99,102,241,0.18) !important;
 }
 html.dark .upload-container {

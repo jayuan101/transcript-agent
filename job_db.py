@@ -43,12 +43,19 @@ def init_db(outputs_dir) -> Path:
                 result_analytics   TEXT,
                 result_combined    TEXT,
                 config_json        TEXT,
-                error              TEXT
+                error              TEXT,
+                panel_mode         INTEGER DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_jobs_file_hash ON jobs(file_hash);
             CREATE INDEX IF NOT EXISTS idx_jobs_status    ON jobs(status);
             CREATE INDEX IF NOT EXISTS idx_jobs_created   ON jobs(created_at);
         """)
+    # Migrate existing DBs that predate the panel_mode column
+    try:
+        with _conn() as c:
+            c.execute("ALTER TABLE jobs ADD COLUMN panel_mode INTEGER DEFAULT 0")
+    except Exception:
+        pass  # column already exists
     return _DB_PATH
 
 
@@ -68,15 +75,17 @@ def _conn():
 # ── CRUD ──────────────────────────────────────────────────────────────────────
 
 def create_job(job_id: str, stem: str, original_filename: str,
-               file_hash: str, job_dir: str, config_json: str = "") -> None:
+               file_hash: str, job_dir: str, config_json: str = "",
+               panel_mode: bool = False) -> None:
     now = datetime.now().isoformat()
     with _conn() as c:
         c.execute("""
             INSERT OR REPLACE INTO jobs
               (job_id, stem, original_filename, file_hash,
-               status, created_at, updated_at, job_dir, config_json)
-            VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?)
-        """, (job_id, stem, original_filename, file_hash, now, now, job_dir, config_json))
+               status, created_at, updated_at, job_dir, config_json, panel_mode)
+            VALUES (?, ?, ?, ?, 'running', ?, ?, ?, ?, ?)
+        """, (job_id, stem, original_filename, file_hash, now, now, job_dir, config_json,
+              1 if panel_mode else 0))
 
 
 def save_whisper_checkpoint(job_id: str, whisper_text: str,
@@ -90,18 +99,23 @@ def save_whisper_checkpoint(job_id: str, whisper_text: str,
         """, (whisper_text, whisper_json, now, job_id))
 
 
-def find_whisper_checkpoint(file_hash: str) -> Optional[tuple]:
-    """Return (whisper_text, whisper_json_str) if a checkpoint exists, else None."""
+def find_whisper_checkpoint(file_hash: str, panel_mode: bool = False) -> Optional[tuple]:
+    """Return (whisper_text, whisper_json_str) if a matching checkpoint exists, else None.
+
+    panel_mode must match the original run's mode so a diarized checkpoint is not
+    reused for a standard run (or vice versa), which would cause silent output degradation.
+    """
     if not file_hash:
         return None
     with _conn() as c:
         row = c.execute("""
             SELECT whisper_text, whisper_json FROM jobs
             WHERE file_hash=?
+              AND panel_mode=?
               AND whisper_text IS NOT NULL
               AND whisper_text != ''
             ORDER BY updated_at DESC LIMIT 1
-        """, (file_hash,)).fetchone()
+        """, (file_hash, 1 if panel_mode else 0)).fetchone()
     return (row["whisper_text"], row["whisper_json"]) if row else None
 
 

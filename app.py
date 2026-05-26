@@ -866,21 +866,23 @@ _STATUS_PILL = {
 
 
 def _build_history_html() -> str:
+    import html as _html
     if not _JDB_OK:
         return "<p style='color:#9ca3af;font-size:0.85em;'>Job history unavailable (job_db not loaded).</p>"
     try:
         jobs = _jdb.list_jobs(limit=50)
     except Exception as e:
-        return f"<p style='color:#f87171;font-size:0.85em;'>Error reading history: {e}</p>"
+        return f"<p style='color:#f87171;font-size:0.85em;'>Error reading history: {_html.escape(str(e))}</p>"
     if not jobs:
         return "<p style='color:#9ca3af;font-size:0.85em;'>No jobs yet — run a transcription to see history here.</p>"
     rows = []
     for j in jobs:
-        ts = (j.get("created_at") or "")[:16].replace("T", " ")
+        ts   = (j.get("created_at") or "")[:16].replace("T", " ")
         pill = _STATUS_PILL.get(j.get("status", ""), _STATUS_PILL["pending"])
-        name = j.get("stem") or j.get("original_filename") or "—"
-        jid  = j.get("job_id", "")
-        err  = f'<br><span style="color:#f87171;font-size:0.76em;">{j["error"][:80]}</span>' if j.get("error") else ""
+        name = _html.escape(j.get("stem") or j.get("original_filename") or "—")
+        jid  = _html.escape(j.get("job_id", ""))
+        err  = (f'<br><span style="color:#f87171;font-size:0.76em;">'
+                f'{_html.escape((j["error"] or "")[:80])}</span>') if j.get("error") else ""
         rows.append(
             f'<tr>'
             f'<td style="padding:6px 10px;color:#e2e8f0;">{ts}</td>'
@@ -2196,8 +2198,10 @@ def process_file(
     _write_job_status("running", stem=stem, job_id=job_id, job_dir=str(job_dir))
 
     # ── Checkpoint: compute file hash and look for saved Whisper text ─────────
+    _panel = bool(inc_profiles)
     _file_hash = _jdb.file_md5(uploaded_file) if _JDB_OK else ""
-    _checkpoint = _jdb.find_whisper_checkpoint(_file_hash) if (_JDB_OK and is_av and _file_hash) else None
+    _checkpoint = (_jdb.find_whisper_checkpoint(_file_hash, panel_mode=_panel)
+                   if (_JDB_OK and is_av and _file_hash) else None)
     _ckpt_text  = _checkpoint[0] if _checkpoint else None
     _ckpt_json  = _checkpoint[1] if _checkpoint else None
 
@@ -2208,8 +2212,9 @@ def process_file(
                 job_id=job_id, stem=stem,
                 original_filename=Path(uploaded_file).name,
                 file_hash=_file_hash, job_dir=str(job_dir),
-                config_json=_j.dumps({"panel_mode": bool(inc_profiles),
+                config_json=_j.dumps({"panel_mode": _panel,
                                       "analysis_depth": analysis_depth}),
+                panel_mode=_panel,
             )
         except Exception:
             pass

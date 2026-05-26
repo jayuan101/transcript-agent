@@ -937,7 +937,7 @@ def _build_history_html() -> str:
     )
 
 
-def load_job_from_history(job_id_input: str):
+def load_job_from_history(job_id_input: str = ""):
     """Load a specific job from the DB by job_id."""
     no_change = [gr.update()] * 13 + [gr.update(visible=False)]
     if not _JDB_OK:
@@ -4166,12 +4166,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 with gr.TabItem("History"):
                     history_refresh_btn = gr.Button("🔄 Refresh", size="sm", variant="secondary")
                     history_table = gr.HTML(value=_build_history_html())
-                    history_job_id_box = gr.Textbox(
-                        label="Load job by ID (paste from table above)",
-                        placeholder="e.g. a1b2c3d4",
-                        scale=3,
-                    )
-                    history_load_btn = gr.Button("📂 Load This Job", size="sm", variant="secondary")
+                    with gr.Row():
+                        history_job_id_box = gr.Textbox(
+                            label="Load job by ID (paste from table above)",
+                            placeholder="e.g. a1b2c3d4",
+                            scale=3,
+                        )
+                        history_load_btn = gr.Button("📂 Load This Job", size="sm", variant="secondary", scale=1)
                     history_msg = gr.Markdown(visible=False)
 
     gr.HTML("""

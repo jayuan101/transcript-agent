@@ -23,6 +23,13 @@ except ImportError:
     pass
 
 try:
+    import job_db as _jdb
+    _JDB_OK = True
+except ImportError:
+    _jdb = None
+    _JDB_OK = False
+
+try:
     import psutil as _psutil
     _PSUTIL_OK = True
 except ImportError:
@@ -708,6 +715,12 @@ OUT_DIR.mkdir(exist_ok=True)
 
 JOB_STATUS_FILE = OUT_DIR / ".job_status.json"
 
+if _JDB_OK:
+    try:
+        _jdb.init_db(OUT_DIR)
+    except Exception:
+        _JDB_OK = False
+
 def _write_job_status(status: str, **kwargs):
     import json, datetime
     data = {"status": status, "updated": datetime.datetime.now().isoformat(), **kwargs}
@@ -834,6 +847,109 @@ def get_job_banner():
 
 
 SUPPORTED = list(AUDIO_EXTS | VIDEO_EXTS | {".srt", ".vtt", ".txt", ".md", ".docx", ".pdf"})
+
+
+# ── History helpers ───────────────────────────────────────────────────────────
+
+_STATUS_PILL = {
+    "done":         ('<span style="background:#14532d;color:#4ade80;border-radius:5px;'
+                     'padding:2px 8px;font-size:0.78em;font-weight:700;">✓ Done</span>'),
+    "error":        ('<span style="background:#450a0a;color:#f87171;border-radius:5px;'
+                     'padding:2px 8px;font-size:0.78em;font-weight:700;">✗ Error</span>'),
+    "running":      ('<span style="background:#1e3a5f;color:#60a5fa;border-radius:5px;'
+                     'padding:2px 8px;font-size:0.78em;font-weight:700;">⏳ Running</span>'),
+    "whisper_done": ('<span style="background:#1e3a5f;color:#93c5fd;border-radius:5px;'
+                     'padding:2px 8px;font-size:0.78em;font-weight:700;">🎤 Whisper done</span>'),
+    "pending":      ('<span style="background:#374151;color:#9ca3af;border-radius:5px;'
+                     'padding:2px 8px;font-size:0.78em;font-weight:700;">• Pending</span>'),
+}
+
+
+def _build_history_html() -> str:
+    if not _JDB_OK:
+        return "<p style='color:#9ca3af;font-size:0.85em;'>Job history unavailable (job_db not loaded).</p>"
+    try:
+        jobs = _jdb.list_jobs(limit=50)
+    except Exception as e:
+        return f"<p style='color:#f87171;font-size:0.85em;'>Error reading history: {e}</p>"
+    if not jobs:
+        return "<p style='color:#9ca3af;font-size:0.85em;'>No jobs yet — run a transcription to see history here.</p>"
+    rows = []
+    for j in jobs:
+        ts = (j.get("created_at") or "")[:16].replace("T", " ")
+        pill = _STATUS_PILL.get(j.get("status", ""), _STATUS_PILL["pending"])
+        name = j.get("stem") or j.get("original_filename") or "—"
+        jid  = j.get("job_id", "")
+        err  = f'<br><span style="color:#f87171;font-size:0.76em;">{j["error"][:80]}</span>' if j.get("error") else ""
+        rows.append(
+            f'<tr>'
+            f'<td style="padding:6px 10px;color:#e2e8f0;">{ts}</td>'
+            f'<td style="padding:6px 10px;color:#e2e8f0;max-width:220px;overflow:hidden;'
+            f'text-overflow:ellipsis;white-space:nowrap;" title="{name}">{name}{err}</td>'
+            f'<td style="padding:6px 10px;">{pill}</td>'
+            f'<td style="padding:6px 10px;font-family:monospace;color:#94a3b8;font-size:0.82em;">{jid}</td>'
+            f'</tr>'
+        )
+    body = "".join(rows)
+    return (
+        '<div style="overflow-x:auto;">'
+        '<table style="width:100%;border-collapse:collapse;font-size:0.85em;">'
+        '<thead><tr style="border-bottom:1px solid #334155;">'
+        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Started</th>'
+        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">File</th>'
+        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Status</th>'
+        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Job ID</th>'
+        '</tr></thead>'
+        f'<tbody>{body}</tbody>'
+        '</table></div>'
+    )
+
+
+def load_job_from_history(job_id_input: str):
+    """Load a specific job from the DB by job_id."""
+    no_change = [gr.update()] * 13 + [gr.update(visible=False)]
+    if not _JDB_OK:
+        return no_change[:-1] + [gr.update(value="Job history not available.", visible=True)]
+    jid = (job_id_input or "").strip()
+    if not jid:
+        return no_change[:-1] + [gr.update(value="Enter a Job ID from the table above.", visible=True)]
+    try:
+        job = _jdb.get_job(jid)
+    except Exception as e:
+        return no_change[:-1] + [gr.update(value=f"Error: {e}", visible=True)]
+    if not job:
+        return no_change[:-1] + [gr.update(value=f"Job `{jid}` not found.", visible=True)]
+    if job.get("status") not in ("done", "error"):
+        s = job.get("status", "unknown")
+        return no_change[:-1] + [gr.update(value=f"Job `{jid}` status is **{s}** — only completed jobs can be loaded.", visible=True)]
+    job_dir = Path(job.get("job_dir", ""))
+    stem    = job.get("stem", jid)
+    f_t = str(job_dir / f"{stem}_transcript.txt")
+    f_s = str(job_dir / f"{stem}_speakers.txt")
+    f_r = str(job_dir / f"{stem}_report.md")
+    f_c = str(job_dir / f"{stem}_combined.txt")
+    f_j = str(job_dir / f"{stem}_full.json")
+    f_p = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
+    ts  = (job.get("created_at") or "")[:16].replace("T", " ")
+    msg = f"✅ Loaded job `{jid}` — **{stem}** ({ts})"
+    if job.get("status") == "error":
+        msg = f"⚠️ Loaded failed job `{jid}` — partial results for **{stem}**: {job.get('error','')}"
+    return [
+        job.get("result_summary", ""),
+        job.get("result_transcript", ""),
+        job.get("result_dialogue", ""),
+        job.get("result_profiles", ""),
+        job.get("result_analytics", ""),
+        job.get("result_combined", ""),
+        f_t if Path(f_t).exists() else None,
+        f_s if Path(f_s).exists() else None,
+        f_r if Path(f_r).exists() else None,
+        f_c if Path(f_c).exists() else None,
+        f_j if Path(f_j).exists() else None,
+        f_p,
+        gr.update(open=True),
+        gr.update(value=msg, visible=True),
+    ]
 
 FORMATS_MD = """
 **Accepted formats**
@@ -2079,6 +2195,25 @@ def process_file(
 
     _write_job_status("running", stem=stem, job_id=job_id, job_dir=str(job_dir))
 
+    # ── Checkpoint: compute file hash and look for saved Whisper text ─────────
+    _file_hash = _jdb.file_md5(uploaded_file) if _JDB_OK else ""
+    _checkpoint = _jdb.find_whisper_checkpoint(_file_hash) if (_JDB_OK and is_av and _file_hash) else None
+    _ckpt_text  = _checkpoint[0] if _checkpoint else None
+    _ckpt_json  = _checkpoint[1] if _checkpoint else None
+
+    if _JDB_OK:
+        try:
+            import json as _j
+            _jdb.create_job(
+                job_id=job_id, stem=stem,
+                original_filename=Path(uploaded_file).name,
+                file_hash=_file_hash, job_dir=str(job_dir),
+                config_json=_j.dumps({"panel_mode": bool(inc_profiles),
+                                      "analysis_depth": analysis_depth}),
+            )
+        except Exception:
+            pass
+
     # ── thread communication ──────────────────────────────────────────────────
     q = Q.Queue()
 
@@ -2093,6 +2228,13 @@ def process_file(
 
     def on_log(msg):
         q.put(("log", msg))
+
+    def _on_whisper_done(text, json_str):
+        if _JDB_OK:
+            try:
+                _jdb.save_whisper_checkpoint(job_id, text, json_str)
+            except Exception:
+                pass
 
     def background():
         try:
@@ -2114,6 +2256,9 @@ def process_file(
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
                 on_log=on_log,
+                checkpoint_text=_ckpt_text,
+                checkpoint_json=_ckpt_json,
+                on_whisper_done=_on_whisper_done if is_av else None,
             )
             # Write status directly so it persists even if the browser disconnected
             import datetime as _dtt
@@ -2136,6 +2281,11 @@ def process_file(
     stage           = "loading"
     last_activity   = time.time()
     stall_warned    = set()
+
+    if _ckpt_text:
+        log_entries.append(("info", _ts(),
+            f"Whisper checkpoint found — skipping transcription for '{stem}' (same file). Passing saved text to AI."))
+
 
     def _eta_secs(pct):
         if pct <= 0.01:
@@ -2355,11 +2505,16 @@ def process_file(
 
             total_elapsed = _elapsed()
             import datetime as _dtt
+            _rd = {"summary": summary_md, "transcript": result.clean_transcript,
+                   "dialogue": result.speaker_dialogue, "profiles": profiles_md,
+                   "analytics": analytics_md, "combined": combined_text}
             _write_job_status("done", stem=stem, job_id=job_id, job_dir=str(job_dir),
-                              completed=_dtt.datetime.now().isoformat(),
-                              result={"summary": summary_md, "transcript": result.clean_transcript,
-                                      "dialogue": result.speaker_dialogue, "profiles": profiles_md,
-                                      "analytics": analytics_md, "combined": combined_text})
+                              completed=_dtt.datetime.now().isoformat(), result=_rd)
+            if _JDB_OK:
+                try:
+                    _jdb.complete_job(job_id, _rd)
+                except Exception:
+                    pass
             log_text = _add_header("✅  COMPLETE")
             log_text = _add_log(f"All done in {total_elapsed}. Results ready in all tabs.", "done")
             yield _out(
@@ -2384,6 +2539,11 @@ def process_file(
         elif kind == "error":
             _write_job_status("error", stem=stem, job_id=job_id, job_dir=str(job_dir),
                               error=str(msg[1])[:200])
+            if _JDB_OK:
+                try:
+                    _jdb.fail_job(job_id, str(msg[1]))
+                except Exception:
+                    pass
             log_text = _add_log(f"🚨 {msg[1]}", "error")
             yield _out(log=log_text)
             yield _err(f"Processing failed: {msg[1]}")
@@ -3557,6 +3717,17 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         placeholder="All sections combined will appear here…",
                     )
 
+                with gr.TabItem("History"):
+                    history_refresh_btn = gr.Button("🔄 Refresh", size="sm", variant="secondary")
+                    history_table = gr.HTML(value=_build_history_html())
+                    history_job_id_box = gr.Textbox(
+                        label="Load job by ID (paste from table above)",
+                        placeholder="e.g. a1b2c3d4",
+                        scale=3,
+                    )
+                    history_load_btn = gr.Button("📂 Load This Job", size="sm", variant="secondary")
+                    history_msg = gr.Markdown(visible=False)
+
     gr.HTML("""
     <div style="text-align:center;padding:20px 0 4px;font-size:0.76em;color:#94a3b8;">
       Transcript Agent &nbsp;&bull;&nbsp; Transcription by OpenAI Whisper
@@ -3634,7 +3805,22 @@ with gr.Blocks(title="Transcript Agent") as demo:
         ],
     )
 
+    # ── History tab ───────────────────────────────────────────────────────────
+    history_refresh_btn.click(
+        fn=_build_history_html,
+        inputs=[],
+        outputs=[history_table],
+    )
 
+    history_load_btn.click(
+        fn=load_job_from_history,
+        inputs=[history_job_id_box],
+        outputs=[
+            summary_out, transcript_out, dialogue_out, profiles_out, analytics_out,
+            combined_out, dl_transcript, dl_speakers, dl_report, dl_combined,
+            dl_json, dl_pdf, download_accordion, history_msg,
+        ],
+    )
 
     # ── Update button ─────────────────────────────────────────────────────────
     update_btn.click(

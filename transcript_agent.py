@@ -1111,6 +1111,9 @@ def run(
     on_raw_transcript=None,         # callable(text: str) — fired the moment Whisper finishes
     on_stage_change=None,           # callable(stage: str) — "extracting" | "whisper" | "claude"
     on_log=None,                    # callable(msg: str) — human-readable step log
+    checkpoint_text: str = None,    # pre-saved Whisper text (skips transcription step)
+    checkpoint_json: str = None,    # pre-saved WhisperX JSON string
+    on_whisper_done=None,           # callable(text, json_str) — fired after Whisper to save checkpoint
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1129,7 +1132,19 @@ def run(
     raw_whisperx = {}
     _detected_lang = ""
 
-    if panel_mode and ext in (AUDIO_EXTS | VIDEO_EXTS):
+    if checkpoint_text:
+        # Resume: skip Whisper, use the saved transcript
+        raw_text = checkpoint_text
+        if checkpoint_json:
+            import json as _json
+            try:
+                raw_whisperx = _json.loads(checkpoint_json)
+                _detected_lang = raw_whisperx.get("language", "")
+            except Exception:
+                raw_whisperx = {}
+        fmt = "panel audio/video (diarized)" if panel_mode else "audio/video"
+        _log(f"Resumed from checkpoint: ~{len(raw_text.split()):,} words (Whisper skipped)")
+    elif panel_mode and ext in (AUDIO_EXTS | VIDEO_EXTS):
         _log("Mode: Panel (multi-speaker diarization)")
         if on_stage_change: on_stage_change("extracting")
         raw_text, raw_whisperx = load_audio_video_panel(
@@ -1137,6 +1152,12 @@ def run(
         )
         _detected_lang = raw_whisperx.get("language", "")
         fmt = "panel audio/video (diarized)"
+        if on_whisper_done:
+            import json as _json
+            try:
+                on_whisper_done(raw_text, _json.dumps(raw_whisperx))
+            except Exception:
+                pass
     elif ext in (AUDIO_EXTS | VIDEO_EXTS):
         _log(f"Mode: Standard audio/video  |  Whisper model: {whisper_model}")
         if on_stage_change: on_stage_change("extracting")
@@ -1148,6 +1169,11 @@ def run(
             on_log=on_log,
         )
         fmt = "audio/video"
+        if on_whisper_done:
+            try:
+                on_whisper_done(raw_text, "")
+            except Exception:
+                pass
     else:
         _log(f"Mode: Document  ({ext or 'text'})")
         raw_text, fmt = load_file(file_path, whisper_model)

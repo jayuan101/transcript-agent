@@ -444,6 +444,141 @@ def load_audio_video_panel(
     return "\n".join(lines), result
 
 
+def transcribe_with_deepgram(
+    path: str,
+    api_key: str,
+    model: str = "nova-2",
+    language: str = None,
+    diarize: bool = False,
+    on_log=None,
+) -> tuple:
+    """Transcribe audio/video using Deepgram REST API.
+    Returns (timestamped_transcript_str, detected_language_str).
+    """
+    import requests as _req
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    if Path(path).suffix.lower() in VIDEO_EXTS:
+        _log("Extracting audio track from video...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path,
+             "-vn", "-sn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
+            raise RuntimeError(f"ffmpeg failed extracting audio.\nstderr: {err[-400:]}")
+        _log("Audio extraction complete.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Sending to Deepgram ({model}){dur_note}...")
+
+    params = {"model": model, "punctuate": "true", "smart_format": "true", "utterances": "true"}
+    if diarize:
+        params["diarize"] = "true"
+    if language and language != "auto":
+        params["language"] = language
+
+    headers = {"Authorization": f"Token {api_key}"}
+    ct_map = {
+        "mp3": "audio/mpeg", "mp4": "audio/mp4", "wav": "audio/wav",
+        "m4a": "audio/mp4", "ogg": "audio/ogg", "flac": "audio/flac",
+        "webm": "audio/webm", "aac": "audio/aac", "wma": "audio/x-ms-wma",
+    }
+    content_type = ct_map.get(Path(audio_path).suffix.lower().lstrip("."), "audio/wav")
+
+    try:
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+        resp = _req.post(
+            "https://api.deepgram.com/v1/listen",
+            params=params,
+            headers={**headers, "Content-Type": content_type},
+            data=audio_bytes,
+            timeout=300,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except _req.exceptions.HTTPError as e:
+        body = ""
+        try: body = e.response.text[:300]
+        except Exception: pass
+        raise RuntimeError(f"Deepgram API error {e.response.status_code}: {body}")
+    except _req.exceptions.RequestException as e:
+        raise RuntimeError(f"Deepgram connection error: {e}")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    results = data.get("results", {})
+    detected_lang = (data.get("metadata", {}).get("detected_language") or "")
+    lines = []
+
+    if diarize:
+        utterances = results.get("utterances") or []
+        if utterances:
+            for u in utterances:
+                ts = _fmt_ts(u.get("start", 0))
+                speaker = f"SPEAKER_{int(u.get('speaker', 0)):02d}"
+                text = (u.get("transcript") or "").strip()
+                if text:
+                    lines.append(f"[{ts}] {speaker}: {text}")
+        else:
+            words = (results.get("channels", [{}])[0]
+                            .get("alternatives", [{}])[0]
+                            .get("words", []))
+            cur_spk, cur_start, cur_words = None, 0.0, []
+            for w in words:
+                spk = int(w.get("speaker", 0))
+                word = w.get("punctuated_word") or w.get("word", "")
+                if spk != cur_spk:
+                    if cur_words:
+                        lines.append(f"[{_fmt_ts(cur_start)}] SPEAKER_{cur_spk:02d}: {' '.join(cur_words)}")
+                    cur_spk, cur_start, cur_words = spk, w.get("start", 0.0), [word]
+                else:
+                    cur_words.append(word)
+            if cur_words:
+                lines.append(f"[{_fmt_ts(cur_start)}] SPEAKER_{cur_spk:02d}: {' '.join(cur_words)}")
+    else:
+        words = (results.get("channels", [{}])[0]
+                        .get("alternatives", [{}])[0]
+                        .get("words", []))
+        if words:
+            chunk_start = words[0].get("start", 0.0)
+            chunk_words = []
+            for w in words:
+                chunk_words.append(w.get("punctuated_word") or w.get("word", ""))
+                if w.get("end", 0) - chunk_start >= 30:
+                    lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+                    chunk_start = w.get("end", 0.0)
+                    chunk_words = []
+            if chunk_words:
+                lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+        else:
+            full = (results.get("channels", [{}])[0]
+                           .get("alternatives", [{}])[0]
+                           .get("transcript", ""))
+            if full:
+                lines.append(full)
+
+    total_words = sum(len(ln.split()) for ln in lines)
+    _log(f"Deepgram transcription complete! ~{total_words:,} words."
+         + (f"  Language: {detected_lang}" if detected_lang else ""))
+
+    return "\n".join(lines), detected_lang
+
+
 def load_srt(path: str) -> str:
     text = Path(path).read_text(encoding="utf-8", errors="replace")
     lines, ts, buf = [], "", []
@@ -1114,6 +1249,9 @@ def run(
     checkpoint_text: str = None,    # pre-saved Whisper text (skips transcription step)
     checkpoint_json: str = None,    # pre-saved WhisperX JSON string
     on_whisper_done=None,           # callable(text, json_str) — fired after Whisper to save checkpoint
+    stt_provider: str = "whisper",  # "whisper" | "deepgram"
+    deepgram_api_key: str = None,   # Deepgram API key (required when stt_provider="deepgram")
+    deepgram_model: str = "nova-2", # Deepgram model name
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1132,8 +1270,10 @@ def run(
     raw_whisperx = {}
     _detected_lang = ""
 
+    _use_deepgram = stt_provider == "deepgram" and ext in (AUDIO_EXTS | VIDEO_EXTS)
+
     if checkpoint_text:
-        # Resume: skip Whisper, use the saved transcript
+        # Resume: skip transcription, use the saved transcript
         raw_text = checkpoint_text
         if checkpoint_json:
             import json as _json
@@ -1143,7 +1283,25 @@ def run(
             except Exception:
                 raw_whisperx = {}
         fmt = "panel audio/video (diarized)" if panel_mode else "audio/video"
-        _log(f"Resumed from checkpoint: ~{len(raw_text.split()):,} words (Whisper skipped)")
+        _log(f"Resumed from checkpoint: ~{len(raw_text.split()):,} words (transcription skipped)")
+    elif _use_deepgram:
+        if not deepgram_api_key:
+            raise ValueError("Deepgram API key is required when using Deepgram transcription.")
+        _log(f"Mode: {'Panel diarized' if panel_mode else 'Standard'} | Transcription: Deepgram {deepgram_model}")
+        if on_stage_change: on_stage_change("whisper")
+        raw_text, _detected_lang = transcribe_with_deepgram(
+            file_path, deepgram_api_key,
+            model=deepgram_model,
+            language=language if language and language != "auto" else None,
+            diarize=panel_mode,
+            on_log=on_log,
+        )
+        fmt = "panel audio/video (diarized)" if panel_mode else "audio/video"
+        if on_whisper_done:
+            try:
+                on_whisper_done(raw_text, "")
+            except Exception:
+                pass
     elif panel_mode and ext in (AUDIO_EXTS | VIDEO_EXTS):
         _log("Mode: Panel (multi-speaker diarization)")
         if on_stage_change: on_stage_change("extracting")

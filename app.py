@@ -707,6 +707,36 @@ _PROVIDERS = {
     },
 }
 
+# ── Speech-to-text (transcription) providers ─────────────────────────────────
+_STT_PROVIDERS = {
+    "Whisper (Local)": {
+        "key_placeholder": None,
+        "key_info": None,
+        "models": ["tiny", "base", "small", "medium", "large"],
+        "default_model": "base",
+        "model_info": "tiny = fastest   |   large = most accurate",
+    },
+    "Deepgram (Cloud)": {
+        "key_placeholder": "dg-…",
+        "key_info": "console.deepgram.com → Create API Key",
+        "models": [
+            "nova-2",
+            "nova-2-general",
+            "nova-2-meeting",
+            "nova-2-phonecall",
+            "nova-2-voicemail",
+            "nova",
+            "enhanced",
+            "base",
+            "whisper-large",
+            "whisper-medium",
+            "whisper-small",
+        ],
+        "default_model": "nova-2",
+        "model_info": "nova-2 = best accuracy   |   nova = fast & accurate   |   enhanced/base = cheaper",
+    },
+}
+
 # When frozen (.exe), respect TRANSCRIPT_OUTPUT_DIR set by launcher.py so outputs
 # land in ~/TranscriptAgent/outputs rather than the temp extraction directory
 _out_override = os.environ.get("TRANSCRIPT_OUTPUT_DIR", "")
@@ -2162,6 +2192,9 @@ def process_file(
     custom_base_url="",
     tz_name="",
     analysis_depth="balanced",
+    stt_provider="Whisper (Local)",
+    deepgram_api_key="",
+    deepgram_model="nova-2",
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
@@ -2175,6 +2208,14 @@ def process_file(
     if provider_name == "Custom (OpenAI-compatible)" and not base_url:
         yield _err("Please enter the API base URL for your custom provider.")
         return
+
+    _dg_key = (deepgram_api_key or "").strip()
+    _dg_model = (deepgram_model or "nova-2").strip()
+    _use_dg = (stt_provider or "").startswith("Deepgram")
+    if _use_dg and not _dg_key:
+        yield _err("Please enter your Deepgram API key in the Transcription Engine section.")
+        return
+
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop
@@ -2422,13 +2463,16 @@ def process_file(
                 language=lang_code,
                 language_variant=lang_variant,
                 speaker_names=speaker_names or None,
-                on_whisper_progress=on_whisper_progress if is_av else None,
+                on_whisper_progress=on_whisper_progress if (is_av and not _use_dg) else None,
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
                 on_log=on_log,
                 checkpoint_text=_ckpt_text,
                 checkpoint_json=_ckpt_json,
                 on_whisper_done=_on_whisper_done if is_av else None,
+                stt_provider="deepgram" if _use_dg else "whisper",
+                deepgram_api_key=_dg_key if _use_dg else None,
+                deepgram_model=_dg_model,
             )
             # Write status directly so it persists even if the browser disconnected
             import datetime as _dtt
@@ -3329,6 +3373,7 @@ _THEME_JS = """
     { prefix: 'AIzaSy',  name: 'Google Gemini' },
     { prefix: 'gsk_',    name: 'Groq'        },
     { prefix: 'pplx-',   name: 'Perplexity'  },
+    { prefix: 'dg-',     name: 'Deepgram'    },
     { prefix: 'ollama',  name: 'Ollama'      },
   ];
 
@@ -3699,6 +3744,37 @@ with gr.Blocks(title="Transcript Agent") as demo:
             gr.HTML(_FORMATS)
 
             gr.HTML(_SECTION("Step 2 — Configure"))
+            with gr.Accordion("Transcription Engine", open=True):
+                stt_radio = gr.Radio(
+                    choices=list(_STT_PROVIDERS.keys()),
+                    value="Whisper (Local)",
+                    label="Engine",
+                    info="Whisper runs locally (free, private).  Deepgram is a cloud API (fast, highly accurate).",
+                )
+                # Whisper options
+                whisper_input = gr.Dropdown(
+                    label="Whisper model",
+                    choices=_STT_PROVIDERS["Whisper (Local)"]["models"],
+                    value="base",
+                    info="tiny = fastest   |   large = most accurate",
+                    visible=True,
+                )
+                # Deepgram options (hidden by default)
+                deepgram_key_input = gr.Textbox(
+                    label="Deepgram API Key",
+                    placeholder="dg-…",
+                    type="password",
+                    info="console.deepgram.com → Create API Key",
+                    visible=False,
+                )
+                deepgram_model_input = gr.Dropdown(
+                    label="Deepgram model",
+                    choices=_STT_PROVIDERS["Deepgram (Cloud)"]["models"],
+                    value="nova-2",
+                    info="nova-2 = best accuracy   |   nova = fast & accurate   |   enhanced/base = cheaper",
+                    visible=False,
+                )
+
             with gr.Accordion("Processing Options", open=True):
                 tz_input = gr.Textbox(
                     label="Timezone",
@@ -3712,12 +3788,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value=None,
                     step=1,
                     info="How many people are speaking? AI will label them Speaker 1, Speaker 2, etc.",
-                )
-                whisper_input = gr.Dropdown(
-                    label="Whisper model",
-                    choices=["tiny", "base", "small", "medium", "large"],
-                    value="base",
-                    info="tiny = fastest   |   large = most accurate",
                 )
                 analysis_depth = gr.Dropdown(
                     label="AI analysis depth",
@@ -3948,6 +4018,21 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[model_dropdown, user_api_key, custom_base_url],
     )
 
+    # ── Transcription Engine toggle ───────────────────────────────────────────
+    def on_stt_change(stt):
+        is_dg = stt.startswith("Deepgram")
+        return (
+            gr.update(visible=not is_dg),   # whisper_input
+            gr.update(visible=is_dg),        # deepgram_key_input
+            gr.update(visible=is_dg),        # deepgram_model_input
+        )
+
+    stt_radio.change(
+        fn=on_stt_change,
+        inputs=stt_radio,
+        outputs=[whisper_input, deepgram_key_input, deepgram_model_input],
+    )
+
     # panel_toggle is hidden dummy — no change handler needed
     language_input.change(
         fn=toggle_language_variant,
@@ -3971,6 +4056,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             custom_base_url,
             tz_input,
             analysis_depth,
+            stt_radio, deepgram_key_input, deepgram_model_input,
         ],
         outputs=[
             status_bar,

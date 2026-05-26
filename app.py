@@ -1740,37 +1740,74 @@ def stats_to_markdown(speaker_stats) -> str:
 #
 # Output order (15 items, must match outputs= list in .click()):
 def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
-    """Render the combined report as a formatted PDF using fpdf2."""
+    """Render the combined report as a formatted PDF using fpdf2."""  # noqa
     from fpdf import FPDF
+    import datetime
+
+    # Indigo palette
+    _C_PRIMARY   = (99,  102, 241)   # #6366f1
+    _C_PRIMARY_DK= (79,  70,  229)   # #4f46e5
+    _C_ACCENT    = (139, 92,  246)   # #8b5cf6
+    _C_BG_HDR    = (238, 242, 255)   # #eef2ff  — section header fill
+    _C_TEXT      = (30,  30,  42)    # #1e1e2a
+    _C_SUB       = (107, 107, 128)   # #6b6b80
+    _C_RULE      = (199, 210, 254)   # #c7d2fe  — light indigo divider
+    _C_WHITE     = (255, 255, 255)
+    _C_FOOTER    = (156, 163, 175)   # gray-400
 
     class _PDF(FPDF):
+        def header(self):
+            # Indigo top bar
+            self.set_fill_color(*_C_PRIMARY_DK)
+            self.rect(0, 0, 210, 10, "F")
+            # Accent stripe
+            self.set_fill_color(*_C_ACCENT)
+            self.rect(0, 10, 210, 2, "F")
+
         def footer(self):
-            self.set_y(-12)
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(150, 150, 150)
-            self.cell(0, 10, f"Page {self.page_no()}", align="C")
+            self.set_y(-13)
+            # Bottom rule
+            self.set_draw_color(*_C_RULE)
+            self.set_line_width(0.4)
+            self.line(15, self.get_y(), 195, self.get_y())
+            self.ln(1)
+            self.set_font("Helvetica", "I", 7.5)
+            self.set_text_color(*_C_FOOTER)
+            self.cell(0, 6, f"Transcript Agent  |  Page {self.page_no()}  |  {datetime.date.today()}", align="C")
 
     def _safe(text: str) -> str:
         return (text
                 .replace("☐", "[ ]").replace("☑", "[x]")
-                .replace("•", "-").replace("’", "'")
-                .replace("“", '"').replace("”", '"')
+                .replace("•", "-").replace("'", "'")
+                .replace("'", "'").replace("'", "'")
+                .replace(""", '"').replace(""", '"')
                 .replace("–", "-").replace("—", "--")
+                .replace("…", "...")
                 .encode("latin-1", errors="replace").decode("latin-1"))
 
     pdf = _PDF()
-    pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_margins(18, 18, 18)
     pdf.add_page()
-    pdf.set_margins(20, 20, 20)
 
-    # Title
-    pdf.set_font("Helvetica", "B", 20)
-    pdf.cell(0, 12, _safe(stem), new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.set_draw_color(80, 80, 80)
-    pdf.set_line_width(0.5)
-    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    # Push content below the header bars
+    pdf.set_y(18)
+
+    # ── Title block ──────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(*_C_PRIMARY_DK)
+    pdf.multi_cell(0, 10, _safe(stem), align="C")
+    pdf.ln(1)
+
+    # Indigo rule under title
+    pdf.set_draw_color(*_C_PRIMARY)
+    pdf.set_line_width(0.8)
+    pdf.line(18, pdf.get_y(), 192, pdf.get_y())
     pdf.ln(5)
+
+    # ── Body ─────────────────────────────────────────────────────────────────
     pdf.set_font("Helvetica", "", 10)
+    pdf.set_text_color(*_C_TEXT)
 
     for line in combined_text.splitlines():
         stripped = line.rstrip()
@@ -1778,18 +1815,57 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
         if stripped and set(stripped) <= {"=", "-", " "} and len(stripped) > 4:
             continue
         if not stripped:
-            pdf.ln(2)
+            pdf.ln(3)
             continue
         inner = stripped.strip()
+
+        # Markdown-style headers: ## or ###
+        if inner.startswith("### "):
+            pdf.ln(3)
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.set_text_color(*_C_PRIMARY)
+            pdf.multi_cell(0, 6, _safe(inner[4:]))
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(*_C_TEXT)
+        elif inner.startswith("## "):
+            pdf.ln(5)
+            pdf.set_fill_color(*_C_BG_HDR)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_text_color(*_C_PRIMARY_DK)
+            pdf.cell(0, 8, _safe(inner[3:]), new_x="LMARGIN", new_y="NEXT", fill=True)
+            # Thin indigo underline
+            pdf.set_draw_color(*_C_PRIMARY)
+            pdf.set_line_width(0.3)
+            pdf.line(18, pdf.get_y(), 192, pdf.get_y())
+            pdf.ln(3)
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(*_C_TEXT)
         # ALL-CAPS section headers
-        if (inner.isupper() and 2 < len(inner) < 60
+        elif (inner.isupper() and 2 < len(inner) < 80
                 and not set(inner) <= {"=", "-", " "}):
             pdf.ln(5)
-            pdf.set_fill_color(235, 235, 235)
+            pdf.set_fill_color(*_C_BG_HDR)
+            pdf.set_draw_color(*_C_PRIMARY)
+            pdf.set_line_width(0.3)
             pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(0, 7, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True)
-            pdf.ln(2)
+            pdf.set_text_color(*_C_PRIMARY_DK)
+            pdf.cell(0, 8, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True, border="B")
+            pdf.ln(3)
             pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(*_C_TEXT)
+        # Bullet lines
+        elif inner.startswith("- ") or inner.startswith("* "):
+            pdf.set_x(22)
+            pdf.set_fill_color(*_C_PRIMARY)
+            pdf.ellipse(18.5, pdf.get_y() + 2.2, 1.6, 1.6, "F")
+            pdf.multi_cell(0, 5, _safe(inner[2:]))
+        # Timestamp lines e.g. [00:01:23]
+        elif inner.startswith("[") and "]" in inner[:12]:
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(*_C_SUB)
+            pdf.multi_cell(0, 5, _safe(stripped))
+            pdf.set_font("Helvetica", "", 10)
+            pdf.set_text_color(*_C_TEXT)
         else:
             pdf.multi_cell(0, 5, _safe(stripped))
 

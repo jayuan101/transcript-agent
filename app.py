@@ -1722,23 +1722,25 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     if done:
         return tracker + (
-            '<div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);'
-            'border:2px solid #10b981;border-radius:16px;padding:28px 32px;'
+            '<div style="background:var(--ta-step-done-bg);'
+            'border:2px solid var(--ta-step-done-bdr);border-radius:16px;padding:28px 32px;'
             'text-align:center;font-family:sans-serif;">'
-            '<div style="font-size:3em;line-height:1;">&#10003;</div>'
-            '<div style="color:#065f46;font-size:1.5em;font-weight:800;margin-top:8px;'
+            '<div style="font-size:3em;line-height:1;color:var(--ta-step-done-clr);">&#10003;</div>'
+            '<div style="color:var(--ta-step-done-clr);font-size:1.5em;font-weight:800;margin-top:8px;'
             'letter-spacing:-0.02em;">All Done!</div>'
             '<div style="display:flex;justify-content:center;gap:20px;margin-top:14px;flex-wrap:wrap;">'
-            '<div style="background:rgba(255,255,255,0.6);border-radius:10px;padding:10px 20px;">'
+            '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
+            'border-radius:10px;padding:10px 20px;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#047857;">Total Time</div>'
-            f'<div style="font-size:1.6em;font-weight:800;color:#065f46;'
+            'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Total Time</div>'
+            f'<div style="font-size:1.6em;font-weight:800;color:var(--ta-card-val);'
             f'font-family:monospace;">{elapsed}</div>'
             '</div>'
-            '<div style="background:rgba(255,255,255,0.6);border-radius:10px;padding:10px 20px;">'
+            '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
+            'border-radius:10px;padding:10px 20px;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#047857;">Progress</div>'
-            '<div style="font-size:1.6em;font-weight:800;color:#065f46;">100%</div>'
+            'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Progress</div>'
+            '<div style="font-size:1.6em;font-weight:800;color:var(--ta-card-val);">100%</div>'
             '</div>'
             '</div>'
             '</div>'
@@ -1876,6 +1878,7 @@ def process_file(
     model_name="claude-sonnet-4-6",
     custom_base_url="",
     tz_name="",
+    analysis_depth="balanced",
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
@@ -2048,6 +2051,7 @@ def process_file(
         include_interview_mode=inc_interview,
         include_interview_deep=inc_interview_deep,
         interview_resume_context=resume_context or "",
+        analysis_depth=analysis_depth or "balanced",
     )
     # Use names if provided, otherwise fall back to numeric count
     _names = (speaker_names_raw or "").strip()
@@ -2096,7 +2100,7 @@ def process_file(
                 file_path=uploaded_file,
                 output_dir=str(job_dir),
                 whisper_model=whisper_model,
-                panel_mode=False,
+                panel_mode=bool(inc_profiles),
                 num_speakers=None,
                 config=config,
                 api_key=api_key,
@@ -2261,6 +2265,7 @@ def process_file(
             if inc_action_items and result.action_items:
                 summary_md += "\n\n## Action Items\n" + "\n".join(f"- [ ] {a}" for a in result.action_items)
 
+            # ── Speaker profiles ──────────────────────────────────────────────
             if result.speaker_profiles:
                 profiles_md = "\n\n---\n\n".join(
                     f"### {name}\n\n{profile}" for name, profile in result.speaker_profiles.items()
@@ -2269,7 +2274,69 @@ def process_file(
                     mapping = "\n".join(f"- `{k}` → **{v}**" for k, v in result.speaker_map.items())
                     profiles_md = f"## Speaker Map\n\n{mapping}\n\n---\n\n{profiles_md}"
             else:
-                profiles_md = "_Enable **Panel Mode** for speaker profiles._"
+                profiles_md = "_No speaker profiles found. The AI may not have detected multiple distinct speakers in this recording._"
+
+            # ── Interview Q&A — format for display in Profiles & Interview tab ─
+            if inc_interview and result.interview_questions:
+                _vicon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+                _ilines = ["## 🎤 Interview Analysis\n"]
+
+                if result.round_advance_probability >= 0:
+                    _prob = result.round_advance_probability
+                    _plabel = ("Strong" if _prob >= 80 else "Competitive" if _prob >= 60
+                               else "Borderline" if _prob >= 40 else "Unlikely")
+                    _pemoji = "🟢" if _prob >= 80 else "🟡" if _prob >= 60 else "🟠" if _prob >= 40 else "🔴"
+                    _ilines.append(f"**Overall likelihood of advancing: {_pemoji} {_prob}% — {_plabel}**\n")
+
+                for _qi, _q in enumerate(result.interview_questions, 1):
+                    _icon = _vicon.get((_q.get("verdict") or "").lower(), "•")
+                    _ilines += [
+                        f"### Q{_qi}. {_q.get('question', '')}",
+                        "",
+                        f"**Verdict:** {_icon} {(_q.get('verdict') or '').upper()}",
+                        "",
+                    ]
+                    if _q.get("your_answer_summary"):
+                        _ilines += [f"**What was said:** {_q['your_answer_summary']}", ""]
+                    if _q.get("deflection_detected"):
+                        _ilines += [f"**⚡ Deflection detected:** {_q.get('deflection_note', 'Candidate stalled or deflected')}", ""]
+                    if _q.get("ideal_answer"):
+                        _ilines += [
+                            "**💬 What I would have said:**",
+                            "",
+                            f"> {_q['ideal_answer']}",
+                            "",
+                        ]
+                    if _q.get("feedback"):
+                        _ilines += [f"**🎯 Coaching:** {_q['feedback']}", ""]
+                    _ilines.append("---\n")
+
+                if inc_interview_deep and result.prep_guide:
+                    _ilines += [
+                        "## 📋 Prep Guide — Questions to Practise\n",
+                        "_Review these weak or missed questions before your next interview:_\n",
+                    ]
+                    for _pi, _pg in enumerate(result.prep_guide, 1):
+                        _ilines += [
+                            f"### P{_pi}. {_pg.get('question', '')}",
+                            "",
+                        ]
+                        if _pg.get("why_it_matters"):
+                            _ilines += [f"**Why they ask it:** {_pg['why_it_matters']}", ""]
+                        if _pg.get("suggested_answer"):
+                            _ilines += [
+                                "**💬 Suggested answer:**",
+                                "",
+                                f"> {_pg['suggested_answer']}",
+                                "",
+                            ]
+                        _ilines.append("---\n")
+
+                _interview_md = "\n".join(_ilines)
+                if profiles_md and not profiles_md.startswith("_"):
+                    profiles_md = _interview_md + "\n\n## 👥 Speaker Profiles\n\n" + profiles_md
+                else:
+                    profiles_md = _interview_md
 
             analytics_md  = stats_to_markdown(result.speaker_stats)
             combined_text = build_combined_report(result, config)
@@ -3296,6 +3363,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="base",
                     info="tiny = fastest   |   large = most accurate",
                 )
+                analysis_depth = gr.Dropdown(
+                    label="AI analysis depth",
+                    choices=[
+                        ("Balanced — full report (recommended)", "balanced"),
+                        ("Fast — quick summary, fewer details", "fast"),
+                        ("Deep — extended analysis, more detail", "deep"),
+                    ],
+                    value="balanced",
+                    info="Fast: 4K tokens, quick. Balanced: 16K, standard. Deep: 24K + extended thinking (higher cost).",
+                )
                 # panel_toggle kept as hidden dummy so existing wiring doesn't break
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
@@ -3391,21 +3468,42 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             download_accordion = gr.Accordion("Download Outputs", open=False)
             with download_accordion:
-                dl_transcript = gr.File(label="Transcript (.txt)")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
-                dl_report     = gr.File(label="Report (.md)")
-                dl_pdf        = gr.File(label="Report (.pdf)")
-                dl_combined   = gr.File(label="Combined Report (.txt)")
-                dl_json       = gr.File(label="Raw Data (.json)")
-                gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
+                gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:4px 0 6px;">
+  Generate in a different language
+</div>""")
                 with gr.Row():
                     pdf_lang_input = gr.Dropdown(
-                        label="PDF transcript language",
+                        label="Output language",
                         choices=_PDF_LANGUAGES,
                         value="Same as source",
                         scale=3,
+                        info="Translate the report before generating — applies to PDF",
                     )
-                    pdf_regen_btn = gr.Button("Generate PDF", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("🔄 Generate PDF", scale=1, size="sm")
+                gr.HTML("<hr style='margin:10px 0 8px;opacity:0.25;'>")
+                gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:4px 0 6px;">
+  Report files
+</div>""")
+                dl_pdf        = gr.File(label="Report (.pdf) — formatted, printable")
+                dl_report     = gr.File(label="Report (.md) — markdown")
+                dl_combined   = gr.File(label="Combined Report (.txt) — all sections")
+                gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:10px 0 6px;">
+  Transcript files
+</div>""")
+                dl_transcript = gr.File(label="Clean Transcript (.txt)")
+                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
+                gr.HTML("""
+<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
+     letter-spacing:0.1em;color:var(--ta-card-sub);margin:10px 0 6px;">
+  Raw data
+</div>""")
+                dl_json       = gr.File(label="Full JSON (.json) — all AI output data")
 
             bw_display = gr.HTML(value=_get_bandwidth_html(), visible=_PSUTIL_OK)
             bw_timer   = gr.Timer(value=2, active=True)
@@ -3443,9 +3541,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         placeholder="Speaker-labelled dialogue will appear here…",
                     )
 
-                with gr.TabItem("Speaker Profiles"):
+                with gr.TabItem("Profiles & Interview"):
                     profiles_out = gr.Markdown(
-                        value="_Enable Panel Mode to generate speaker profiles._"
+                        value="_Speaker profiles and interview Q&A will appear here after processing. Enable **Speaker profiles** and/or **Interview mode** in Report Format settings._"
                     )
 
                 with gr.TabItem("Speech Analytics"):
@@ -3505,6 +3603,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             provider_dropdown, model_dropdown,
             custom_base_url,
             tz_input,
+            analysis_depth,
         ],
         outputs=[
             status_bar,

@@ -251,6 +251,7 @@ class ReportConfig:
     include_interview_mode: bool = False
     include_interview_deep: bool = False   # deflection + % + prep guide (optional)
     interview_resume_context: str = ""     # user's resume/narratives for context
+    analysis_depth: str = "balanced"       # fast | balanced | deep
 
 
 @dataclass
@@ -905,11 +906,13 @@ def process_transcript(
         if n > 1:
             prompt = f"[Part {i} of {n}]\n\n" + prompt
 
+        _depth = getattr(config, "analysis_depth", "balanced")
+        _depth_tokens = {"fast": 4096, "balanced": 16000, "deep": 24000}
         raw = client.chat(
             system=sys_prompt,
             user=prompt,
-            max_tokens=16000,
-            thinking=(client.provider == "anthropic"),
+            max_tokens=_depth_tokens.get(_depth, 16000),
+            thinking=(client.provider == "anthropic" and _depth == "deep"),
         )
         results.append(_parse_json(raw))
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")

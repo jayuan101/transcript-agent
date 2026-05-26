@@ -993,19 +993,32 @@ FORMATS_MD = """
 CSS = """
 footer { display: none !important; }
 
-/* ── Design tokens (light) ───────────────────────────────────────────────── */
+/* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
   --ta-primary:        #6366f1;
   --ta-primary-dk:     #4f46e5;
-  --ta-primary-glow:   rgba(99,102,241,0.35);
+  --ta-primary-glow:   rgba(99,102,241,0.28);
   --ta-accent:         #8b5cf6;
-  --ta-radius-lg:      16px;
+  --ta-radius-xl:      24px;
+  --ta-radius-lg:      18px;
   --ta-radius-md:      12px;
   --ta-radius-sm:      8px;
+  --ta-shadow-sm:      0 1px 3px rgba(99,102,241,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --ta-shadow-md:      0 4px 16px rgba(99,102,241,0.10), 0 1px 4px rgba(0,0,0,0.06);
+  --ta-shadow-lg:      0 8px 32px rgba(99,102,241,0.14), 0 2px 8px rgba(0,0,0,0.08);
+  --ta-glass-bg:       rgba(255,255,255,0.82);
+  --ta-glass-border:   rgba(255,255,255,0.65);
 }
 
-/* page */
-body { background: #f4f4f8 !important; }
+/* ── Page — mesh gradient background ─────────────────────────────────────── */
+body {
+  background:
+    radial-gradient(ellipse 90% 60% at 15% -5%,  rgba(99,102,241,0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 105%, rgba(139,92,246,0.09) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 50%  50%, rgba(99,102,241,0.04) 0%, transparent 70%),
+    #f1f1f9 !important;
+  background-attachment: fixed !important;
+}
 
 /* ── Checkbox — fully custom so both checked and unchecked are visible ── */
 input[type="checkbox"] {
@@ -1066,36 +1079,70 @@ html.dark input[type="checkbox"]:hover { border-color: #a5b4fc !important; }
 html.dark .checkbox-group label span,
 html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
 
-/* process button */
+/* ── Process / CTA button ────────────────────────────────────────────────── */
+@keyframes ta-btn-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
 .big-btn button {
-    background: linear-gradient(135deg, #4f46e5, #6366f1, #8b5cf6) !important;
-    background-size: 200% 200% !important;
+    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 40%, #8b5cf6 70%, #6366f1 100%) !important;
+    background-size: 300% 100% !important;
     color: #fff !important;
-    font-size: 1.08em !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.04em !important;
+    font-size: 1.06em !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
     border: none !important;
-    border-radius: 12px !important;
-    padding: 15px !important;
-    min-height: 54px !important;
+    border-radius: var(--ta-radius-lg) !important;
+    padding: 16px 24px !important;
+    min-height: 58px !important;
     width: 100% !important;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.45), 0 1px 3px rgba(0,0,0,0.15) !important;
-    transition: all 0.2s ease !important;
+    box-shadow: 0 4px 20px rgba(99,102,241,0.50), 0 1px 4px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    transition: all 0.25s ease !important;
+    position: relative !important;
+    overflow: hidden !important;
 }
 .big-btn button:hover {
-    background: linear-gradient(135deg, #4338ca, #4f46e5, #7c3aed) !important;
-    box-shadow: 0 8px 28px rgba(99,102,241,0.60), 0 2px 8px rgba(0,0,0,0.15) !important;
-    transform: translateY(-2px) !important;
+    background-position: right center !important;
+    box-shadow: 0 10px 36px rgba(99,102,241,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
+    transform: translateY(-3px) scale(1.01) !important;
+}
+.big-btn button:active {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(99,102,241,0.45) !important;
 }
 
-/* ── Upload zone — pulsing border ─────────────────────────────────────────── */
+/* ── Upload zone ─────────────────────────────────────────────────────────── */
 @keyframes ta-upload-pulse {
-  0%, 100% { border-color: rgba(99,102,241,0.4); box-shadow: 0 0 0 0 rgba(99,102,241,0); }
-  50%       { border-color: rgba(99,102,241,0.8); box-shadow: 0 0 0 6px rgba(99,102,241,0.08); }
+  0%, 100% { border-color: rgba(99,102,241,0.35); box-shadow: 0 0 0 0 rgba(99,102,241,0); }
+  50%       { border-color: rgba(99,102,241,0.75); box-shadow: 0 0 0 6px rgba(99,102,241,0.07); }
 }
-.upload-container { border-radius: var(--ta-radius-lg) !important; }
+@keyframes ta-upload-float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-4px); }
+}
+.upload-container {
+    border-radius: var(--ta-radius-xl) !important;
+    border: 2px dashed rgba(99,102,241,0.4) !important;
+    background: rgba(238,242,255,0.6) !important;
+    transition: all 0.25s ease !important;
+    min-height: 140px !important;
+}
 .upload-container:not(:hover) { animation: ta-upload-pulse 3s ease-in-out infinite !important; }
-.upload-container:hover { border-color: var(--ta-primary) !important; box-shadow: 0 0 0 4px var(--ta-primary-glow) !important; }
+.upload-container:hover {
+    border: 2px solid var(--ta-primary) !important;
+    background: rgba(238,242,255,0.9) !important;
+    box-shadow: 0 0 0 4px var(--ta-primary-glow), var(--ta-shadow-md) !important;
+    transform: scale(1.01) !important;
+}
+.upload-container svg, .upload-container .upload-icon {
+    animation: ta-upload-float 3s ease-in-out infinite !important;
+}
+/* Upload text */
+.upload-container .file-name, .upload-container span {
+    font-weight: 600 !important;
+    color: #6366f1 !important;
+}
 
 /* ── Pill-style tabs ──────────────────────────────────────────────────────── */
 .tabs > .tab-nav {
@@ -1126,27 +1173,85 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     color: var(--ta-primary) !important;
 }
 
-/* ── Accordion headers — subtle left accent ──────────────────────────────── */
+/* ── Accordion headers — clean modern style ──────────────────────────────── */
 .accordion > .label-wrap, details > summary {
     border-left: 3px solid var(--ta-primary) !important;
-    padding-left: 10px !important;
+    padding-left: 12px !important;
     border-radius: 0 var(--ta-radius-sm) var(--ta-radius-sm) 0 !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
 }
-
-/* ── Blocks — larger radius, subtle shadow ───────────────────────────────── */
-.block, .form, .panel-full-width {
+.accordion, details {
     border-radius: var(--ta-radius-lg) !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04) !important;
+    overflow: hidden !important;
 }
 
-/* ── Inputs — softer, rounder ────────────────────────────────────────────── */
+/* ── Secondary / ghost buttons ───────────────────────────────────────────── */
+button:not(.big-btn button):not(#ta-btn-light):not(#ta-btn-dark) {
+    border-radius: var(--ta-radius-md) !important;
+    font-weight: 600 !important;
+    transition: background 0.18s, box-shadow 0.18s, transform 0.15s !important;
+}
+button:not(.big-btn button):not(#ta-btn-light):not(#ta-btn-dark):hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 3px 10px rgba(99,102,241,0.18) !important;
+}
+
+/* ── Radio buttons (Transcription Engine toggle) ─────────────────────────── */
+.radio-group label {
+    border-radius: var(--ta-radius-md) !important;
+    transition: all 0.18s ease !important;
+}
+.radio-group label:hover {
+    background: rgba(99,102,241,0.06) !important;
+}
+input[type="radio"] {
+    accent-color: var(--ta-primary) !important;
+}
+
+/* ── Blocks — glassmorphism cards ────────────────────────────────────────── */
+.block, .form, .panel-full-width {
+    background: var(--ta-glass-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--ta-glass-border) !important;
+    border-radius: var(--ta-radius-lg) !important;
+    box-shadow: var(--ta-shadow-md) !important;
+    transition: box-shadow 0.25s ease, transform 0.2s ease !important;
+}
+.block:hover, .form:hover {
+    box-shadow: var(--ta-shadow-lg) !important;
+}
+
+/* ── Block labels — modern small-caps style ──────────────────────────────── */
+.block > .label-wrap > span, .block-label {
+    font-size: 0.72em !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    color: var(--ta-primary) !important;
+}
+
+/* ── Inputs — clean with indigo focus ───────────────────────────────────── */
 input[type="text"], input[type="password"], textarea, select {
-    border-radius: var(--ta-radius-sm) !important;
-    transition: border-color 0.15s, box-shadow 0.15s !important;
+    border-radius: var(--ta-radius-md) !important;
+    border: 1.5px solid #e4e4f0 !important;
+    background: rgba(255,255,255,0.9) !important;
+    transition: border-color 0.18s, box-shadow 0.18s, background 0.18s !important;
+    font-size: 0.92em !important;
 }
 input[type="text"]:focus, input[type="password"]:focus, textarea:focus {
     border-color: var(--ta-primary) !important;
-    box-shadow: 0 0 0 3px var(--ta-primary-glow) !important;
+    background: #fff !important;
+    box-shadow: 0 0 0 3px var(--ta-primary-glow), 0 1px 4px rgba(99,102,241,0.12) !important;
+    outline: none !important;
+}
+
+/* Info text under inputs */
+.info {
+    font-size: 0.74em !important;
+    color: #9090a8 !important;
+    letter-spacing: 0.01em !important;
 }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -1202,13 +1307,30 @@ html.dark {
 #api-banner-sub { color: #92400e !important; }
 
 /* ── Dark mode static rules (JS-injected sheet wins by cascade order) ── */
-html.dark { color-scheme: dark; color: #f0f0ff !important; background: #0a0a12 !important; }
-html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
-    background: #0a0a12 !important; color: #f0f0ff !important;
+html.dark { color-scheme: dark; color: #f0f0ff !important; }
+html.dark body {
+    background:
+      radial-gradient(ellipse 90% 60% at 15% -5%,  rgba(99,102,241,0.14) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 50% at 85% 105%, rgba(139,92,246,0.12) 0%, transparent 55%),
+      #0a0a12 !important;
+    background-attachment: fixed !important;
+}
+html.dark .gradio-container, html.dark .main, html.dark .contain {
+    background: transparent !important; color: #f0f0ff !important;
 }
 html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact,
-html.dark .wrap, html.dark .upload-container {
-    background: #1e1e2a !important; border-color: #2e2e42 !important;
+html.dark .wrap {
+    background: rgba(30,30,42,0.85) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-color: rgba(99,102,241,0.18) !important;
+}
+html.dark .upload-container {
+    background: rgba(30,30,50,0.70) !important;
+    border-color: rgba(99,102,241,0.35) !important;
+}
+html.dark .block > .label-wrap > span, html.dark .block-label {
+    color: #a5b4fc !important;
 }
 html.dark input, html.dark textarea, html.dark select {
     background: #14141e !important; color: #f0f0ff !important; border-color: #2e2e42 !important;
@@ -2916,64 +3038,85 @@ _THEME = gr.themes.Soft(
 _HERO = """
 <style>
 @keyframes ta-hero-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%}
 }
 @keyframes ta-hero-glow {
-  0%, 100% { opacity: 0.6; transform: scale(1); }
-  50%       { opacity: 1;   transform: scale(1.05); }
+  0%,100%{opacity:0.5;transform:scale(1)} 50%{opacity:1;transform:scale(1.08)}
+}
+@keyframes ta-badge-in {
+  from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)}
 }
 </style>
 <div id="ta-hero" style="position:relative;overflow:hidden;
-     background: linear-gradient(135deg, #0d0d1a 0%, #1a1040 30%, #2d1b69 60%, #1e3a8a 100%);
-     background-size: 300% 300%;
-     animation: ta-hero-shift 12s ease infinite;
-     border-radius:20px;padding:36px 44px 32px;color:#fff;margin-bottom:8px;
-     box-shadow: 0 8px 32px rgba(99,102,241,0.25), 0 2px 8px rgba(0,0,0,0.3);">
-  <!-- subtle orb glows -->
-  <div style="position:absolute;top:-40px;right:-40px;width:220px;height:220px;
-       background:radial-gradient(circle,rgba(139,92,246,0.35) 0%,transparent 70%);
-       animation:ta-hero-glow 6s ease-in-out infinite;pointer-events:none;"></div>
-  <div style="position:absolute;bottom:-60px;left:30%;width:280px;height:280px;
-       background:radial-gradient(circle,rgba(99,102,241,0.25) 0%,transparent 70%);
-       animation:ta-hero-glow 8s ease-in-out infinite 2s;pointer-events:none;"></div>
-  <!-- content -->
-  <div style="position:relative;display:flex;align-items:center;gap:18px;margin-bottom:18px;">
-    <div style="font-size:3.2em;line-height:1;filter:drop-shadow(0 4px 12px rgba(139,92,246,0.6));">🎙️</div>
+     background:linear-gradient(135deg,#060614 0%,#150d3d 25%,#2d1b69 55%,#1e3a8a 80%,#0d1f4a 100%);
+     background-size:400% 400%;animation:ta-hero-shift 14s ease infinite;
+     border-radius:24px;padding:38px 48px 34px;color:#fff;margin-bottom:10px;
+     box-shadow:0 12px 48px rgba(99,102,241,0.30),0 4px 12px rgba(0,0,0,0.35);">
+
+  <!-- dot grid overlay -->
+  <div style="position:absolute;inset:0;opacity:0.06;pointer-events:none;
+       background-image:radial-gradient(circle,#fff 1px,transparent 1px);
+       background-size:28px 28px;"></div>
+
+  <!-- orb glows -->
+  <div style="position:absolute;top:-50px;right:-30px;width:260px;height:260px;
+       background:radial-gradient(circle,rgba(139,92,246,0.40) 0%,transparent 70%);
+       animation:ta-hero-glow 7s ease-in-out infinite;pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-80px;left:25%;width:320px;height:320px;
+       background:radial-gradient(circle,rgba(99,102,241,0.28) 0%,transparent 70%);
+       animation:ta-hero-glow 9s ease-in-out infinite 2s;pointer-events:none;"></div>
+  <div style="position:absolute;bottom:10px;right:15%;width:160px;height:160px;
+       background:radial-gradient(circle,rgba(56,189,248,0.15) 0%,transparent 70%);
+       animation:ta-hero-glow 11s ease-in-out infinite 4s;pointer-events:none;"></div>
+
+  <!-- title row -->
+  <div style="position:relative;display:flex;align-items:center;gap:20px;margin-bottom:20px;">
+    <div style="width:60px;height:60px;border-radius:18px;flex-shrink:0;
+         background:rgba(255,255,255,0.10);backdrop-filter:blur(12px);
+         border:1px solid rgba(255,255,255,0.20);
+         display:flex;align-items:center;justify-content:center;
+         font-size:1.9em;box-shadow:0 4px 16px rgba(99,102,241,0.40);">🎙️</div>
     <div>
-      <div style="font-size:2em;font-weight:800;letter-spacing:-0.04em;line-height:1.1;
-           color:#fff!important;text-shadow:0 2px 12px rgba(139,92,246,0.5);">Transcript Agent</div>
-      <div style="color:#c4b5fd!important;font-size:0.92em;font-weight:500;margin-top:6px;letter-spacing:0.01em;">
-        AI-powered transcription &amp; analysis &mdash; Whisper + Claude
+      <div style="font-size:2.1em;font-weight:900;letter-spacing:-0.05em;line-height:1;
+           color:#fff!important;text-shadow:0 0 40px rgba(139,92,246,0.60);">Transcript Agent</div>
+      <div style="color:#c4b5fd!important;font-size:0.88em;font-weight:500;margin-top:7px;
+           letter-spacing:0.02em;display:flex;align-items:center;gap:8px;">
+        <span style="display:inline-block;width:6px;height:6px;border-radius:50%;
+              background:#4ade80;box-shadow:0 0 8px rgba(74,222,128,0.8);flex-shrink:0;"></span>
+        AI-powered transcription &amp; analysis &mdash; Whisper &amp; Deepgram + Claude
       </div>
     </div>
   </div>
+
+  <!-- feature badges -->
   <div style="position:relative;display:flex;gap:8px;flex-wrap:wrap;">
-    <span style="background:rgba(255,255,255,0.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🎵 Audio &amp; Video</span>
-    <span style="background:rgba(255,255,255,0.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">📄 Documents</span>
-    <span style="background:rgba(255,255,255,0.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🗣️ Speaker Diarization</span>
-    <span style="background:rgba(255,255,255,0.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">📊 Speech Analytics</span>
-    <span style="background:rgba(255,255,255,0.10);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:20px;padding:5px 14px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;color:#fff!important;">🌐 37+ Languages</span>
+    <span style="background:rgba(255,255,255,0.09);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:22px;padding:6px 15px;font-size:0.74em;font-weight:700;letter-spacing:0.03em;color:#fff!important;animation:ta-badge-in 0.5s ease 0.1s both;">🎵 Audio &amp; Video</span>
+    <span style="background:rgba(255,255,255,0.09);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:22px;padding:6px 15px;font-size:0.74em;font-weight:700;letter-spacing:0.03em;color:#fff!important;animation:ta-badge-in 0.5s ease 0.2s both;">📄 Documents</span>
+    <span style="background:rgba(255,255,255,0.09);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:22px;padding:6px 15px;font-size:0.74em;font-weight:700;letter-spacing:0.03em;color:#fff!important;animation:ta-badge-in 0.5s ease 0.3s both;">🗣️ Speaker Diarization</span>
+    <span style="background:rgba(255,255,255,0.09);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:22px;padding:6px 15px;font-size:0.74em;font-weight:700;letter-spacing:0.03em;color:#fff!important;animation:ta-badge-in 0.5s ease 0.4s both;">📊 Speech Analytics</span>
+    <span style="background:rgba(99,102,241,0.25);backdrop-filter:blur(10px);border:1px solid rgba(139,92,246,0.40);border-radius:22px;padding:6px 15px;font-size:0.74em;font-weight:700;letter-spacing:0.03em;color:#e0d9ff!important;animation:ta-badge-in 0.5s ease 0.5s both;">🌐 37+ Languages</span>
   </div>
 </div>
 """
 
 _API_BANNER = """
-<div id="api-banner" style="background:linear-gradient(135deg,#fffbeb,#fef9ee);border:1.5px solid #fbbf24;
-     border-radius:14px;padding:14px 20px;display:flex;align-items:center;gap:14px;
-     box-shadow:0 2px 8px rgba(251,191,36,0.12);
-     transition:background 0.35s,border-color 0.35s,box-shadow 0.35s;">
-  <div id="api-banner-icon" style="font-size:1.5em;transition:all 0.3s;">🔑</div>
-  <div style="flex:1;">
-    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.88em;transition:color 0.3s;">API Key Required</div>
-    <div id="api-banner-sub" style="color:#92400e;font-size:0.79em;margin-top:2px;transition:color 0.3s;">
-      Enter your <span style="font-weight:700;color:#78350f;">Anthropic API key</span> below. Usage is billed directly to your account — nothing is stored here.
+<div id="api-banner" style="background:linear-gradient(135deg,rgba(255,251,235,0.95),rgba(254,249,238,0.95));
+     backdrop-filter:blur(12px);border:1.5px solid #fbbf24;
+     border-radius:18px;padding:14px 20px;display:flex;align-items:center;gap:14px;
+     box-shadow:0 4px 16px rgba(251,191,36,0.14),0 1px 3px rgba(0,0,0,0.05);
+     transition:all 0.35s ease;">
+  <div id="api-banner-icon" style="font-size:1.5em;transition:all 0.3s;flex-shrink:0;">🔑</div>
+  <div style="flex:1;min-width:0;">
+    <div id="api-banner-title" style="font-weight:800;color:#92400e;font-size:0.85em;
+         text-transform:uppercase;letter-spacing:0.05em;transition:color 0.3s;">API Key Required</div>
+    <div id="api-banner-sub" style="color:#a16207;font-size:0.79em;margin-top:3px;transition:color 0.3s;line-height:1.5;">
+      Enter your <strong>AI provider key</strong> below (Anthropic, OpenAI, Gemini, Groq, etc.).
+      Billed to your account — nothing stored here.
     </div>
   </div>
-  <div id="api-banner-badge" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-size:0.72em;
-       font-weight:700;padding:5px 14px;border-radius:20px;letter-spacing:0.04em;
-       box-shadow:0 2px 8px rgba(16,185,129,0.35);">✓ READY</div>
+  <div id="api-banner-badge" style="display:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;
+       font-size:0.70em;font-weight:800;padding:5px 14px;border-radius:20px;letter-spacing:0.06em;
+       box-shadow:0 3px 10px rgba(16,185,129,0.40);white-space:nowrap;flex-shrink:0;">✓ READY</div>
 </div>
 """
 
@@ -3589,14 +3732,25 @@ _THEME_JS = """
 """
 
 _IDLE_STATUS = """
-<div style="background:linear-gradient(135deg,#1e1e40,#4f46e5);border-radius:12px;
-     padding:18px 22px;display:flex;align-items:center;gap:16px;">
-  <div style="font-size:2em;">📂</div>
-  <div>
-    <div style="color:#fff;font-size:1em;font-weight:700;">Ready to process</div>
-    <div style="color:#93c5fd;font-size:0.85em;margin-top:3px;">
-      Upload a file on the left, then click <strong style="color:#fff;background:rgba(255,255,255,0.2);
-      padding:1px 8px;border-radius:4px;">Analyze File</strong>
+<div style="background:linear-gradient(135deg,#1a1440 0%,#2d1b69 50%,#1e3a8a 100%);
+     border-radius:20px;padding:24px 28px;display:flex;align-items:center;gap:20px;
+     box-shadow:0 8px 32px rgba(99,102,241,0.30),0 2px 8px rgba(0,0,0,0.20);
+     position:relative;overflow:hidden;">
+  <div style="position:absolute;top:-30px;right:-20px;width:160px;height:160px;
+       background:radial-gradient(circle,rgba(139,92,246,0.30) 0%,transparent 70%);
+       pointer-events:none;"></div>
+  <div style="width:52px;height:52px;border-radius:16px;flex-shrink:0;
+       background:rgba(255,255,255,0.12);backdrop-filter:blur(8px);
+       display:flex;align-items:center;justify-content:center;font-size:1.6em;
+       border:1px solid rgba(255,255,255,0.15);">📂</div>
+  <div style="position:relative;">
+    <div style="color:#fff;font-size:1.05em;font-weight:800;letter-spacing:-0.01em;">Ready to process</div>
+    <div style="color:#c4b5fd;font-size:0.83em;margin-top:5px;line-height:1.5;">
+      Upload a file on the left, then click
+      <span style="color:#fff;background:rgba(255,255,255,0.18);backdrop-filter:blur(4px);
+            padding:2px 10px;border-radius:6px;font-weight:700;border:1px solid rgba(255,255,255,0.25);">
+        Analyze File
+      </span>
     </div>
   </div>
 </div>
@@ -3662,10 +3816,31 @@ _FORMATS = """
 </div>
 """
 
-_SECTION = lambda label: f"""
-<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
-     color:var(--ta-card-sub);margin:4px 0 2px;">{label}</div>
-"""
+def _SECTION(label: str) -> str:
+    import re as _re
+    m = _re.match(r"Step\s+(\d+)\s*[—-]\s*(.*)", label, _re.IGNORECASE)
+    if m:
+        num, title = m.group(1), m.group(2).strip()
+        return (
+            f'<div style="display:flex;align-items:center;gap:12px;margin:20px 0 10px;">'
+            f'<div style="width:30px;height:30px;border-radius:50%;flex-shrink:0;'
+            f'background:linear-gradient(135deg,#6366f1,#8b5cf6);'
+            f'display:flex;align-items:center;justify-content:center;'
+            f'color:#fff;font-size:0.78em;font-weight:800;'
+            f'box-shadow:0 3px 10px rgba(99,102,241,0.4);">{num}</div>'
+            f'<span style="font-size:0.78em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.10em;color:#6366f1;">{title}</span>'
+            f'<div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(99,102,241,0.25),transparent);"></div>'
+            f'</div>'
+        )
+    return (
+        f'<div style="display:flex;align-items:center;gap:10px;margin:16px 0 8px;">'
+        f'<div style="width:6px;height:6px;border-radius:50%;background:#6366f1;flex-shrink:0;"></div>'
+        f'<span style="font-size:0.78em;font-weight:800;text-transform:uppercase;'
+        f'letter-spacing:0.10em;color:#6366f1;">{label}</span>'
+        f'<div style="flex:1;height:1px;background:linear-gradient(90deg,rgba(99,102,241,0.25),transparent);"></div>'
+        f'</div>'
+    )
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 

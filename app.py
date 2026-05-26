@@ -1092,18 +1092,10 @@ def _fmt_eta(eta_secs: int) -> str:
 
 
 def _finish_time_str(eta_secs: int, tz_name: str = "") -> str:
-    from datetime import datetime, timedelta
-    try:
-        if tz_name:
-            from zoneinfo import ZoneInfo
-            now = datetime.now(tz=ZoneInfo(tz_name))
-        else:
-            now = datetime.now().astimezone()
-    except Exception:
-        now = datetime.now().astimezone()
+    from datetime import datetime, timedelta, timezone
+    now = datetime.now(tz=timezone.utc)
     finish = now + timedelta(seconds=eta_secs)
-    tz_abbr = finish.strftime("%Z")
-    return finish.strftime(f"%I:%M %p {tz_abbr}").lstrip("0")
+    return finish.strftime("%H:%M UTC")
 
 
 def _status_compact(icon: str, title: str, elapsed: str = "") -> str:

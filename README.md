@@ -99,12 +99,14 @@ Open `http://localhost:7860` in your browser.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.14` | Timezone searchable dropdown, history Load buttons, color-coded downloads |
+| `v3.13` | Timezone field as scrollable IANA dropdown |
+| `v3.12` | Color-coded download buttons, ETA panel improvements |
 | `v3.11` | STT timing display, faster startup, Interview Q&A improvements |
-| `v3.10` | ETA panel, connectivity pre-checks, 4 new STT providers |
 
 ```bash
 # Pin to a specific version
-docker pull sushi0934/transcript-agent:v3.11
+docker pull sushi0934/transcript-agent:v3.14
 
 # Always latest
 docker pull sushi0934/transcript-agent:latest
@@ -137,9 +139,10 @@ docker pull sushi0934/transcript-agent:latest
 - **Summary tab** — AI summary + full transcript + speaker dialogue in one view
 - **Speaker profiles** — named speaker breakdown with role detection
 - **Speech analytics** — WPM, pace, accent analysis per speaker
-- **Export** — PDF report, Markdown, JSON, plain text
+- **Export** — PDF report, Markdown, JSON, plain text, DOCX, SRT, VTT
+- **Color-coded downloads** — each file type shown as a distinct chip for quick access
 - **Auto-update** — desktop app notifies and installs updates in one click
-- **Timezone-aware ETA** — shows finish time in your local timezone
+- **Timezone-aware ETA** — searchable IANA timezone dropdown, auto-detected from browser
 
 ---
 

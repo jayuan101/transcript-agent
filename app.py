@@ -951,24 +951,49 @@ def _build_history_html() -> str:
         jid  = _html.escape(j.get("job_id", ""))
         err  = (f'<br><span style="color:#f87171;font-size:0.76em;">'
                 f'{_html.escape((j["error"] or "")[:80])}</span>') if j.get("error") else ""
+        load_btn = (
+            f'<button onclick="taLoadJob(\'{jid}\')" '
+            f'style="background:#312e81;color:#a5b4fc;border:1px solid #4338ca;border-radius:6px;'
+            f'padding:3px 10px;font-size:0.78em;cursor:pointer;white-space:nowrap;">'
+            f'📂 Load</button>'
+        )
         rows.append(
-            f'<tr>'
-            f'<td style="padding:6px 10px;color:#e2e8f0;">{ts}</td>'
-            f'<td style="padding:6px 10px;color:#e2e8f0;max-width:220px;overflow:hidden;'
+            f'<tr style="border-bottom:1px solid #1e293b;">'
+            f'<td style="padding:6px 10px;color:#94a3b8;font-size:0.82em;">{ts}</td>'
+            f'<td style="padding:6px 10px;color:#e2e8f0;max-width:200px;overflow:hidden;'
             f'text-overflow:ellipsis;white-space:nowrap;" title="{name}">{name}{err}</td>'
             f'<td style="padding:6px 10px;">{pill}</td>'
-            f'<td style="padding:6px 10px;font-family:monospace;color:#94a3b8;font-size:0.82em;">{jid}</td>'
+            f'<td style="padding:6px 10px;">{load_btn}</td>'
             f'</tr>'
         )
     body = "".join(rows)
+    load_js = """
+<script>
+function taLoadJob(jid) {
+    var box = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
+    if (!box) return;
+    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
+                 || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
+    setter = setter ? setter.set : null;
+    if (setter) setter.call(box, jid);
+    else box.value = jid;
+    box.dispatchEvent(new Event('input', {bubbles: true}));
+    setTimeout(function() {
+        var btn = document.querySelector('#history-load-btn button');
+        if (btn) btn.click();
+    }, 80);
+}
+</script>
+"""
     return (
+        load_js +
         '<div style="overflow-x:auto;">'
         '<table style="width:100%;border-collapse:collapse;font-size:0.85em;">'
         '<thead><tr style="border-bottom:1px solid #334155;">'
         '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Started</th>'
         '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">File</th>'
         '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Status</th>'
-        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;">Job ID</th>'
+        '<th style="padding:6px 10px;text-align:left;color:#94a3b8;font-weight:600;"></th>'
         '</tr></thead>'
         f'<tbody>{body}</tbody>'
         '</table></div>'
@@ -4433,11 +4458,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     history_table = gr.HTML(value=_build_history_html())
                     with gr.Row():
                         history_job_id_box = gr.Textbox(
-                            label="Load job by ID (paste from table above)",
-                            placeholder="e.g. a1b2c3d4",
+                            label="Job ID",
+                            placeholder="Click 📂 Load on any row above",
                             scale=3,
+                            elem_id="history-job-id-input",
                         )
-                        history_load_btn = gr.Button("📂 Load This Job", size="sm", variant="secondary", scale=1)
+                        history_load_btn = gr.Button("📂 Load", size="sm", variant="secondary", scale=1, elem_id="history-load-btn")
                     history_msg = gr.Markdown(visible=False)
 
     gr.HTML("""

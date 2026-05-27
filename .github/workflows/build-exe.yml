@@ -251,6 +251,20 @@ jobs:
             echo "tag=dev-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
           fi
 
+      - name: Write release notes
+        run: |
+          cat > notes.md << 'NOTES'
+          ## Download
+
+          | Platform | File | How to install |
+          |----------|------|----------------|
+          | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
+          | macOS | TranscriptAgent.dmg | Open DMG, drag to Applications, double-click |
+
+          Opens as a standalone desktop app. No browser tab, no installation required.
+          Minimize the window to keep it running in the system tray.
+          NOTES
+
       - name: Publish release to public repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
@@ -269,14 +283,6 @@ jobs:
             gh release create "$TAG" $FILES \
               --repo jayuan101/transcript-agent-releases \
               --title "Transcript Agent $TAG" \
-              --notes "## Download
-
-| Platform | File | How to install |
-|----------|------|----------------|
-| Windows 10/11 | TranscriptAgent.exe | Double-click to run |
-| macOS | TranscriptAgent.dmg | Open DMG, drag to Applications, double-click |
-
-Opens as a standalone desktop app. No browser tab, no installation required.
-Minimize the window to keep it running in the system tray." \
+              --notes-file notes.md \
               --latest
           fi

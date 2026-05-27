@@ -967,26 +967,7 @@ def _build_history_html() -> str:
             f'</tr>'
         )
     body = "".join(rows)
-    load_js = """
-<script>
-function taLoadJob(jid) {
-    var box = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
-    if (!box) return;
-    var setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')
-                 || Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value');
-    setter = setter ? setter.set : null;
-    if (setter) setter.call(box, jid);
-    else box.value = jid;
-    box.dispatchEvent(new Event('input', {bubbles: true}));
-    setTimeout(function() {
-        var btn = document.querySelector('#history-load-btn button');
-        if (btn) btn.click();
-    }, 80);
-}
-</script>
-"""
     return (
-        load_js +
         '<div style="overflow-x:auto;">'
         '<table style="width:100%;border-collapse:collapse;font-size:0.85em;">'
         '<thead><tr style="border-bottom:1px solid #334155;">'
@@ -4011,6 +3992,23 @@ _THEME_JS = """
       window._taReleaseWakeLock();
       var b = document.getElementById('ta-job-banner');
       if (b) b.remove();
+    };
+
+    /* ── History tab: one-click row Load ── */
+    window.taLoadJob = function(jid) {
+      var box = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
+      if (!box) return;
+      var proto = (box.tagName === 'TEXTAREA')
+                  ? window.HTMLTextAreaElement.prototype
+                  : window.HTMLInputElement.prototype;
+      var desc = Object.getOwnPropertyDescriptor(proto, 'value');
+      if (desc && desc.set) desc.set.call(box, jid);
+      else box.value = jid;
+      box.dispatchEvent(new Event('input', {bubbles: true}));
+      setTimeout(function() {
+        var btn = document.querySelector('#history-load-btn button');
+        if (btn) btn.click();
+      }, 120);
     };
   })();
 })();

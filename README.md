@@ -117,6 +117,8 @@ Open `http://localhost:7860` in your browser.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.16` | 8 STT engines (+ ElevenLabs, Rev.ai), engine dropdown, auto-fill key |
+| `v3.15` | Interview Q&A richer detail, human-voice answers, PDF fix, version badge |
 | `v3.14` | Timezone searchable dropdown, history Load buttons, color-coded downloads |
 | `v3.13` | Timezone field as scrollable IANA dropdown |
 | `v3.12` | Color-coded download buttons, ETA panel improvements |
@@ -124,7 +126,7 @@ Open `http://localhost:7860` in your browser.
 
 ```bash
 # Pin to a specific version
-docker pull sushi0934/transcript-agent:v3.14
+docker pull sushi0934/transcript-agent:v3.16
 
 # Always latest
 docker pull sushi0934/transcript-agent:latest
@@ -135,7 +137,7 @@ docker pull sushi0934/transcript-agent:latest
 ## Features
 
 ### Transcription
-- **6 STT engines** — Whisper (local), Deepgram, AssemblyAI, Groq Whisper, OpenAI Whisper API, Google Cloud STT
+- **8 STT engines** — Whisper (local), Deepgram, AssemblyAI, Groq Whisper, OpenAI Whisper API, Google Cloud STT, ElevenLabs Scribe, Rev.ai
 - **STT timing** — shows exactly how long the transcription step took per engine
 - **Multi-speaker diarization** — auto-detects speakers or use a fixed count
 - **51+ languages** — auto-detect or specify language and regional variant

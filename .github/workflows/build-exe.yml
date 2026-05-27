@@ -260,19 +260,23 @@ jobs:
           [ -f artifacts/windows-exe/TranscriptAgent.exe ] && FILES="$FILES artifacts/windows-exe/TranscriptAgent.exe"
           [ -f artifacts/mac-dmg/TranscriptAgent.dmg ]     && FILES="$FILES artifacts/mac-dmg/TranscriptAgent.dmg"
 
-          gh release create "$TAG" $FILES \
-            --repo jayuan101/transcript-agent-releases \
-            --title "Transcript Agent $TAG" \
-            --notes "$(cat <<'EOF'
-          ## Download
+          if gh release view "$TAG" --repo jayuan101/transcript-agent-releases &>/dev/null; then
+            echo "Release $TAG exists — uploading assets"
+            gh release upload "$TAG" $FILES \
+              --repo jayuan101/transcript-agent-releases \
+              --clobber
+          else
+            gh release create "$TAG" $FILES \
+              --repo jayuan101/transcript-agent-releases \
+              --title "Transcript Agent $TAG" \
+              --notes "## Download
 
-          | Platform | File | How to install |
-          |----------|------|----------------|
-          | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
-          | macOS | TranscriptAgent.dmg | Open DMG → drag to Applications → double-click |
+| Platform | File | How to install |
+|----------|------|----------------|
+| Windows 10/11 | TranscriptAgent.exe | Double-click to run |
+| macOS | TranscriptAgent.dmg | Open DMG → drag to Applications → double-click |
 
-          Opens as a standalone desktop app — no browser tab, no installation required.
-          Minimize the window to keep it running in the system tray.
-          EOF
-          )" \
-            --latest
+Opens as a standalone desktop app — no browser tab, no installation required.
+Minimize the window to keep it running in the system tray." \
+              --latest
+          fi

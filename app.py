@@ -2219,22 +2219,22 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             '</div>'
         )
 
+    def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
+        return (
+            f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
+            f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
+            f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:var({label_var});">{label_txt}</div>'
+            f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
+            f'font-family:monospace;">{val_txt}</div></div>'
+        )
+
     # ── Whisper with real % ───────────────────────────────────────────────────
     if stage == "whisper" and pct is not None and pct > 0:
         pct_int    = int(pct * 100)
         bar_fill   = f"{pct_int}%"
         eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "—"
         finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
-
-        def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
-            return (
-                f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
-                f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
-                f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:0.08em;color:var({label_var});">{label_txt}</div>'
-                f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
-                f'font-family:monospace;">{val_txt}</div></div>'
-            )
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
@@ -2259,7 +2259,37 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             '</div></div>'
         )
 
-    # ── Other stages (loading / extracting / claude / whisper indeterminate) ──
+    # ── Claude AI stage — estimated ETA ──────────────────────────────────────
+    if stage == "claude":
+        eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "estimating…"
+        finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
+        return tracker + (
+            '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
+            'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
+            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:12px;">'
+            'Step 2 of 2 &nbsp;&mdash;&nbsp; Analyzing with AI</div>'
+            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
+            '<div style="font-size:4.5em;font-weight:900;color:#c4b5fd;'
+            'font-family:monospace;line-height:1;letter-spacing:-0.04em;">50</div>'
+            '<div style="font-size:2em;font-weight:700;color:#a855f7;margin-bottom:6px;">%+</div>'
+            '</div>'
+            '<div style="font-size:0.82em;color:var(--ta-card-sub);margin-bottom:12px;">'
+            'AI is reading the transcript and writing your report…</div>'
+            + _slide_css +
+            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
+            'overflow:hidden;position:relative;margin-bottom:10px;">'
+            '<div style="position:absolute;width:40%;height:100%;background:#a855f7;'
+            'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
+            '</div>'
+            '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
+            + _stat("~Time Left", eta_str)
+            + (_stat("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
+            + _stat("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
+            '</div></div>'
+        )
+
+    # ── Other stages (loading / extracting / whisper indeterminate) ──────────
     stage_cfg = {
         "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",        "Step 0 of 2", "var(--ta-step-act-clr)"),
         "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",   "Step 1 of 2", "var(--ta-step-done-clr)"),
@@ -2653,6 +2683,7 @@ def process_file(
     whisper_pct     = 0.0
     raw_shown       = False
     claude_started  = False
+    claude_start_time: float = 0.0
     stage           = "loading"
     last_activity   = time.time()
     stall_warned    = set()
@@ -2666,6 +2697,14 @@ def process_file(
         if pct <= 0.01:
             return None
         return max(0, int((time.time() - start_time) * (1.0 - pct) / pct))
+
+    def _claude_eta_secs():
+        if not claude_start_time:
+            return None
+        in_claude = time.time() - claude_start_time
+        # Estimate: AI analysis typically takes 60-180s; scale up as time passes
+        estimated_total = max(90.0, in_claude * 1.6)
+        return max(0, int(estimated_total - in_claude))
 
     def _eta_str(pct):
         s = _eta_secs(pct)
@@ -2719,7 +2758,7 @@ def process_file(
                            eta=_eta_panel_html("extracting", elapsed=elapsed, tz_name=tz_name))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name))
+                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name))
             else:
                 yield _out(status=_status_compact("⏳", "Loading…", elapsed),
                            eta=_eta_panel_html("loading", elapsed=elapsed, tz_name=tz_name))
@@ -2744,10 +2783,12 @@ def process_file(
                 yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed, tz_name=tz_name), log=log)
             elif stage == "claude":
+                if not claude_start_time:
+                    claude_start_time = time.time()
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log("Sending transcript to AI for analysis…", "ai")
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name), log=log)
+                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
@@ -2772,9 +2813,11 @@ def process_file(
             log_text  = _add_log("✅ Transcription complete!", "done")
             log_text  = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
             log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
+            if not claude_start_time:
+                claude_start_time = time.time()
             yield _out(
                 status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                eta=_eta_panel_html("claude", elapsed=elapsed, tz_name=tz_name),
+                eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name),
                 transcript=msg[1],
                 log=log_text,
             )

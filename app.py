@@ -2016,14 +2016,25 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
             self.cell(0, 6, f"Transcript Agent  |  Page {self.page_no()}  |  {datetime.date.today()}", align="C")
 
     def _safe(text: str) -> str:
-        return (text
+        import unicodedata
+        # Replace common unicode → ASCII equivalents
+        text = (text
                 .replace("☐", "[ ]").replace("☑", "[x]")
-                .replace("•", "-").replace("'", "'")
-                .replace("'", "'").replace("'", "'")
-                .replace(""", '"').replace(""", '"')
+                .replace("•", "-").replace("•", "-")
+                .replace("’", "'").replace("‘", "'")
+                .replace("“", '"').replace("”", '"')
                 .replace("–", "-").replace("—", "--")
                 .replace("…", "...")
-                .encode("latin-1", errors="replace").decode("latin-1"))
+                # Verdict / status emoji → text
+                .replace("✅", "[OK]").replace("🟡", "[~]")
+                .replace("⚠️", "[!]").replace("❌", "[X]")
+                .replace("🟢", "[+]").replace("🟠", "[~]").replace("🔴", "[-]")
+                .replace("⚡", "[!]").replace("📝", "").replace("💬", "")
+                .replace("🎯", "").replace("📋", "").replace("🎤", "")
+                .replace("📁", "").replace("🤖", ""))
+        # Normalize and drop anything still outside latin-1
+        text = unicodedata.normalize("NFKD", text)
+        return text.encode("latin-1", errors="replace").decode("latin-1")
 
     pdf = _PDF()
     pdf.set_auto_page_break(auto=True, margin=20)
@@ -2255,7 +2266,12 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
         pdf_name = f"{stem}_report.pdf"
 
     pdf_path = out_dir / pdf_name
-    _generate_pdf(f"{stem}  [{detected or target_lang}]", combined, pdf_path)
+    try:
+        _generate_pdf(f"{stem}  [{detected or target_lang}]", combined, pdf_path)
+    except Exception as e:
+        import traceback
+        print(f"[PDF ERROR] {e}\n{traceback.format_exc()}")
+        raise gr.Error(f"PDF generation failed: {e}")
     return gr.update(value=str(pdf_path), visible=True)
 
 

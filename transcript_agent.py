@@ -1210,8 +1210,8 @@ _INTERVIEW_JSON_FIELD = '''\
   "interview_questions": [
     {
       "question": "Exact question asked",
-      "your_answer_summary": "1-2 sentence summary of what the interviewee actually said",
-      "ideal_answer": "Detailed, strong answer to this question",
+      "your_answer_summary": "3-5 sentences capturing what the candidate actually said — include the specific points, examples, or stories they mentioned. Be faithful to what they said, not a vague paraphrase.",
+      "ideal_answer": "Write this in natural first-person as if you ARE the candidate speaking out loud — confident, human, conversational. No bullet points, no AI-style structure. Sound like a well-prepared person answering in real life. Start with the direct answer, then back it up with a concrete example or story. Example style: 'I spent three years managing a distributed team across two time zones. The biggest challenge was...' NOT: 'A strong candidate should demonstrate...'",
       "verdict": "strong | acceptable | weak | missed",
       "feedback": "Specific coaching — what was missing, what landed well, how to improve"
     }
@@ -1221,8 +1221,8 @@ _INTERVIEW_JSON_FIELD_DEEP = '''\
   "interview_questions": [
     {
       "question": "Exact question asked",
-      "your_answer_summary": "1-2 sentence summary of what the interviewee actually said",
-      "ideal_answer": "Detailed, strong answer to this question tailored to the candidate's background if resume context is provided",
+      "your_answer_summary": "3-5 sentences capturing what the candidate actually said — include the specific points, examples, or stories they mentioned. Be faithful to what they said, not a vague paraphrase. If they used resume context provided, reference it.",
+      "ideal_answer": "Write this in natural first-person as if you ARE the candidate speaking out loud — confident, human, conversational. No bullet points, no AI-style structure. Sound like a well-prepared person answering in real life. Start with the direct answer, then back it up with a concrete example or story. Use the candidate's resume/background context if provided to make it personal. Example style: 'I spent three years managing a distributed team across two time zones. The biggest challenge was...' NOT: 'A strong candidate should demonstrate...'",
       "verdict": "strong | acceptable | weak | missed",
       "deflection_detected": false,
       "deflection_note": "Only populate if deflection_detected is true — describe how the candidate deflected or stalled",
@@ -1240,19 +1240,22 @@ _INTERVIEW_JSON_FIELD_DEEP = '''\
 
 _INTERVIEW_INSTRUCTION = """\
 INTERVIEW MODE: Extract every distinct interview question from the transcript.
-For each question: summarise the actual answer given, write the ideal answer,
-verdict the response (strong/acceptable/weak/missed), and give coaching feedback.
-Only include questions — ignore small talk or off-topic exchanges."""
+For each question:
+- your_answer_summary: Capture in 3-5 sentences what the candidate actually said, with the specific points or examples they gave. Be faithful — do not paraphrase vaguely.
+- ideal_answer: Write as if YOU are the candidate speaking naturally in first person. Confident, human, conversational — no bullet points, no AI-style phrasing. A real person's well-prepared answer.
+- verdict: strong | acceptable | weak | missed
+- feedback: specific coaching on what landed, what was missing, how to improve.
+Only include real interview questions — ignore small talk or off-topic exchanges."""
 
 _INTERVIEW_INSTRUCTION_DEEP = """\
 INTERVIEW MODE (Deep Analysis): Extract every distinct interview question from the transcript.
 For each question:
-- Summarise the actual answer given
-- Write the ideal answer (use the candidate's resume/narratives context below if provided)
-- Verdict the response: strong | acceptable | weak | missed
+- your_answer_summary: Capture in 3-5 sentences what the candidate actually said, with the specific points or examples they gave. Be faithful — do not paraphrase vaguely.
+- ideal_answer: Write as if YOU are the candidate speaking naturally in first person. Confident, human, conversational — no bullet points, no AI-style phrasing. A real well-prepared person's answer. Use any resume/background context provided to make it personal and specific.
+- verdict: strong | acceptable | weak | missed
 - deflection_detected: true if the candidate used filler phrases, stalled, or answered around the question without directly addressing it
 - deflection_note: only if deflection_detected is true — briefly describe the deflection behaviour
-- Coaching feedback: specific, actionable
+- feedback: specific, actionable coaching
 
 After scoring all questions, set round_advance_probability (0-100) based on the overall quality of answers.
 Rough guide: 80+ = strong candidate, 60-79 = competitive, 40-59 = borderline, <40 = unlikely.
@@ -1628,7 +1631,7 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             if q.get("your_answer_summary"):
                 sections.append(f"  Your answer : {q['your_answer_summary']}")
             if q.get("ideal_answer"):
-                sections.append(f"  Ideal answer : {q['ideal_answer']}")
+                sections.append(f"  What you could have said : {q['ideal_answer']}")
             if q.get("feedback"):
                 sections.append(f"  Coaching : {q['feedback']}")
             sections.append("")

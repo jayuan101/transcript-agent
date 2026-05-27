@@ -96,13 +96,16 @@ threading.Thread(target=_check_for_update, daemon=True).start()
 
 
 def _get_update_banner():
-    if not _is_installed_app():
-        return ""
     current_badge = (
         f'<span style="display:inline-block;background:#0f2a1a;border:1px solid #166534;'
         f'border-radius:6px;padding:3px 10px;font-size:0.8em;color:#86efac;margin-bottom:6px;">'
-        f'v{APP_VERSION} installed</span>'
+        f'v{APP_VERSION}</span>'
     )
+    if not _is_installed_app():
+        return (
+            f'<div style="padding:6px 0;">{current_badge}'
+            f'<span style="font-size:0.8em;color:#64748b;margin-left:8px;">Docker / browser mode</span></div>'
+        )
     if not _update_info:
         return (
             f'<div style="padding:6px 0;">{current_badge}'

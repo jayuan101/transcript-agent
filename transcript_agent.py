@@ -497,6 +497,18 @@ def transcribe_with_deepgram(
     }
     content_type = ct_map.get(Path(audio_path).suffix.lower().lstrip("."), "audio/wav")
 
+    # Quick connectivity check before uploading audio
+    import socket as _sock
+    try:
+        _sock.setdefaulttimeout(5)
+        _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM).connect(("api.deepgram.com", 443))
+    except Exception:
+        raise RuntimeError(
+            "Cannot reach api.deepgram.com:443 — your network or firewall is blocking "
+            "outbound HTTPS to Deepgram. Try switching to Whisper (Local) in the "
+            "Transcription Engine settings, or check your VPN/proxy/firewall settings."
+        )
+
     try:
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -514,6 +526,16 @@ def transcribe_with_deepgram(
         try: body = e.response.text[:300]
         except Exception: pass
         raise RuntimeError(f"Deepgram API error {e.response.status_code}: {body}")
+    except _req.exceptions.ConnectionError:
+        raise RuntimeError(
+            "Lost connection to api.deepgram.com mid-upload. Check your network "
+            "stability, or switch to Whisper (Local) transcription."
+        )
+    except _req.exceptions.Timeout:
+        raise RuntimeError(
+            "Deepgram request timed out (>5 min). The file may be too large, "
+            "or your connection is too slow. Try Whisper (Local) transcription instead."
+        )
     except _req.exceptions.RequestException as e:
         raise RuntimeError(f"Deepgram connection error: {e}")
     finally:
@@ -614,6 +636,16 @@ def transcribe_with_assemblyai(
     dur_secs = _get_audio_duration(audio_path)
     dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
     _log(f"Uploading to AssemblyAI{dur_note}...")
+
+    import socket as _sock_aai
+    try:
+        _sock_aai.setdefaulttimeout(5)
+        _sock_aai.socket(_sock_aai.AF_INET, _sock_aai.SOCK_STREAM).connect(("api.assemblyai.com", 443))
+    except Exception:
+        raise RuntimeError(
+            "Cannot reach api.assemblyai.com:443 — your network or firewall is blocking "
+            "outbound HTTPS to AssemblyAI. Switch to Whisper (Local) or check your VPN/firewall."
+        )
 
     data = {}
     try:
@@ -723,6 +755,16 @@ def transcribe_with_groq_whisper(
     dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
     _log(f"Sending to Groq Whisper ({model}){dur_note}...")
 
+    import socket as _sock_groq
+    try:
+        _sock_groq.setdefaulttimeout(5)
+        _sock_groq.socket(_sock_groq.AF_INET, _sock_groq.SOCK_STREAM).connect(("api.groq.com", 443))
+    except Exception:
+        raise RuntimeError(
+            "Cannot reach api.groq.com:443 — your network or firewall is blocking "
+            "outbound HTTPS to Groq. Switch to Whisper (Local) or check your VPN/firewall."
+        )
+
     try:
         with open(audio_path, "rb") as f:
             audio_bytes = f.read()
@@ -804,6 +846,16 @@ def transcribe_with_openai_whisper_api(
     dur_secs = _get_audio_duration(audio_path)
     dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
     _log(f"Sending to OpenAI Whisper API ({model}){dur_note}...")
+
+    import socket as _sock_oai
+    try:
+        _sock_oai.setdefaulttimeout(5)
+        _sock_oai.socket(_sock_oai.AF_INET, _sock_oai.SOCK_STREAM).connect(("api.openai.com", 443))
+    except Exception:
+        raise RuntimeError(
+            "Cannot reach api.openai.com:443 — your network or firewall is blocking "
+            "outbound HTTPS to OpenAI. Switch to Whisper (Local) or check your VPN/firewall."
+        )
 
     try:
         with open(audio_path, "rb") as f:
@@ -888,6 +940,16 @@ def transcribe_with_google_stt(
     dur_secs = _get_audio_duration(audio_path)
     dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
     _log(f"Sending to Google Cloud STT ({model}){dur_note}...")
+
+    import socket as _sock_gcp
+    try:
+        _sock_gcp.setdefaulttimeout(5)
+        _sock_gcp.socket(_sock_gcp.AF_INET, _sock_gcp.SOCK_STREAM).connect(("speech.googleapis.com", 443))
+    except Exception:
+        raise RuntimeError(
+            "Cannot reach speech.googleapis.com:443 — your network or firewall is blocking "
+            "outbound HTTPS to Google Cloud STT. Switch to Whisper (Local) or check your VPN/firewall."
+        )
 
     lang_code = "en-US"
     if language and language != "auto":

@@ -1050,6 +1050,130 @@ def transcribe_with_google_stt(
     return "\n".join(lines), lang_code
 
 
+def transcribe_with_azure_stt(
+    path: str,
+    api_key: str,
+    model: str = "conversation",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """Azure Speech Services STT. api_key format: 'KEY|region' (e.g. abc123|eastus).
+    Chunks audio into 55-second segments to work around Azure's 60s REST limit.
+    Returns (transcript_str, detected_lang).
+    """
+    import requests as _req
+    import math as _math
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    if "|" in api_key:
+        az_key, az_region = api_key.split("|", 1)
+    else:
+        az_key, az_region = api_key, "eastus"
+    az_key = az_key.strip()
+    az_region = az_region.strip()
+
+    lang_code = "en-US"
+    if language and language != "auto":
+        lang_code = language if "-" in language else language + "-US"
+
+    # Convert to 16kHz mono WAV (required by Azure REST API)
+    _log("Converting audio to 16kHz WAV for Azure STT...")
+    wav_tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    wav_path = wav_tmp.name; wav_tmp.close()
+    proc = _sp.run(
+        [FFMPEG_EXE, "-y", "-i", path, "-vn", "-sn",
+         "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", wav_path],
+        capture_output=True,
+    )
+    if proc.returncode != 0:
+        try: os.unlink(wav_path)
+        except Exception: pass
+        raise RuntimeError("ffmpeg conversion failed for Azure STT.")
+
+    dur_secs = _get_audio_duration(wav_path)
+    dur_note = f" ({_fmt_duration(int(dur_secs))})" if dur_secs > 0 else ""
+    _log(f"Sending to Azure Speech ({az_region}, {model}){dur_note}...")
+
+    CHUNK_SECS = 55  # Azure REST limit is 60s; stay safely under
+    n_chunks = max(1, _math.ceil(dur_secs / CHUNK_SECS)) if dur_secs > 0 else 1
+
+    headers = {
+        "Ocp-Apim-Subscription-Key": az_key,
+        "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+        "Accept": "application/json",
+    }
+    url = (
+        f"https://{az_region}.stt.speech.microsoft.com/speech/recognition/"
+        f"{model}/cognitiveservices/v1"
+        f"?language={lang_code}&format=detailed&profanity=raw"
+    )
+
+    all_texts = []
+    chunk_paths = []
+
+    try:
+        if n_chunks == 1:
+            chunk_paths = [wav_path]
+        else:
+            _log(f"Audio is {int(dur_secs)}s — splitting into {n_chunks} chunks for Azure's 60s REST limit...")
+            for i in range(n_chunks):
+                start = i * CHUNK_SECS
+                ck_tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+                ck_path = ck_tmp.name; ck_tmp.close()
+                _sp.run(
+                    [FFMPEG_EXE, "-y", "-i", wav_path,
+                     "-ss", str(start), "-t", str(CHUNK_SECS),
+                     "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", ck_path],
+                    capture_output=True,
+                )
+                chunk_paths.append(ck_path)
+
+        for i, ck_path in enumerate(chunk_paths):
+            if n_chunks > 1:
+                _log(f"Azure STT: chunk {i + 1}/{n_chunks}...")
+            try:
+                with open(ck_path, "rb") as f:
+                    resp = _req.post(url, headers=headers, data=f, timeout=120)
+                resp.raise_for_status()
+            except _req.exceptions.HTTPError as e:
+                body = ""
+                try: body = e.response.text[:300]
+                except Exception: pass
+                raise RuntimeError(f"Azure STT error {e.response.status_code}: {body}")
+            except _req.exceptions.ConnectionError:
+                raise RuntimeError(
+                    f"Cannot reach {az_region}.stt.speech.microsoft.com — "
+                    "check your region name and network connection."
+                )
+
+            data = resp.json()
+            status = data.get("RecognitionStatus", "")
+            if status in ("Success", "EndOfDictation"):
+                text = data.get("DisplayText", "").strip()
+                if text:
+                    all_texts.append(text)
+            elif status == "NoMatch":
+                pass  # silent chunk — skip
+            else:
+                raise RuntimeError(f"Azure STT returned status: {status}")
+
+    finally:
+        try: os.unlink(wav_path)
+        except Exception: pass
+        for cp in chunk_paths:
+            if cp != wav_path:
+                try: os.unlink(cp)
+                except Exception: pass
+
+    text = " ".join(all_texts)
+    total_words = len(text.split())
+    _log(f"Azure STT complete! ~{total_words:,} words.")
+    return text, lang_code
+
+
 def transcribe_with_elevenlabs(
     path: str,
     api_key: str,
@@ -1907,7 +2031,7 @@ def run(
     raw_whisperx = {}
     _detected_lang = ""
 
-    _CLOUD_STT = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt", "elevenlabs", "rev_ai"}
+    _CLOUD_STT = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt", "elevenlabs", "rev_ai", "azure_stt"}
     _use_cloud_stt = stt_provider in _CLOUD_STT and ext in (AUDIO_EXTS | VIDEO_EXTS)
     # Resolve generic key/model (stt_api_key overrides legacy deepgram_api_key for new providers)
     _cloud_key = stt_api_key or deepgram_api_key
@@ -1959,6 +2083,12 @@ def run(
             raw_text, _detected_lang = transcribe_with_google_stt(
                 file_path, _cloud_key,
                 model=_cloud_model or "latest_long",
+                language=lang_arg, on_log=on_log,
+            )
+        elif stt_provider == "azure_stt":
+            raw_text, _detected_lang = transcribe_with_azure_stt(
+                file_path, _cloud_key,
+                model=_cloud_model or "conversation",
                 language=lang_arg, on_log=on_log,
             )
         elif stt_provider == "elevenlabs":

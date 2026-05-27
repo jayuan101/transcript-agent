@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.16"
+APP_VERSION = "3.17"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -769,6 +769,14 @@ _STT_PROVIDERS = {
         "models": ["latest_long", "latest_short", "command_and_search", "phone_call"],
         "default_model": "latest_long",
         "model_info": "latest_long = best for recordings   |   latest_short = best for short clips",
+    },
+    "Azure Speech (Cloud)": {
+        "id": "azure_stt",
+        "key_placeholder": "KEY|region  (e.g. abc123…|eastus)",
+        "key_info": "Get key: portal.azure.com → Speech service → Keys and Endpoint. Format: KEY|region",
+        "models": ["conversation", "dictation", "command_and_search"],
+        "default_model": "conversation",
+        "model_info": "conversation = meetings & calls   |   dictation = long-form documents   |   command_and_search = short commands",
     },
     "ElevenLabs (Cloud)": {
         "id": "elevenlabs",

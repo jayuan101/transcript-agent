@@ -117,6 +117,7 @@ Open `http://localhost:7860` in your browser.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.17` | 9 STT engines (+ Azure Speech), auto-chunking for long recordings |
 | `v3.16` | 8 STT engines (+ ElevenLabs, Rev.ai), engine dropdown, auto-fill key |
 | `v3.15` | Interview Q&A richer detail, human-voice answers, PDF fix, version badge |
 | `v3.14` | Timezone searchable dropdown, history Load buttons, color-coded downloads |
@@ -137,7 +138,7 @@ docker pull sushi0934/transcript-agent:latest
 ## Features
 
 ### Transcription
-- **8 STT engines** — Whisper (local), Deepgram, AssemblyAI, Groq Whisper, OpenAI Whisper API, Google Cloud STT, ElevenLabs Scribe, Rev.ai
+- **9 STT engines** — Whisper (local), Deepgram, AssemblyAI, Groq Whisper, OpenAI Whisper API, Google Cloud STT, Azure Speech, ElevenLabs Scribe, Rev.ai
 - **STT timing** — shows exactly how long the transcription step took per engine
 - **Multi-speaker diarization** — auto-detects speakers or use a fixed count
 - **51+ languages** — auto-detect or specify language and regional variant

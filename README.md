@@ -20,6 +20,8 @@ docker pull sushi0934/transcript-agent:latest
 
 ### 2. Run it
 
+> **The `-p` flags are required.** Without them the app runs inside the container but is unreachable from your browser.
+
 ```bash
 docker run -d \
   --name transcript-agent \
@@ -33,10 +35,26 @@ docker run -d \
   sushi0934/transcript-agent:latest
 ```
 
+| Flag | What it does |
+|------|-------------|
+| `-p 7860:7860` | Exposes the web UI on your machine at port 7860 |
+| `-p 8000:8000` | Exposes the REST API on your machine at port 8000 |
+
 ### 3. Open the app
 
 ```
 http://localhost:7860
+```
+
+Once the container starts you will see this in the logs (`docker logs transcript-agent`):
+
+```
+============================================
+  Transcript Agent
+============================================
+  UI  ->  http://localhost:7860
+  API ->  http://localhost:8000
+============================================
 ```
 
 ### Stop it

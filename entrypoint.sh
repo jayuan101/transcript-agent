@@ -1,7 +1,14 @@
 #!/bin/sh
 # Docker entrypoint — starts REST API + Gradio UI side by side.
 
-echo "[entrypoint] Starting Transcript Agent..."
+echo ""
+echo "============================================"
+echo "  Transcript Agent"
+echo "============================================"
+echo "  UI  ->  http://localhost:7860"
+echo "  API ->  http://localhost:8000"
+echo "============================================"
+echo ""
 
 # ── Start REST API on port 8000 (background) ─────────────────────────────────
 echo "[entrypoint] Starting REST API on port 8000..."

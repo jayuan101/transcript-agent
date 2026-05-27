@@ -96,34 +96,23 @@ class LLMClient:
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──
 import subprocess as _sp
 import numpy as _np
+import threading as _threading
 
 try:
     import imageio_ffmpeg as _iff
-    FFMPEG_EXE = _iff.get_ffmpeg_exe()   # full path to bundled binary
+    FFMPEG_EXE = _iff.get_ffmpeg_exe()
 except ImportError:
-    FFMPEG_EXE = "ffmpeg"                 # fall back to system ffmpeg
+    FFMPEG_EXE = "ffmpeg"
 
-# patch Whisper's internal audio loader to use the resolved binary
+_progress_lock = _threading.Lock()
+_progress_cb   = None
+
+# Fast availability check — no actual import, just inspects installed packages
+import importlib.util as _importlib_util
+WHISPER_AVAILABLE = _importlib_util.find_spec("whisper") is not None
+
+# ── tqdm tracking class (needs tqdm only, not torch/whisper) ─────────────────
 try:
-    import whisper.audio as _wa
-
-    def _load_audio(file: str, sr: int = _wa.SAMPLE_RATE) -> _np.ndarray:
-        cmd = [FFMPEG_EXE, "-nostdin", "-threads", "0", "-i", file,
-               "-f", "s16le", "-ac", "1", "-acodec", "pcm_s16le", "-ar", str(sr), "-"]
-        out = _sp.run(cmd, capture_output=True, check=True).stdout
-        return _np.frombuffer(out, _np.int16).flatten().astype(_np.float32) / 32768.0
-
-    _wa.load_audio = _load_audio
-except Exception:
-    pass
-
-# ── live Whisper progress: patch tqdm so we can read % in real-time ───────────
-import threading as _threading
-_progress_lock  = _threading.Lock()
-_progress_cb    = None   # set to a callable(float) before each transcribe call
-
-try:
-    import sys as _sys
     import tqdm as _tqdm_mod
 
     class _TrackingTqdm(_tqdm_mod.tqdm):
@@ -137,24 +126,56 @@ try:
                 cb = _progress_cb
             if cb and self.total and self.total > 0:
                 cb(min(self.n / self.total, 1.0))
-
-    # whisper.transcribe calls tqdm.tqdm(...) where tqdm is the MODULE.
-    # Patching the function object (_wt = whisper.transcribe the function) does
-    # nothing. We must patch tqdm.tqdm on the real submodule via sys.modules.
-    import whisper.transcribe as _wt_unused  # ensures module is loaded
-    _real_wt = _sys.modules["whisper.transcribe"]
-    _real_wt.tqdm.tqdm = _TrackingTqdm
 except Exception:
-    pass
+    _TrackingTqdm = None
+
+# ── lazy Whisper loader — defers the heavy torch import until first use ───────
+_whisper_init_lock = _threading.Lock()
+_whisper_init_done = False
+openai_whisper     = None  # assigned inside _ensure_whisper_loaded()
+
+
+def _ensure_whisper_loaded():
+    """Import whisper + torch and apply patches. Safe to call multiple times."""
+    global _whisper_init_done, openai_whisper
+    if _whisper_init_done:
+        return
+    with _whisper_init_lock:
+        if _whisper_init_done:
+            return
+        import whisper as _wmod
+        openai_whisper = _wmod
+
+        # Patch audio loader to use the resolved ffmpeg binary
+        try:
+            import whisper.audio as _wa
+            def _patched_load_audio(file: str, sr: int = 16000):
+                cmd = [FFMPEG_EXE, "-nostdin", "-threads", "0", "-i", file,
+                       "-f", "s16le", "-ac", "1", "-acodec", "pcm_s16le", "-ar", str(sr), "-"]
+                out = _sp.run(cmd, capture_output=True, check=True).stdout
+                return _np.frombuffer(out, _np.int16).flatten().astype(_np.float32) / 32768.0
+            _wa.load_audio = _patched_load_audio
+        except Exception:
+            pass
+
+        # Patch whisper.transcribe's tqdm so we get live progress callbacks
+        try:
+            if _TrackingTqdm is not None:
+                import sys as _sys2
+                import whisper.transcribe  # noqa: F401 — side-effect: loads module
+                _sys2.modules["whisper.transcribe"].tqdm.tqdm = _TrackingTqdm
+        except Exception:
+            pass
+
+        _whisper_init_done = True
+
+
+# Preload whisper in background — ready by the time the user uploads a file
+if WHISPER_AVAILABLE:
+    _threading.Thread(target=_ensure_whisper_loaded, daemon=True).start()
 
 
 # ── optional dependency imports ───────────────────────────────────────────────
-
-try:
-    import whisper as openai_whisper
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
 
 try:
     from docx import Document as DocxDocument
@@ -292,6 +313,7 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     global _progress_cb
     if not WHISPER_AVAILABLE:
         raise ImportError("Run: pip install openai-whisper")
+    _ensure_whisper_loaded()
 
     # ── detect file duration for ETA estimate ─────────────────────────────────
     dur_secs = _get_audio_duration(path)

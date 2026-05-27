@@ -1,8 +1,10 @@
 # Transcript Agent
 
-AI-powered transcription app for interviews and meetings.  
-Automatically identifies speakers, generates formatted reports, and exports to Word or PDF.  
+AI-powered transcription and interview analysis app for meetings, interviews, and recordings.  
+Auto-identifies speakers, scores interview responses, generates formatted reports, and exports to PDF.  
 Runs entirely on your machine — your files never leave your device.
+
+**[Download latest release](https://github.com/jayuan101/transcript-agent-releases/releases)**
 
 ---
 
@@ -84,7 +86,7 @@ Open `http://localhost:7860` in your browser.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GRADIO_SERVER_NAME` | `0.0.0.0` | Interface to bind to (`0.0.0.0` = all, `127.0.0.1` = localhost only) |
+| `GRADIO_SERVER_NAME` | `0.0.0.0` | Interface to bind (`0.0.0.0` = all, `127.0.0.1` = localhost only) |
 | `GRADIO_SERVER_PORT` | `7860` | Port for the web UI |
 | `ANTHROPIC_API_KEY` | — | Pre-fill your Claude API key (optional) |
 | `OPENAI_API_KEY` | — | Pre-fill your OpenAI API key (optional) |
@@ -97,16 +99,69 @@ Open `http://localhost:7860` in your browser.
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
-| `1.8`, `1.7`, … | Pinned version tags |
-| `1.8`, `1` | Major and minor floating tags |
+| `v3.11` | STT timing display, faster startup, Interview Q&A improvements |
+| `v3.10` | ETA panel, connectivity pre-checks, 4 new STT providers |
 
 ```bash
 # Pin to a specific version
-docker pull sushi0934/transcript-agent:1.8
+docker pull sushi0934/transcript-agent:v3.11
 
 # Always latest
 docker pull sushi0934/transcript-agent:latest
 ```
+
+---
+
+## Features
+
+### Transcription
+- **6 STT engines** — Whisper (local), Deepgram, AssemblyAI, Groq Whisper, OpenAI Whisper API, Google Cloud STT
+- **STT timing** — shows exactly how long the transcription step took per engine
+- **Multi-speaker diarization** — auto-detects speakers or use a fixed count
+- **51+ languages** — auto-detect or specify language and regional variant
+- **Fast startup** — Whisper/PyTorch loads in the background, UI is instant
+
+### Analysis
+- **9 AI providers** — Claude, GPT-4o, Gemini, Groq, Mistral, Ollama, and more
+- **Custom AI endpoint** — any OpenAI-compatible API (LM Studio, vLLM, Azure, etc.)
+- **AI analysis depth** — Fast / Balanced / Deep (Deep enables extended thinking)
+
+### Interview Mode
+- **Question extraction** — identifies every question the interviewer asked
+- **Answer scoring** — rates each response: Great / Good / Needs Improvement / Missed
+- **Ideal answers** — shows how you could have answered each question
+- **Coaching tips** — specific, actionable feedback per question
+- **Deep mode** — deflection detection, % likelihood of advancing, prep guide for weak questions
+
+### Output
+- **Summary tab** — AI summary + full transcript + speaker dialogue in one view
+- **Speaker profiles** — named speaker breakdown with role detection
+- **Speech analytics** — WPM, pace, accent analysis per speaker
+- **Export** — PDF report, Markdown, JSON, plain text
+- **Auto-update** — desktop app notifies and installs updates in one click
+- **Timezone-aware ETA** — shows finish time in your local timezone
+
+---
+
+## Supported Formats
+
+**Audio:** `.mp3` `.wav` `.m4a` `.ogg` `.flac` `.aac`  
+**Video:** `.mp4` `.mkv` `.webm` `.mov` `.avi`  
+**Documents:** `.pdf` `.docx` `.txt` `.md` `.srt` `.vtt`
+
+---
+
+## Standalone Desktop App
+
+Prefer a native app? Download from the **[Releases page](https://github.com/jayuan101/transcript-agent-releases/releases)**:
+
+| Platform | File |
+|----------|------|
+| Windows | `TranscriptAgent.exe` |
+| macOS | `TranscriptAgent.dmg` |
+| Linux | `TranscriptAgent-linux.AppImage` |
+
+No Docker, no Python required.
 
 ---
 
@@ -140,41 +195,8 @@ curl -X POST http://localhost:8000/api/transcribe/sync \
 
 ---
 
-## Standalone Desktop App
-
-Prefer a native desktop app? Download from the [Releases](https://github.com/jayuan101/transcript-agent-releases/releases) page:
-
-| Platform | File |
-|----------|------|
-| Windows | `TranscriptAgent.exe` |
-| macOS | `TranscriptAgent.dmg` |
-| Linux | `TranscriptAgent-linux.AppImage` |
-
-No Docker, no Python required.
-
----
-
-## Features
-
-- **Multi-speaker diarization** — auto-detects or use a fixed speaker count
-- **9 AI providers** — Claude, GPT-4o, Gemini, Groq, Mistral, Ollama, and more
-- **Custom AI endpoint** — any OpenAI-compatible API (LM Studio, vLLM, Azure, etc.)
-- **Export** — Word (.docx) or PDF with formatted report
-- **Auto-update** — desktop app notifies you and installs updates in one click
-- **Sleep prevention** — keeps your machine awake during long transcriptions
-- **Timezone-aware ETA** — shows finish time in your local timezone
-
----
-
-## Supported Formats
-
-**Audio:** `.mp3` `.wav` `.m4a` `.ogg` `.flac` `.aac`  
-**Video:** `.mp4` `.mkv` `.webm` `.mov` `.avi`
-
----
-
 ## System Requirements (Docker)
 
 - Docker Desktop or Docker Engine
-- 8 GB RAM minimum (16 GB recommended)
+- 8 GB RAM minimum (16 GB recommended for large models)
 - 5 GB free disk space

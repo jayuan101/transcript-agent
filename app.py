@@ -802,26 +802,29 @@ def load_last_result():
     import json
     status = _read_job_status()
     if not status:
-        return [gr.update()] * 14 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
+        return [gr.update()] * 17 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
     s = status.get("status")
     if s == "running":
         name = status.get("stem", "Unknown file")
-        return [gr.update()] * 14 + [gr.update(
+        return [gr.update()] * 17 + [gr.update(
             value=f"⏳ **Transcription still in progress** — {name}. Keep this tab open and results will load automatically when done.",
             visible=True,
         )]
     if s not in ("done", "error"):
-        return [gr.update()] * 14 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
+        return [gr.update()] * 17 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
     try:
         job_dir = Path(status["job_dir"])
         stem    = status["stem"]
         data    = status.get("result", {})   # formatted strings saved at completion
-        f_t = str(job_dir / f"{stem}_transcript.txt")
-        f_s = str(job_dir / f"{stem}_speakers.txt")
-        f_r = str(job_dir / f"{stem}_report.md")
-        f_c = str(job_dir / f"{stem}_combined.txt")
-        f_j = str(job_dir / f"{stem}_full.json")
-        f_p = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
+        f_t    = str(job_dir / f"{stem}_transcript.txt")
+        f_s    = str(job_dir / f"{stem}_speakers.txt")
+        f_r    = str(job_dir / f"{stem}_report.md")
+        f_c    = str(job_dir / f"{stem}_combined.txt")
+        f_j    = str(job_dir / f"{stem}_full.json")
+        f_p    = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
+        f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
+        f_srt  = str(job_dir / f"{stem}_transcript.srt") if (job_dir / f"{stem}_transcript.srt").exists() else None
+        f_vtt  = str(job_dir / f"{stem}_transcript.vtt") if (job_dir / f"{stem}_transcript.vtt").exists() else None
         if s == "done":
             completed = status.get("completed", "")[:16].replace("T", " ")
             msg = f"✅ Loaded: **{stem}** (completed {completed})"
@@ -841,12 +844,12 @@ def load_last_result():
             f_r if Path(f_r).exists() else None,
             f_c if Path(f_c).exists() else None,
             f_j if Path(f_j).exists() else None,
-            f_p,
+            f_p, f_docx, f_srt, f_vtt,
             gr.update(open=True),
             gr.update(value=msg, visible=True),
         ]
     except Exception as e:
-        return [gr.update()] * 14 + [gr.update(value=f"Error loading results: {e}", visible=True)]
+        return [gr.update()] * 17 + [gr.update(value=f"Error loading results: {e}", visible=True)]
 
 def get_job_banner():
     """Return HTML banner showing current job status — called on page load."""
@@ -971,7 +974,7 @@ def _build_history_html() -> str:
 
 def load_job_from_history(job_id_input: str = ""):
     """Load a specific job from the DB by job_id."""
-    no_change = [gr.update()] * 14 + [gr.update(visible=False)]
+    no_change = [gr.update()] * 17 + [gr.update(visible=False)]
     if not _JDB_OK:
         return no_change[:-1] + [gr.update(value="Job history not available.", visible=True)]
     jid = (job_id_input or "").strip()
@@ -988,12 +991,15 @@ def load_job_from_history(job_id_input: str = ""):
         return no_change[:-1] + [gr.update(value=f"Job `{jid}` status is **{s}** — only completed jobs can be loaded.", visible=True)]
     job_dir = Path(job.get("job_dir", ""))
     stem    = job.get("stem", jid)
-    f_t = str(job_dir / f"{stem}_transcript.txt")
-    f_s = str(job_dir / f"{stem}_speakers.txt")
-    f_r = str(job_dir / f"{stem}_report.md")
-    f_c = str(job_dir / f"{stem}_combined.txt")
-    f_j = str(job_dir / f"{stem}_full.json")
-    f_p = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
+    f_t    = str(job_dir / f"{stem}_transcript.txt")
+    f_s    = str(job_dir / f"{stem}_speakers.txt")
+    f_r    = str(job_dir / f"{stem}_report.md")
+    f_c    = str(job_dir / f"{stem}_combined.txt")
+    f_j    = str(job_dir / f"{stem}_full.json")
+    f_p    = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
+    f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
+    f_srt  = str(job_dir / f"{stem}_transcript.srt") if (job_dir / f"{stem}_transcript.srt").exists() else None
+    f_vtt  = str(job_dir / f"{stem}_transcript.vtt") if (job_dir / f"{stem}_transcript.vtt").exists() else None
     ts  = (job.get("created_at") or "")[:16].replace("T", " ")
     msg = f"✅ Loaded job `{jid}` — **{stem}** ({ts})"
     if job.get("status") == "error":
@@ -1011,7 +1017,7 @@ def load_job_from_history(job_id_input: str = ""):
         f_r if Path(f_r).exists() else None,
         f_c if Path(f_c).exists() else None,
         f_j if Path(f_j).exists() else None,
-        f_p,
+        f_p, f_docx, f_srt, f_vtt,
         gr.update(open=True),
         gr.update(value=msg, visible=True),
     ]
@@ -1485,10 +1491,11 @@ def _fmt_eta(eta_secs: int) -> str:
 
 
 def _finish_time_str(eta_secs: int, tz_name: str = "") -> str:
-    from datetime import datetime, timedelta, timezone
-    now = datetime.now(tz=timezone.utc)
-    finish = now + timedelta(seconds=eta_secs)
-    return finish.strftime("%H:%M UTC")
+    from datetime import datetime, timedelta
+    finish = datetime.now() + timedelta(seconds=eta_secs)
+    hour = finish.hour % 12 or 12
+    ampm = "AM" if finish.hour < 12 else "PM"
+    return f"{hour}:{finish.minute:02d} {ampm}"
 
 
 def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
@@ -2061,24 +2068,96 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
     return str(path)
 
 
+def _generate_docx(stem: str, combined_text: str, path) -> str:
+    try:
+        from docx import Document
+        from docx.shared import Pt
+        doc = Document()
+        doc.core_properties.title = f"Transcript Report — {stem}"
+        for line in combined_text.splitlines():
+            stripped = line.strip()
+            if not stripped:
+                doc.add_paragraph("")
+            elif stripped.startswith("## "):
+                doc.add_heading(stripped[3:], level=1)
+            elif stripped.startswith("### "):
+                doc.add_heading(stripped[4:], level=2)
+            elif set(stripped) <= {"=", "-", " "} and len(stripped) > 4:
+                pass  # skip divider lines
+            else:
+                doc.add_paragraph(stripped)
+        doc.save(str(path))
+        return str(path)
+    except Exception:
+        return None
+
+
+def _ts_add_secs(ts: str, extra: int, sep: str) -> str:
+    parts = ts.split(":")
+    h = int(parts[0]) if len(parts) == 3 else 0
+    m = int(parts[-2])
+    s = int(parts[-1]) + extra
+    if s >= 60:
+        m += s // 60; s = s % 60
+    if m >= 60:
+        h += m // 60; m = m % 60
+    return f"{h:02d}:{m:02d}:{s:02d}{sep}000"
+
+
+def _transcript_to_srt(transcript: str) -> str:
+    import re
+    ts_re = re.compile(r'^\[(\d{1,2}:\d{2}(?::\d{2})?)\]\s*(.*)')
+    parsed = []
+    for line in transcript.splitlines():
+        m = ts_re.match(line.strip())
+        if m:
+            parsed.append((m.group(1), m.group(2)))
+    if not parsed:
+        return ""
+    parts = []
+    for i, (ts, text) in enumerate(parsed):
+        parts_ts = ts.split(":")
+        h = int(parts_ts[0]) if len(parts_ts) == 3 else 0
+        m2 = int(parts_ts[-2])
+        s2 = int(parts_ts[-1])
+        start = f"{h:02d}:{m2:02d}:{s2:02d},000"
+        end = _ts_add_secs(parsed[i + 1][0], 0, ",") if i + 1 < len(parsed) else _ts_add_secs(ts, 3, ",")
+        parts.append(f"{i + 1}\n{start} --> {end}\n{text}\n")
+    return "\n".join(parts)
+
+
+def _transcript_to_vtt(transcript: str) -> str:
+    srt = _transcript_to_srt(transcript)
+    if not srt:
+        return ""
+    vtt = "WEBVTT\n\n"
+    for block in srt.split("\n\n"):
+        lines = block.strip().splitlines()
+        if len(lines) >= 3:
+            vtt += lines[1].replace(",", ".") + "\n" + "\n".join(lines[2:]) + "\n\n"
+    return vtt
+
+
 #   0  status_bar       1  summary_out      2  transcript_out   3  dialogue_out
 #   4  profiles_out     5  interview_out    6  analytics_out    7  combined_out
 #   8  dl_transcript    9  dl_speakers      10 dl_report
 #   11 dl_combined      12 dl_json          13 dl_pdf
-#   14 download_accordion  15 log_out       16 eta_panel  17 result_state
+#   14 dl_docx          15 dl_srt           16 dl_vtt
+#   17 download_accordion  18 log_out       19 eta_panel  20 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 18   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 21   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), interview=gr.update(),
          analytics=gr.update(), combined=gr.update(), dl_t=gr.update(),
          dl_s=gr.update(), dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(),
-         dl_p=gr.update(), dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
+         dl_p=gr.update(), dl_docx=gr.update(), dl_srt=gr.update(), dl_vtt=gr.update(),
+         dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
          rs=None):
     return (status, summary, transcript, dialogue, profiles, interview,
             analytics, combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
-            dl_acc, log, eta, rs)
+            dl_docx, dl_srt, dl_vtt, dl_acc, log, eta, rs)
 
 
 _PDF_LANGUAGES = [
@@ -2194,26 +2273,35 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     tracker = _step_tracker_html(stage, done)
 
     if done:
+        from datetime import datetime
+        finished_at = datetime.now()
+        hour = finished_at.hour % 12 or 12
+        ampm = "AM" if finished_at.hour < 12 else "PM"
+        finished_str = f"{hour}:{finished_at.minute:02d} {ampm}"
         return tracker + (
             '<div style="background:var(--ta-step-done-bg);'
-            'border:2px solid var(--ta-step-done-bdr);border-radius:16px;padding:28px 32px;'
+            'border:2px solid var(--ta-step-done-bdr);border-radius:16px;padding:24px 28px;'
             'text-align:center;font-family:sans-serif;">'
-            '<div style="font-size:3em;line-height:1;color:var(--ta-step-done-clr);">&#10003;</div>'
-            '<div style="color:var(--ta-step-done-clr);font-size:1.5em;font-weight:800;margin-top:8px;'
-            'letter-spacing:-0.02em;">All Done!</div>'
-            '<div style="display:flex;justify-content:center;gap:20px;margin-top:14px;flex-wrap:wrap;">'
+            '<div style="font-size:2.5em;line-height:1;color:var(--ta-step-done-clr);">&#10003;</div>'
+            '<div style="color:var(--ta-step-done-clr);font-size:1.4em;font-weight:800;margin-top:6px;">'
+            'All Done!</div>'
+            '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:0.1em;color:var(--ta-step-done-clr);margin-top:12px;">Finished at</div>'
+            f'<div style="font-size:2.6em;font-weight:900;color:var(--ta-step-done-clr);'
+            f'font-family:monospace;line-height:1.1;letter-spacing:-0.02em;">{finished_str}</div>'
+            '<div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap;">'
             '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
             'border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
             'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Total Time</div>'
-            f'<div style="font-size:1.6em;font-weight:800;color:var(--ta-card-val);'
+            f'<div style="font-size:1.5em;font-weight:800;color:var(--ta-card-val);'
             f'font-family:monospace;">{elapsed}</div>'
             '</div>'
             '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
             'border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
             'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Progress</div>'
-            '<div style="font-size:1.6em;font-weight:800;color:var(--ta-card-val);">100%</div>'
+            '<div style="font-size:1.5em;font-weight:800;color:var(--ta-card-val);">100%</div>'
             '</div>'
             '</div>'
             '</div>'
@@ -2229,34 +2317,57 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             f'font-family:monospace;">{val_txt}</div></div>'
         )
 
+    # ── shared "hero" time + ETA block ───────────────────────────────────────
+    def _hero_time(finish_str, eta_str, border_color, label_color, approx=False):
+        tilde = "~" if approx else ""
+        finish_block = (
+            f'<div style="text-align:center;margin-bottom:10px;">'
+            f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:{label_color};margin-bottom:2px;">Done by</div>'
+            f'<div style="font-size:3em;font-weight:900;color:{label_color};'
+            f'font-family:monospace;line-height:1;letter-spacing:-0.02em;">'
+            f'{tilde}{finish_str}</div>'
+            f'</div>'
+        ) if finish_str else (
+            f'<div style="text-align:center;margin-bottom:10px;">'
+            f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:{label_color};margin-bottom:2px;">Done by</div>'
+            f'<div style="font-size:1.5em;font-weight:700;color:var(--ta-card-sub);">'
+            f'calculating…</div></div>'
+        )
+        eta_block = (
+            f'<div style="text-align:center;margin-bottom:14px;">'
+            f'<div style="display:inline-block;background:var(--ta-stat-bg);'
+            f'border:1px solid {border_color};border-radius:20px;'
+            f'padding:5px 18px;font-size:1em;font-weight:700;color:{label_color};">'
+            f'⏱ {eta_str}</div></div>'
+        )
+        return finish_block + eta_block
+
     # ── Whisper with real % ───────────────────────────────────────────────────
     if stage == "whisper" and pct is not None and pct > 0:
         pct_int    = int(pct * 100)
         bar_fill   = f"{pct_int}%"
-        eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "—"
+        eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "calculating…"
         finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
-            'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
+            'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.1em;color:var(--ta-step-act-clr);margin-bottom:12px;">'
+            'letter-spacing:0.1em;color:var(--ta-step-act-clr);margin-bottom:14px;">'
             'Step 1 of 2 &nbsp;&mdash;&nbsp; Transcribing Audio</div>'
-            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:var(--ta-step-act-clr);'
-            f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">{pct_int}</div>'
-            '<div style="font-size:2em;font-weight:700;color:var(--ta-step-act-bdr);'
-            'margin-bottom:6px;">%</div></div>'
-            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
-            'overflow:hidden;margin-bottom:10px;">'
+            + _hero_time(finish_str, eta_str, "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)") +
+            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:12px;'
+            'overflow:hidden;margin-bottom:8px;">'
             f'<div style="width:{bar_fill};height:100%;'
             'background:linear-gradient(90deg,var(--ta-step-act-bdr),var(--ta-step-act-clr));'
             'border-radius:8px;transition:width 0.5s ease;"></div></div>'
-            '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-            + _stat("Time Left", eta_str)
-            + (_stat("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
-            + _stat("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
-            '</div></div>'
+            f'<div style="display:flex;justify-content:space-between;font-size:0.8em;'
+            f'color:var(--ta-card-sub);">'
+            f'<span>{pct_int}% complete</span>'
+            f'<span>elapsed: {elapsed}</span></div>'
+            '</div>'
         )
 
     # ── Claude AI stage — estimated ETA ──────────────────────────────────────
@@ -2265,28 +2376,20 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
-            'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
+            'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:12px;">'
+            'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:14px;">'
             'Step 2 of 2 &nbsp;&mdash;&nbsp; Analyzing with AI</div>'
-            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            '<div style="font-size:4.5em;font-weight:900;color:#c4b5fd;'
-            'font-family:monospace;line-height:1;letter-spacing:-0.04em;">50</div>'
-            '<div style="font-size:2em;font-weight:700;color:#a855f7;margin-bottom:6px;">%+</div>'
-            '</div>'
-            '<div style="font-size:0.82em;color:var(--ta-card-sub);margin-bottom:12px;">'
-            'AI is reading the transcript and writing your report…</div>'
-            + _slide_css +
-            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
-            'overflow:hidden;position:relative;margin-bottom:10px;">'
+            + _hero_time(finish_str, eta_str, "#a855f7", "#c4b5fd", approx=bool(finish_str)) +
+            _slide_css +
+            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:12px;'
+            'overflow:hidden;position:relative;margin-bottom:8px;">'
             '<div style="position:absolute;width:40%;height:100%;background:#a855f7;'
             'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
             '</div>'
-            '<div style="display:flex;gap:16px;flex-wrap:wrap;">'
-            + _stat("~Time Left", eta_str)
-            + (_stat("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
-            + _stat("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
-            '</div></div>'
+            f'<div style="text-align:right;font-size:0.8em;color:var(--ta-card-sub);">'
+            f'elapsed: {elapsed}</div>'
+            '</div>'
         )
 
     # ── Other stages (loading / extracting / whisper indeterminate) ──────────
@@ -2320,24 +2423,24 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     return tracker + (
         f'<div style="background:var(--ta-card-bg);border:2px solid {color};'
-        f'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
+        f'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
         f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.1em;color:{text_clr};margin-bottom:12px;">'
+        f'letter-spacing:0.1em;color:{text_clr};margin-bottom:14px;">'
         f'{step} &nbsp;&mdash;&nbsp; {label}</div>'
+        f'<div style="text-align:center;margin-bottom:10px;">'
+        f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.1em;color:{text_clr};margin-bottom:2px;">Done by</div>'
+        f'<div style="font-size:1.6em;font-weight:700;color:var(--ta-card-sub);">calculating…</div>'
+        f'</div>'
         f'{overlay_pct}'
         f'{_slide_css}'
-        f'<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
-        f'overflow:hidden;position:relative;margin-bottom:10px;">'
+        f'<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:12px;'
+        f'overflow:hidden;position:relative;margin-bottom:8px;">'
         f'<div style="position:absolute;width:40%;height:100%;background:{color};'
         f'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
         f'</div>'
-        f'<div style="display:flex;gap:8px;">'
-        f'<div style="background:var(--ta-stat-bg);border-radius:8px;padding:8px 14px;">'
-        f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.08em;color:var(--ta-card-sub);">Elapsed</div>'
-        f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
-        f'font-family:monospace;">{elapsed}</div>'
-        f'</div></div></div>'
+        f'<div style="text-align:right;font-size:0.8em;color:var(--ta-card-sub);">elapsed: {elapsed}</div>'
+        f'</div>'
     )
 
 
@@ -2939,6 +3042,22 @@ def process_file(
             except Exception:
                 f_p = None
 
+            f_docx = _generate_docx(stem, combined_text, job_dir / f"{stem}_report.docx")
+
+            srt_content = _transcript_to_srt(result.clean_transcript)
+            f_srt = None
+            if srt_content:
+                _srt_path = job_dir / f"{stem}_transcript.srt"
+                _srt_path.write_text(srt_content, encoding="utf-8")
+                f_srt = str(_srt_path)
+
+            vtt_content = _transcript_to_vtt(result.clean_transcript)
+            f_vtt = None
+            if vtt_content:
+                _vtt_path = job_dir / f"{stem}_transcript.vtt"
+                _vtt_path.write_text(vtt_content, encoding="utf-8")
+                f_vtt = str(_vtt_path)
+
             total_elapsed = _elapsed()
             import datetime as _dtt
             _rd = {"summary": summary_md, "transcript": result.clean_transcript,
@@ -2966,6 +3085,7 @@ def process_file(
                 analytics=analytics_md,
                 combined=combined_text,
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
+                dl_docx=f_docx, dl_srt=f_srt, dl_vtt=f_vtt,
                 dl_acc=gr.update(open=True),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
@@ -4192,6 +4312,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 </div>""")
                 dl_pdf        = gr.File(label="Report (.pdf) — formatted, printable")
                 dl_report     = gr.File(label="Report (.md) — markdown")
+                dl_docx       = gr.File(label="Report (.docx) — Word document")
                 dl_combined   = gr.File(label="Combined Report (.txt) — all sections")
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
@@ -4200,6 +4321,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
 </div>""")
                 dl_transcript = gr.File(label="Clean Transcript (.txt)")
                 dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
+                dl_srt        = gr.File(label="Subtitles (.srt) — for video players")
+                dl_vtt        = gr.File(label="Subtitles (.vtt) — WebVTT format")
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:10px 0 6px;">
@@ -4356,6 +4479,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             summary_out, transcript_out, dialogue_out,
             profiles_out, interview_out, analytics_out, combined_out,
             dl_transcript, dl_speakers, dl_report, dl_combined, dl_json, dl_pdf,
+            dl_docx, dl_srt, dl_vtt,
             download_accordion,
             log_out,
             eta_panel,
@@ -4376,7 +4500,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[
             summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
             analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
-            dl_combined, dl_json, dl_pdf, download_accordion, load_last_msg,
+            dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, load_last_msg,
         ],
     )
 
@@ -4393,7 +4517,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[
             summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
             analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
-            dl_combined, dl_json, dl_pdf, download_accordion, history_msg,
+            dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, history_msg,
         ],
     )
 

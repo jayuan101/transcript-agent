@@ -1050,6 +1050,167 @@ def transcribe_with_google_stt(
     return "\n".join(lines), lang_code
 
 
+def transcribe_with_elevenlabs(
+    path: str,
+    api_key: str,
+    model: str = "scribe_v1",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """ElevenLabs Scribe STT. Returns (transcript_str, detected_lang)."""
+    import requests as _req
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    _SUPPORTED = {".mp3", ".wav", ".m4a", ".mp4", ".webm", ".ogg", ".flac", ".aac"}
+    if Path(path).suffix.lower() not in _SUPPORTED:
+        _log("Converting audio for ElevenLabs...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-ar", "16000", "-ac", "1", "-q:a", "4", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg conversion failed for ElevenLabs.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Sending to ElevenLabs Scribe ({model}){dur_note}...")
+
+    try:
+        with open(audio_path, "rb") as f:
+            form = {"model_id": (None, model)}
+            if language and language != "auto":
+                form["language_code"] = (None, language)
+            resp = _req.post(
+                "https://api.elevenlabs.io/v1/speech-to-text",
+                headers={"xi-api-key": api_key},
+                files={"audio": f},
+                data={"model_id": model, **({"language_code": language} if language and language != "auto" else {})},
+                timeout=300,
+            )
+        resp.raise_for_status()
+    except _req.exceptions.HTTPError as e:
+        body = ""
+        try: body = e.response.text[:300]
+        except Exception: pass
+        raise RuntimeError(f"ElevenLabs API error {e.response.status_code}: {body}")
+    except _req.exceptions.ConnectionError:
+        raise RuntimeError("Cannot reach api.elevenlabs.io — check your network or firewall.")
+    except _req.exceptions.Timeout:
+        raise RuntimeError("ElevenLabs request timed out (>5 min). File may be too large.")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    data = resp.json()
+    text = data.get("text", "").strip()
+    detected_lang = data.get("language_code", "")
+    if not text:
+        raise RuntimeError("ElevenLabs returned an empty transcript.")
+
+    total_words = len(text.split())
+    _log(f"ElevenLabs complete! ~{total_words:,} words." + (f"  Language: {detected_lang}" if detected_lang else ""))
+    return text, detected_lang
+
+
+def transcribe_with_rev_ai(
+    path: str,
+    api_key: str,
+    model: str = "machine",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """Rev.ai STT (async). Returns (transcript_str, detected_lang)."""
+    import requests as _req
+    import time as _t_rev
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    _SUPPORTED = {".mp3", ".wav", ".m4a", ".mp4", ".ogg", ".flac", ".aac"}
+    if Path(path).suffix.lower() not in _SUPPORTED:
+        _log("Converting audio for Rev.ai...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-ar", "16000", "-ac", "1", "-q:a", "4", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg conversion failed for Rev.ai.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Uploading to Rev.ai ({model}){dur_note}...")
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+    job_id = None
+    try:
+        with open(audio_path, "rb") as f:
+            submit_data = {}
+            if model:
+                submit_data["transcriber"] = model
+            if language and language != "auto":
+                submit_data["language"] = language
+            resp = _req.post(
+                "https://api.rev.ai/speechtotext/v1/jobs",
+                headers=headers,
+                files={"media": (Path(audio_path).name, f)},
+                data={"options": str(submit_data).replace("'", '"')} if submit_data else {},
+                timeout=300,
+            )
+        resp.raise_for_status()
+        job_id = resp.json()["id"]
+        _log(f"Rev.ai job submitted (id={job_id[:8]}...), processing...")
+
+        while True:
+            _t_rev.sleep(5)
+            r = _req.get(f"https://api.rev.ai/speechtotext/v1/jobs/{job_id}", headers=headers, timeout=30)
+            r.raise_for_status()
+            status = r.json().get("status", "")
+            if status == "transcribed":
+                break
+            if status in ("failed", "deleted"):
+                fail = r.json().get("failure_detail", "unknown error")
+                raise RuntimeError(f"Rev.ai job failed: {fail}")
+            _log(f"Rev.ai: {status}...")
+
+        tr = _req.get(
+            f"https://api.rev.ai/speechtotext/v1/jobs/{job_id}/transcript",
+            headers={**headers, "Accept": "text/plain"},
+            timeout=60,
+        )
+        tr.raise_for_status()
+        text = tr.text.strip()
+    except _req.exceptions.HTTPError as e:
+        body = ""
+        try: body = e.response.text[:300]
+        except Exception: pass
+        raise RuntimeError(f"Rev.ai API error {e.response.status_code}: {body}")
+    except _req.exceptions.ConnectionError:
+        raise RuntimeError("Cannot reach api.rev.ai — check your network or firewall.")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    total_words = len(text.split())
+    _log(f"Rev.ai complete! ~{total_words:,} words.")
+    return text, ""
+
+
 def load_srt(path: str) -> str:
     text = Path(path).read_text(encoding="utf-8", errors="replace")
     lines, ts, buf = [], "", []
@@ -1723,7 +1884,7 @@ def run(
     checkpoint_text: str = None,    # pre-saved Whisper text (skips transcription step)
     checkpoint_json: str = None,    # pre-saved WhisperX JSON string
     on_whisper_done=None,           # callable(text, json_str) — fired after Whisper to save checkpoint
-    stt_provider: str = "whisper",  # "whisper" | "deepgram" | "assemblyai" | "groq_whisper" | "openai_whisper" | "google_stt"
+    stt_provider: str = "whisper",  # "whisper"|"deepgram"|"assemblyai"|"groq_whisper"|"openai_whisper"|"google_stt"|"elevenlabs"|"rev_ai"
     deepgram_api_key: str = None,   # Deepgram API key (backward compat)
     deepgram_model: str = "nova-2", # Deepgram model (backward compat)
     stt_api_key: str = None,        # API key for any cloud STT provider
@@ -1746,7 +1907,7 @@ def run(
     raw_whisperx = {}
     _detected_lang = ""
 
-    _CLOUD_STT = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt"}
+    _CLOUD_STT = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt", "elevenlabs", "rev_ai"}
     _use_cloud_stt = stt_provider in _CLOUD_STT and ext in (AUDIO_EXTS | VIDEO_EXTS)
     # Resolve generic key/model (stt_api_key overrides legacy deepgram_api_key for new providers)
     _cloud_key = stt_api_key or deepgram_api_key
@@ -1798,6 +1959,18 @@ def run(
             raw_text, _detected_lang = transcribe_with_google_stt(
                 file_path, _cloud_key,
                 model=_cloud_model or "latest_long",
+                language=lang_arg, on_log=on_log,
+            )
+        elif stt_provider == "elevenlabs":
+            raw_text, _detected_lang = transcribe_with_elevenlabs(
+                file_path, _cloud_key,
+                model=_cloud_model or "scribe_v1",
+                language=lang_arg, on_log=on_log,
+            )
+        elif stt_provider == "rev_ai":
+            raw_text, _detected_lang = transcribe_with_rev_ai(
+                file_path, _cloud_key,
+                model=_cloud_model or "machine",
                 language=lang_arg, on_log=on_log,
             )
         else:

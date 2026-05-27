@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.15"
+APP_VERSION = "3.16"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -769,6 +769,22 @@ _STT_PROVIDERS = {
         "models": ["latest_long", "latest_short", "command_and_search", "phone_call"],
         "default_model": "latest_long",
         "model_info": "latest_long = best for recordings   |   latest_short = best for short clips",
+    },
+    "ElevenLabs (Cloud)": {
+        "id": "elevenlabs",
+        "key_placeholder": "sk_…",
+        "key_info": "Get key: elevenlabs.io → Profile → API Keys",
+        "models": ["scribe_v1"],
+        "default_model": "scribe_v1",
+        "model_info": "scribe_v1 = highest accuracy, 32 languages, speaker diarization",
+    },
+    "Rev.ai (Cloud)": {
+        "id": "rev_ai",
+        "key_placeholder": "your_rev_ai_token",
+        "key_info": "Get key: rev.ai → Dashboard → Access Tokens",
+        "models": ["machine", "fusion"],
+        "default_model": "machine",
+        "model_info": "machine = fastest   |   fusion = highest accuracy (slower, premium)",
     },
 }
 
@@ -2568,8 +2584,8 @@ def process_file(
 
     _stt_cloud_key = (stt_cloud_key or "").strip()
     _stt_cloud_model = (stt_cloud_model or "").strip()
-    _stt_is_cloud = not (stt_provider or "").startswith("Whisper")
     _stt_id = _STT_PROVIDERS.get(stt_provider, {}).get("id", "whisper")
+    _stt_is_cloud = _stt_id != "whisper"
     if _stt_is_cloud and not _stt_cloud_key:
         yield _err(f"Please enter your {stt_provider} API key in the Transcription Engine section.")
         return
@@ -4229,11 +4245,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Transcription Engine", open=True):
-                stt_radio = gr.Radio(
+                stt_radio = gr.Dropdown(
                     choices=list(_STT_PROVIDERS.keys()),
                     value="Whisper (Local)",
                     label="Engine",
                     info="Whisper runs locally (free, private). Cloud providers are faster and support more languages.",
+                    allow_custom_value=False,
                 )
                 # Whisper-only options
                 whisper_input = gr.Dropdown(
@@ -4528,17 +4545,30 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
     # ── Transcription Engine toggle ───────────────────────────────────────────
-    def on_stt_change(stt):
+    # STT providers whose API key can be reused from the analysis provider at the top
+    _STT_KEY_REUSE = {
+        "Groq Whisper (Cloud)": "Groq",
+        "OpenAI Whisper API (Cloud)": "OpenAI",
+    }
+
+    def on_stt_change(stt, current_api_key, current_provider):
         is_local = stt.startswith("Whisper")
         cfg = _STT_PROVIDERS.get(stt, {})
+
+        # Auto-fill key when the STT provider matches the analysis provider at top
+        key_kwargs = {
+            "visible": not is_local,
+            "label": f"{stt} API Key",
+            "placeholder": cfg.get("key_placeholder", ""),
+            "info": cfg.get("key_info", ""),
+        }
+        matched = _STT_KEY_REUSE.get(stt)
+        if matched and matched == current_provider and current_api_key:
+            key_kwargs["value"] = current_api_key
+
         return (
             gr.update(visible=is_local),
-            gr.update(
-                visible=not is_local,
-                label=f"{stt} API Key",
-                placeholder=cfg.get("key_placeholder", ""),
-                info=cfg.get("key_info", ""),
-            ),
+            gr.update(**key_kwargs),
             gr.update(
                 visible=not is_local,
                 choices=cfg.get("models", []),
@@ -4549,7 +4579,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     stt_radio.change(
         fn=on_stt_change,
-        inputs=stt_radio,
+        inputs=[stt_radio, user_api_key, provider_dropdown],
         outputs=[whisper_input, stt_cloud_key_input, stt_cloud_model_input],
     )
 

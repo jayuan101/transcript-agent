@@ -37,7 +37,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.11"
+APP_VERSION = "3.12"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -839,12 +839,15 @@ def load_last_result():
             data.get("interview", ""),
             data.get("analytics", ""),
             data.get("combined", ""),
-            f_t if Path(f_t).exists() else None,
-            f_s if Path(f_s).exists() else None,
-            f_r if Path(f_r).exists() else None,
-            f_c if Path(f_c).exists() else None,
-            f_j if Path(f_j).exists() else None,
-            f_p, f_docx, f_srt, f_vtt,
+            gr.update(value=f_t if Path(f_t).exists() else None, visible=Path(f_t).exists()),
+            gr.update(value=f_s if Path(f_s).exists() else None, visible=Path(f_s).exists()),
+            gr.update(value=f_r if Path(f_r).exists() else None, visible=Path(f_r).exists()),
+            gr.update(value=f_c if Path(f_c).exists() else None, visible=Path(f_c).exists()),
+            gr.update(value=f_j if Path(f_j).exists() else None, visible=Path(f_j).exists()),
+            gr.update(value=f_p, visible=f_p is not None),
+            gr.update(value=f_docx, visible=f_docx is not None),
+            gr.update(value=f_srt, visible=f_srt is not None),
+            gr.update(value=f_vtt, visible=f_vtt is not None),
             gr.update(open=True),
             gr.update(value=msg, visible=True),
         ]
@@ -1012,12 +1015,15 @@ def load_job_from_history(job_id_input: str = ""):
         job.get("result_interview", ""),
         job.get("result_analytics", ""),
         job.get("result_combined", ""),
-        f_t if Path(f_t).exists() else None,
-        f_s if Path(f_s).exists() else None,
-        f_r if Path(f_r).exists() else None,
-        f_c if Path(f_c).exists() else None,
-        f_j if Path(f_j).exists() else None,
-        f_p, f_docx, f_srt, f_vtt,
+        gr.update(value=f_t if Path(f_t).exists() else None, visible=Path(f_t).exists()),
+        gr.update(value=f_s if Path(f_s).exists() else None, visible=Path(f_s).exists()),
+        gr.update(value=f_r if Path(f_r).exists() else None, visible=Path(f_r).exists()),
+        gr.update(value=f_c if Path(f_c).exists() else None, visible=Path(f_c).exists()),
+        gr.update(value=f_j if Path(f_j).exists() else None, visible=Path(f_j).exists()),
+        gr.update(value=f_p, visible=f_p is not None),
+        gr.update(value=f_docx, visible=f_docx is not None),
+        gr.update(value=f_srt, visible=f_srt is not None),
+        gr.update(value=f_vtt, visible=f_vtt is not None),
         gr.update(open=True),
         gr.update(value=msg, visible=True),
     ]
@@ -1411,6 +1417,31 @@ html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !import
 html.dark button.selected { background: #2a2a3a !important; }
 html.dark .big-btn button { background: linear-gradient(135deg,#4338ca,#6366f1,#7c3aed) !important; color: #fff !important; border: none !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
+
+/* ── Download buttons ── */
+.dl-btn button {
+    border-radius: 20px !important;
+    font-size: 0.8em !important;
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    border-width: 1.5px !important;
+    white-space: nowrap !important;
+    min-width: 80px !important;
+}
+.dl-pdf button   { border-color: #ef4444 !important; color: #ef4444 !important; }
+.dl-docx button  { border-color: #3b82f6 !important; color: #3b82f6 !important; }
+.dl-md button    { border-color: #8b5cf6 !important; color: #8b5cf6 !important; }
+.dl-txt button   { border-color: #6b7280 !important; color: #6b7280 !important; }
+.dl-srt button   { border-color: #f59e0b !important; color: #f59e0b !important; }
+.dl-vtt button   { border-color: #10b981 !important; color: #10b981 !important; }
+.dl-json button  { border-color: #06b6d4 !important; color: #06b6d4 !important; }
+.dl-pdf button:hover   { background: #ef4444 !important; color: #fff !important; }
+.dl-docx button:hover  { background: #3b82f6 !important; color: #fff !important; }
+.dl-md button:hover    { background: #8b5cf6 !important; color: #fff !important; }
+.dl-txt button:hover   { background: #6b7280 !important; color: #fff !important; }
+.dl-srt button:hover   { background: #f59e0b !important; color: #fff !important; }
+.dl-vtt button:hover   { background: #10b981 !important; color: #fff !important; }
+.dl-json button:hover  { background: #06b6d4 !important; color: #fff !important; }
 html.dark #ta-btn-dark  { background: #6366f1 !important; color: #fff !important; }
 html.dark ::-webkit-scrollbar-track { background: #0a0a12 !important; }
 html.dark ::-webkit-scrollbar-thumb { background: #2e2e42 !important; border-radius: 6px !important; }
@@ -2211,7 +2242,7 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
 
     pdf_path = out_dir / pdf_name
     _generate_pdf(f"{stem}  [{detected or target_lang}]", combined, pdf_path)
-    return str(pdf_path)
+    return gr.update(value=str(pdf_path), visible=True)
 
 
 def _step_tracker_html(stage: str, done: bool = False) -> str:
@@ -3084,8 +3115,15 @@ def process_file(
                 interview=interview_md,
                 analytics=analytics_md,
                 combined=combined_text,
-                dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
-                dl_docx=f_docx, dl_srt=f_srt, dl_vtt=f_vtt,
+                dl_t=gr.update(value=f_t, visible=True),
+                dl_s=gr.update(value=f_s, visible=True),
+                dl_r=gr.update(value=f_r, visible=True),
+                dl_c=gr.update(value=f_c, visible=True),
+                dl_j=gr.update(value=f_j, visible=True),
+                dl_p=gr.update(value=f_p, visible=f_p is not None),
+                dl_docx=gr.update(value=f_docx, visible=f_docx is not None),
+                dl_srt=gr.update(value=f_srt, visible=f_srt is not None),
+                dl_vtt=gr.update(value=f_vtt, visible=f_vtt is not None),
                 dl_acc=gr.update(open=True),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
@@ -4288,7 +4326,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("Download Outputs", open=False)
+            download_accordion = gr.Accordion("📥 Download Outputs", open=False)
             with download_accordion:
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
@@ -4303,32 +4341,35 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         scale=3,
                         info="Translate the report before generating — applies to PDF",
                     )
-                    pdf_regen_btn = gr.Button("🔄 Generate PDF", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("🔄 Regenerate PDF", scale=1, size="sm")
                 gr.HTML("<hr style='margin:10px 0 8px;opacity:0.25;'>")
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:4px 0 6px;">
-  Report files
+  📄 Report files
 </div>""")
-                dl_pdf        = gr.File(label="Report (.pdf) — formatted, printable")
-                dl_report     = gr.File(label="Report (.md) — markdown")
-                dl_docx       = gr.File(label="Report (.docx) — Word document")
-                dl_combined   = gr.File(label="Combined Report (.txt) — all sections")
+                with gr.Row():
+                    dl_pdf      = gr.DownloadButton("📄 PDF",      visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-pdf"])
+                    dl_docx     = gr.DownloadButton("📝 DOCX",     visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-docx"])
+                    dl_report   = gr.DownloadButton("📋 Markdown", visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-md"])
+                    dl_combined = gr.DownloadButton("📃 Full TXT", visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-txt"])
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:10px 0 6px;">
-  Transcript files
+  📝 Transcript files
 </div>""")
-                dl_transcript = gr.File(label="Clean Transcript (.txt)")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
-                dl_srt        = gr.File(label="Subtitles (.srt) — for video players")
-                dl_vtt        = gr.File(label="Subtitles (.vtt) — WebVTT format")
+                with gr.Row():
+                    dl_transcript = gr.DownloadButton("📄 Transcript",  visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-txt"])
+                    dl_speakers   = gr.DownloadButton("👥 Speakers",    visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-txt"])
+                    dl_srt        = gr.DownloadButton("🎬 SRT",         visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-srt"])
+                    dl_vtt        = gr.DownloadButton("🎬 VTT",         visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-vtt"])
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:10px 0 6px;">
-  Raw data
+  📊 Raw data
 </div>""")
-                dl_json       = gr.File(label="Full JSON (.json) — all AI output data")
+                with gr.Row():
+                    dl_json = gr.DownloadButton("📊 JSON", visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-json"])
 
             bw_display = gr.HTML(value=_get_bandwidth_html(), visible=_PSUTIL_OK)
             bw_timer   = gr.Timer(value=2, active=True)

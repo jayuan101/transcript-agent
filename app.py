@@ -2684,6 +2684,8 @@ def process_file(
     raw_shown       = False
     claude_started  = False
     claude_start_time: float = 0.0
+    stt_stage_start: float   = 0.0
+    stt_elapsed_str: str     = ""
     stage           = "loading"
     last_activity   = time.time()
     stall_warned    = set()
@@ -2778,8 +2780,9 @@ def process_file(
                 yield _out(status=_status_compact("🎬", "Extracting audio from video…", elapsed),
                            eta=_eta_panel_html("extracting", elapsed=elapsed, tz_name=tz_name), log=log)
             elif stage == "whisper":
-                log = _add_header("🎤  TRANSCRIBING AUDIO  (Step 1 of 2)")
-                log = _add_log("Whisper model loaded — transcription in progress…", "info")
+                stt_stage_start = time.time()
+                log = _add_header(f"🎤  TRANSCRIBING AUDIO  ({stt_provider}) — Step 1 of 2")
+                log = _add_log("Transcription in progress…", "info")
                 yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed, tz_name=tz_name), log=log)
             elif stage == "claude":
@@ -2810,7 +2813,12 @@ def process_file(
         elif kind == "transcript":
             raw_shown = True
             elapsed   = _elapsed()
-            log_text  = _add_log("✅ Transcription complete!", "done")
+            if stt_stage_start:
+                _stt_secs = int(time.time() - stt_stage_start)
+                _m, _s = divmod(_stt_secs, 60)
+                stt_elapsed_str = f"{_m}m {_s:02d}s" if _m else f"{_s}s"
+            _stt_done_msg = f"✅ Transcription complete! ({stt_provider} took {stt_elapsed_str})" if stt_elapsed_str else "✅ Transcription complete!"
+            log_text  = _add_log(_stt_done_msg, "done")
             log_text  = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
             log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
             if not claude_start_time:
@@ -2832,6 +2840,12 @@ def process_file(
                 summary_md += "\n\n## Key Points\n" + "\n".join(f"- {p}" for p in result.key_points)
             if inc_action_items and result.action_items:
                 summary_md += "\n\n## Action Items\n" + "\n".join(f"- [ ] {a}" for a in result.action_items)
+            if stt_elapsed_str:
+                summary_md += f"\n\n---\n\n_⏱ Transcription engine: **{stt_provider}** — completed in **{stt_elapsed_str}**_"
+            if result.clean_transcript:
+                summary_md += "\n\n---\n\n## 📄 Transcript\n\n" + result.clean_transcript
+            if result.speaker_dialogue:
+                summary_md += "\n\n---\n\n## 🗣️ Speaker Dialogue\n\n" + result.speaker_dialogue
 
             # ── Speaker profiles ──────────────────────────────────────────────
             if result.speaker_profiles:
@@ -2847,7 +2861,8 @@ def process_file(
             # ── Interview Q&A — dedicated Interview tab content ──────────────────
             interview_md = ""
             if inc_interview and result.interview_questions:
-                _vicon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+                _vicon  = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+                _vlabel = {"strong": "Great", "acceptable": "Good", "weak": "Needs Improvement", "missed": "Missed"}
                 _ilines = ["## 🎤 Interview Q&A\n"]
 
                 if result.round_advance_probability >= 0:
@@ -2863,7 +2878,7 @@ def process_file(
                     _ilines += [
                         f"### Q{_qi}. {_q.get('question', '')}",
                         "",
-                        f"**Verdict:** {_icon} {(_q.get('verdict') or '').upper()}",
+                        f"**Verdict:** {_icon} {_vlabel.get(_verdict, (_q.get('verdict') or '').upper())}",
                         "",
                     ]
                     if _q.get("your_answer_summary"):

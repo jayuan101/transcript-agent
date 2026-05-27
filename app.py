@@ -1143,7 +1143,7 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
   100% { background-position: -200% center; }
 }
 .big-btn button {
-    background: linear-gradient(135deg, #4f46e5 0%, #6366f1 40%, #8b5cf6 70%, #6366f1 100%) !important;
+    background: linear-gradient(135deg, #059669 0%, #10b981 40%, #34d399 70%, #10b981 100%) !important;
     background-size: 300% 100% !important;
     color: #fff !important;
     font-size: 1.06em !important;
@@ -1155,19 +1155,19 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     padding: 16px 24px !important;
     min-height: 58px !important;
     width: 100% !important;
-    box-shadow: 0 4px 20px rgba(99,102,241,0.50), 0 1px 4px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    box-shadow: 0 4px 20px rgba(16,185,129,0.50), 0 1px 4px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2) !important;
     transition: all 0.25s ease !important;
     position: relative !important;
     overflow: hidden !important;
 }
 .big-btn button:hover {
     background-position: right center !important;
-    box-shadow: 0 10px 36px rgba(99,102,241,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
+    box-shadow: 0 10px 36px rgba(16,185,129,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
     transform: translateY(-3px) scale(1.01) !important;
 }
 .big-btn button:active {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 14px rgba(99,102,241,0.45) !important;
+    box-shadow: 0 4px 14px rgba(16,185,129,0.45) !important;
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
@@ -1422,7 +1422,7 @@ html.dark .file-preview { background: #1e1e2a !important; color: #f0f0ff !import
 html.dark .dropdown-arrow svg { fill: #8888a8 !important; }
 html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !important; color: #f0f0ff !important; }
 html.dark button.selected { background: #2a2a3a !important; }
-html.dark .big-btn button { background: linear-gradient(135deg,#4338ca,#6366f1,#7c3aed) !important; color: #fff !important; border: none !important; }
+html.dark .big-btn button { background: linear-gradient(135deg,#047857,#10b981,#34d399) !important; color: #fff !important; border: none !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
 
 /* ── Download buttons ── */
@@ -1529,8 +1529,15 @@ def _fmt_eta(eta_secs: int) -> str:
 
 
 def _finish_time_str(eta_secs: int, tz_name: str = "") -> str:
-    from datetime import datetime, timedelta
-    finish = datetime.now() + timedelta(seconds=eta_secs)
+    from datetime import datetime, timezone, timedelta
+    finish_utc = datetime.now(timezone.utc) + timedelta(seconds=eta_secs)
+    if tz_name:
+        try:
+            finish = finish_utc.astimezone(zoneinfo.ZoneInfo(tz_name))
+        except Exception:
+            finish = finish_utc
+    else:
+        finish = finish_utc
     hour = finish.hour % 12 or 12
     ampm = "AM" if finish.hour < 12 else "PM"
     return f"{hour}:{finish.minute:02d} {ampm}"
@@ -3449,7 +3456,7 @@ _THEME_JS = """
       '--ta-stat-label:#a5b4fc;--ta-stat-val:#e8e8f0;',
       '--ta-log-bg:#0a0a12;--ta-log-border:#1e1e40;--ta-log-ts:#64748b;--ta-log-hdr:#e2e8f0}',
       /* Process button */
-      '.big-btn button{background:linear-gradient(135deg,#4f46e5,#6366f1)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(99,102,241,0.45)!important}',
+      '.big-btn button{background:linear-gradient(135deg,#059669,#10b981)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(16,185,129,0.45)!important}',
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -3513,7 +3520,7 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e1e2a!important;border-color:#2e2e42!important;color:#e8e8f0!important}',
     'html.dark button.selected{background:#28283a!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#4f46e5,#6366f1)!important;color:#fff!important;border:none!important}',
+    'html.dark .big-btn button{background:linear-gradient(135deg,#047857,#10b981)!important;color:#fff!important;border:none!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#9090a8!important}',
     'html.dark #ta-btn-dark{background:#6366f1!important;color:#fff!important}',
@@ -4413,7 +4420,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
 
-            status_bar = gr.HTML(value=_IDLE_STATUS)
+            status_bar = gr.HTML(value=_IDLE_STATUS, elem_id="ta-status-bar")
             eta_panel  = gr.HTML(value="")
             log_out    = gr.HTML(
                 value='<div id="ta-log-wrap" style="background:var(--ta-log-bg,#0f172a);'
@@ -4536,7 +4543,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     process_btn.click(
         fn=process_file,
-        js="(...args) => { if(window._taAcquireWakeLock) window._taAcquireWakeLock(); return args; }",
+        js="(...args) => { if(window._taAcquireWakeLock) window._taAcquireWakeLock(); var el = document.getElementById('ta-status-bar'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); return args; }",
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_name_input, speakers_count_input, whisper_input,

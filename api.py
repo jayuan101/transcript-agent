@@ -41,7 +41,7 @@ app = FastAPI(
         "Supports **Whisper** (local, free) and **Deepgram** (cloud, fast) for "
         "transcription, and any AI provider for analysis (Claude, OpenAI, Gemini, Groq, …)."
     ),
-    version="3.9.0",
+    version="3.10.0",
 )
 
 app.add_middleware(
@@ -195,22 +195,45 @@ STT_PROVIDERS = {
         "display": "Deepgram (Cloud)",
         "description": "Deepgram Nova — cloud API, fast and highly accurate",
         "key_required": True,
-        "key_header": "dg-…",
-        "docs": "console.deepgram.com → Create API Key",
+        "docs": "console.deepgram.com",
         "models": [
-            "nova-2",
-            "nova-2-general",
-            "nova-2-meeting",
-            "nova-2-phonecall",
-            "nova-2-voicemail",
-            "nova",
-            "enhanced",
-            "base",
-            "whisper-large",
-            "whisper-medium",
-            "whisper-small",
+            "nova-2", "nova-2-general", "nova-2-meeting", "nova-2-phonecall",
+            "nova-2-voicemail", "nova", "enhanced", "base",
+            "whisper-large", "whisper-medium", "whisper-small",
         ],
         "default_model": "nova-2",
+    },
+    "assemblyai": {
+        "display": "AssemblyAI (Cloud)",
+        "description": "AssemblyAI — best speaker diarization, auto chapters",
+        "key_required": True,
+        "docs": "app.assemblyai.com",
+        "models": ["best", "nano"],
+        "default_model": "best",
+    },
+    "groq_whisper": {
+        "display": "Groq Whisper (Cloud)",
+        "description": "Whisper on Groq infrastructure — fast cloud Whisper",
+        "key_required": True,
+        "docs": "console.groq.com",
+        "models": ["whisper-large-v3-turbo", "whisper-large-v3", "distil-whisper-large-v3-en"],
+        "default_model": "whisper-large-v3-turbo",
+    },
+    "openai_whisper": {
+        "display": "OpenAI Whisper API (Cloud)",
+        "description": "OpenAI cloud Whisper — no local GPU, pay-per-use",
+        "key_required": True,
+        "docs": "platform.openai.com",
+        "models": ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"],
+        "default_model": "whisper-1",
+    },
+    "google_stt": {
+        "display": "Google Cloud STT (Cloud)",
+        "description": "Google Speech-to-Text — 125+ languages",
+        "key_required": True,
+        "docs": "console.cloud.google.com",
+        "models": ["latest_long", "latest_short", "command_and_search", "phone_call"],
+        "default_model": "latest_long",
     },
 }
 
@@ -239,8 +262,8 @@ def _run_transcription(
     # STT
     stt_provider: str,
     whisper_model: str,
-    deepgram_api_key: Optional[str],
-    deepgram_model: str,
+    stt_api_key: Optional[str],
+    stt_model: str,
     # language / speakers
     language: Optional[str],
     panel_mode: bool,
@@ -278,8 +301,8 @@ def _run_transcription(
             language=language or None,
             on_log=on_log,
             stt_provider=stt_provider,
-            deepgram_api_key=deepgram_api_key or None,
-            deepgram_model=deepgram_model,
+            stt_api_key=stt_api_key or None,
+            stt_model=stt_model or None,
         )
 
         _set_job(job_id,
@@ -371,7 +394,7 @@ def list_stt_providers():
     Returns supported Speech-to-Text providers.
     Pass the provider `id` as `stt_provider` when calling `/api/transcribe`.
     - `whisper` — runs locally, no API key needed
-    - `deepgram` — cloud API, fast; requires a `deepgram_api_key`
+    - `deepgram` | `assemblyai` | `groq_whisper` | `openai_whisper` | `google_stt` — cloud, require `stt_api_key`
     """
     return STT_PROVIDERS
 
@@ -381,10 +404,10 @@ async def transcribe_async(
     background_tasks: BackgroundTasks,
     file:             UploadFile    = File(..., description="Audio, video, or document to transcribe"),
     # ── STT ────────────────────────────────────────────────────────────────────
-    stt_provider:     str           = Form("whisper",  description="whisper | deepgram"),
+    stt_provider:     str           = Form("whisper",  description="whisper | deepgram | assemblyai | groq_whisper | openai_whisper | google_stt"),
     whisper_model:    str           = Form("base",     description="tiny | base | small | medium | large  (Whisper only)"),
-    deepgram_api_key: Optional[str] = Form(None,       description="Deepgram API key — required when stt_provider=deepgram"),
-    deepgram_model:   str           = Form("nova-2",   description="Deepgram model  (see GET /api/stt-providers)"),
+    stt_api_key:      Optional[str] = Form(None,       description="API key for cloud STT providers (deepgram, assemblyai, groq_whisper, openai_whisper, google_stt)"),
+    stt_model:        str           = Form("",         description="Model name for the chosen STT provider (see GET /api/stt-providers)"),
     # ── language / speakers ────────────────────────────────────────────────────
     language:         Optional[str] = Form(None,       description="ISO code e.g. 'en', 'es'. None = auto-detect"),
     panel_mode:       bool          = Form(False,       description="Enable multi-speaker diarization"),
@@ -399,13 +422,14 @@ async def transcribe_async(
     Upload a file and get a **job_id** back immediately.
     Poll `GET /api/jobs/{job_id}` for status and results.
 
-    **STT providers:** `whisper` (local, free) · `deepgram` (cloud, fast)
+    **STT providers:** `whisper` (local, free) · `deepgram` · `assemblyai` · `groq_whisper` · `openai_whisper` · `google_stt`
     **AI providers:** `claude` · `openai` · `gemini` · `groq` · `mistral` · `together` · `perplexity` · `ollama`
 
     Supported files: `.mp3 .wav .m4a .mp4 .mov .mkv .webm .srt .vtt .pdf .docx .txt`
     """
-    if stt_provider == "deepgram" and not (deepgram_api_key or "").strip():
-        raise HTTPException(status_code=422, detail="deepgram_api_key is required when stt_provider=deepgram")
+    cloud_providers = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt"}
+    if stt_provider in cloud_providers and not (stt_api_key or "").strip():
+        raise HTTPException(status_code=422, detail=f"stt_api_key is required when stt_provider={stt_provider}")
 
     ai_key, ai_type, ai_mdl, ai_base = _resolve_ai(ai_provider, ai_model, ai_api_key)
 
@@ -423,7 +447,7 @@ async def transcribe_async(
     background_tasks.add_task(
         _run_transcription,
         job_id, tmp.name, stem,
-        stt_provider, whisper_model, deepgram_api_key, deepgram_model,
+        stt_provider, whisper_model, stt_api_key, stt_model,
         language, panel_mode, num_speakers,
         ai_key, ai_type, ai_mdl, ai_base,
         report_style,
@@ -466,8 +490,8 @@ async def transcribe_sync(
     file:             UploadFile    = File(...),
     stt_provider:     str           = Form("whisper"),
     whisper_model:    str           = Form("base"),
-    deepgram_api_key: Optional[str] = Form(None),
-    deepgram_model:   str           = Form("nova-2"),
+    stt_api_key:      Optional[str] = Form(None),
+    stt_model:        str           = Form(""),
     language:         Optional[str] = Form(None),
     panel_mode:       bool          = Form(False),
     num_speakers:     Optional[int] = Form(None),
@@ -480,8 +504,9 @@ async def transcribe_sync(
     Same as `/api/transcribe` but **waits** and returns the full result in one response.
     Best for short documents or text files. Use the async endpoint for audio/video.
     """
-    if stt_provider == "deepgram" and not (deepgram_api_key or "").strip():
-        raise HTTPException(status_code=422, detail="deepgram_api_key is required when stt_provider=deepgram")
+    cloud_providers = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt"}
+    if stt_provider in cloud_providers and not (stt_api_key or "").strip():
+        raise HTTPException(status_code=422, detail=f"stt_api_key is required when stt_provider={stt_provider}")
 
     ai_key, ai_type, ai_mdl, ai_base = _resolve_ai(ai_provider, ai_model, ai_api_key)
 
@@ -497,7 +522,7 @@ async def transcribe_sync(
 
     _run_transcription(
         job_id, tmp.name, stem,
-        stt_provider, whisper_model, deepgram_api_key, deepgram_model,
+        stt_provider, whisper_model, stt_api_key, stt_model,
         language, panel_mode, num_speakers,
         ai_key, ai_type, ai_mdl, ai_base,
         report_style,

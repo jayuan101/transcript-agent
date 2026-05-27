@@ -37,7 +37,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.8"
+APP_VERSION = "3.9"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -715,6 +715,7 @@ _PROVIDERS = {
 # ── Speech-to-text (transcription) providers ─────────────────────────────────
 _STT_PROVIDERS = {
     "Whisper (Local)": {
+        "id": "whisper",
         "key_placeholder": None,
         "key_info": None,
         "models": ["tiny", "base", "small", "medium", "large"],
@@ -722,23 +723,48 @@ _STT_PROVIDERS = {
         "model_info": "tiny = fastest   |   large = most accurate",
     },
     "Deepgram (Cloud)": {
+        "id": "deepgram",
         "key_placeholder": "dg-…",
-        "key_info": "console.deepgram.com → Create API Key",
+        "key_info": "Get key: console.deepgram.com → API Keys",
         "models": [
-            "nova-2",
-            "nova-2-general",
-            "nova-2-meeting",
-            "nova-2-phonecall",
-            "nova-2-voicemail",
-            "nova",
-            "enhanced",
-            "base",
-            "whisper-large",
-            "whisper-medium",
-            "whisper-small",
+            "nova-2", "nova-2-general", "nova-2-meeting", "nova-2-phonecall",
+            "nova-2-voicemail", "nova", "enhanced", "base",
+            "whisper-large", "whisper-medium", "whisper-small",
         ],
         "default_model": "nova-2",
         "model_info": "nova-2 = best accuracy   |   nova = fast & accurate   |   enhanced/base = cheaper",
+    },
+    "AssemblyAI (Cloud)": {
+        "id": "assemblyai",
+        "key_placeholder": "your_assemblyai_key",
+        "key_info": "Get key: app.assemblyai.com → API Keys",
+        "models": ["best", "nano"],
+        "default_model": "best",
+        "model_info": "best = highest accuracy with speaker labels   |   nano = faster & cheaper",
+    },
+    "Groq Whisper (Cloud)": {
+        "id": "groq_whisper",
+        "key_placeholder": "gsk_…",
+        "key_info": "Get key: console.groq.com → API Keys",
+        "models": ["whisper-large-v3-turbo", "whisper-large-v3", "distil-whisper-large-v3-en"],
+        "default_model": "whisper-large-v3-turbo",
+        "model_info": "whisper-large-v3-turbo = fastest   |   whisper-large-v3 = most accurate",
+    },
+    "OpenAI Whisper API (Cloud)": {
+        "id": "openai_whisper",
+        "key_placeholder": "sk-…",
+        "key_info": "Get key: platform.openai.com → API Keys",
+        "models": ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"],
+        "default_model": "whisper-1",
+        "model_info": "whisper-1 = standard   |   gpt-4o-transcribe = highest accuracy (newer)",
+    },
+    "Google Cloud STT (Cloud)": {
+        "id": "google_stt",
+        "key_placeholder": "AIza…",
+        "key_info": "Get key: console.cloud.google.com → APIs & Services → Credentials",
+        "models": ["latest_long", "latest_short", "command_and_search", "phone_call"],
+        "default_model": "latest_long",
+        "model_info": "latest_long = best for recordings   |   latest_short = best for short clips",
     },
 }
 
@@ -2323,8 +2349,8 @@ def process_file(
     tz_name="",
     analysis_depth="balanced",
     stt_provider="Whisper (Local)",
-    deepgram_api_key="",
-    deepgram_model="nova-2",
+    stt_cloud_key="",
+    stt_cloud_model="",
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
@@ -2339,11 +2365,12 @@ def process_file(
         yield _err("Please enter the API base URL for your custom provider.")
         return
 
-    _dg_key = (deepgram_api_key or "").strip()
-    _dg_model = (deepgram_model or "nova-2").strip()
-    _use_dg = (stt_provider or "").startswith("Deepgram")
-    if _use_dg and not _dg_key:
-        yield _err("Please enter your Deepgram API key in the Transcription Engine section.")
+    _stt_cloud_key = (stt_cloud_key or "").strip()
+    _stt_cloud_model = (stt_cloud_model or "").strip()
+    _stt_is_cloud = not (stt_provider or "").startswith("Whisper")
+    _stt_id = _STT_PROVIDERS.get(stt_provider, {}).get("id", "whisper")
+    if _stt_is_cloud and not _stt_cloud_key:
+        yield _err(f"Please enter your {stt_provider} API key in the Transcription Engine section.")
         return
 
     _prevent_sleep()
@@ -2593,16 +2620,16 @@ def process_file(
                 language=lang_code,
                 language_variant=lang_variant,
                 speaker_names=speaker_names or None,
-                on_whisper_progress=on_whisper_progress if (is_av and not _use_dg) else None,
+                on_whisper_progress=on_whisper_progress if (is_av and not _stt_is_cloud) else None,
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
                 on_log=on_log,
                 checkpoint_text=_ckpt_text,
                 checkpoint_json=_ckpt_json,
                 on_whisper_done=_on_whisper_done if is_av else None,
-                stt_provider="deepgram" if _use_dg else "whisper",
-                deepgram_api_key=_dg_key if _use_dg else None,
-                deepgram_model=_dg_model,
+                stt_provider=_stt_id,
+                stt_api_key=_stt_cloud_key or None,
+                stt_model=_stt_cloud_model or None,
             )
             # Write status directly so it persists even if the browser disconnected
             import datetime as _dtt
@@ -3881,22 +3908,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
         load_last_btn = gr.Button("📂 Load Last Result", size="sm", variant="secondary")
         load_last_msg = gr.Markdown(visible=False)
 
-    with gr.Row():
-        provider_dropdown = gr.Dropdown(
-            label="AI Provider",
-            choices=list(_PROVIDERS.keys()),
-            value="Claude (Anthropic)",
-            scale=1,
-            elem_id="provider-sel",
-        )
-        model_dropdown = gr.Dropdown(
-            label="Model",
-            choices=_PROVIDERS["Claude (Anthropic)"]["models"],
-            value=_PROVIDERS["Claude (Anthropic)"]["models"][0],
-            scale=2,
-            allow_custom_value=True,
-            elem_id="model-sel",
-        )
+    provider_dropdown = gr.Dropdown(
+        label="AI Provider",
+        choices=list(_PROVIDERS.keys()),
+        value="Claude (Anthropic)",
+        elem_id="provider-sel",
+    )
+    model_dropdown = gr.Dropdown(
+        label="Model",
+        choices=_PROVIDERS["Claude (Anthropic)"]["models"],
+        value=_PROVIDERS["Claude (Anthropic)"]["models"][0],
+        allow_custom_value=True,
+        elem_id="model-sel",
+    )
 
     user_api_key = gr.Textbox(
         label="Claude (Anthropic) API Key",
@@ -3934,9 +3958,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     choices=list(_STT_PROVIDERS.keys()),
                     value="Whisper (Local)",
                     label="Engine",
-                    info="Whisper runs locally (free, private).  Deepgram is a cloud API (fast, highly accurate).",
+                    info="Whisper runs locally (free, private). Cloud providers are faster and support more languages.",
                 )
-                # Whisper options
+                # Whisper-only options
                 whisper_input = gr.Dropdown(
                     label="Whisper model",
                     choices=_STT_PROVIDERS["Whisper (Local)"]["models"],
@@ -3944,16 +3968,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     info="tiny = fastest   |   large = most accurate",
                     visible=True,
                 )
-                # Deepgram options (hidden by default)
-                deepgram_key_input = gr.Textbox(
+                # Cloud STT options (hidden when Whisper selected; label/choices update dynamically)
+                stt_cloud_key_input = gr.Textbox(
                     label="Deepgram API Key",
                     placeholder="dg-…",
                     type="password",
                     info="console.deepgram.com → Create API Key",
                     visible=False,
                 )
-                deepgram_model_input = gr.Dropdown(
-                    label="Deepgram model",
+                stt_cloud_model_input = gr.Dropdown(
+                    label="Model",
                     choices=_STT_PROVIDERS["Deepgram (Cloud)"]["models"],
                     value="nova-2",
                     info="nova-2 = best accuracy   |   nova = fast & accurate   |   enhanced/base = cheaper",
@@ -4206,17 +4230,28 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     # ── Transcription Engine toggle ───────────────────────────────────────────
     def on_stt_change(stt):
-        is_dg = stt.startswith("Deepgram")
+        is_local = stt.startswith("Whisper")
+        cfg = _STT_PROVIDERS.get(stt, {})
         return (
-            gr.update(visible=not is_dg),   # whisper_input
-            gr.update(visible=is_dg),        # deepgram_key_input
-            gr.update(visible=is_dg),        # deepgram_model_input
+            gr.update(visible=is_local),
+            gr.update(
+                visible=not is_local,
+                label=f"{stt} API Key",
+                placeholder=cfg.get("key_placeholder", ""),
+                info=cfg.get("key_info", ""),
+            ),
+            gr.update(
+                visible=not is_local,
+                choices=cfg.get("models", []),
+                value=cfg.get("default_model"),
+                info=cfg.get("model_info", ""),
+            ),
         )
 
     stt_radio.change(
         fn=on_stt_change,
         inputs=stt_radio,
-        outputs=[whisper_input, deepgram_key_input, deepgram_model_input],
+        outputs=[whisper_input, stt_cloud_key_input, stt_cloud_model_input],
     )
 
     # panel_toggle is hidden dummy — no change handler needed
@@ -4242,7 +4277,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             custom_base_url,
             tz_input,
             analysis_depth,
-            stt_radio, deepgram_key_input, deepgram_model_input,
+            stt_radio, stt_cloud_key_input, stt_cloud_model_input,
         ],
         outputs=[
             status_bar,

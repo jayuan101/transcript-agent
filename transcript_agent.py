@@ -579,6 +579,393 @@ def transcribe_with_deepgram(
     return "\n".join(lines), detected_lang
 
 
+def transcribe_with_assemblyai(
+    path: str,
+    api_key: str,
+    model: str = "best",
+    language: str = None,
+    diarize: bool = False,
+    on_log=None,
+) -> tuple:
+    """AssemblyAI REST API. Returns (transcript_str, detected_lang)."""
+    import requests as _req
+    import time as _t_aai
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    headers = {"authorization": api_key}
+    audio_path = path
+    tmp_path = None
+    if Path(path).suffix.lower() in VIDEO_EXTS:
+        _log("Extracting audio from video...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-sn",
+             "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg audio extraction failed for AssemblyAI.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Uploading to AssemblyAI{dur_note}...")
+
+    data = {}
+    try:
+        with open(audio_path, "rb") as f:
+            up = _req.post("https://api.assemblyai.com/v2/upload",
+                           headers=headers, data=f, timeout=300)
+        up.raise_for_status()
+        audio_url = up.json()["upload_url"]
+
+        payload: dict = {
+            "audio_url": audio_url,
+            "speaker_labels": diarize,
+            "language_detection": True,
+        }
+        if model == "nano":
+            payload["speech_model"] = "nano"
+        if language and language != "auto":
+            payload["language_code"] = language
+            payload["language_detection"] = False
+
+        sub = _req.post("https://api.assemblyai.com/v2/transcript",
+                        headers=headers, json=payload, timeout=30)
+        sub.raise_for_status()
+        job_id = sub.json()["id"]
+        _log(f"AssemblyAI job queued (id={job_id[:8]}...), processing...")
+
+        poll_url = f"https://api.assemblyai.com/v2/transcript/{job_id}"
+        while True:
+            _t_aai.sleep(3)
+            r = _req.get(poll_url, headers=headers, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+            status = data.get("status", "")
+            if status == "completed":
+                break
+            if status == "error":
+                raise RuntimeError(f"AssemblyAI error: {data.get('error', 'unknown')}")
+            _log(f"AssemblyAI: {status}...")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    detected_lang = data.get("language_code", "")
+    lines = []
+    if diarize and data.get("utterances"):
+        for u in data["utterances"]:
+            ts = _fmt_ts((u.get("start") or 0) / 1000.0)
+            spk = f"SPEAKER_{u.get('speaker', 'A')}"
+            txt = (u.get("text") or "").strip()
+            if txt:
+                lines.append(f"[{ts}] {spk}: {txt}")
+    else:
+        words = data.get("words") or []
+        if words:
+            chunk_start = (words[0].get("start") or 0) / 1000.0
+            chunk_words: list = []
+            for w in words:
+                chunk_words.append(w.get("text", ""))
+                if (w.get("end") or 0) / 1000.0 - chunk_start >= 30:
+                    lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+                    chunk_start = (w.get("end") or 0) / 1000.0
+                    chunk_words = []
+            if chunk_words:
+                lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+        else:
+            txt = data.get("text", "")
+            if txt:
+                lines.append(txt)
+
+    total_words = sum(len(ln.split()) for ln in lines)
+    _log(f"AssemblyAI complete! ~{total_words:,} words."
+         + (f"  Language: {detected_lang}" if detected_lang else ""))
+    return "\n".join(lines), detected_lang
+
+
+def transcribe_with_groq_whisper(
+    path: str,
+    api_key: str,
+    model: str = "whisper-large-v3-turbo",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """Groq Whisper cloud API. Returns (transcript_str, detected_lang)."""
+    import requests as _req
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    if Path(path).suffix.lower() in VIDEO_EXTS:
+        _log("Extracting audio from video...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-sn",
+             "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg audio extraction failed for Groq Whisper.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Sending to Groq Whisper ({model}){dur_note}...")
+
+    try:
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+        fields: dict = {
+            "model": model,
+            "response_format": "verbose_json",
+            "timestamp_granularities[]": "segment",
+        }
+        if language and language != "auto":
+            fields["language"] = language
+        resp = _req.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": (Path(audio_path).name, audio_bytes, "audio/wav")},
+            data=fields,
+            timeout=300,
+        )
+        resp.raise_for_status()
+    except _req.exceptions.HTTPError as e:
+        body = ""
+        try: body = e.response.text[:300]
+        except Exception: pass
+        raise RuntimeError(f"Groq Whisper error {e.response.status_code}: {body}")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    result = resp.json()
+    detected_lang = result.get("language", "")
+    segments = result.get("segments") or []
+    lines = []
+    if segments:
+        for seg in segments:
+            ts = _fmt_ts(seg.get("start", 0))
+            txt = (seg.get("text") or "").strip()
+            if txt:
+                lines.append(f"[{ts}] {txt}")
+    else:
+        txt = result.get("text", "")
+        if txt:
+            lines.append(txt)
+
+    total_words = sum(len(ln.split()) for ln in lines)
+    _log(f"Groq Whisper complete! ~{total_words:,} words."
+         + (f"  Language: {detected_lang}" if detected_lang else ""))
+    return "\n".join(lines), detected_lang
+
+
+def transcribe_with_openai_whisper_api(
+    path: str,
+    api_key: str,
+    model: str = "whisper-1",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """OpenAI Whisper cloud API. Returns (transcript_str, detected_lang)."""
+    import requests as _req
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    if Path(path).suffix.lower() in VIDEO_EXTS:
+        _log("Extracting audio from video...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-sn",
+             "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg audio extraction failed for OpenAI Whisper API.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Sending to OpenAI Whisper API ({model}){dur_note}...")
+
+    try:
+        with open(audio_path, "rb") as f:
+            audio_bytes = f.read()
+        fields: dict = {
+            "model": model,
+            "response_format": "verbose_json",
+            "timestamp_granularities[]": "segment",
+        }
+        if language and language != "auto":
+            fields["language"] = language
+        resp = _req.post(
+            "https://api.openai.com/v1/audio/transcriptions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            files={"file": (Path(audio_path).name, audio_bytes, "audio/wav")},
+            data=fields,
+            timeout=300,
+        )
+        resp.raise_for_status()
+    except _req.exceptions.HTTPError as e:
+        body = ""
+        try: body = e.response.text[:300]
+        except Exception: pass
+        raise RuntimeError(f"OpenAI Whisper API error {e.response.status_code}: {body}")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    result = resp.json()
+    detected_lang = result.get("language", "")
+    segments = result.get("segments") or []
+    lines = []
+    if segments:
+        for seg in segments:
+            ts = _fmt_ts(seg.get("start", 0))
+            txt = (seg.get("text") or "").strip()
+            if txt:
+                lines.append(f"[{ts}] {txt}")
+    else:
+        txt = result.get("text", "")
+        if txt:
+            lines.append(txt)
+
+    total_words = sum(len(ln.split()) for ln in lines)
+    _log(f"OpenAI Whisper API complete! ~{total_words:,} words."
+         + (f"  Language: {detected_lang}" if detected_lang else ""))
+    return "\n".join(lines), detected_lang
+
+
+def transcribe_with_google_stt(
+    path: str,
+    api_key: str,
+    model: str = "latest_long",
+    language: str = None,
+    on_log=None,
+) -> tuple:
+    """Google Cloud Speech-to-Text REST API. Returns (transcript_str, detected_lang)."""
+    import requests as _req
+    import base64 as _b64
+    import time as _t_gcp
+
+    def _log(m):
+        _safe_print(f"  {m}")
+        if on_log: on_log(m)
+
+    audio_path = path
+    tmp_path = None
+    if Path(path).suffix.lower() != ".wav" or True:
+        _log("Converting audio to 16kHz WAV for Google STT...")
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name; tmp.close()
+        proc = _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path, "-vn", "-sn",
+             "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp_path],
+            capture_output=True,
+        )
+        if proc.returncode != 0:
+            raise RuntimeError("ffmpeg conversion failed for Google STT.")
+        audio_path = tmp_path
+
+    dur_secs = _get_audio_duration(audio_path)
+    dur_note = f" ({_fmt_duration(dur_secs)})" if dur_secs > 0 else ""
+    _log(f"Sending to Google Cloud STT ({model}){dur_note}...")
+
+    lang_code = "en-US"
+    if language and language != "auto":
+        lang_code = language if "-" in language else language
+
+    data = {}
+    try:
+        with open(audio_path, "rb") as f:
+            audio_b64 = _b64.b64encode(f.read()).decode()
+
+        config = {
+            "encoding": "LINEAR16",
+            "sampleRateHertz": 16000,
+            "languageCode": lang_code,
+            "model": model,
+            "enableAutomaticPunctuation": True,
+            "enableWordTimeOffsets": True,
+        }
+        body = {"config": config, "audio": {"content": audio_b64}}
+
+        resp = _req.post(
+            f"https://speech.googleapis.com/v1/speech:longrunningrecognize?key={api_key}",
+            json=body, timeout=60,
+        )
+        resp.raise_for_status()
+        op_name = resp.json().get("name", "")
+        _log(f"Google STT job submitted, processing...")
+
+        op_url = f"https://speech.googleapis.com/v1/operations/{op_name}?key={api_key}"
+        while True:
+            _t_gcp.sleep(5)
+            r = _req.get(op_url, timeout=30)
+            r.raise_for_status()
+            data = r.json()
+            if data.get("done"):
+                break
+            pct = data.get("metadata", {}).get("progressPercent", 0)
+            _log(f"Google STT: {pct}% complete...")
+    except _req.exceptions.HTTPError as e:
+        body_txt = ""
+        try: body_txt = e.response.text[:400]
+        except Exception: pass
+        raise RuntimeError(f"Google STT error {e.response.status_code}: {body_txt}")
+    finally:
+        if tmp_path:
+            try: os.unlink(tmp_path)
+            except Exception: pass
+
+    if "error" in data:
+        raise RuntimeError(f"Google STT error: {data['error'].get('message', 'unknown')}")
+
+    results = (data.get("response") or {}).get("results") or []
+    lines = []
+    for res in results:
+        alt = (res.get("alternatives") or [{}])[0]
+        words = alt.get("words") or []
+        if words:
+            chunk_start = float((words[0].get("startTime") or "0s").rstrip("s"))
+            chunk_words: list = []
+            for w in words:
+                chunk_words.append(w.get("word", ""))
+                end = float((w.get("endTime") or "0s").rstrip("s"))
+                if end - chunk_start >= 30:
+                    lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+                    chunk_start = end
+                    chunk_words = []
+            if chunk_words:
+                lines.append(f"[{_fmt_ts(chunk_start)}] {' '.join(chunk_words)}")
+        else:
+            txt = alt.get("transcript", "").strip()
+            if txt:
+                lines.append(txt)
+
+    total_words = sum(len(ln.split()) for ln in lines)
+    _log(f"Google STT complete! ~{total_words:,} words.")
+    return "\n".join(lines), lang_code
+
+
 def load_srt(path: str) -> str:
     text = Path(path).read_text(encoding="utf-8", errors="replace")
     lines, ts, buf = [], "", []
@@ -1249,9 +1636,11 @@ def run(
     checkpoint_text: str = None,    # pre-saved Whisper text (skips transcription step)
     checkpoint_json: str = None,    # pre-saved WhisperX JSON string
     on_whisper_done=None,           # callable(text, json_str) — fired after Whisper to save checkpoint
-    stt_provider: str = "whisper",  # "whisper" | "deepgram"
-    deepgram_api_key: str = None,   # Deepgram API key (required when stt_provider="deepgram")
-    deepgram_model: str = "nova-2", # Deepgram model name
+    stt_provider: str = "whisper",  # "whisper" | "deepgram" | "assemblyai" | "groq_whisper" | "openai_whisper" | "google_stt"
+    deepgram_api_key: str = None,   # Deepgram API key (backward compat)
+    deepgram_model: str = "nova-2", # Deepgram model (backward compat)
+    stt_api_key: str = None,        # API key for any cloud STT provider
+    stt_model: str = None,          # Model name for any cloud STT provider
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1270,7 +1659,11 @@ def run(
     raw_whisperx = {}
     _detected_lang = ""
 
-    _use_deepgram = stt_provider == "deepgram" and ext in (AUDIO_EXTS | VIDEO_EXTS)
+    _CLOUD_STT = {"deepgram", "assemblyai", "groq_whisper", "openai_whisper", "google_stt"}
+    _use_cloud_stt = stt_provider in _CLOUD_STT and ext in (AUDIO_EXTS | VIDEO_EXTS)
+    # Resolve generic key/model (stt_api_key overrides legacy deepgram_api_key for new providers)
+    _cloud_key = stt_api_key or deepgram_api_key
+    _cloud_model = stt_model or deepgram_model or ""
 
     if checkpoint_text:
         # Resume: skip transcription, use the saved transcript
@@ -1284,18 +1677,44 @@ def run(
                 raw_whisperx = {}
         fmt = "panel audio/video (diarized)" if panel_mode else "audio/video"
         _log(f"Resumed from checkpoint: ~{len(raw_text.split()):,} words (transcription skipped)")
-    elif _use_deepgram:
-        if not deepgram_api_key:
-            raise ValueError("Deepgram API key is required when using Deepgram transcription.")
-        _log(f"Mode: {'Panel diarized' if panel_mode else 'Standard'} | Transcription: Deepgram {deepgram_model}")
+    elif _use_cloud_stt:
+        if not _cloud_key:
+            raise ValueError(f"API key is required for {stt_provider} transcription.")
+        lang_arg = language if language and language != "auto" else None
+        _log(f"Mode: {'Panel diarized' if panel_mode else 'Standard'} | Transcription: {stt_provider} {_cloud_model}")
         if on_stage_change: on_stage_change("whisper")
-        raw_text, _detected_lang = transcribe_with_deepgram(
-            file_path, deepgram_api_key,
-            model=deepgram_model,
-            language=language if language and language != "auto" else None,
-            diarize=panel_mode,
-            on_log=on_log,
-        )
+        if stt_provider == "deepgram":
+            raw_text, _detected_lang = transcribe_with_deepgram(
+                file_path, _cloud_key,
+                model=_cloud_model or "nova-2",
+                language=lang_arg, diarize=panel_mode, on_log=on_log,
+            )
+        elif stt_provider == "assemblyai":
+            raw_text, _detected_lang = transcribe_with_assemblyai(
+                file_path, _cloud_key,
+                model=_cloud_model or "best",
+                language=lang_arg, diarize=panel_mode, on_log=on_log,
+            )
+        elif stt_provider == "groq_whisper":
+            raw_text, _detected_lang = transcribe_with_groq_whisper(
+                file_path, _cloud_key,
+                model=_cloud_model or "whisper-large-v3-turbo",
+                language=lang_arg, on_log=on_log,
+            )
+        elif stt_provider == "openai_whisper":
+            raw_text, _detected_lang = transcribe_with_openai_whisper_api(
+                file_path, _cloud_key,
+                model=_cloud_model or "whisper-1",
+                language=lang_arg, on_log=on_log,
+            )
+        elif stt_provider == "google_stt":
+            raw_text, _detected_lang = transcribe_with_google_stt(
+                file_path, _cloud_key,
+                model=_cloud_model or "latest_long",
+                language=lang_arg, on_log=on_log,
+            )
+        else:
+            raise ValueError(f"Unknown STT provider: {stt_provider}")
         fmt = "panel audio/video (diarized)" if panel_mode else "audio/video"
         if on_whisper_done:
             try:

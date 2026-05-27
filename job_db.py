@@ -40,6 +40,7 @@ def init_db(outputs_dir) -> Path:
                 result_transcript  TEXT,
                 result_dialogue    TEXT,
                 result_profiles    TEXT,
+                result_interview   TEXT,
                 result_analytics   TEXT,
                 result_combined    TEXT,
                 config_json        TEXT,
@@ -54,6 +55,11 @@ def init_db(outputs_dir) -> Path:
     try:
         with _conn() as c:
             c.execute("ALTER TABLE jobs ADD COLUMN panel_mode INTEGER DEFAULT 0")
+    except Exception:
+        pass  # column already exists
+    try:
+        with _conn() as c:
+            c.execute("ALTER TABLE jobs ADD COLUMN result_interview TEXT")
     except Exception:
         pass  # column already exists
     return _DB_PATH
@@ -126,7 +132,7 @@ def complete_job(job_id: str, result_data: dict) -> None:
             UPDATE jobs
             SET status='done', updated_at=?,
                 result_summary=?, result_transcript=?, result_dialogue=?,
-                result_profiles=?, result_analytics=?, result_combined=?
+                result_profiles=?, result_interview=?, result_analytics=?, result_combined=?
             WHERE job_id=?
         """, (
             now,
@@ -134,6 +140,7 @@ def complete_job(job_id: str, result_data: dict) -> None:
             result_data.get("transcript", ""),
             result_data.get("dialogue", ""),
             result_data.get("profiles", ""),
+            result_data.get("interview", ""),
             result_data.get("analytics", ""),
             result_data.get("combined", ""),
             job_id,

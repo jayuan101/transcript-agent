@@ -802,16 +802,16 @@ def load_last_result():
     import json
     status = _read_job_status()
     if not status:
-        return [gr.update()] * 13 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
+        return [gr.update()] * 14 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
     s = status.get("status")
     if s == "running":
         name = status.get("stem", "Unknown file")
-        return [gr.update()] * 13 + [gr.update(
+        return [gr.update()] * 14 + [gr.update(
             value=f"⏳ **Transcription still in progress** — {name}. Keep this tab open and results will load automatically when done.",
             visible=True,
         )]
     if s not in ("done", "error"):
-        return [gr.update()] * 13 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
+        return [gr.update()] * 14 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
     try:
         job_dir = Path(status["job_dir"])
         stem    = status["stem"]
@@ -833,6 +833,7 @@ def load_last_result():
             data.get("transcript", ""),
             data.get("dialogue", ""),
             data.get("profiles", ""),
+            data.get("interview", ""),
             data.get("analytics", ""),
             data.get("combined", ""),
             f_t if Path(f_t).exists() else None,
@@ -845,7 +846,7 @@ def load_last_result():
             gr.update(value=msg, visible=True),
         ]
     except Exception as e:
-        return [gr.update()] * 13 + [gr.update(value=f"Error loading results: {e}", visible=True)]
+        return [gr.update()] * 14 + [gr.update(value=f"Error loading results: {e}", visible=True)]
 
 def get_job_banner():
     """Return HTML banner showing current job status — called on page load."""
@@ -970,7 +971,7 @@ def _build_history_html() -> str:
 
 def load_job_from_history(job_id_input: str = ""):
     """Load a specific job from the DB by job_id."""
-    no_change = [gr.update()] * 13 + [gr.update(visible=False)]
+    no_change = [gr.update()] * 14 + [gr.update(visible=False)]
     if not _JDB_OK:
         return no_change[:-1] + [gr.update(value="Job history not available.", visible=True)]
     jid = (job_id_input or "").strip()
@@ -1002,6 +1003,7 @@ def load_job_from_history(job_id_input: str = ""):
         job.get("result_transcript", ""),
         job.get("result_dialogue", ""),
         job.get("result_profiles", ""),
+        job.get("result_interview", ""),
         job.get("result_analytics", ""),
         job.get("result_combined", ""),
         f_t if Path(f_t).exists() else None,
@@ -2060,21 +2062,23 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 
 
 #   0  status_bar       1  summary_out      2  transcript_out   3  dialogue_out
-#   4  profiles_out     5  analytics_out    6  combined_out
-#   7  dl_transcript    8  dl_speakers      9  dl_report
-#   10 dl_combined      11 dl_json          12 dl_pdf
-#   13 download_accordion  14 log_out       15 eta_panel  16 result_state
+#   4  profiles_out     5  interview_out    6  analytics_out    7  combined_out
+#   8  dl_transcript    9  dl_speakers      10 dl_report
+#   11 dl_combined      12 dl_json          13 dl_pdf
+#   14 download_accordion  15 log_out       16 eta_panel  17 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 17   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 18   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
-         dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
-         combined=gr.update(), dl_t=gr.update(), dl_s=gr.update(),
-         dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
-         dl_acc=gr.update(), log=gr.update(), eta=gr.update(), rs=None):
-    return (status, summary, transcript, dialogue, profiles, analytics,
-            combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p, dl_acc, log, eta, rs)
+         dialogue=gr.update(), profiles=gr.update(), interview=gr.update(),
+         analytics=gr.update(), combined=gr.update(), dl_t=gr.update(),
+         dl_s=gr.update(), dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(),
+         dl_p=gr.update(), dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
+         rs=None):
+    return (status, summary, transcript, dialogue, profiles, interview,
+            analytics, combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
+            dl_acc, log, eta, rs)
 
 
 _PDF_LANGUAGES = [
@@ -2797,10 +2801,11 @@ def process_file(
             else:
                 profiles_md = "_No speaker profiles found. The AI may not have detected multiple distinct speakers in this recording._"
 
-            # ── Interview Q&A — format for display in Profiles & Interview tab ─
+            # ── Interview Q&A — dedicated Interview tab content ──────────────────
+            interview_md = ""
             if inc_interview and result.interview_questions:
                 _vicon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
-                _ilines = ["## 🎤 Interview Analysis\n"]
+                _ilines = ["## 🎤 Interview Q&A\n"]
 
                 if result.round_advance_probability >= 0:
                     _prob = result.round_advance_probability
@@ -2810,7 +2815,8 @@ def process_file(
                     _ilines.append(f"**Overall likelihood of advancing: {_pemoji} {_prob}% — {_plabel}**\n")
 
                 for _qi, _q in enumerate(result.interview_questions, 1):
-                    _icon = _vicon.get((_q.get("verdict") or "").lower(), "•")
+                    _verdict = (_q.get("verdict") or "").lower()
+                    _icon = _vicon.get(_verdict, "•")
                     _ilines += [
                         f"### Q{_qi}. {_q.get('question', '')}",
                         "",
@@ -2818,24 +2824,29 @@ def process_file(
                         "",
                     ]
                     if _q.get("your_answer_summary"):
-                        _ilines += [f"**What was said:** {_q['your_answer_summary']}", ""]
+                        _ilines += [
+                            "**📝 What you said:**",
+                            "",
+                            f"> {_q['your_answer_summary']}",
+                            "",
+                        ]
                     if _q.get("deflection_detected"):
                         _ilines += [f"**⚡ Deflection detected:** {_q.get('deflection_note', 'Candidate stalled or deflected')}", ""]
                     if _q.get("ideal_answer"):
                         _ilines += [
-                            "**💬 What I would have said:**",
+                            "**💬 How you could have answered it:**",
                             "",
                             f"> {_q['ideal_answer']}",
                             "",
                         ]
                     if _q.get("feedback"):
-                        _ilines += [f"**🎯 Coaching:** {_q['feedback']}", ""]
+                        _ilines += [f"**🎯 Coaching tip:** {_q['feedback']}", ""]
                     _ilines.append("---\n")
 
                 if inc_interview_deep and result.prep_guide:
                     _ilines += [
                         "## 📋 Prep Guide — Questions to Practise\n",
-                        "_Review these weak or missed questions before your next interview:_\n",
+                        "_Review these before your next interview:_\n",
                     ]
                     for _pi, _pg in enumerate(result.prep_guide, 1):
                         _ilines += [
@@ -2853,11 +2864,7 @@ def process_file(
                             ]
                         _ilines.append("---\n")
 
-                _interview_md = "\n".join(_ilines)
-                if profiles_md and not profiles_md.startswith("_"):
-                    profiles_md = _interview_md + "\n\n## 👥 Speaker Profiles\n\n" + profiles_md
-                else:
-                    profiles_md = _interview_md
+                interview_md = "\n".join(_ilines)
 
             analytics_md  = stats_to_markdown(result.speaker_stats)
             combined_text = build_combined_report(result, config)
@@ -2878,6 +2885,7 @@ def process_file(
             import datetime as _dtt
             _rd = {"summary": summary_md, "transcript": result.clean_transcript,
                    "dialogue": result.speaker_dialogue, "profiles": profiles_md,
+                   "interview": interview_md,
                    "analytics": analytics_md, "combined": combined_text}
             _write_job_status("done", stem=stem, job_id=job_id, job_dir=str(job_dir),
                               completed=_dtt.datetime.now().isoformat(), result=_rd)
@@ -2896,6 +2904,7 @@ def process_file(
                 transcript=result.clean_transcript,
                 dialogue=result.speaker_dialogue,
                 profiles=profiles_md,
+                interview=interview_md,
                 analytics=analytics_md,
                 combined=combined_text,
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
@@ -4176,9 +4185,14 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         placeholder="Speaker-labelled dialogue will appear here…",
                     )
 
-                with gr.TabItem("Profiles & Interview"):
+                with gr.TabItem("Profiles"):
                     profiles_out = gr.Markdown(
-                        value="_Speaker profiles and interview Q&A will appear here after processing. Enable **Speaker profiles** and/or **Interview mode** in Report Format settings._"
+                        value="_Speaker profiles will appear here after processing. Enable **Speaker profiles** in Report Format settings._"
+                    )
+
+                with gr.TabItem("Interview Q&A"):
+                    interview_out = gr.Markdown(
+                        value="_Interview Q&A will appear here after processing. Enable **Interview mode** in Report Format settings._"
                     )
 
                 with gr.TabItem("Speech Analytics"):
@@ -4282,7 +4296,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[
             status_bar,
             summary_out, transcript_out, dialogue_out,
-            profiles_out, analytics_out, combined_out,
+            profiles_out, interview_out, analytics_out, combined_out,
             dl_transcript, dl_speakers, dl_report, dl_combined, dl_json, dl_pdf,
             download_accordion,
             log_out,
@@ -4302,9 +4316,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=load_last_result,
         inputs=[],
         outputs=[
-            summary_out, transcript_out, dialogue_out, profiles_out, analytics_out,
-            combined_out, dl_transcript, dl_speakers, dl_report, dl_combined,
-            dl_json, dl_pdf, download_accordion, load_last_msg,
+            summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
+            analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
+            dl_combined, dl_json, dl_pdf, download_accordion, load_last_msg,
         ],
     )
 
@@ -4319,9 +4333,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=load_job_from_history,
         inputs=[history_job_id_box],
         outputs=[
-            summary_out, transcript_out, dialogue_out, profiles_out, analytics_out,
-            combined_out, dl_transcript, dl_speakers, dl_report, dl_combined,
-            dl_json, dl_pdf, download_accordion, history_msg,
+            summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
+            analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
+            dl_combined, dl_json, dl_pdf, download_accordion, history_msg,
         ],
     )
 

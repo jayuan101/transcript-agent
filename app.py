@@ -12,6 +12,7 @@ import re
 import urllib.parse
 import mimetypes
 import tempfile
+import zoneinfo
 from pathlib import Path
 
 try:
@@ -4233,11 +4234,23 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 )
 
             with gr.Accordion("Processing Options", open=True):
-                tz_input = gr.Textbox(
+                _COMMON_TZ = [
+                    "America/New_York", "America/Chicago", "America/Denver",
+                    "America/Los_Angeles", "America/Anchorage", "Pacific/Honolulu",
+                    "America/Phoenix", "America/Toronto", "America/Vancouver",
+                    "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Moscow",
+                    "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Dubai",
+                    "Australia/Sydney", "Pacific/Auckland",
+                ]
+                _ALL_TZ = _COMMON_TZ + sorted(
+                    z for z in zoneinfo.available_timezones() if z not in _COMMON_TZ
+                )
+                tz_input = gr.Dropdown(
                     label="Timezone",
-                    placeholder="e.g. America/New_York — auto-detected from your browser",
-                    info="Controls the 'Done By' finish time. Auto-filled on load; change to any IANA timezone.",
+                    choices=_ALL_TZ,
                     value="",
+                    allow_custom_value=True,
+                    info="Controls the 'Done By' finish time. Auto-filled on load; change to any IANA timezone.",
                 )
                 speakers_name_input = gr.Textbox(visible=False, value="")
                 speakers_count_input = gr.Number(
@@ -4607,7 +4620,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             gr.update(value=jb, visible=bool(jb.strip())),
             gr.update(value=ub, visible=bool(ub.strip())),
             gr.update(visible=bool(_update_info)),
-            gr.update(value=tz_val, placeholder=f"Detected: {tz_val}" if tz_val else "e.g. America/New_York"),
+            gr.update(value=tz_val),
             gr.update(value=btn_label),
         )
 

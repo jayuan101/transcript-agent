@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.19"
+APP_VERSION = "3.20"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -2552,19 +2552,8 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     overlay_pct = ""
     if stage == "claude":
         overlay_pct = (
-            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
-            f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">50</div>'
-            f'<div style="font-size:2em;font-weight:700;color:{color};margin-bottom:6px;">%+</div>'
-            '</div>'
-            f'<div style="font-size:0.82em;color:var(--ta-card-sub);margin-bottom:12px;">'
+            f'<div style="font-size:0.88em;color:var(--ta-card-sub);margin-bottom:12px;text-align:center;">'
             'AI is reading the transcript and writing your report…</div>'
-        )
-    elif stage in ("loading", "extracting"):
-        overlay_pct = (
-            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
-            f'font-family:monospace;line-height:1;">—</div></div>'
         )
 
     return tracker + (

@@ -327,7 +327,10 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
 
     if dur_secs > 0:
         _log(f"Loading Whisper '{model_size}' model…")
-    model = openai_whisper.load_model(model_size)
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
+        model = openai_whisper.load_model(model_size)
     _log(f"Model loaded.")
 
     with _progress_lock:
@@ -368,7 +371,9 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     if language:
         transcribe_kwargs["language"] = language
     try:
-        result = model.transcribe(audio_path, **transcribe_kwargs)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="FP16 is not supported on CPU")
+            result = model.transcribe(audio_path, **transcribe_kwargs)
     finally:
         with _progress_lock:
             _progress_cb = None

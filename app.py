@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.32"
+APP_VERSION = "3.33"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -4511,6 +4511,21 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     info="Whisper runs locally (free, private). Cloud providers are faster and support more languages.",
                     allow_custom_value=False,
                 )
+                whisper_warning = gr.HTML(
+                    value="""<div style="background:#451a03;border:1px solid #92400e;border-radius:8px;
+                        padding:10px 14px;margin-top:6px;display:flex;align-items:flex-start;gap:10px;">
+                        <span style="font-size:1.3em;line-height:1.2;">⚠️</span>
+                        <div>
+                            <div style="color:#fbbf24;font-weight:700;font-size:0.88em;">
+                                Whisper runs on your CPU — expect 1 minute of processing per 1 minute of audio.
+                            </div>
+                            <div style="color:#fcd34d;font-size:0.80em;margin-top:3px;">
+                                For faster results, switch to a cloud engine: Deepgram, Groq Whisper, or AssemblyAI finish in under 60 seconds.
+                            </div>
+                        </div>
+                    </div>""",
+                    visible=True,
+                )
                 # Whisper-only options
                 whisper_input = gr.Dropdown(
                     label="Whisper model",
@@ -4856,6 +4871,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=on_stt_change,
         inputs=[stt_radio, user_api_key, provider_dropdown],
         outputs=[whisper_input, stt_cloud_key_input, stt_cloud_model_input],
+    )
+    stt_radio.change(
+        fn=lambda e: gr.update(visible=e == "Whisper (Local)"),
+        inputs=[stt_radio],
+        outputs=[whisper_warning],
     )
 
     # panel_toggle is hidden dummy — no change handler needed

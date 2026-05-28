@@ -1500,7 +1500,8 @@ _INTERVIEW_JSON_FIELD = '''\
       "verdict": "strong | acceptable | weak | missed",
       "feedback": "Specific coaching — what was missing, what landed well, how to improve"
     }
-  ]'''
+  ],
+  "round_advance_probability": 72'''
 
 _INTERVIEW_JSON_FIELD_DEEP = '''\
   "interview_questions": [
@@ -1530,6 +1531,10 @@ For each question:
 - ideal_answer: Write as if YOU are the candidate speaking naturally in first person. Confident, human, conversational — no bullet points, no AI-style phrasing. A real person's well-prepared answer.
 - verdict: strong | acceptable | weak | missed
 - feedback: specific coaching on what landed, what was missing, how to improve.
+
+After scoring all questions, set round_advance_probability (0-100) based on the overall quality of answers.
+Rough guide: 80+ = strong candidate, 60-79 = competitive, 40-59 = borderline, <40 = unlikely.
+
 Only include real interview questions — ignore small talk or off-topic exchanges."""
 
 _INTERVIEW_INSTRUCTION_DEEP = """\

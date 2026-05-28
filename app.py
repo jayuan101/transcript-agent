@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.21"
+APP_VERSION = "3.22"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -4178,19 +4178,23 @@ _THEME_JS = """
 
     /* ── History tab: one-click row Load ── */
     window.taLoadJob = function(jid) {
-      var box = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
-      if (!box) return;
-      var proto = (box.tagName === 'TEXTAREA')
+      /* 1. Update the visible read-only display box (cosmetic only) */
+      var display = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
+      if (display) display.value = jid;
+
+      /* 2. Set the hidden trigger textbox and fire input+change so Gradio's
+            .change() listener fires immediately with the correct value — no
+            setTimeout race condition. */
+      var trigger = document.querySelector('#history-trigger input, #history-trigger textarea');
+      if (!trigger) return;
+      var proto = (trigger.tagName === 'TEXTAREA')
                   ? window.HTMLTextAreaElement.prototype
                   : window.HTMLInputElement.prototype;
       var desc = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (desc && desc.set) desc.set.call(box, jid);
-      else box.value = jid;
-      box.dispatchEvent(new Event('input', {bubbles: true}));
-      setTimeout(function() {
-        var btn = document.querySelector('#history-load-btn button');
-        if (btn) btn.click();
-      }, 120);
+      if (desc && desc.set) desc.set.call(trigger, jid);
+      else trigger.value = jid;
+      trigger.dispatchEvent(new Event('input',  {bubbles: true}));
+      trigger.dispatchEvent(new Event('change', {bubbles: true}));
     };
   })();
 })();
@@ -4650,12 +4654,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 with gr.TabItem("History"):
                     history_refresh_btn = gr.Button("🔄 Refresh", size="sm", variant="secondary")
                     history_table = gr.HTML(value=_build_history_html())
+                    # Hidden trigger — JS sets this value; the .change() fires immediately,
+                    # bypassing the fragile "set textbox + setTimeout click button" pattern.
+                    history_trigger = gr.Textbox(visible=False, elem_id="history-trigger")
                     with gr.Row():
                         history_job_id_box = gr.Textbox(
                             label="Job ID",
                             placeholder="Click 📂 Load on any row above",
                             scale=3,
                             elem_id="history-job-id-input",
+                            interactive=False,
                         )
                         history_load_btn = gr.Button("📂 Load", size="sm", variant="secondary", scale=1, elem_id="history-load-btn")
                     history_msg = gr.Markdown(visible=False)
@@ -4785,14 +4793,24 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[history_table],
     )
 
+    _HISTORY_OUTPUTS = [
+        summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
+        analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
+        dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, history_msg,
+    ]
+
+    # Primary path: JS sets history_trigger → .change() fires with value already set
+    history_trigger.change(
+        fn=load_job_from_history,
+        inputs=[history_trigger],
+        outputs=_HISTORY_OUTPUTS,
+    )
+
+    # Fallback: manual Load button reads from the trigger (which mirrors whatever was last loaded)
     history_load_btn.click(
         fn=load_job_from_history,
-        inputs=[history_job_id_box],
-        outputs=[
-            summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
-            analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
-            dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, history_msg,
-        ],
+        inputs=[history_trigger],
+        outputs=_HISTORY_OUTPUTS,
     )
 
     # ── Update button ─────────────────────────────────────────────────────────

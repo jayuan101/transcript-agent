@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.24"
+APP_VERSION = "3.25"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -4248,24 +4248,24 @@ _THEME_JS = """
     };
 
     /* ── History tab: one-click row Load ── */
-    window.taLoadJob = function(jid) {
-      /* 1. Update the visible read-only display box (cosmetic only) */
-      var display = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
-      if (display) display.value = jid;
-
-      /* 2. Set the hidden trigger textbox and fire input+change so Gradio's
-            .change() listener fires immediately with the correct value — no
-            setTimeout race condition. */
-      var trigger = document.querySelector('#history-trigger input, #history-trigger textarea');
-      if (!trigger) return;
-      var proto = (trigger.tagName === 'TEXTAREA')
+    function _grSet(el, val) {
+      if (!el) return;
+      var proto = (el.tagName === 'TEXTAREA')
                   ? window.HTMLTextAreaElement.prototype
                   : window.HTMLInputElement.prototype;
       var desc = Object.getOwnPropertyDescriptor(proto, 'value');
-      if (desc && desc.set) desc.set.call(trigger, jid);
-      else trigger.value = jid;
-      trigger.dispatchEvent(new Event('input',  {bubbles: true}));
-      trigger.dispatchEvent(new Event('change', {bubbles: true}));
+      if (desc && desc.set) desc.set.call(el, val);
+      else el.value = val;
+      el.dispatchEvent(new Event('input',  {bubbles: true}));
+      el.dispatchEvent(new Event('change', {bubbles: true}));
+    }
+    window.taLoadJob = function(jid) {
+      /* Update both the visible textbox (so manual Load button works) and the
+         hidden trigger (auto-loads immediately via .change() handler). */
+      var display = document.querySelector('#history-job-id-input input, #history-job-id-input textarea');
+      _grSet(display, jid);
+      var trigger = document.querySelector('#history-trigger input, #history-trigger textarea');
+      _grSet(trigger, jid);
     };
   })();
 })();
@@ -4739,7 +4739,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                             placeholder="Click 📂 Load on any row above",
                             scale=3,
                             elem_id="history-job-id-input",
-                            interactive=False,
+                            interactive=True,
                         )
                         history_load_btn = gr.Button("📂 Load", size="sm", variant="secondary", scale=1, elem_id="history-load-btn")
                     history_msg = gr.Markdown(visible=False)
@@ -4882,10 +4882,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=_HISTORY_OUTPUTS,
     )
 
-    # Fallback: manual Load button reads from the trigger (which mirrors whatever was last loaded)
+    # Fallback: manual Load button reads from the visible job-id box (Gradio state is updated by taLoadJob)
     history_load_btn.click(
         fn=load_job_from_history,
-        inputs=[history_trigger],
+        inputs=[history_job_id_box],
         outputs=_HISTORY_OUTPUTS,
     )
 

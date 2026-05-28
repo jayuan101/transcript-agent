@@ -1368,6 +1368,20 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
     background: #475569 !important;
 }
 
+/* timezone dropdown — tall scrollable list for 500+ IANA zones */
+#tz-sel [role="listbox"] {
+    max-height: 380px !important;
+    overflow-y: auto !important;
+    scrollbar-width: thin !important;
+}
+#tz-sel [role="listbox"]::-webkit-scrollbar { width: 6px !important; }
+#tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
+    background: #94a3b8 !important; border-radius: 4px !important;
+}
+html.dark #tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
+    background: #475569 !important;
+}
+
 /* Hero banner always uses white text — dark gradient background in both modes */
 #ta-hero, #ta-hero * { color: #fff !important; }
 #ta-hero .subtitle { color: #93c5fd !important; }
@@ -3503,6 +3517,7 @@ _THEME_JS = """
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
+      '#tz-sel [role=listbox]{max-height:380px!important;overflow-y:auto!important;scrollbar-width:thin!important}',
       /* Live log terminal */
       '#live-log textarea{background:#0f172a!important;color:#86efac!important;font-family:"Courier New",monospace!important;font-size:0.80em!important;border-color:#1e3a5f!important}',
       /* Bandwidth pulse animation */
@@ -4302,6 +4317,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     value="",
                     allow_custom_value=True,
                     info="Controls the 'Done By' finish time. Auto-filled on load; change to any IANA timezone.",
+                    elem_id="tz-sel",
                 )
                 speakers_name_input = gr.Textbox(visible=False, value="")
                 speakers_count_input = gr.Number(

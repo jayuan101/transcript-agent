@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.17"
+APP_VERSION = "3.18"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1368,18 +1368,65 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
     background: #475569 !important;
 }
 
-/* timezone dropdown — tall scrollable list for 500+ IANA zones */
+/* timezone dropdown — tall scrollable list + teal highlight */
+#tz-sel label {
+    color: #0e7490 !important;
+    font-weight: 600 !important;
+}
+#tz-sel input {
+    border: 2px solid #22d3ee !important;
+    border-radius: 8px !important;
+    background: #ecfeff !important;
+    color: #164e63 !important;
+    font-weight: 500 !important;
+}
+#tz-sel input:focus {
+    border-color: #06b6d4 !important;
+    box-shadow: 0 0 0 3px rgba(6,182,212,0.25) !important;
+}
 #tz-sel [role="listbox"] {
     max-height: 380px !important;
     overflow-y: auto !important;
     scrollbar-width: thin !important;
+    background: #ecfeff !important;
+    border: 1.5px solid #22d3ee !important;
+    border-radius: 8px !important;
+}
+#tz-sel [role="option"] {
+    color: #164e63 !important;
+}
+#tz-sel [role="option"]:hover,
+#tz-sel [role="option"][aria-selected="true"] {
+    background: #cffafe !important;
+    color: #0e7490 !important;
 }
 #tz-sel [role="listbox"]::-webkit-scrollbar { width: 6px !important; }
 #tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #94a3b8 !important; border-radius: 4px !important;
+    background: #22d3ee !important; border-radius: 4px !important;
+}
+/* dark mode */
+html.dark #tz-sel label { color: #67e8f9 !important; }
+html.dark #tz-sel input {
+    border-color: #0891b2 !important;
+    background: #0c2a33 !important;
+    color: #cffafe !important;
+}
+html.dark #tz-sel input:focus {
+    border-color: #22d3ee !important;
+    box-shadow: 0 0 0 3px rgba(6,182,212,0.2) !important;
+}
+html.dark #tz-sel [role="listbox"] {
+    background: #0c2a33 !important;
+    border-color: #0891b2 !important;
+}
+html.dark #tz-sel [role="option"] { color: #cffafe !important; }
+html.dark #tz-sel [role="option"]:hover,
+html.dark #tz-sel [role="option"][aria-selected="true"] {
+    background: #164e63 !important;
+    color: #67e8f9 !important;
 }
 html.dark #tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #475569 !important;
+    background: #0891b2 !important;
 }
 
 /* Hero banner always uses white text — dark gradient background in both modes */
@@ -3517,7 +3564,11 @@ _THEME_JS = """
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
-      '#tz-sel [role=listbox]{max-height:380px!important;overflow-y:auto!important;scrollbar-width:thin!important}',
+      '#tz-sel [role=listbox]{max-height:380px!important;overflow-y:auto!important;scrollbar-width:thin!important;background:#ecfeff!important;border:1.5px solid #22d3ee!important;border-radius:8px!important}',
+      '#tz-sel input{border:2px solid #22d3ee!important;border-radius:8px!important;background:#ecfeff!important;color:#164e63!important;font-weight:500!important}',
+      '#tz-sel label{color:#0e7490!important;font-weight:600!important}',
+      '#tz-sel [role=option]{color:#164e63!important}',
+      '#tz-sel [role=option]:hover,#tz-sel [role=option][aria-selected=true]{background:#cffafe!important;color:#0e7490!important}',
       /* Live log terminal */
       '#live-log textarea{background:#0f172a!important;color:#86efac!important;font-family:"Courier New",monospace!important;font-size:0.80em!important;border-color:#1e3a5f!important}',
       /* Bandwidth pulse animation */
@@ -3569,6 +3620,12 @@ _THEME_JS = """
     'html.dark [role=listbox]{background:#1e1e2a!important;border-color:#2e2e42!important}',
     'html.dark [role=option]{color:#e8e8f0!important;background:#1e1e2a!important}',
     'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#28283a!important;color:#fff!important}',
+    /* timezone dropdown dark mode */
+    'html.dark #tz-sel label{color:#67e8f9!important;font-weight:600!important}',
+    'html.dark #tz-sel input{border:2px solid #0891b2!important;background:#0c2a33!important;color:#cffafe!important;font-weight:500!important}',
+    'html.dark #tz-sel [role=listbox]{background:#0c2a33!important;border-color:#0891b2!important}',
+    'html.dark #tz-sel [role=option]{color:#cffafe!important;background:#0c2a33!important}',
+    'html.dark #tz-sel [role=option]:hover,html.dark #tz-sel [role=option][aria-selected=true]{background:#164e63!important;color:#67e8f9!important}',
     /* accordion */
     'html.dark .accordion,html.dark details{background:#1e1e2a!important;border-color:#2e2e42!important}',
     'html.dark .accordion .label-wrap,html.dark details summary{color:#e8e8f0!important}',

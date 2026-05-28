@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.20"
+APP_VERSION = "3.21"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1165,13 +1165,8 @@ html.dark .checkbox-group label span,
 html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
 
 /* ── Process / CTA button ────────────────────────────────────────────────── */
-@keyframes ta-btn-shimmer {
-  0%   { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
 .big-btn button {
-    background: linear-gradient(135deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #f97316 100%) !important;
-    background-size: 300% 100% !important;
+    background: #334155 !important;
     color: #fff !important;
     font-size: 1.06em !important;
     font-weight: 800 !important;
@@ -1182,19 +1177,48 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     padding: 16px 24px !important;
     min-height: 58px !important;
     width: 100% !important;
-    box-shadow: 0 4px 20px rgba(16,185,129,0.50), 0 1px 4px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+    box-shadow: 0 4px 18px rgba(51,65,85,0.40) !important;
     transition: all 0.25s ease !important;
-    position: relative !important;
-    overflow: hidden !important;
 }
 .big-btn button:hover {
-    background-position: right center !important;
-    box-shadow: 0 10px 36px rgba(249,115,22,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
+    background: #1e293b !important;
+    box-shadow: 0 10px 30px rgba(51,65,85,0.55) !important;
     transform: translateY(-3px) scale(1.01) !important;
 }
 .big-btn button:active {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 14px rgba(249,115,22,0.45) !important;
+    box-shadow: 0 4px 12px rgba(51,65,85,0.40) !important;
+}
+/* ── Floating Analyze button ─────────────────────────────────────────────── */
+#ta-float-analyze {
+    position: fixed !important;
+    top: 62px !important;
+    right: 18px !important;
+    z-index: 9998 !important;
+}
+#ta-float-analyze button {
+    background: #334155 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 26px !important;
+    padding: 9px 18px !important;
+    font-size: 0.83em !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+    box-shadow: 0 4px 16px rgba(51,65,85,0.40) !important;
+    transition: all 0.2s !important;
+    white-space: nowrap !important;
+}
+#ta-float-analyze button:hover {
+    background: #1e293b !important;
+    box-shadow: 0 8px 24px rgba(51,65,85,0.55) !important;
+    transform: translateY(-2px) !important;
+}
+html.dark #ta-float-analyze button {
+    background: #475569 !important;
+}
+html.dark #ta-float-analyze button:hover {
+    background: #64748b !important;
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
@@ -1463,7 +1487,7 @@ html.dark .file-preview { background: #1e1e2a !important; color: #f0f0ff !import
 html.dark .dropdown-arrow svg { fill: #8888a8 !important; }
 html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !important; color: #f0f0ff !important; }
 html.dark button.selected { background: #2a2a3a !important; }
-html.dark .big-btn button { background: linear-gradient(135deg,#c2410c,#ea580c,#f97316) !important; color: #fff !important; border: none !important; }
+html.dark .big-btn button { background: #475569 !important; color: #fff !important; border: none !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
 
 /* ── Download buttons ── */
@@ -2337,18 +2361,36 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
 
 
 def _step_tracker_html(stage: str, done: bool = False) -> str:
+    # 5 steps: Load → Extract Audio → Transcribe → AI Analyze → Complete
     if done:
-        states = ["done", "done", "done"]
-    elif stage in ("loading",):
-        states = ["active", "waiting", "waiting"]
-    elif stage in ("extracting", "whisper"):
-        states = ["done", "active", "waiting"]
+        states = ["done", "done", "done", "done", "done"]
+    elif stage == "loading":
+        states = ["active", "waiting", "waiting", "waiting", "waiting"]
+    elif stage == "extracting":
+        states = ["done", "active", "waiting", "waiting", "waiting"]
+    elif stage == "whisper":
+        states = ["done", "done", "active", "waiting", "waiting"]
     elif stage == "claude":
-        states = ["done", "done", "active"]
+        states = ["done", "done", "done", "active", "waiting"]
     else:
-        states = ["active", "waiting", "waiting"]
+        states = ["active", "waiting", "waiting", "waiting", "waiting"]
 
-    labels = [("📁", "Upload"), ("🎤", "Transcribe"), ("🤖", "Analyze")]
+    # sub-step label shown below the icon (what is happening right now at this step)
+    substep_labels = {
+        "loading":    ["Starting up…", "", "", "", ""],
+        "extracting": ["", "Reading file…", "", "", ""],
+        "whisper":    ["", "", "Converting speech…", "", ""],
+        "claude":     ["", "", "", "Reading transcript…", ""],
+    }
+    active_hints = substep_labels.get(stage, ["", "", "", "", ""])
+
+    labels = [
+        ("📁", "Load File"),
+        ("🔊", "Extract Audio"),
+        ("🎤", "Transcribe"),
+        ("🤖", "AI Analyze"),
+        ("✅", "Complete"),
+    ]
     parts  = []
     for i, ((icon, label), state) in enumerate(zip(labels, states)):
         if state == "done":
@@ -2360,24 +2402,30 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         else:
             bg = "var(--ta-step-wait-bg)"; bdr = "var(--ta-step-wait-bdr)"
             clr = "var(--ta-step-wait-clr)"; dot = "○"
+        hint = active_hints[i]
+        hint_html = (
+            f'<div style="font-size:0.60em;color:var(--ta-step-act-clr);'
+            f'font-style:italic;margin-top:2px;">{hint}</div>'
+        ) if hint else ""
         parts.append(
-            f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;">'
+            f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">'
             f'<div style="background:{bg};border:2px solid {bdr};border-radius:50%;'
-            f'width:38px;height:38px;display:flex;align-items:center;justify-content:center;'
-            f'font-size:1.05em;font-weight:800;color:{clr};transition:all 0.4s;">{dot}</div>'
-            f'<div style="font-size:0.68em;font-weight:700;color:{clr};text-align:center;'
-            f'text-transform:uppercase;letter-spacing:0.06em;">{icon} {label}</div>'
+            f'width:34px;height:34px;display:flex;align-items:center;justify-content:center;'
+            f'font-size:0.98em;font-weight:800;color:{clr};transition:all 0.4s;">{dot}</div>'
+            f'<div style="font-size:0.62em;font-weight:700;color:{clr};text-align:center;'
+            f'text-transform:uppercase;letter-spacing:0.05em;line-height:1.2;">{icon}<br/>{label}</div>'
+            f'{hint_html}'
             f'</div>'
         )
-        if i < 2:
+        if i < 4:
             lc = "var(--ta-conn-line-done)" if states[i] == "done" else "var(--ta-conn-line-wait)"
             parts.append(
-                f'<div style="flex:0.6;height:2px;background:{lc};margin-top:19px;'
+                f'<div style="flex:0.5;height:2px;background:{lc};margin-top:17px;'
                 f'border-radius:2px;transition:background 0.4s;"></div>'
             )
 
     return (
-        '<div style="display:flex;align-items:flex-start;padding:10px 16px 8px;'
+        '<div style="display:flex;align-items:flex-start;padding:10px 12px 8px;'
         'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
         'border-radius:12px;margin-bottom:10px;">'
         + "".join(parts) + "</div>"
@@ -3508,6 +3556,17 @@ _THEME_TOGGLE = """
     🌙 Dark
   </button>
 </div>
+<div id="ta-float-analyze" style="position:fixed;top:62px;right:18px;z-index:9998;">
+  <button id="ta-analyze-float-btn"
+    title="Analyze File"
+    onclick="var b=document.querySelector('.big-btn button');if(b)b.click();"
+    style="display:flex;align-items:center;gap:6px;padding:9px 18px;border-radius:26px;
+           border:none;cursor:pointer;font-size:0.83em;font-weight:700;
+           background:#334155;color:#fff;transition:all 0.2s;
+           box-shadow:0 4px 16px rgba(51,65,85,0.40);white-space:nowrap;">
+    ▶ Analyze
+  </button>
+</div>
 """
 
 # ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
@@ -3550,7 +3609,9 @@ _THEME_JS = """
       '--ta-stat-label:#a5b4fc;--ta-stat-val:#e8e8f0;',
       '--ta-log-bg:#0a0a12;--ta-log-border:#1e1e40;--ta-log-ts:#64748b;--ta-log-hdr:#e2e8f0}',
       /* Process button */
-      '.big-btn button{background:linear-gradient(135deg,#ea580c,#f97316)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(249,115,22,0.45)!important}',
+      '.big-btn button{background:#334155!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(51,65,85,0.40)!important}',
+      /* Floating analyze button */
+      '#ta-analyze-float-btn{background:#334155!important;color:#fff!important;border:none!important;border-radius:26px!important;padding:9px 18px!important;font-size:0.83em!important;font-weight:700!important;cursor:pointer!important;box-shadow:0 4px 16px rgba(51,65,85,0.40)!important;white-space:nowrap!important}',
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -3625,7 +3686,8 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e1e2a!important;border-color:#2e2e42!important;color:#e8e8f0!important}',
     'html.dark button.selected{background:#28283a!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#c2410c,#ea580c,#f97316)!important;color:#fff!important;border:none!important}',
+    'html.dark .big-btn button{background:#475569!important;color:#fff!important;border:none!important}',
+    'html.dark #ta-analyze-float-btn{background:#475569!important;color:#fff!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#9090a8!important}',
     'html.dark #ta-btn-dark{background:#6366f1!important;color:#fff!important}',
@@ -3645,7 +3707,7 @@ _THEME_JS = """
 
   /* _SKIP: elements whose colors we manage separately */
   function _skip(el) {
-    return el.closest('#ta-widget') || el.closest('#api-banner') || el.closest('#ta-wake-notice');
+    return el.closest('#ta-widget') || el.closest('#ta-float-analyze') || el.closest('#api-banner') || el.closest('#ta-wake-notice');
   }
 
   function patchDOM(dark) {
@@ -3690,11 +3752,18 @@ _THEME_JS = """
       _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
     });
 
-    /* Big button — orange in both modes */
+    /* Big button — neutral slate in both modes */
     document.querySelectorAll('.big-btn button').forEach(function(el){
-      _sp(el,'background',dark?'linear-gradient(135deg,#c2410c,#ea580c,#f97316)':null);
-      _sp(el,'color',dark?'#fff':null);
+      _sp(el,'background',dark?'#475569':'#334155');
+      _sp(el,'color','#fff');
+      _sp(el,'border','none');
     });
+    /* Floating analyze button */
+    var fab = document.getElementById('ta-analyze-float-btn');
+    if (fab) {
+      fab.style.background = dark ? '#475569' : '#334155';
+      fab.style.color = '#fff';
+    }
   }
 
   /* ── Gradio CSS variable names — set as inline props on <html> ──────────────

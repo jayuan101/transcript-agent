@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.26"
+APP_VERSION = "3.27"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1231,7 +1231,7 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     transform: translateY(-2px) !important;
 }
 html.dark #ta-float-analyze button {
-    background: #475569 !important;
+    background: #4f46e5 !important;
 }
 html.dark #ta-float-analyze button:hover {
     background: #64748b !important;
@@ -1503,7 +1503,8 @@ html.dark .file-preview { background: #1e1e2a !important; color: #f0f0ff !import
 html.dark .dropdown-arrow svg { fill: #8888a8 !important; }
 html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !important; color: #f0f0ff !important; }
 html.dark button.selected { background: #2a2a3a !important; }
-html.dark .big-btn button { background: #475569 !important; color: #fff !important; border: none !important; }
+html.dark .big-btn button { background: #4f46e5 !important; color: #fff !important; border: none !important; }
+html.dark .big-btn button:hover { background: #4338ca !important; box-shadow: 0 10px 30px rgba(79,70,229,0.45) !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
 
 /* ── Download buttons ── */
@@ -3752,8 +3753,8 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e1e2a!important;border-color:#2e2e42!important;color:#e8e8f0!important}',
     'html.dark button.selected{background:#28283a!important}',
-    'html.dark .big-btn button{background:#475569!important;color:#fff!important;border:none!important}',
-    'html.dark #ta-analyze-float-btn{background:#475569!important;color:#fff!important}',
+    'html.dark .big-btn button{background:#4f46e5!important;color:#fff!important;border:none!important}',
+    'html.dark #ta-analyze-float-btn{background:#4f46e5!important;color:#fff!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#9090a8!important}',
     'html.dark #ta-btn-dark{background:#6366f1!important;color:#fff!important}',
@@ -3818,16 +3819,16 @@ _THEME_JS = """
       _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
     });
 
-    /* Big button — neutral slate in both modes */
+    /* Big button — indigo in dark mode, slate in light */
     document.querySelectorAll('.big-btn button').forEach(function(el){
-      _sp(el,'background',dark?'#475569':'#334155');
+      _sp(el,'background',dark?'#4f46e5':'#334155');
       _sp(el,'color','#fff');
       _sp(el,'border','none');
     });
     /* Floating analyze button */
     var fab = document.getElementById('ta-analyze-float-btn');
     if (fab) {
-      fab.style.background = dark ? '#475569' : '#334155';
+      fab.style.background = dark ? '#4f46e5' : '#334155';
       fab.style.color = '#fff';
     }
   }

@@ -63,14 +63,17 @@ class LLMClient:
             kw = {}
             if thinking:
                 kw["thinking"] = {"type": "adaptive"}
-            resp = self._client.messages.create(
+            text_chunks = []
+            with self._client.messages.stream(
                 model=self.model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 **kw,
-            )
-            return next((b.text for b in resp.content if b.type == "text"), "")
+            ) as stream:
+                for text in stream.text_stream:
+                    text_chunks.append(text)
+            return "".join(text_chunks)
         else:
             try:
                 resp = self._client.chat.completions.create(

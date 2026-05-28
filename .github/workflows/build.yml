@@ -121,10 +121,11 @@ jobs:
 
       - name: Publish to releases repo
         if: github.event.inputs.release_version != ''
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
         run: |
-          gh release upload v${{ github.event.inputs.release_version }} \
-            dist/${{ matrix.artifact_name }}#${{ matrix.asset_name }} \
+          gh release upload "v${{ github.event.inputs.release_version }}" \
+            "dist/${{ matrix.artifact_name }}#${{ matrix.asset_name }}" \
             --repo jayuan101/transcript-agent-releases \
             --clobber

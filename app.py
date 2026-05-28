@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.34"
+APP_VERSION = "3.35"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -4968,6 +4968,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
             dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, load_last_msg,
         ],
+        concurrency_limit=None,
     )
 
     # ── History tab ───────────────────────────────────────────────────────────
@@ -4975,6 +4976,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=_build_history_html,
         inputs=[],
         outputs=[history_table],
+        concurrency_limit=None,
     )
 
     _HISTORY_OUTPUTS = [
@@ -4988,6 +4990,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=load_job_from_history,
         inputs=[history_trigger],
         outputs=_HISTORY_OUTPUTS,
+        concurrency_limit=None,
     )
 
     # Fallback: manual Load button reads from the visible job-id box (Gradio state is updated by taLoadJob)
@@ -4995,6 +4998,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=load_job_from_history,
         inputs=[history_job_id_box],
         outputs=_HISTORY_OUTPUTS,
+        concurrency_limit=None,
     )
 
     # ── Update install button ─────────────────────────────────────────────────

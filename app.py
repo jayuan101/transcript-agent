@@ -38,13 +38,14 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.35"
+APP_VERSION = "3.36"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
 _update_new_path: list = [None]   # [Path | None]
 _update_checked   = threading.Event()  # set when check completes (found or not)
 _cancel_flag      = threading.Event()  # set by Stop button to cancel active job
+_auto_install_at: list = [0.0]         # epoch time to auto-apply downloaded update (0 = disabled)
 
 
 def _silent_download():
@@ -57,6 +58,7 @@ def _silent_download():
         urllib.request.urlretrieve(_update_info.get("url", ""), str(new_path))
         _update_new_path[0] = new_path
         _update_downloaded.set()
+        _auto_install_at[0] = time.time() + 30   # auto-install in 30 seconds
     except Exception:
         pass
 
@@ -254,6 +256,46 @@ def _do_update():
         return
 
     sys.exit(0)
+
+
+def _apply_update_now():
+    """Fire-and-forget restart — called from the auto-install timer."""
+    if not (_is_installed_app() and _update_downloaded.is_set() and _update_new_path[0]):
+        return
+    import subprocess
+    exe_path = Path(sys.executable).resolve()
+    new_path = _update_new_path[0]
+    try:
+        if sys.platform == "win32":
+            old_name = exe_path.stem + "_old" + exe_path.suffix
+            script = exe_path.parent / "_ta_update.bat"
+            script.write_text(
+                "@echo off\ntimeout /t 2 /nobreak >nul\n"
+                f'ren "{exe_path}" "{old_name}"\n'
+                f'move /y "{new_path}" "{exe_path}"\n'
+                f'start "" "{exe_path}"\n'
+                "ping -n 6 127.0.0.1 >nul\n"
+                f'del /f "{exe_path.parent}\\{old_name}" 2>nul\n'
+                'del /f "%~f0"\n', encoding="utf-8",
+            )
+            subprocess.Popen(str(script), shell=True,
+                             creationflags=subprocess.CREATE_NO_WINDOW,
+                             cwd=str(exe_path.parent))
+        else:
+            script = exe_path.parent / "_ta_update.sh"
+            script.write_text(
+                "#!/bin/bash\nsleep 2\n"
+                f'mv "{exe_path}" "{exe_path}_old"\n'
+                f'mv "{new_path}" "{exe_path}"\n'
+                f'chmod +x "{exe_path}"\n'
+                f'"{exe_path}" &\nsleep 5\n'
+                f'rm -f "{exe_path}_old"\nrm -- "$0"\n'
+            )
+            script.chmod(0o755)
+            subprocess.Popen(["bash", str(script)])
+        sys.exit(0)
+    except Exception:
+        pass
 
 
 def _get_proxyscrape_proxies() -> list:
@@ -5036,15 +5078,32 @@ with gr.Blocks(title="Transcript Agent") as demo:
     _poll_count = [0]
     def _poll_update():
         _poll_count[0] += 1
+        # ── Auto-install countdown ────────────────────────────────────────────
+        countdown_secs = 0
+        if _auto_install_at[0] > 0:
+            remaining = _auto_install_at[0] - time.time()
+            if remaining <= 0:
+                _auto_install_at[0] = 0
+                threading.Thread(target=_apply_update_now, daemon=True).start()
+            else:
+                countdown_secs = int(remaining) + 1
         ub = _get_update_banner()
+        if countdown_secs > 0 and _is_installed_app():
+            ub += (
+                f'<div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:8px;'
+                f'padding:8px 14px;margin-top:4px;color:#93c5fd;font-size:0.85em;font-weight:600;">'
+                f'⏱ Installing automatically in {countdown_secs}s — or click the button to install now'
+                f'</div>'
+            )
         has_update = bool(_update_info)
         btn_label = "🔄 Restart to Apply Update" if _update_downloaded.is_set() else "⬇️ Download & Install Update"
         still_checking = not _update_checked.is_set()
+        keep_active = still_checking and _poll_count[0] < 10 or _auto_install_at[0] > 0
         return (
             gr.update(value=ub),
             gr.update(visible=has_update),
             gr.update(value=btn_label),
-            gr.update(active=still_checking and _poll_count[0] < 10),
+            gr.update(active=keep_active),
         )
 
     _upd_poll_timer.tick(

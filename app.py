@@ -3610,7 +3610,6 @@ _THEME_TOGGLE = """
 <div id="ta-float-analyze" style="position:fixed;top:62px;right:18px;z-index:9998;">
   <button id="ta-analyze-float-btn"
     title="Analyze File"
-    onclick="var b=document.querySelector('.big-btn button');if(b)b.click();"
     style="display:flex;align-items:center;gap:6px;padding:9px 18px;border-radius:26px;
            border:none;cursor:pointer;font-size:0.83em;font-weight:700;
            background:#334155;color:#fff;transition:all 0.2s;
@@ -3976,8 +3975,13 @@ _THEME_JS = """
   }
   /* Use event delegation as belt-and-suspenders so re-mounts can't break it */
   document.addEventListener('click', function(e) {
-    var t = e.target.closest('#ta-btn-light,#ta-btn-dark');
+    var t = e.target.closest('#ta-btn-light,#ta-btn-dark,#ta-analyze-float-btn');
     if (!t) return;
+    if (t.id === 'ta-analyze-float-btn') {
+      var b = document.querySelector('.big-btn button') || document.querySelector('button.big-btn');
+      if (b) b.click();
+      return;
+    }
     applyTheme(t.id === 'ta-btn-dark');
   });
   document.readyState === 'loading'

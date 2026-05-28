@@ -38,12 +38,13 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.33"
+APP_VERSION = "3.34"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
 _update_new_path: list = [None]   # [Path | None]
 _update_checked   = threading.Event()  # set when check completes (found or not)
+_cancel_flag      = threading.Event()  # set by Stop button to cancel active job
 
 
 def _silent_download():
@@ -2323,10 +2324,10 @@ def _transcript_to_vtt(transcript: str) -> str:
 #   8  dl_transcript    9  dl_speakers      10 dl_report
 #   11 dl_combined      12 dl_json          13 dl_pdf
 #   14 dl_docx          15 dl_srt           16 dl_vtt
-#   17 download_accordion  18 log_out       19 eta_panel  20 result_state
+#   17 download_accordion  18 log_out       19 eta_panel  20 result_state  21 cancel_btn
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 21   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), interview=gr.update(),
@@ -2334,10 +2335,10 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_s=gr.update(), dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(),
          dl_p=gr.update(), dl_docx=gr.update(), dl_srt=gr.update(), dl_vtt=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         rs=None):
+         rs=None, cancel_btn=gr.update()):
     return (status, summary, transcript, dialogue, profiles, interview,
             analytics, combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
-            dl_docx, dl_srt, dl_vtt, dl_acc, log, eta, rs)
+            dl_docx, dl_srt, dl_vtt, dl_acc, log, eta, rs, cancel_btn)
 
 
 _PDF_LANGUAGES = [
@@ -2756,6 +2757,7 @@ def process_file(
     stt_cloud_key="",
     stt_cloud_model="",
 ):
+    _cancel_flag.clear()
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
@@ -3034,12 +3036,15 @@ def process_file(
                 stt_provider=_stt_id,
                 stt_api_key=_stt_cloud_key or None,
                 stt_model=_stt_cloud_model or None,
+                cancel_event=_cancel_flag,
             )
             # Write status directly so it persists even if the browser disconnected
             import datetime as _dtt
             _write_job_status("done", stem=stem, job_id=job_id, job_dir=str(job_dir),
                               completed=_dtt.datetime.now().isoformat())
             q.put(("done", result))
+        except KeyboardInterrupt:
+            q.put(("cancelled", None))
         except Exception as e:
             # Write error status directly — generator may already be dead
             _write_job_status("error", stem=stem, job_id=job_id, job_dir=str(job_dir),
@@ -3048,6 +3053,7 @@ def process_file(
 
     t = threading.Thread(target=background, daemon=True)
     t.start()
+    yield _out(cancel_btn=gr.update(visible=True))
 
     # ── live update loop ──────────────────────────────────────────────────────
     whisper_pct     = 0.0
@@ -3089,6 +3095,14 @@ def process_file(
             msg = q.get(timeout=1.0)
             last_activity = time.time()
         except Q.Empty:
+            if _cancel_flag.is_set():
+                log_text = _add_log("⏹ Transcription stopped by user.", "warn")
+                yield _out(
+                    status=_status_compact("⏹", "Stopped"),
+                    log=log_text,
+                    cancel_btn=gr.update(visible=False),
+                )
+                break
             elapsed  = _elapsed()
             quiet    = int(time.time() - last_activity)
             eta_upd  = gr.update()
@@ -3202,6 +3216,15 @@ def process_file(
             )
             claude_started = True
             stage = "claude"
+
+        elif kind == "cancelled":
+            log_text = _add_log("⏹ Transcription stopped by user.", "warn")
+            yield _out(
+                status=_status_compact("⏹", "Stopped"),
+                log=log_text,
+                cancel_btn=gr.update(visible=False),
+            )
+            break
 
         elif kind == "done":
             result = msg[1]
@@ -3392,6 +3415,7 @@ def process_file(
                     "detected_language": result.detected_language,
                     "out_dir": str(job_dir)},
                 log=log_text,
+                cancel_btn=gr.update(visible=False),
             )
             break
 
@@ -3404,7 +3428,7 @@ def process_file(
                 except Exception:
                     pass
             log_text = _add_log(f"🚨 {msg[1]}", "error")
-            yield _out(log=log_text)
+            yield _out(log=log_text, cancel_btn=gr.update(visible=False))
             yield _err(f"Processing failed: {msg[1]}")
             break
     finally:
@@ -4688,6 +4712,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 variant="primary", size="lg",
                 elem_classes=["big-btn"],
             )
+            cancel_btn = gr.Button(
+                "⏹ Stop Transcription",
+                variant="stop", size="sm",
+                visible=False,
+                elem_id="ta-cancel-btn",
+            )
 
             result_state = gr.State(value=None)
 
@@ -4913,7 +4943,14 @@ with gr.Blocks(title="Transcript Agent") as demo:
             log_out,
             eta_panel,
             result_state,
+            cancel_btn,
         ],
+    )
+
+    cancel_btn.click(
+        fn=lambda: _cancel_flag.set(),
+        inputs=[],
+        outputs=[],
     )
 
     pdf_regen_btn.click(

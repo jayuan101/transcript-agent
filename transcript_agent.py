@@ -106,6 +106,7 @@ except ImportError:
 
 _progress_lock = _threading.Lock()
 _progress_cb   = None
+_cancel_event: _threading.Event = None
 
 # Fast availability check — no actual import, just inspects installed packages
 import importlib.util as _importlib_util
@@ -119,6 +120,8 @@ try:
         def update(self, n=1):
             # Do NOT call super().update() — it renders Unicode progress chars
             # (e.g. ▼ U+25BC) to stderr which crashes ASCII-encoded terminals.
+            if _cancel_event and _cancel_event.is_set():
+                raise KeyboardInterrupt("Transcription cancelled by user")
             if self.n is None:
                 self.n = 0
             self.n += n
@@ -2034,7 +2037,10 @@ def run(
     deepgram_model: str = "nova-2", # Deepgram model (backward compat)
     stt_api_key: str = None,        # API key for any cloud STT provider
     stt_model: str = None,          # Model name for any cloud STT provider
+    cancel_event: _threading.Event = None,
 ) -> TranscriptResult:
+    global _cancel_event
+    _cancel_event = cancel_event
     def _log(m):
         _safe_print(f"  {m}")
         if on_log: on_log(m)

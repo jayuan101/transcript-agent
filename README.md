@@ -158,6 +158,8 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.25` | Fix History tab Load button — job ID now correctly passed when clicking Load |
+| `v3.24` | Reliable update checker + manual Check for Updates button |
 | `v3.23` | Grouped step tracker (3 phase boxes), History Load fix |
 | `v3.22` | History tab Load fix — eliminated setTimeout race condition |
 | `v3.21` | Floating Analyze button, neutral slate colors, 5-step tracker |

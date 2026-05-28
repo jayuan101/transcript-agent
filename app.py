@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.31"
+APP_VERSION = "3.32"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1202,6 +1202,10 @@ html.dark .checkbox-group label span,
 html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
 
 /* ── Process / CTA button ────────────────────────────────────────────────── */
+.big-btn {
+    position: relative !important;
+    z-index: 10 !important;
+}
 .big-btn button {
     background: #4f46e5 !important;
     color: #fff !important;
@@ -1267,6 +1271,9 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     background: rgba(238,242,255,0.6) !important;
     transition: all 0.25s ease !important;
     min-height: 140px !important;
+    position: relative !important;
+    z-index: 0 !important;
+    overflow: hidden !important;
 }
 .upload-container:not(:hover) { animation: ta-upload-pulse 3s ease-in-out infinite !important; }
 .upload-container:hover {
@@ -1652,9 +1659,9 @@ def _finish_time_str(eta_secs: int, tz_name: str = "") -> str:
         try:
             finish = finish_utc.astimezone(zoneinfo.ZoneInfo(tz_name))
         except Exception:
-            finish = finish_utc
+            finish = finish_utc.astimezone()
     else:
-        finish = finish_utc
+        finish = finish_utc.astimezone()
     hour = finish.hour % 12 or 12
     ampm = "AM" if finish.hour < 12 else "PM"
     return f"{hour}:{finish.minute:02d} {ampm}"

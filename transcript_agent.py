@@ -1497,7 +1497,8 @@ _INTERVIEW_JSON_FIELD = '''\
       "question": "Exact question asked",
       "your_answer_summary": "3-5 sentences capturing what the candidate actually said — include the specific points, examples, or stories they mentioned. Be faithful to what they said, not a vague paraphrase.",
       "ideal_answer": "Write this in natural first-person as if you ARE the candidate speaking out loud — confident, human, conversational. No bullet points, no AI-style structure. Sound like a well-prepared person answering in real life. Start with the direct answer, then back it up with a concrete example or story. Example style: 'I spent three years managing a distributed team across two time zones. The biggest challenge was...' NOT: 'A strong candidate should demonstrate...'",
-      "verdict": "strong | acceptable | weak | missed",
+      "verdict": "great | good | bad | miss",
+      "score": 7,
       "feedback": "Specific coaching — what was missing, what landed well, how to improve"
     }
   ],
@@ -1509,7 +1510,8 @@ _INTERVIEW_JSON_FIELD_DEEP = '''\
       "question": "Exact question asked",
       "your_answer_summary": "3-5 sentences capturing what the candidate actually said — include the specific points, examples, or stories they mentioned. Be faithful to what they said, not a vague paraphrase. If they used resume context provided, reference it.",
       "ideal_answer": "Write this in natural first-person as if you ARE the candidate speaking out loud — confident, human, conversational. No bullet points, no AI-style structure. Sound like a well-prepared person answering in real life. Start with the direct answer, then back it up with a concrete example or story. Use the candidate's resume/background context if provided to make it personal. Example style: 'I spent three years managing a distributed team across two time zones. The biggest challenge was...' NOT: 'A strong candidate should demonstrate...'",
-      "verdict": "strong | acceptable | weak | missed",
+      "verdict": "great | good | bad | miss",
+      "score": 7,
       "deflection_detected": false,
       "deflection_note": "Only populate if deflection_detected is true — describe how the candidate deflected or stalled",
       "feedback": "Specific coaching — what was missing, what landed well, how to improve"
@@ -1518,7 +1520,7 @@ _INTERVIEW_JSON_FIELD_DEEP = '''\
   "round_advance_probability": 72,
   "prep_guide": [
     {
-      "question": "Repeat of a weak or missed question",
+      "question": "Repeat of a bad or missed question",
       "why_it_matters": "Why interviewers ask this and what they are really probing for",
       "suggested_answer": "A strong, concrete answer the candidate could give next time"
     }
@@ -1529,7 +1531,8 @@ INTERVIEW MODE: Extract every distinct interview question from the transcript.
 For each question:
 - your_answer_summary: Capture in 3-5 sentences what the candidate actually said, with the specific points or examples they gave. Be faithful — do not paraphrase vaguely.
 - ideal_answer: Write as if YOU are the candidate speaking naturally in first person. Confident, human, conversational — no bullet points, no AI-style phrasing. A real person's well-prepared answer.
-- verdict: strong | acceptable | weak | missed
+- verdict: great | good | bad | miss  (great=nailed it, good=solid, bad=weak/incomplete, miss=question not answered)
+- score: integer 1-10 rating of the answer quality (10=perfect, 1=completely missed)
 - feedback: specific coaching on what landed, what was missing, how to improve.
 
 After scoring all questions, set round_advance_probability (0-100) based on the overall quality of answers.
@@ -1542,7 +1545,8 @@ INTERVIEW MODE (Deep Analysis): Extract every distinct interview question from t
 For each question:
 - your_answer_summary: Capture in 3-5 sentences what the candidate actually said, with the specific points or examples they gave. Be faithful — do not paraphrase vaguely.
 - ideal_answer: Write as if YOU are the candidate speaking naturally in first person. Confident, human, conversational — no bullet points, no AI-style phrasing. A real well-prepared person's answer. Use any resume/background context provided to make it personal and specific.
-- verdict: strong | acceptable | weak | missed
+- verdict: great | good | bad | miss  (great=nailed it, good=solid, bad=weak/incomplete, miss=question not answered)
+- score: integer 1-10 rating of the answer quality (10=perfect, 1=completely missed)
 - deflection_detected: true if the candidate used filler phrases, stalled, or answered around the question without directly addressing it
 - deflection_note: only if deflection_detected is true — briefly describe the deflection behaviour
 - feedback: specific, actionable coaching
@@ -1550,7 +1554,7 @@ For each question:
 After scoring all questions, set round_advance_probability (0-100) based on the overall quality of answers.
 Rough guide: 80+ = strong candidate, 60-79 = competitive, 40-59 = borderline, <40 = unlikely.
 
-Also produce a prep_guide: for each question with verdict weak or missed, explain why interviewers ask it
+Also produce a prep_guide: for each question with verdict bad or miss, explain why interviewers ask it
 and provide a strong suggested answer the candidate can practise. Only include weak/missed questions in prep_guide.
 
 Only include real interview questions — ignore small talk or off-topic exchanges."""
@@ -1896,7 +1900,10 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             sections += [f"  {name}", f"  {profile}", ""]
 
     if config.include_interview_mode and result.interview_questions:
-        verdict_icon = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+        verdict_icon = {"great": "✅", "good": "🟡", "bad": "⚠️", "miss": "❌",
+                        "strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+        verdict_label = {"great": "Great", "good": "Good", "bad": "Bad", "miss": "Miss",
+                         "strong": "Great", "acceptable": "Good", "weak": "Bad", "missed": "Miss"}
         sections += [divider, "INTERVIEW ANALYSIS", divider]
 
         if result.round_advance_probability >= 0:
@@ -1913,9 +1920,13 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             sections.append("")
 
         for i, q in enumerate(result.interview_questions, 1):
-            icon = verdict_icon.get(q.get("verdict", "").lower(), "•")
+            v = q.get("verdict", "").lower()
+            icon = verdict_icon.get(v, "•")
+            label = verdict_label.get(v, v.upper())
+            score = q.get("score")
+            score_str = f"  |  Score: {score}/10" if score is not None else ""
             sections.append(f"Q{i}: {q.get('question', '')}")
-            sections.append(f"  Verdict : {icon} {q.get('verdict', '').upper()}")
+            sections.append(f"  Verdict : {icon} {label}{score_str}")
             if q.get("deflection_detected"):
                 sections.append(f"  ⚡ Deflection : {q.get('deflection_note', 'Candidate deflected or stalled')}")
             if q.get("your_answer_summary"):

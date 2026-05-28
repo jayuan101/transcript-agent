@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.29` | Interview verdicts: Great/Good/Bad/Miss + score out of 10 per question |
 | `v3.28` | Analyze button indigo in both light and dark mode |
 | `v3.27` | Analyze button is indigo in dark mode (was colorless gray) |
 | `v3.26` | % likelihood of advancing now shown in standard Interview Mode (not deep-only) |

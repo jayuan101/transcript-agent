@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.28"
+APP_VERSION = "3.29"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -3208,8 +3208,11 @@ def process_file(
             # ── Interview Q&A — dedicated Interview tab content ──────────────────
             interview_md = ""
             if inc_interview and result.interview_questions:
-                _vicon  = {"strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
-                _vlabel = {"strong": "Great", "acceptable": "Good", "weak": "Needs Improvement", "missed": "Missed"}
+                _vicon  = {"great": "✅", "good": "🟡", "bad": "⚠️", "miss": "❌",
+                           # legacy fallbacks
+                           "strong": "✅", "acceptable": "🟡", "weak": "⚠️", "missed": "❌"}
+                _vlabel = {"great": "Great", "good": "Good", "bad": "Bad", "miss": "Miss",
+                           "strong": "Great", "acceptable": "Good", "weak": "Bad", "missed": "Miss"}
                 _ilines = ["## 🎤 Interview Q&A\n"]
 
                 if result.round_advance_probability >= 0:
@@ -3222,10 +3225,12 @@ def process_file(
                 for _qi, _q in enumerate(result.interview_questions, 1):
                     _verdict = (_q.get("verdict") or "").lower()
                     _icon = _vicon.get(_verdict, "•")
+                    _score = _q.get("score")
+                    _score_str = f" — **{_score}/10**" if _score is not None else ""
                     _ilines += [
                         f"### Q{_qi}. {_q.get('question', '')}",
                         "",
-                        f"**Verdict:** {_icon} {_vlabel.get(_verdict, (_q.get('verdict') or '').upper())}",
+                        f"**Verdict:** {_icon} {_vlabel.get(_verdict, (_q.get('verdict') or '').upper())}{_score_str}",
                         "",
                     ]
                     if _q.get("your_answer_summary"):

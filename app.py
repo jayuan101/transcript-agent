@@ -43,6 +43,7 @@ _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-release
 _update_info: dict = {}
 _update_downloaded = threading.Event()
 _update_new_path: list = [None]   # [Path | None]
+_update_checked   = threading.Event()  # set when check completes (found or not)
 
 
 def _silent_download():
@@ -64,8 +65,16 @@ def _is_installed_app() -> bool:
     return getattr(sys, "frozen", False) and bool(os.environ.get("TRANSCRIPT_AGENT_WINDOWED"))
 
 
+def _version_tuple(v: str):
+    try:
+        return tuple(int(x) for x in v.lstrip("v").split("."))
+    except Exception:
+        return (0,)
+
+
 def _check_for_update():
     if not _is_installed_app():
+        _update_checked.set()
         return
     try:
         import requests as _r
@@ -74,7 +83,7 @@ def _check_for_update():
             return
         data = r.json()
         latest = data.get("tag_name", "").lstrip("v")
-        if not latest or latest == APP_VERSION:
+        if not latest or _version_tuple(latest) <= _version_tuple(APP_VERSION):
             return
         exe_url = next(
             (a["browser_download_url"] for a in data.get("assets", []) if a["name"].endswith(".exe")),
@@ -90,6 +99,8 @@ def _check_for_update():
             threading.Thread(target=_silent_download, daemon=True).start()
     except Exception:
         pass
+    finally:
+        _update_checked.set()
 
 
 threading.Thread(target=_check_for_update, daemon=True).start()
@@ -106,10 +117,15 @@ def _get_update_banner():
             f'<div style="padding:6px 0;">{current_badge}'
             f'<span style="font-size:0.8em;color:#64748b;margin-left:8px;">Docker / browser mode</span></div>'
         )
+    if not _update_checked.is_set():
+        return (
+            f'<div style="padding:6px 0;">{current_badge}'
+            f'<span style="font-size:0.8em;color:#94a3b8;margin-left:8px;">Checking for updates…</span></div>'
+        )
     if not _update_info:
         return (
             f'<div style="padding:6px 0;">{current_badge}'
-            f'<span style="font-size:0.8em;color:#64748b;margin-left:8px;">Up to date</span></div>'
+            f'<span style="font-size:0.8em;color:#64748b;margin-left:8px;">✓ Up to date</span></div>'
         )
     v = _update_info["version"]
     changelog_lines = _update_info.get("changelog", "").strip().splitlines()
@@ -4383,12 +4399,17 @@ with gr.Blocks(title="Transcript Agent") as demo:
         'Safe to step away.</span></div>'
     )
 
-    # ── Version / update banner (always visible) ─────────────────────────────
+    # ── Version / update banner ───────────────────────────────────────────────
     _init_ub = _get_update_banner()
-    update_banner = gr.HTML(value=_init_ub, visible=bool(_init_ub.strip()))
+    with gr.Row(elem_classes=["update-header-row"]):
+        update_banner  = gr.HTML(value=_init_ub, visible=True, scale=4)
+        check_upd_btn  = gr.Button("🔄 Check for Updates", size="sm", scale=1,
+                                   visible=_is_installed_app())
     with gr.Row(visible=False) as update_row:
-        update_btn    = gr.Button("Download & Install Update", variant="primary", size="sm")
+        update_btn    = gr.Button("⬇️ Download & Install Update", variant="primary", size="sm")
         update_status = gr.Markdown(value="", visible=True)
+    # Timer fires every 3 s for the first ~30 s to catch the background check result
+    _upd_poll_timer = gr.Timer(value=3, active=True)
 
     # ── Job status banner (updates on page load) ──────────────────────────────
     _init_jb = get_job_banner()
@@ -4868,12 +4889,57 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=_HISTORY_OUTPUTS,
     )
 
-    # ── Update button ─────────────────────────────────────────────────────────
+    # ── Update install button ─────────────────────────────────────────────────
     update_btn.click(
         fn=_do_update,
         inputs=[],
         outputs=[update_status],
-    ).then(fn=None)  # keep generator alive until done
+    ).then(fn=None)
+
+    # ── Manual "Check for Updates" button ────────────────────────────────────
+    def _manual_check_update():
+        _update_info.clear()
+        _update_checked.clear()
+        threading.Thread(target=_check_for_update, daemon=True).start()
+        _update_checked.wait(timeout=15)
+        return _refresh_update_ui()
+
+    def _refresh_update_ui():
+        ub = _get_update_banner()
+        has_update = bool(_update_info)
+        btn_label = "🔄 Restart to Apply Update" if _update_downloaded.is_set() else "⬇️ Download & Install Update"
+        return (
+            gr.update(value=ub),
+            gr.update(visible=has_update),
+            gr.update(value=btn_label),
+        )
+
+    check_upd_btn.click(
+        fn=_manual_check_update,
+        inputs=[],
+        outputs=[update_banner, update_row, update_btn],
+    )
+
+    # ── Poll timer — refreshes update UI until check completes (max ~30 s) ───
+    _poll_count = [0]
+    def _poll_update():
+        _poll_count[0] += 1
+        ub = _get_update_banner()
+        has_update = bool(_update_info)
+        btn_label = "🔄 Restart to Apply Update" if _update_downloaded.is_set() else "⬇️ Download & Install Update"
+        still_checking = not _update_checked.is_set()
+        return (
+            gr.update(value=ub),
+            gr.update(visible=has_update),
+            gr.update(value=btn_label),
+            gr.update(active=still_checking and _poll_count[0] < 10),
+        )
+
+    _upd_poll_timer.tick(
+        fn=_poll_update,
+        inputs=[],
+        outputs=[update_banner, update_row, update_btn, _upd_poll_timer],
+    )
 
     # ── Bandwidth timer ───────────────────────────────────────────────────────
     if _PSUTIL_OK:
@@ -4882,13 +4948,14 @@ with gr.Blocks(title="Transcript Agent") as demo:
     # ── Refresh banners on page load ──────────────────────────────────────────
     def _on_load(browser_tz=""):
         tz_val = browser_tz if browser_tz else ""
-        btn_label = "Restart to Apply Update" if _update_downloaded.is_set() else "Download & Install Update"
         jb = get_job_banner()
         ub = _get_update_banner()
+        has_update = bool(_update_info)
+        btn_label = "🔄 Restart to Apply Update" if _update_downloaded.is_set() else "⬇️ Download & Install Update"
         return (
             gr.update(value=jb, visible=bool(jb.strip())),
-            gr.update(value=ub, visible=bool(ub.strip())),
-            gr.update(visible=bool(_update_info)),
+            gr.update(value=ub),
+            gr.update(visible=has_update),
             gr.update(value=tz_val),
             gr.update(value=btn_label),
         )

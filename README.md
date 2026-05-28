@@ -158,6 +158,8 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.37` | Fix 10-minute timeout on long Claude AI analysis (switch to streaming) |
+| `v3.36` | Auto-install updates without clicking the button |
 | `v3.35` | History and Load Last Result work while transcription is running |
 | `v3.34` | Stop button to cancel transcription mid-run |
 | `v3.33` | Whisper CPU warning banner; suppress FP16 noise in logs |

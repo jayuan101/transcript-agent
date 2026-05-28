@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.29"
+APP_VERSION = "3.30"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -975,6 +975,27 @@ _STATUS_PILL = {
     "pending":      ('<span style="background:#374151;color:#9ca3af;border-radius:5px;'
                      'padding:2px 8px;font-size:0.78em;font-weight:700;">• Pending</span>'),
 }
+
+
+def _extract_resume_text(file_obj) -> str:
+    """Extract plain text from an uploaded resume file (PDF, DOCX, TXT, MD)."""
+    if file_obj is None:
+        return ""
+    path = file_obj.name if hasattr(file_obj, "name") else str(file_obj)
+    ext = Path(path).suffix.lower()
+    try:
+        if ext == ".pdf":
+            import pdfplumber
+            with pdfplumber.open(path) as pdf:
+                return "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
+        elif ext == ".docx":
+            import docx as _docx
+            doc = _docx.Document(path)
+            return "\n".join(p.text for p in doc.paragraphs).strip()
+        else:
+            return Path(path).read_text(encoding="utf-8", errors="replace").strip()
+    except Exception as e:
+        return f"[Could not read file: {e}]"
 
 
 def _build_history_html() -> str:
@@ -3222,6 +3243,22 @@ def process_file(
                     _pemoji = "🟢" if _prob >= 80 else "🟡" if _prob >= 60 else "🟠" if _prob >= 40 else "🔴"
                     _ilines.append(f"**Overall likelihood of advancing: {_pemoji} {_prob}% — {_plabel}**\n")
 
+                # ── What to Improve summary ───────────────────────────────────
+                _weak_qs = [_q for _q in result.interview_questions
+                            if (_q.get("verdict") or "").lower() in ("bad", "miss", "weak", "missed")]
+                if _weak_qs:
+                    _ilines += ["## 🔧 What to Improve\n",
+                                "_Focus on these areas before your next interview:_\n"]
+                    for _wq in _weak_qs:
+                        _wv = (_wq.get("verdict") or "").lower()
+                        _wicon = _vicon.get(_wv, "⚠️")
+                        _ilines += [f"**{_wicon} {_wq.get('question', '')}**", ""]
+                        if _wq.get("feedback"):
+                            _ilines += [f"- {_wq['feedback']}", ""]
+                        if _wq.get("ideal_answer"):
+                            _ilines += [f"  _Strong answer:_ {_wq['ideal_answer']}", ""]
+                    _ilines.append("---\n")
+
                 for _qi, _q in enumerate(result.interview_questions, 1):
                     _verdict = (_q.get("verdict") or "").lower()
                     _icon = _vicon.get(_verdict, "•")
@@ -4589,17 +4626,22 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 with gr.Row():
                     inc_interview = gr.Checkbox(
                         label="🎤 Interview mode — extract questions, ideal answers & score responses",
-                        value=False,
+                        value=True,
                     )
 
-                with gr.Column(visible=False) as interview_advanced_col:
+                with gr.Column(visible=True) as interview_advanced_col:
                     gr.HTML('<div style="font-size:0.75em;color:var(--ta-card-sub);margin:4px 0 2px;">Advanced — optional</div>')
                     inc_interview_deep = gr.Checkbox(
                         label="Deep analysis — deflection detection, % likelihood of advancing & prep guide",
-                        value=False,
+                        value=True,
+                    )
+                    resume_file_upload = gr.File(
+                        label="Upload resume / background (PDF, DOCX, TXT — optional)",
+                        file_types=[".pdf", ".docx", ".txt", ".md"],
+                        file_count="single",
                     )
                     resume_context_input = gr.Textbox(
-                        label="Your resume / narratives (optional — personalizes ideal answers and prep guide)",
+                        label="Or paste your resume / narratives here",
                         placeholder="Paste a summary of your background, key accomplishments, or STAR stories…",
                         lines=4,
                         max_lines=10,
@@ -4610,6 +4652,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     fn=lambda v: gr.update(visible=v),
                     inputs=inc_interview,
                     outputs=interview_advanced_col,
+                )
+
+                resume_file_upload.change(
+                    fn=_extract_resume_text,
+                    inputs=[resume_file_upload],
+                    outputs=[resume_context_input],
                 )
 
             gr.HTML("""

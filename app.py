@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.30"
+APP_VERSION = "3.31"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -2527,11 +2527,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     tracker = _step_tracker_html(stage, done)
 
     if done:
-        from datetime import datetime
-        finished_at = datetime.now()
-        hour = finished_at.hour % 12 or 12
-        ampm = "AM" if finished_at.hour < 12 else "PM"
-        finished_str = f"{hour}:{finished_at.minute:02d} {ampm}"
+        finished_str = _finish_time_str(0, tz_name)
         return tracker + (
             '<div style="background:var(--ta-step-done-bg);'
             'border:2px solid var(--ta-step-done-bdr);border-radius:16px;padding:24px 28px;'

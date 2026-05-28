@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.18"
+APP_VERSION = "3.19"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1170,7 +1170,7 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
   100% { background-position: -200% center; }
 }
 .big-btn button {
-    background: linear-gradient(135deg, #059669 0%, #10b981 40%, #34d399 70%, #10b981 100%) !important;
+    background: linear-gradient(135deg, #ea580c 0%, #f97316 40%, #fb923c 70%, #f97316 100%) !important;
     background-size: 300% 100% !important;
     color: #fff !important;
     font-size: 1.06em !important;
@@ -1189,12 +1189,12 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
 }
 .big-btn button:hover {
     background-position: right center !important;
-    box-shadow: 0 10px 36px rgba(16,185,129,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
+    box-shadow: 0 10px 36px rgba(249,115,22,0.65), 0 3px 10px rgba(0,0,0,0.15) !important;
     transform: translateY(-3px) scale(1.01) !important;
 }
 .big-btn button:active {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 14px rgba(16,185,129,0.45) !important;
+    box-shadow: 0 4px 14px rgba(249,115,22,0.45) !important;
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
@@ -1368,65 +1368,18 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
     background: #475569 !important;
 }
 
-/* timezone dropdown — tall scrollable list + teal highlight */
-#tz-sel label {
-    color: #0e7490 !important;
-    font-weight: 600 !important;
-}
-#tz-sel input {
-    border: 2px solid #22d3ee !important;
-    border-radius: 8px !important;
-    background: #ecfeff !important;
-    color: #164e63 !important;
-    font-weight: 500 !important;
-}
-#tz-sel input:focus {
-    border-color: #06b6d4 !important;
-    box-shadow: 0 0 0 3px rgba(6,182,212,0.25) !important;
-}
+/* timezone dropdown — tall scrollable list for 500+ IANA zones */
 #tz-sel [role="listbox"] {
     max-height: 380px !important;
     overflow-y: auto !important;
     scrollbar-width: thin !important;
-    background: #ecfeff !important;
-    border: 1.5px solid #22d3ee !important;
-    border-radius: 8px !important;
-}
-#tz-sel [role="option"] {
-    color: #164e63 !important;
-}
-#tz-sel [role="option"]:hover,
-#tz-sel [role="option"][aria-selected="true"] {
-    background: #cffafe !important;
-    color: #0e7490 !important;
 }
 #tz-sel [role="listbox"]::-webkit-scrollbar { width: 6px !important; }
 #tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #22d3ee !important; border-radius: 4px !important;
-}
-/* dark mode */
-html.dark #tz-sel label { color: #67e8f9 !important; }
-html.dark #tz-sel input {
-    border-color: #0891b2 !important;
-    background: #0c2a33 !important;
-    color: #cffafe !important;
-}
-html.dark #tz-sel input:focus {
-    border-color: #22d3ee !important;
-    box-shadow: 0 0 0 3px rgba(6,182,212,0.2) !important;
-}
-html.dark #tz-sel [role="listbox"] {
-    background: #0c2a33 !important;
-    border-color: #0891b2 !important;
-}
-html.dark #tz-sel [role="option"] { color: #cffafe !important; }
-html.dark #tz-sel [role="option"]:hover,
-html.dark #tz-sel [role="option"][aria-selected="true"] {
-    background: #164e63 !important;
-    color: #67e8f9 !important;
+    background: #94a3b8 !important; border-radius: 4px !important;
 }
 html.dark #tz-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #0891b2 !important;
+    background: #475569 !important;
 }
 
 /* Hero banner always uses white text — dark gradient background in both modes */
@@ -1510,7 +1463,7 @@ html.dark .file-preview { background: #1e1e2a !important; color: #f0f0ff !import
 html.dark .dropdown-arrow svg { fill: #8888a8 !important; }
 html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !important; color: #f0f0ff !important; }
 html.dark button.selected { background: #2a2a3a !important; }
-html.dark .big-btn button { background: linear-gradient(135deg,#047857,#10b981,#34d399) !important; color: #fff !important; border: none !important; }
+html.dark .big-btn button { background: linear-gradient(135deg,#c2410c,#ea580c,#f97316) !important; color: #fff !important; border: none !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
 
 /* ── Download buttons ── */
@@ -1541,6 +1494,26 @@ html.dark #ta-btn-dark  { background: #6366f1 !important; color: #fff !important
 html.dark ::-webkit-scrollbar-track { background: #0a0a12 !important; }
 html.dark ::-webkit-scrollbar-thumb { background: #2e2e42 !important; border-radius: 6px !important; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #4a4a60 !important; }
+
+/* ── Error card — visible in both light and dark mode ────────────────────── */
+.ta-error-card {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    border: 2px solid #ef4444;
+    border-radius: 12px;
+    padding: 18px 22px;
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    font-family: sans-serif;
+}
+.ta-error-card .ta-err-title { color: #991b1b; font-weight: 700; font-size: 1em; }
+.ta-error-card .ta-err-msg   { color: #b91c1c; font-size: 0.88em; margin-top: 5px; }
+html.dark .ta-error-card {
+    background: linear-gradient(135deg, #1a0505, #2d0a0a) !important;
+    border-color: #ef4444 !important;
+}
+html.dark .ta-error-card .ta-err-title { color: #fca5a5 !important; }
+html.dark .ta-error-card .ta-err-msg   { color: #f87171 !important; }
 
 /* ── Adaptive CSS variables used by step-tracker and ETA panel ── */
 :root {
@@ -2412,7 +2385,8 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 
 
 def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
-                    elapsed: str = "", done: bool = False, tz_name: str = "") -> str:
+                    elapsed: str = "", done: bool = False, tz_name: str = "",
+                    stt_elapsed: str = "", ai_elapsed: str = "") -> str:
 
     _slide_css = (
         "<style>@keyframes pgslide{0%{left:-45%}100%{left:110%}}</style>"
@@ -2438,19 +2412,34 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             'letter-spacing:0.1em;color:var(--ta-step-done-clr);margin-top:12px;">Finished at</div>'
             f'<div style="font-size:2.6em;font-weight:900;color:var(--ta-step-done-clr);'
             f'font-family:monospace;line-height:1.1;letter-spacing:-0.02em;">{finished_str}</div>'
-            '<div style="display:flex;justify-content:center;gap:16px;margin-top:14px;flex-wrap:wrap;">'
+            '<div style="display:flex;justify-content:center;gap:12px;margin-top:14px;flex-wrap:wrap;">'
+            + (
+                '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
+                'border-radius:10px;padding:10px 16px;text-align:center;">'
+                '<div style="font-size:0.63em;font-weight:700;text-transform:uppercase;'
+                'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Step 1 · Transcription</div>'
+                f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
+                f'font-family:monospace;">{stt_elapsed}</div>'
+                '</div>'
+                if stt_elapsed else ""
+            )
+            + (
+                '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
+                'border-radius:10px;padding:10px 16px;text-align:center;">'
+                '<div style="font-size:0.63em;font-weight:700;text-transform:uppercase;'
+                'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Step 2 · AI Analysis</div>'
+                f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
+                f'font-family:monospace;">{ai_elapsed}</div>'
+                '</div>'
+                if ai_elapsed else ""
+            )
+            +
             '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
-            'border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+            'border-radius:10px;padding:10px 16px;text-align:center;">'
+            '<div style="font-size:0.63em;font-weight:700;text-transform:uppercase;'
             'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Total Time</div>'
-            f'<div style="font-size:1.5em;font-weight:800;color:var(--ta-card-val);'
+            f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
             f'font-family:monospace;">{elapsed}</div>'
-            '</div>'
-            '<div style="background:var(--ta-stat-bg);border:1px solid var(--ta-step-done-bdr);'
-            'border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:var(--ta-step-done-clr);">Progress</div>'
-            '<div style="font-size:1.5em;font-weight:800;color:var(--ta-card-val);">100%</div>'
             '</div>'
             '</div>'
             '</div>'
@@ -2523,12 +2512,18 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     if stage == "claude":
         eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "estimating…"
         finish_str = _finish_time_str(eta_secs, tz_name) if (eta_secs and eta_secs > 0) else ""
+        stt_note   = (
+            f'<div style="font-size:0.78em;color:var(--ta-card-sub);margin-bottom:10px;'
+            f'text-align:center;">&#10003; Step 1 (Transcription) completed in '
+            f'<b style="color:var(--ta-step-done-clr);">{stt_elapsed}</b></div>'
+        ) if stt_elapsed else ""
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
             'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
             'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:14px;">'
             'Step 2 of 2 &nbsp;&mdash;&nbsp; Analyzing with AI</div>'
+            + stt_note
             + _hero_time(finish_str, eta_str, "#a855f7", "#c4b5fd", approx=bool(finish_str)) +
             _slide_css +
             '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:12px;'
@@ -2536,8 +2531,10 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             '<div style="position:absolute;width:40%;height:100%;background:#a855f7;'
             'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
             '</div>'
-            f'<div style="text-align:right;font-size:0.8em;color:var(--ta-card-sub);">'
-            f'elapsed: {elapsed}</div>'
+            f'<div style="display:flex;justify-content:space-between;font-size:0.8em;'
+            f'color:var(--ta-card-sub);">'
+            f'<span>Step 2 elapsed: {elapsed}</span>'
+            f'</div>'
             '</div>'
         )
 
@@ -2596,13 +2593,11 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 def _err(msg: str) -> tuple:
     """Yield this tuple to display an inline error card instead of a popup."""
     html = (
-        '<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);'
-        'border:2px solid #ef4444;border-radius:12px;padding:18px 22px;'
-        'display:flex;align-items:flex-start;gap:14px;font-family:sans-serif;">'
-        '<div style="font-size:1.8em;line-height:1;flex-shrink:0;">❌</div>'
+        '<div class="ta-error-card">'
+        '<div style="font-size:1.8em;line-height:1;flex-shrink:0;">&#10060;</div>'
         '<div>'
-        '<div style="color:#991b1b;font-weight:700;font-size:1em;">Something went wrong</div>'
-        f'<div style="color:#b91c1c;font-size:0.88em;margin-top:5px;">{msg}</div>'
+        '<div class="ta-err-title">Something went wrong</div>'
+        f'<div class="ta-err-msg">{msg}</div>'
         '</div>'
         '</div>'
     )
@@ -2938,6 +2933,7 @@ def process_file(
     claude_start_time: float = 0.0
     stt_stage_start: float   = 0.0
     stt_elapsed_str: str     = ""
+    ai_elapsed_str:  str     = ""
     stage           = "loading"
     last_activity   = time.time()
     stall_warned    = set()
@@ -3012,7 +3008,7 @@ def process_file(
                            eta=_eta_panel_html("extracting", elapsed=elapsed, tz_name=tz_name))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name))
+                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name, stt_elapsed=stt_elapsed_str))
             else:
                 yield _out(status=_status_compact("⏳", "Loading…", elapsed),
                            eta=_eta_panel_html("loading", elapsed=elapsed, tz_name=tz_name))
@@ -3043,7 +3039,7 @@ def process_file(
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log("Sending transcript to AI for analysis…", "ai")
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name), log=log)
+                           eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name, stt_elapsed=stt_elapsed_str), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
@@ -3077,7 +3073,7 @@ def process_file(
                 claude_start_time = time.time()
             yield _out(
                 status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name),
+                eta=_eta_panel_html("claude", elapsed=elapsed, eta_secs=_claude_eta_secs(), tz_name=tz_name, stt_elapsed=stt_elapsed_str),
                 transcript=msg[1],
                 log=log_text,
             )
@@ -3208,6 +3204,10 @@ def process_file(
                 f_vtt = str(_vtt_path)
 
             total_elapsed = _elapsed()
+            if claude_start_time:
+                _ai_secs = int(time.time() - claude_start_time)
+                _am, _as = divmod(_ai_secs, 60)
+                ai_elapsed_str = f"{_am}m {_as:02d}s" if _am else f"{_as}s"
             import datetime as _dtt
             _rd = {"summary": summary_md, "transcript": result.clean_transcript,
                    "dialogue": result.speaker_dialogue, "profiles": profiles_md,
@@ -3225,7 +3225,8 @@ def process_file(
             yield _out(
                 status=_status_compact("✅", "Done! All tabs are ready.", total_elapsed)
                       + "<script>window.taJobEnd && window.taJobEnd()</script>",
-                eta=_eta_panel_html("done", elapsed=total_elapsed, done=True, tz_name=tz_name),
+                eta=_eta_panel_html("done", elapsed=total_elapsed, done=True, tz_name=tz_name,
+                                    stt_elapsed=stt_elapsed_str, ai_elapsed=ai_elapsed_str),
                 summary=summary_md,
                 transcript=result.clean_transcript,
                 dialogue=result.speaker_dialogue,
@@ -3560,7 +3561,7 @@ _THEME_JS = """
       '--ta-stat-label:#a5b4fc;--ta-stat-val:#e8e8f0;',
       '--ta-log-bg:#0a0a12;--ta-log-border:#1e1e40;--ta-log-ts:#64748b;--ta-log-hdr:#e2e8f0}',
       /* Process button */
-      '.big-btn button{background:linear-gradient(135deg,#059669,#10b981)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(16,185,129,0.45)!important}',
+      '.big-btn button{background:linear-gradient(135deg,#ea580c,#f97316)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(249,115,22,0.45)!important}',
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -3635,7 +3636,7 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e1e2a!important;border-color:#2e2e42!important;color:#e8e8f0!important}',
     'html.dark button.selected{background:#28283a!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#047857,#10b981)!important;color:#fff!important;border:none!important}',
+    'html.dark .big-btn button{background:linear-gradient(135deg,#c2410c,#ea580c,#f97316)!important;color:#fff!important;border:none!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#9090a8!important}',
     'html.dark #ta-btn-dark{background:#6366f1!important;color:#fff!important}',
@@ -3700,9 +3701,9 @@ _THEME_JS = """
       _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
     });
 
-    /* Big button — keep it indigo */
+    /* Big button — orange in both modes */
     document.querySelectorAll('.big-btn button').forEach(function(el){
-      _sp(el,'background',dark?'linear-gradient(135deg,#4f46e5,#6366f1)':null);
+      _sp(el,'background',dark?'linear-gradient(135deg,#c2410c,#ea580c,#f97316)':null);
       _sp(el,'color',dark?'#fff':null);
     });
   }
@@ -4551,11 +4552,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 label="Live Processing Log",
             )
 
-            with gr.Tabs():
-                with gr.TabItem("Summary"):
+            with gr.Tabs(elem_id="ta-results-tabs", selected=1):
+                with gr.TabItem("Summary", id=0):
                     summary_out = gr.Markdown(value="")
 
-                with gr.TabItem("Transcript"):
+                with gr.TabItem("Transcript", id=1):
                     transcript_out = gr.Textbox(
                         lines=28, buttons=["copy"], label="",
                         placeholder="Clean transcript will appear here…",
@@ -4673,7 +4674,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     process_btn.click(
         fn=process_file,
-        js="(...args) => { if(window._taAcquireWakeLock) window._taAcquireWakeLock(); var el = document.getElementById('ta-status-bar'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); return args; }",
+        js="(...args) => { if(window._taAcquireWakeLock) window._taAcquireWakeLock(); var el = document.getElementById('ta-status-bar') || document.getElementById('ta-results-tabs'); if(el) el.scrollIntoView({behavior:'smooth', block:'start'}); return args; }",
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_name_input, speakers_count_input, whisper_input,

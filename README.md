@@ -158,13 +158,16 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.23` | Grouped step tracker (3 phase boxes), History Load fix |
+| `v3.22` | History tab Load fix — eliminated setTimeout race condition |
+| `v3.21` | Floating Analyze button, neutral slate colors, 5-step tracker |
+| `v3.20` | Remove 50%+ placeholder from AI stage, show elapsed time |
+| `v3.19` | Per-stage timing display, Transcript tab default, dark mode error fix |
+| `v3.18` | Timezone dropdown scrollable IANA list |
 | `v3.17` | 9 STT engines (+ Azure Speech), auto-chunking for long recordings |
 | `v3.16` | 8 STT engines (+ ElevenLabs, Rev.ai), engine dropdown, auto-fill key |
 | `v3.15` | Interview Q&A richer detail, human-voice answers, PDF fix, version badge |
 | `v3.14` | Timezone searchable dropdown, history Load buttons, color-coded downloads |
-| `v3.13` | Timezone field as scrollable IANA dropdown |
-| `v3.12` | Color-coded download buttons, ETA panel improvements |
-| `v3.11` | STT timing display, faster startup, Interview Q&A improvements |
 
 ```bash
 # Pin to a specific version

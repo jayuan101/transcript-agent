@@ -85,6 +85,14 @@ services:
       - GRADIO_SERVER_PORT=7860
     restart: unless-stopped
 
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 300 transcript-agent
+    restart: unless-stopped
+
 volumes:
   transcript-agent-outputs:
   transcript-agent-cache:
@@ -97,6 +105,39 @@ docker compose up -d
 ```
 
 Open `http://localhost:7860` in your browser.
+
+> **Auto-updates:** Watchtower checks Docker Hub every 5 minutes. When a new image is available it pulls it and restarts the container automatically — no manual steps needed.
+
+---
+
+## Auto-Updates with Watchtower
+
+Docker containers don't update themselves — they keep running on the image they were started with until you restart them. **Watchtower** fixes this by watching Docker Hub and restarting your container whenever a new image is pushed.
+
+### If you're using Docker Compose
+
+Watchtower is already included in the Compose file above. Just run `docker compose up -d` and updates happen automatically.
+
+### If you're using `docker run`
+
+Run Watchtower as a separate container:
+
+```bash
+docker run -d \
+  --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --restart unless-stopped \
+  containrrr/watchtower \
+  --interval 300 \
+  transcript-agent
+```
+
+| Option | What it does |
+|--------|-------------|
+| `--interval 300` | Check for updates every 5 minutes |
+| `transcript-agent` | Only watch this container (omit to watch all containers) |
+
+Watchtower pulls the new image and does a graceful restart — your volumes and data are preserved.
 
 ---
 

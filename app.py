@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.27"
+APP_VERSION = "3.28"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -1182,7 +1182,7 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
 
 /* ── Process / CTA button ────────────────────────────────────────────────── */
 .big-btn button {
-    background: #334155 !important;
+    background: #4f46e5 !important;
     color: #fff !important;
     font-size: 1.06em !important;
     font-weight: 800 !important;
@@ -1193,17 +1193,17 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     padding: 16px 24px !important;
     min-height: 58px !important;
     width: 100% !important;
-    box-shadow: 0 4px 18px rgba(51,65,85,0.40) !important;
+    box-shadow: 0 4px 18px rgba(79,70,229,0.40) !important;
     transition: all 0.25s ease !important;
 }
 .big-btn button:hover {
-    background: #1e293b !important;
-    box-shadow: 0 10px 30px rgba(51,65,85,0.55) !important;
+    background: #4338ca !important;
+    box-shadow: 0 10px 30px rgba(79,70,229,0.55) !important;
     transform: translateY(-3px) scale(1.01) !important;
 }
 .big-btn button:active {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(51,65,85,0.40) !important;
+    box-shadow: 0 4px 12px rgba(79,70,229,0.40) !important;
 }
 /* ── Floating Analyze button ─────────────────────────────────────────────── */
 #ta-float-analyze {
@@ -1213,7 +1213,7 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     z-index: 9998 !important;
 }
 #ta-float-analyze button {
-    background: #334155 !important;
+    background: #4f46e5 !important;
     color: #fff !important;
     border: none !important;
     border-radius: 26px !important;
@@ -1221,20 +1221,14 @@ html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
     font-size: 0.83em !important;
     font-weight: 700 !important;
     cursor: pointer !important;
-    box-shadow: 0 4px 16px rgba(51,65,85,0.40) !important;
+    box-shadow: 0 4px 16px rgba(79,70,229,0.40) !important;
     transition: all 0.2s !important;
     white-space: nowrap !important;
 }
 #ta-float-analyze button:hover {
-    background: #1e293b !important;
-    box-shadow: 0 8px 24px rgba(51,65,85,0.55) !important;
+    background: #4338ca !important;
+    box-shadow: 0 8px 24px rgba(79,70,229,0.55) !important;
     transform: translateY(-2px) !important;
-}
-html.dark #ta-float-analyze button {
-    background: #4f46e5 !important;
-}
-html.dark #ta-float-analyze button:hover {
-    background: #64748b !important;
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
@@ -1503,8 +1497,8 @@ html.dark .file-preview { background: #1e1e2a !important; color: #f0f0ff !import
 html.dark .dropdown-arrow svg { fill: #8888a8 !important; }
 html.dark button { background: #1e1e2a !important; border-color: #2e2e42 !important; color: #f0f0ff !important; }
 html.dark button.selected { background: #2a2a3a !important; }
-html.dark .big-btn button { background: #4f46e5 !important; color: #fff !important; border: none !important; }
-html.dark .big-btn button:hover { background: #4338ca !important; box-shadow: 0 10px 30px rgba(79,70,229,0.45) !important; }
+html.dark .big-btn button { background: #4f46e5 !important; color: #fff !important; border: none !important; box-shadow: 0 4px 18px rgba(79,70,229,0.50) !important; }
+html.dark .big-btn button:hover { background: #4338ca !important; box-shadow: 0 10px 30px rgba(79,70,229,0.60) !important; }
 html.dark #ta-btn-light { background: transparent !important; color: #8888a8 !important; }
 
 /* ── Download buttons ── */
@@ -3629,8 +3623,8 @@ _THEME_TOGGLE = """
     title="Analyze File"
     style="display:flex;align-items:center;gap:6px;padding:9px 18px;border-radius:26px;
            border:none;cursor:pointer;font-size:0.83em;font-weight:700;
-           background:#334155;color:#fff;transition:all 0.2s;
-           box-shadow:0 4px 16px rgba(51,65,85,0.40);white-space:nowrap;">
+           background:#4f46e5;color:#fff;transition:all 0.2s;
+           box-shadow:0 4px 16px rgba(79,70,229,0.40);white-space:nowrap;">
     ▶ Analyze
   </button>
 </div>
@@ -3676,9 +3670,9 @@ _THEME_JS = """
       '--ta-stat-label:#a5b4fc;--ta-stat-val:#e8e8f0;',
       '--ta-log-bg:#0a0a12;--ta-log-border:#1e1e40;--ta-log-ts:#64748b;--ta-log-hdr:#e2e8f0}',
       /* Process button */
-      '.big-btn button{background:#334155!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(51,65,85,0.40)!important}',
+      '.big-btn button{background:#4f46e5!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(79,70,229,0.40)!important}',
       /* Floating analyze button */
-      '#ta-analyze-float-btn{background:#334155!important;color:#fff!important;border:none!important;border-radius:26px!important;padding:9px 18px!important;font-size:0.83em!important;font-weight:700!important;cursor:pointer!important;box-shadow:0 4px 16px rgba(51,65,85,0.40)!important;white-space:nowrap!important}',
+      '#ta-analyze-float-btn{background:#4f46e5!important;color:#fff!important;border:none!important;border-radius:26px!important;padding:9px 18px!important;font-size:0.83em!important;font-weight:700!important;cursor:pointer!important;box-shadow:0 4px 16px rgba(79,70,229,0.40)!important;white-space:nowrap!important}',
       /* Scrollable dropdowns */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -3753,8 +3747,8 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e1e2a!important;border-color:#2e2e42!important;color:#e8e8f0!important}',
     'html.dark button.selected{background:#28283a!important}',
-    'html.dark .big-btn button{background:#4f46e5!important;color:#fff!important;border:none!important}',
-    'html.dark #ta-analyze-float-btn{background:#4f46e5!important;color:#fff!important}',
+    'html.dark .big-btn button{background:#4f46e5!important;color:#fff!important;border:none!important;box-shadow:0 4px 18px rgba(79,70,229,0.50)!important}',
+    'html.dark #ta-analyze-float-btn{background:#4f46e5!important;color:#fff!important;box-shadow:0 4px 16px rgba(79,70,229,0.50)!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#9090a8!important}',
     'html.dark #ta-btn-dark{background:#6366f1!important;color:#fff!important}',
@@ -3819,16 +3813,16 @@ _THEME_JS = """
       _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
     });
 
-    /* Big button — indigo in dark mode, slate in light */
+    /* Big button — indigo in both modes */
     document.querySelectorAll('.big-btn button').forEach(function(el){
-      _sp(el,'background',dark?'#4f46e5':'#334155');
+      _sp(el,'background','#4f46e5');
       _sp(el,'color','#fff');
       _sp(el,'border','none');
     });
     /* Floating analyze button */
     var fab = document.getElementById('ta-analyze-float-btn');
     if (fab) {
-      fab.style.background = dark ? '#4f46e5' : '#334155';
+      fab.style.background = '#4f46e5';
       fab.style.color = '#fff';
     }
   }

@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.35` | History and Load Last Result work while transcription is running |
 | `v3.34` | Stop button to cancel transcription mid-run |
 | `v3.33` | Whisper CPU warning banner; suppress FP16 noise in logs |
 | `v3.32` | Fix Analyze button blocked by resume upload drop zone; fix Finished At time on desktop app |

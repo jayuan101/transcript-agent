@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.22"
+APP_VERSION = "3.23"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -2361,74 +2361,125 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
 
 
 def _step_tracker_html(stage: str, done: bool = False) -> str:
-    # 5 steps: Load → Extract Audio → Transcribe → AI Analyze → Complete
+    """3 grouped phases: [Step 1: Load→Extract→Transcribe] → [Step 2: AI Analyze] → [Step 3: Done]"""
+
+    # Phase-level states
     if done:
-        states = ["done", "done", "done", "done", "done"]
+        ph1 = ph2 = ph3 = "done"
+        s_load = s_extract = s_transcribe = s_ai = s_complete = "done"
+        hint1 = hint2 = ""
     elif stage == "loading":
-        states = ["active", "waiting", "waiting", "waiting", "waiting"]
+        ph1 = "active"; ph2 = ph3 = "waiting"
+        s_load = "active"; s_extract = s_transcribe = "waiting"
+        s_ai = s_complete = "waiting"
+        hint1 = "Starting up…"; hint2 = ""
     elif stage == "extracting":
-        states = ["done", "active", "waiting", "waiting", "waiting"]
+        ph1 = "active"; ph2 = ph3 = "waiting"
+        s_load = "done"; s_extract = "active"; s_transcribe = "waiting"
+        s_ai = s_complete = "waiting"
+        hint1 = "Reading file…"; hint2 = ""
     elif stage == "whisper":
-        states = ["done", "done", "active", "waiting", "waiting"]
+        ph1 = "active"; ph2 = ph3 = "waiting"
+        s_load = "done"; s_extract = "done"; s_transcribe = "active"
+        s_ai = s_complete = "waiting"
+        hint1 = "Converting speech…"; hint2 = ""
     elif stage == "claude":
-        states = ["done", "done", "done", "active", "waiting"]
+        ph1 = "done"; ph2 = "active"; ph3 = "waiting"
+        s_load = s_extract = s_transcribe = "done"
+        s_ai = "active"; s_complete = "waiting"
+        hint1 = ""; hint2 = "Reading & analyzing…"
     else:
-        states = ["active", "waiting", "waiting", "waiting", "waiting"]
+        ph1 = "active"; ph2 = ph3 = "waiting"
+        s_load = "active"; s_extract = s_transcribe = "waiting"
+        s_ai = s_complete = "waiting"
+        hint1 = ""; hint2 = ""
 
-    # sub-step label shown below the icon (what is happening right now at this step)
-    substep_labels = {
-        "loading":    ["Starting up…", "", "", "", ""],
-        "extracting": ["", "Reading file…", "", "", ""],
-        "whisper":    ["", "", "Converting speech…", "", ""],
-        "claude":     ["", "", "", "Reading transcript…", ""],
-    }
-    active_hints = substep_labels.get(stage, ["", "", "", "", ""])
-
-    labels = [
-        ("📁", "Load File"),
-        ("🔊", "Extract Audio"),
-        ("🎤", "Transcribe"),
-        ("🤖", "AI Analyze"),
-        ("✅", "Complete"),
-    ]
-    parts  = []
-    for i, ((icon, label), state) in enumerate(zip(labels, states)):
+    def _colors(state, ai_phase=False):
         if state == "done":
-            bg = "var(--ta-step-done-bg)"; bdr = "var(--ta-step-done-bdr)"
-            clr = "var(--ta-step-done-clr)"; dot = "✓"
-        elif state == "active":
-            bg = "var(--ta-step-act-bg)"; bdr = "var(--ta-step-act-bdr)"
-            clr = "var(--ta-step-act-clr)"; dot = "●"
-        else:
-            bg = "var(--ta-step-wait-bg)"; bdr = "var(--ta-step-wait-bdr)"
-            clr = "var(--ta-step-wait-clr)"; dot = "○"
-        hint = active_hints[i]
-        hint_html = (
-            f'<div style="font-size:0.60em;color:var(--ta-step-act-clr);'
-            f'font-style:italic;margin-top:2px;">{hint}</div>'
-        ) if hint else ""
-        parts.append(
-            f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1;">'
+            return ("var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)")
+        if state == "active":
+            if ai_phase:
+                return ("rgba(168,85,247,0.12)", "#a855f7", "#c4b5fd")
+            return ("var(--ta-step-act-bg)", "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)")
+        return ("var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)")
+
+    def _dot(state, icon, label, ai_phase=False):
+        bg, bdr, clr = _colors(state, ai_phase)
+        sym = "✓" if state == "done" else ("●" if state == "active" else "○")
+        return (
+            f'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
             f'<div style="background:{bg};border:2px solid {bdr};border-radius:50%;'
-            f'width:34px;height:34px;display:flex;align-items:center;justify-content:center;'
-            f'font-size:0.98em;font-weight:800;color:{clr};transition:all 0.4s;">{dot}</div>'
-            f'<div style="font-size:0.62em;font-weight:700;color:{clr};text-align:center;'
-            f'text-transform:uppercase;letter-spacing:0.05em;line-height:1.2;">{icon}<br/>{label}</div>'
+            f'width:28px;height:28px;display:flex;align-items:center;justify-content:center;'
+            f'font-size:0.85em;font-weight:800;color:{clr};transition:all 0.4s;">{sym}</div>'
+            f'<div style="font-size:0.56em;font-weight:700;color:{clr};text-align:center;'
+            f'text-transform:uppercase;letter-spacing:0.04em;line-height:1.2;">{icon}<br/>{label}</div>'
+            f'</div>'
+        )
+
+    def _mini_line(from_state):
+        lc = "var(--ta-conn-line-done)" if from_state == "done" else "var(--ta-conn-line-wait)"
+        return f'<div style="width:14px;height:2px;background:{lc};margin-top:14px;border-radius:2px;flex-shrink:0;"></div>'
+
+    def _phase_box(phase, number, title, hint, inner_html, ai_phase=False):
+        _, bdr, clr = _colors(phase, ai_phase)
+        if phase == "done":
+            bg_box = "var(--ta-step-done-bg)"
+        elif phase == "active":
+            bg_box = "rgba(168,85,247,0.06)" if ai_phase else "var(--ta-step-act-bg)"
+        else:
+            bg_box = "var(--ta-step-wait-bg)"
+        hint_html = (
+            f'<div style="font-size:0.60em;color:{clr};font-style:italic;margin-top:2px;">{hint}</div>'
+        ) if hint else ""
+        return (
+            f'<div style="border:2px solid {bdr};border-radius:10px;padding:8px 10px;'
+            f'background:{bg_box};transition:all 0.4s;">'
+            f'<div style="font-size:0.60em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.07em;color:{clr};margin-bottom:6px;">{number} · {title}</div>'
+            f'<div style="display:flex;align-items:flex-start;gap:4px;justify-content:center;">'
+            f'{inner_html}</div>'
             f'{hint_html}'
             f'</div>'
         )
-        if i < 4:
-            lc = "var(--ta-conn-line-done)" if states[i] == "done" else "var(--ta-conn-line-wait)"
-            parts.append(
-                f'<div style="flex:0.5;height:2px;background:{lc};margin-top:17px;'
-                f'border-radius:2px;transition:background 0.4s;"></div>'
-            )
+
+    def _phase_connector(from_phase):
+        lc = "var(--ta-conn-line-done)" if from_phase == "done" else "var(--ta-conn-line-wait)"
+        return (
+            f'<div style="display:flex;align-items:center;padding-top:14px;flex-shrink:0;">'
+            f'<div style="width:18px;height:2px;background:{lc};border-radius:2px;'
+            f'transition:background 0.4s;"></div></div>'
+        )
+
+    # Step 1: Transcription — 3 sub-steps
+    step1 = _phase_box(ph1, "Step 1", "Transcription", hint1,
+        _dot(s_load,      "📁", "Load")
+        + _mini_line(s_load)
+        + _dot(s_extract,  "🔊", "Extract")
+        + _mini_line(s_extract)
+        + _dot(s_transcribe, "🎤", "Transcribe")
+    )
+
+    # Step 2: AI Analysis — 1 sub-step
+    step2 = _phase_box(ph2, "Step 2", "AI Analysis", hint2,
+        _dot(s_ai, "🤖", "Analyze", ai_phase=True),
+        ai_phase=True,
+    )
+
+    # Step 3: Complete
+    step3 = _phase_box(ph3, "Step 3", "Complete", "",
+        _dot(s_complete, "✅", "Done"),
+    )
 
     return (
-        '<div style="display:flex;align-items:flex-start;padding:10px 12px 8px;'
+        '<div style="display:flex;align-items:flex-start;gap:0;padding:10px 12px 8px;'
         'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
         'border-radius:12px;margin-bottom:10px;">'
-        + "".join(parts) + "</div>"
+        + step1
+        + _phase_connector(ph1)
+        + step2
+        + _phase_connector(ph2)
+        + step3
+        + '</div>'
     )
 
 

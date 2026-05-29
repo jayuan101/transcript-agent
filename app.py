@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.44"
+APP_VERSION = "3.45"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -2315,7 +2315,7 @@ def _transcript_to_vtt(transcript: str) -> str:
 #   17 download_accordion  18 log_out       19 eta_panel  20 result_state  21 cancel_btn
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), interview=gr.update(),
@@ -2323,10 +2323,29 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_s=gr.update(), dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(),
          dl_p=gr.update(), dl_docx=gr.update(), dl_srt=gr.update(), dl_vtt=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         rs=None, cancel_btn=gr.update()):
+         rs=None, cancel_btn=gr.update(), open_folder=gr.update()):
     return (status, summary, transcript, dialogue, profiles, interview,
             analytics, combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
-            dl_docx, dl_srt, dl_vtt, dl_acc, log, eta, rs, cancel_btn)
+            dl_docx, dl_srt, dl_vtt, dl_acc, log, eta, rs, cancel_btn, open_folder)
+
+
+def _open_output_folder(rs):
+    """Open the job output directory in the native file manager."""
+    if not rs or not rs.get("out_dir"):
+        return
+    out_dir = rs["out_dir"]
+    try:
+        if sys.platform == "win32":
+            import subprocess
+            subprocess.Popen(["explorer", os.path.normpath(out_dir)])
+        elif sys.platform == "darwin":
+            import subprocess
+            subprocess.Popen(["open", out_dir])
+        else:
+            import subprocess
+            subprocess.Popen(["xdg-open", out_dir])
+    except Exception:
+        pass
 
 
 _PDF_LANGUAGES = [
@@ -3404,6 +3423,7 @@ def process_file(
                     "out_dir": str(job_dir)},
                 log=log_text,
                 cancel_btn=gr.update(visible=False),
+                open_folder=gr.update(visible=True),
             )
             break
 
@@ -4749,6 +4769,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
 </div>""")
                 with gr.Row():
                     dl_json = gr.DownloadButton("📊 JSON", visible=False, size="sm", variant="secondary", elem_classes=["dl-btn", "dl-json"])
+                gr.HTML("<hr style='margin:10px 0 8px;opacity:0.25;'>")
+                with gr.Row():
+                    open_folder_btn = gr.Button("📁 Open Output Folder", visible=False, size="sm", variant="secondary")
 
             bw_display = gr.HTML(value=_get_bandwidth_html(), visible=_PSUTIL_OK)
             bw_timer   = gr.Timer(value=2, active=True)
@@ -4928,7 +4951,15 @@ with gr.Blocks(title="Transcript Agent") as demo:
             eta_panel,
             result_state,
             cancel_btn,
+            open_folder_btn,
         ],
+    )
+
+    open_folder_btn.click(
+        fn=_open_output_folder,
+        inputs=[result_state],
+        outputs=[],
+        concurrency_limit=None,
     )
 
     cancel_btn.click(

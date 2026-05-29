@@ -58,7 +58,7 @@ jobs:
         run: |
           pyinstaller launcher.py `
             --name "TranscriptAgent" `
-            --onefile `
+            --onedir `
             --windowed `
             --icon "icon.ico" `
             --add-data "app.py;." `
@@ -90,13 +90,22 @@ jobs:
             --exclude-module "webview.platforms.android" `
             --exclude-module "torch.utils.tensorboard" `
             --exclude-module "tensorboard" `
+            --exclude-module "matplotlib" `
+            --exclude-module "IPython" `
+            --exclude-module "jupyter" `
+            --exclude-module "lib2to3" `
+            --exclude-module "unittest" `
+            --exclude-module "xmlrpc" `
             --noconfirm
+
+      - name: Zip Windows build
+        run: Compress-Archive -Path "dist\TranscriptAgent" -DestinationPath "TranscriptAgent-windows.zip"
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: dist/TranscriptAgent.exe
+          name: windows-zip
+          path: TranscriptAgent-windows.zip
 
   build-mac:
     runs-on: macos-latest
@@ -154,7 +163,7 @@ jobs:
         run: |
           pyinstaller launcher.py \
             --name "TranscriptAgent" \
-            --onefile \
+            --onedir \
             --windowed \
             --icon "icon.icns" \
             --add-data "app.py:." \
@@ -258,7 +267,7 @@ jobs:
 
           | Platform | File | How to install |
           |----------|------|----------------|
-          | Windows 10/11 | TranscriptAgent.exe | Double-click to run |
+          | Windows 10/11 | TranscriptAgent-windows.zip | Extract the zip, then double-click TranscriptAgent.exe inside |
           | macOS | TranscriptAgent.dmg | Open DMG, drag to Applications, double-click |
 
           Opens as a standalone desktop app. No browser tab, no installation required.
@@ -271,8 +280,8 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           FILES=""
-          [ -f artifacts/windows-exe/TranscriptAgent.exe ] && FILES="$FILES artifacts/windows-exe/TranscriptAgent.exe"
-          [ -f artifacts/mac-dmg/TranscriptAgent.dmg ]     && FILES="$FILES artifacts/mac-dmg/TranscriptAgent.dmg"
+          [ -f artifacts/windows-zip/TranscriptAgent-windows.zip ] && FILES="$FILES artifacts/windows-zip/TranscriptAgent-windows.zip"
+          [ -f artifacts/mac-dmg/TranscriptAgent.dmg ]              && FILES="$FILES artifacts/mac-dmg/TranscriptAgent.dmg"
 
           if gh release view "$TAG" --repo jayuan101/transcript-agent-releases > /dev/null 2>&1; then
             echo "Release $TAG exists - uploading assets"

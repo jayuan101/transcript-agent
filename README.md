@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.41` | Switch to onedir build — eliminates per-launch extraction, app now opens in seconds instead of 30+ seconds |
 | `v3.40` | Fix "failed to extract ffmpeg.exe" crash on Windows — bundled exe now uses ffmpeg directly from the PyInstaller package instead of imageio_ffmpeg |
 | `v3.39` | Remove redundant Load Last Result button — History tab handles this |
 | `v3.38` | Fix "Streaming is required" error — Anthropic client now uses no read-timeout so analyses longer than 10 min never get cut off |

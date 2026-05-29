@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.41"
+APP_VERSION = "3.42"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -623,12 +623,15 @@ def _prevent_sleep():
             def _inhibit():
                 import subprocess as _sp
                 while _sleep_active:
-                    proc = _sp.Popen(
-                        ["systemd-inhibit", "--what=sleep:idle",
-                         "--who=TranscriptAgent", "--why=Transcription in progress",
-                         "--mode=block", "sleep", "3600"],
-                        stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-                    )
+                    try:
+                        proc = _sp.Popen(
+                            ["systemd-inhibit", "--what=sleep:idle",
+                             "--who=TranscriptAgent", "--why=Transcription in progress",
+                             "--mode=block", "sleep", "3600"],
+                            stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+                        )
+                    except FileNotFoundError:
+                        return  # systemd-inhibit not available (Docker, minimal Linux)
                     while _sleep_active and proc.poll() is None:
                         time.sleep(5)
                     proc.kill()

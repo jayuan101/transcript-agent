@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.38` | Fix "Streaming is required" error — Anthropic client now uses no read-timeout so analyses longer than 10 min never get cut off |
 | `v3.37` | Fix 10-minute timeout on long Claude AI analysis (switch to streaming) |
 | `v3.36` | Auto-install updates without clicking the button |
 | `v3.35` | History and Load Last Result work while transcription is running |

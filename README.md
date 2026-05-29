@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.44` | Fix download buttons not working in desktop exe — enable WebView2 downloads, disable strict CORS in windowed mode, add GRADIO_TEMP_DIR to allowed paths |
 | `v3.43` | Fix Windows exe: guard sys._MEIPASS for non-PyInstaller envs; broaden OSError catch for sleep-inhibit; faster CI zip via 7z |
 | `v3.42` | Fix systemd-inhibit crash in Docker — sleep-inhibit now silently skips when not available |
 | `v3.41` | Switch to onedir build — eliminates per-launch extraction, app now opens in seconds instead of 30+ seconds |

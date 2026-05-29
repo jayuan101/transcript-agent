@@ -229,6 +229,14 @@ try:
 
     threading.Thread(target=_navigate_when_ready, daemon=True).start()
 
+    # Enable WebView2 native download bar; fall back gracefully if not supported
+    try:
+        if not isinstance(webview.settings, dict):
+            webview.settings = {}
+        webview.settings["ALLOW_DOWNLOADS"] = True
+    except Exception:
+        pass
+
     webview.start()
 
 except ImportError:

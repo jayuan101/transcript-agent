@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.43"
+APP_VERSION = "3.44"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -5081,12 +5081,13 @@ def main():
         js=_THEME_JS,
         theme=_THEME,
         css=CSS,
-        allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
+        allowed_paths=[str(OUT_DIR), tempfile.gettempdir(),
+                       os.environ.get("GRADIO_TEMP_DIR", tempfile.gettempdir())],
         max_file_size="4gb",
         inbrowser=not _docker and not _windowed,
         show_error=True,
         share=not _docker and not _windowed,
-        strict_cors=not _docker,
+        strict_cors=not _docker and not _windowed,
     )
 
 if __name__ == "__main__":

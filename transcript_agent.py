@@ -48,7 +48,13 @@ class LLMClient:
         self.model = model
         if provider == "anthropic":
             import anthropic as _ant
-            self._client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
+            # timeout=None removes the 10-min read-timeout so long streaming analyses
+            # never get killed mid-way, and also bypasses the SDK's pre-flight
+            # "Streaming is required" check (which fires when timeout == DEFAULT_TIMEOUT).
+            _kw: dict = {"timeout": None}
+            if api_key:
+                _kw["api_key"] = api_key
+            self._client = _ant.Anthropic(**_kw)
         else:
             import openai as _oai
             # Always pass api_key — OpenAI SDK v2.x requires it even with a

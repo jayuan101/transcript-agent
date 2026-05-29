@@ -107,11 +107,16 @@ import subprocess as _sp
 import numpy as _np
 import threading as _threading
 
-try:
-    import imageio_ffmpeg as _iff
-    FFMPEG_EXE = _iff.get_ffmpeg_exe()
-except ImportError:
-    FFMPEG_EXE = "ffmpeg"
+if getattr(sys, "frozen", False):
+    _ffmpeg_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
+    _ffmpeg_bundled = os.path.join(sys._MEIPASS, _ffmpeg_name)
+    FFMPEG_EXE = _ffmpeg_bundled if os.path.exists(_ffmpeg_bundled) else "ffmpeg"
+else:
+    try:
+        import imageio_ffmpeg as _iff
+        FFMPEG_EXE = _iff.get_ffmpeg_exe()
+    except Exception:
+        FFMPEG_EXE = "ffmpeg"
 
 _progress_lock = _threading.Lock()
 _progress_cb   = None

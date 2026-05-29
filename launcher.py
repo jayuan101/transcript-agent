@@ -231,8 +231,6 @@ try:
 
     # Enable WebView2 native download bar; fall back gracefully if not supported
     try:
-        if not isinstance(webview.settings, dict):
-            webview.settings = {}
         webview.settings["ALLOW_DOWNLOADS"] = True
     except Exception:
         pass

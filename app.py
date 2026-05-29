@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.38"
+APP_VERSION = "3.39"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -884,62 +884,6 @@ def _read_job_status():
     except Exception:
         return None
 
-def load_last_result():
-    """Load the most recently completed job and return its results for all output tabs."""
-    import json
-    status = _read_job_status()
-    if not status:
-        return [gr.update()] * 17 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
-    s = status.get("status")
-    if s == "running":
-        name = status.get("stem", "Unknown file")
-        return [gr.update()] * 17 + [gr.update(
-            value=f"⏳ **Transcription still in progress** — {name}. Keep this tab open and results will load automatically when done.",
-            visible=True,
-        )]
-    if s not in ("done", "error"):
-        return [gr.update()] * 17 + [gr.update(value="No completed job found. Run a transcription first.", visible=True)]
-    try:
-        job_dir = Path(status["job_dir"])
-        stem    = status["stem"]
-        data    = status.get("result", {})   # formatted strings saved at completion
-        f_t    = str(job_dir / f"{stem}_transcript.txt")
-        f_s    = str(job_dir / f"{stem}_speakers.txt")
-        f_r    = str(job_dir / f"{stem}_report.md")
-        f_c    = str(job_dir / f"{stem}_combined.txt")
-        f_j    = str(job_dir / f"{stem}_full.json")
-        f_p    = str(job_dir / f"{stem}_report.pdf") if (job_dir / f"{stem}_report.pdf").exists() else None
-        f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
-        f_srt  = str(job_dir / f"{stem}_transcript.srt") if (job_dir / f"{stem}_transcript.srt").exists() else None
-        f_vtt  = str(job_dir / f"{stem}_transcript.vtt") if (job_dir / f"{stem}_transcript.vtt").exists() else None
-        if s == "done":
-            completed = status.get("completed", "")[:16].replace("T", " ")
-            msg = f"✅ Loaded: **{stem}** (completed {completed})"
-        else:
-            err = status.get("error", "unknown error")
-            msg = f"⚠️ Last job failed — partial results for **{stem}**: {err}"
-        return [
-            data.get("summary", ""),
-            data.get("transcript", ""),
-            data.get("dialogue", ""),
-            data.get("profiles", ""),
-            data.get("interview", ""),
-            data.get("analytics", ""),
-            data.get("combined", ""),
-            gr.update(value=f_t if Path(f_t).exists() else None, visible=Path(f_t).exists()),
-            gr.update(value=f_s if Path(f_s).exists() else None, visible=Path(f_s).exists()),
-            gr.update(value=f_r if Path(f_r).exists() else None, visible=Path(f_r).exists()),
-            gr.update(value=f_c if Path(f_c).exists() else None, visible=Path(f_c).exists()),
-            gr.update(value=f_j if Path(f_j).exists() else None, visible=Path(f_j).exists()),
-            gr.update(value=f_p, visible=f_p is not None),
-            gr.update(value=f_docx, visible=f_docx is not None),
-            gr.update(value=f_srt, visible=f_srt is not None),
-            gr.update(value=f_vtt, visible=f_vtt is not None),
-            gr.update(open=True),
-            gr.update(value=msg, visible=True),
-        ]
-    except Exception as e:
-        return [gr.update()] * 17 + [gr.update(value=f"Error loading results: {e}", visible=True)]
 
 def get_job_banner():
     """Return HTML banner showing current job status — called on page load."""
@@ -963,8 +907,7 @@ def get_job_banner():
                 '<span style="font-size:1.3em">⚠️</span>'
                 '<div><strong style="color:#fdba74!important;">Previous job did not complete</strong>'
                 f'<div style="color:#fed7aa!important;font-size:0.85em">{name} — started {updated} but never finished '
-                '(browser disconnected or computer slept). Click <strong>Load Last Result</strong> to check '
-                'if any results were saved, or run a new job.</div>'
+                '(browser disconnected or computer slept). Check the History tab for any saved results, or run a new job.</div>'
                 '</div></div>'
             )
         return (
@@ -973,7 +916,7 @@ def get_job_banner():
             '<span style="font-size:1.3em">⏳</span>'
             '<div><strong style="color:#93c5fd!important;">Transcription in progress</strong>'
             f'<div style="color:#cbd5e1!important;font-size:0.85em">{name} — started {updated}. '
-            'Keep this tab open to see results, or come back later and click <strong>Load Last Result</strong>.</div>'
+            'Keep this tab open to see results, or check the History tab when done.</div>'
             '</div></div>'
         )
     elif s == "done":
@@ -984,7 +927,7 @@ def get_job_banner():
             '<span style="font-size:1.3em">✅</span>'
             '<div><strong style="color:#4ade80!important;">Last transcription completed</strong>'
             f'<div style="color:#bbf7d0!important;font-size:0.85em">{name} — finished {completed}. '
-            'Click <strong>Load Last Result</strong> to view it.</div>'
+            'Open the History tab to load it.</div>'
             '</div></div>'
         )
     elif s == "error":
@@ -4520,10 +4463,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
     # ── Job status banner (updates on page load) ──────────────────────────────
     _init_jb = get_job_banner()
     job_banner = gr.HTML(value=_init_jb, visible=bool(_init_jb.strip()))
-    with gr.Row():
-        load_last_btn = gr.Button("📂 Load Last Result", size="sm", variant="secondary")
-        load_last_msg = gr.Markdown(visible=False)
-
     provider_dropdown = gr.Dropdown(
         label="AI Provider",
         choices=list(_PROVIDERS.keys()),
@@ -4999,18 +4938,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=generate_pdf_in_language,
         inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
         outputs=[dl_pdf],
-    )
-
-    # ── Load Last Result ──────────────────────────────────────────────────────
-    load_last_btn.click(
-        fn=load_last_result,
-        inputs=[],
-        outputs=[
-            summary_out, transcript_out, dialogue_out, profiles_out, interview_out,
-            analytics_out, combined_out, dl_transcript, dl_speakers, dl_report,
-            dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt, download_accordion, load_last_msg,
-        ],
-        concurrency_limit=None,
     )
 
     # ── History tab ───────────────────────────────────────────────────────────

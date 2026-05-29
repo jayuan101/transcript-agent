@@ -158,6 +158,7 @@ Watchtower pulls the new image and does a graceful restart — your volumes and 
 | Tag | Description |
 |-----|-------------|
 | `latest` | Always the most recent stable build |
+| `v3.48` | Native Windows UI — replace Gradio/pywebview with customtkinter for a true desktop app; instant startup, native file dialogs |
 | `v3.47` | Fix crash on launch — WEBVIEW2_RUNTIME_PATH KeyError caused by overwriting webview.settings dict |
 | `v3.46` | Revert to single-file exe — eliminates "Failed to load Python DLL" error caused by running from inside zip |
 | `v3.45` | Add "Open Output Folder" button — opens File Explorer directly to output files, bypassing all WebView2 download issues |

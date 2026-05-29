@@ -109,8 +109,9 @@ import threading as _threading
 
 if getattr(sys, "frozen", False):
     _ffmpeg_name = "ffmpeg.exe" if sys.platform == "win32" else "ffmpeg"
-    _ffmpeg_bundled = os.path.join(sys._MEIPASS, _ffmpeg_name)
-    FFMPEG_EXE = _ffmpeg_bundled if os.path.exists(_ffmpeg_bundled) else "ffmpeg"
+    _meipass = getattr(sys, "_MEIPASS", None)
+    _ffmpeg_bundled = os.path.join(_meipass, _ffmpeg_name) if _meipass else None
+    FFMPEG_EXE = _ffmpeg_bundled if (_ffmpeg_bundled and os.path.exists(_ffmpeg_bundled)) else "ffmpeg"
 else:
     try:
         import imageio_ffmpeg as _iff

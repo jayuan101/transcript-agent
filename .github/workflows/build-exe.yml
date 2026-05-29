@@ -99,7 +99,7 @@ jobs:
             --noconfirm
 
       - name: Zip Windows build
-        run: Compress-Archive -Path "dist\TranscriptAgent" -DestinationPath "TranscriptAgent-windows.zip"
+        run: 7z a -mx=1 TranscriptAgent-windows.zip .\dist\TranscriptAgent
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4

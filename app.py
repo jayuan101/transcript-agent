@@ -38,7 +38,7 @@ except ImportError:
     _PSUTIL_OK = False
 
 # ── version & auto-update ─────────────────────────────────────────────────────
-APP_VERSION = "3.42"
+APP_VERSION = "3.43"
 _RELEASES_API = "https://api.github.com/repos/jayuan101/transcript-agent-releases/releases/latest"
 _update_info: dict = {}
 _update_downloaded = threading.Event()
@@ -630,8 +630,8 @@ def _prevent_sleep():
                              "--mode=block", "sleep", "3600"],
                             stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
                         )
-                    except FileNotFoundError:
-                        return  # systemd-inhibit not available (Docker, minimal Linux)
+                    except OSError:
+                        return  # systemd-inhibit not available or not executable (Docker, minimal Linux)
                     while _sleep_active and proc.poll() is None:
                         time.sleep(5)
                     proc.kill()

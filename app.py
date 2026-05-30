@@ -3819,7 +3819,7 @@ _DOWNLOAD_SECTION = f"""
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Transcript Agent", js=_THEME_JS, theme=_THEME, css=CSS) as demo:
+with gr.Blocks(title="Transcript Agent") as demo:
 
     gr.HTML(_THEME_TOGGLE)
     gr.HTML(_HERO)
@@ -4013,7 +4013,22 @@ with gr.Blocks(title="Transcript Agent", js=_THEME_JS, theme=_THEME, css=CSS) as
 
             eta_panel   = gr.HTML(value="")
             stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
-            net_monitor = gr.HTML(value="", elem_id="ta-net-monitor")
+            net_monitor = gr.HTML(
+                value=(
+                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
+                    '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
+                    'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
+                    '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
+                    '<span>🌐</span>'
+                    '<span style="font-weight:600;color:var(--ta-card-text,#1e293b);">Network</span>'
+                    '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
+                    '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
+                    'animation:tapulse 2s ease-in-out infinite;"></span>'
+                    '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connected</span>'
+                    '</span></div></div>'
+                ),
+                elem_id="ta-net-monitor",
+            )
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
                       'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'
@@ -4208,6 +4223,9 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
+        js=_THEME_JS,
+        theme=_THEME,
+        css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         max_file_size="4gb",
         inbrowser=not _docker,

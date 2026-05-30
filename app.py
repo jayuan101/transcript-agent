@@ -1108,7 +1108,12 @@ _VARIANT_AUTO_VALUES = {v[0][1] for v in LANGUAGE_VARIANTS.values()}
 def stats_to_markdown(speaker_stats) -> str:
     if not speaker_stats:
         return "_No speech analytics available. Upload an audio or video file to see speaker stats._"
-    lines = []
+    lines = [
+        "**Pace reference:** 🐢 Slow < 120 wpm · 🚶 Normal 120–150 · 🏃 Fast 150–180 · ⚡ Very Fast > 180",
+        "",
+        "---",
+        "",
+    ]
     for s in speaker_stats:
         emoji = PACE_EMOJI.get(s.pace_label, "")
         wpm   = f"**{s.words_per_minute} WPM**" if s.words_per_minute else "N/A"
@@ -1129,11 +1134,6 @@ def stats_to_markdown(speaker_stats) -> str:
             lines.append(f"| 🎯 Confidence | {s.accent_confidence.capitalize()} |")
         lines.append("")
 
-    lines += [
-        "---",
-        "",
-        "**Pace reference:** 🐢 Slow < 120 wpm · 🚶 Normal 120–150 · 🏃 Fast 150–180 · ⚡ Very Fast > 180",
-    ]
     return "\n".join(lines)
 
 

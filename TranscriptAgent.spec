@@ -28,21 +28,30 @@ a = Analysis(
     hiddenimports=[
         # Gradio and web framework
         'gradio', 'gradio.themes', 'gradio.themes.soft',
+        'gradio._vendor.aiofiles', 'gradio._vendor.aiofiles.base',
+        'gradio._vendor.aiofiles.os', 'gradio._vendor.aiofiles.threadpool',
         'fastapi', 'uvicorn', 'uvicorn.logging', 'uvicorn.loops',
-        'uvicorn.loops.auto', 'uvicorn.protocols',
-        'uvicorn.protocols.http', 'uvicorn.protocols.http.auto',
-        'starlette', 'starlette.middleware',
-        'python_multipart', 'aiofiles', 'httpx',
+        'uvicorn.loops.auto', 'uvicorn.loops.asyncio',
+        'uvicorn.protocols', 'uvicorn.protocols.http',
+        'uvicorn.protocols.http.auto', 'uvicorn.protocols.http.h11_impl',
+        'uvicorn.protocols.websockets', 'uvicorn.protocols.websockets.auto',
+        'uvicorn.protocols.websockets.websockets_impl',
+        'starlette', 'starlette.middleware', 'starlette.middleware.cors',
+        'python_multipart', 'httpx',
+        'exceptiongroup',           # anyio/starlette on Python < 3.11 path
+        'watchfiles',               # uvicorn reload
         # AI providers
         'anthropic', 'openai', 'groq',
         # Document processing
-        'pdfplumber', 'fpdf2', 'docx', 'python_docx',
+        'pdfplumber', 'fpdf',       # fpdf2 package imports as 'fpdf'
+        'docx',                     # python-docx imports as 'docx'
         # Cloud STT (optional — lazy-imported)
         'deepgram', 'assemblyai', 'elevenlabs', 'rev_ai',
         # Utilities
         'PIL', 'PIL.Image', 'requests', 'urllib3',
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
+        'multiprocessing',
     ],
     hookspath=[],
     hooksconfig={},

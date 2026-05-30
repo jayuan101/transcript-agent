@@ -2358,11 +2358,11 @@ _THEME_JS = """
       '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important}',
       /* ── Accordions ── */
       '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
-      /* ── Analyze button ── */
-      '.big-btn button{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:1.06em!important;font-weight:700!important;border:none!important;border-radius:12px!important;padding:14px!important;width:100%!important;box-shadow:0 4px 18px rgba(29,78,216,0.38)!important;letter-spacing:0.02em!important;transition:all 0.18s!important}',
-      '.big-btn button:hover{transform:translateY(-1px)!important;box-shadow:0 6px 24px rgba(29,78,216,0.50)!important}',
-      /* ── Cancel / stop button ── */
-      'button[aria-label="Stop / Cancel"],button.stop-btn{background:#fff!important;color:#dc2626!important;border:1.5px solid #fca5a5!important;border-radius:10px!important;font-size:0.82em!important;font-weight:600!important;padding:7px 14px!important;transition:all 0.15s!important;width:100%!important;margin-top:6px!important}',
+      /* ── Analyze button — compact, pill style ── */
+      '.ta-analyze-btn button{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
+      '.ta-analyze-btn button:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
+      /* ── Cancel / stop button — tiny square ── */
+      'button[aria-label="Stop / Cancel"],button.stop-btn{background:#fff!important;color:#dc2626!important;border:1.5px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;padding:6px 10px!important;transition:all 0.15s!important;width:100%!important;margin-top:4px!important}',
       'button[aria-label="Stop / Cancel"]:hover,button.stop-btn:hover{background:#fef2f2!important;border-color:#ef4444!important}',
       /* ── Scrollable dropdowns ── */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
@@ -2394,10 +2394,9 @@ _THEME_JS = """
       '.ta-hc-blue{background:rgba(59,130,246,0.28);border:1px solid rgba(96,165,250,0.4);color:#bfdbfe!important}',
       '.ta-hc-purple{background:rgba(139,92,246,0.25);border:1px solid rgba(167,139,250,0.4);color:#ddd6fe!important}',
       '.ta-hc-indigo{background:rgba(99,102,241,0.28);border:1px solid rgba(129,140,248,0.4);color:#c7d2fe!important}',
-      /* ── Cancel button in results panel ── */
-      /* Stop button — compact pill, never bigger than its icon */
-      '.ta-cancel-btn{flex:0 0 44px!important;min-width:44px!important;max-width:44px!important}',
-      '.ta-cancel-btn button{width:44px!important;height:44px!important;padding:0!important;border-radius:10px!important;font-size:1.1em!important;font-weight:700!important;line-height:1!important;box-shadow:none!important;flex-shrink:0!important}',
+      /* ── Cancel button — tiny square in results panel ── */
+      '.ta-cancel-btn{flex:0 0 34px!important;min-width:34px!important;max-width:34px!important}',
+      '.ta-cancel-btn button{width:34px!important;height:34px!important;padding:0!important;border-radius:7px!important;font-size:0.82em!important;font-weight:700!important;line-height:1!important;box-shadow:none!important;flex-shrink:0!important}',
       /* Status bar fills remaining width */
       '.ta-status-bar{flex:1 1 auto!important;min-width:0!important}',
       /* ── Live log — light mode ── */
@@ -2495,7 +2494,7 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 4px 18px rgba(29,78,216,0.5)!important}',
+    'html.dark .ta-analyze-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 3px 12px rgba(29,78,216,0.5)!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
@@ -3169,7 +3168,8 @@ _THEME_JS = """
     function wireAnalyze() {
       var real = null;
       document.querySelectorAll('button').forEach(function(b){
-        if ((b.textContent||'').trim() === 'Analyze File') real = b;
+        var t = (b.textContent||'').trim();
+        if (t === 'Analyze File' || t === '▶  Analyze' || t.includes('Analyze')) real = b;
       });
       if (!real) { setTimeout(wireAnalyze, 800); return; }
 
@@ -3637,9 +3637,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
   Step 3 — Run
 </div>""")
             process_btn = gr.Button(
-                "Analyze File",
-                variant="primary", size="lg",
-                elem_classes=["big-btn"],
+                "▶  Analyze",
+                variant="primary", size="sm",
+                elem_classes=["ta-analyze-btn"],
             )
 
             result_state = gr.State(value=None)
@@ -3675,10 +3675,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     elem_id="ta-status-bar",
                 )
                 cancel_btn = gr.Button(
-                    "⏹",
+                    "■",
                     variant="stop",
                     size="sm",
-                    min_width=44,
+                    min_width=36,
                     elem_classes=["ta-cancel-btn"],
                     elem_id="ta-cancel-btn",
                 )

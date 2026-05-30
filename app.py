@@ -2012,70 +2012,83 @@ _THEME = gr.themes.Soft(
 
 # ── HTML snippets ───────────────────────────────────────────────────────────────
 _HERO = """
-<div style="background:linear-gradient(140deg,#060d1f 0%,#0f172a 35%,#162244 65%,#1a3a6e 100%);
-     border-radius:20px;padding:36px 44px 32px;color:#fff;margin-bottom:6px;
-     position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.28);">
+<div class="ta-hero">
 
   <!-- ambient glow blobs -->
-  <div style="position:absolute;top:-60px;right:-40px;width:280px;height:280px;
-       background:radial-gradient(circle,rgba(59,130,246,0.18) 0%,transparent 70%);
-       pointer-events:none;"></div>
-  <div style="position:absolute;bottom:-40px;left:60px;width:200px;height:200px;
-       background:radial-gradient(circle,rgba(99,102,241,0.12) 0%,transparent 70%);
-       pointer-events:none;"></div>
+  <div class="ta-hero-blob-tr"></div>
+  <div class="ta-hero-blob-bl"></div>
 
-  <div style="position:relative;">
-    <!-- logo row -->
-    <div style="display:flex;align-items:center;gap:18px;margin-bottom:20px;">
-      <div style="background:linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04));
-           border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:13px 15px;
-           backdrop-filter:blur(12px);flex-shrink:0;
-           box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
-        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-          <circle cx="14" cy="14" r="8" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" fill="none"/>
-          <circle cx="14" cy="14" r="3" fill="white"/>
-          <line x1="14" y1="4"  x2="14" y2="7"  stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="14" y1="21" x2="14" y2="24" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="4"  y1="14" x2="7"  y2="14" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
-          <line x1="21" y1="14" x2="24" y2="14" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- subtle dot-grid texture -->
+  <div class="ta-hero-grid"></div>
+
+  <div class="ta-hero-inner">
+
+    <!-- logo + title row -->
+    <div class="ta-hero-header">
+      <div class="ta-hero-icon-box">
+        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+          <!-- mic body -->
+          <rect x="10" y="3" width="10" height="16" rx="5"
+                fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.85)" stroke-width="1.6"/>
+          <!-- mic stand arc -->
+          <path d="M5 17 Q5 25 15 25 Q25 25 25 17"
+                stroke="rgba(255,255,255,0.7)" stroke-width="1.6"
+                fill="none" stroke-linecap="round"/>
+          <!-- mic stand stem -->
+          <line x1="15" y1="25" x2="15" y2="29"
+                stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linecap="round"/>
+          <!-- base line -->
+          <line x1="10" y1="29" x2="20" y2="29"
+                stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linecap="round"/>
+          <!-- waveform dots inside mic -->
+          <circle cx="15" cy="9"  r="1.2" fill="rgba(255,255,255,0.7)"/>
+          <circle cx="15" cy="13" r="1.2" fill="rgba(255,255,255,0.7)"/>
         </svg>
       </div>
-      <div>
-        <div style="font-size:0.68em;font-weight:700;letter-spacing:0.14em;
-             text-transform:uppercase;color:rgba(147,197,253,0.7);margin-bottom:5px;">
-          AI Transcription Platform
+
+      <div class="ta-hero-title-block">
+        <div class="ta-hero-eyebrow">AI Transcription Platform</div>
+        <div class="ta-hero-title">Transcript Agent</div>
+        <div class="ta-hero-sub">
+          Whisper transcription &nbsp;&middot;&nbsp;
+          Multi-provider AI &nbsp;&middot;&nbsp;
+          Speaker diarization
         </div>
-        <div style="font-size:2em;font-weight:800;letter-spacing:-0.04em;line-height:1.05;
-             background:linear-gradient(110deg,#fff 30%,#93c5fd 80%);
-             -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-             background-clip:text;">
-          Transcript Agent
-        </div>
-        <div style="color:rgba(148,163,184,0.85);font-size:0.84em;font-weight:400;
-             margin-top:5px;-webkit-text-fill-color:rgba(148,163,184,0.85);">
-          Whisper transcription &nbsp;&middot;&nbsp; Multi-provider AI analysis &nbsp;&middot;&nbsp; Speaker diarization
-        </div>
+      </div>
+    </div>
+
+    <!-- stats strip -->
+    <div class="ta-hero-stats">
+      <div class="ta-hero-stat">
+        <span class="ta-hero-stat-n">8</span>
+        <span class="ta-hero-stat-l">AI Providers</span>
+      </div>
+      <div class="ta-hero-stat-sep"></div>
+      <div class="ta-hero-stat">
+        <span class="ta-hero-stat-n">37+</span>
+        <span class="ta-hero-stat-l">Languages</span>
+      </div>
+      <div class="ta-hero-stat-sep"></div>
+      <div class="ta-hero-stat">
+        <span class="ta-hero-stat-n">12</span>
+        <span class="ta-hero-stat-l">File Formats</span>
+      </div>
+      <div class="ta-hero-stat-sep"></div>
+      <div class="ta-hero-stat">
+        <span class="ta-hero-stat-n">100%</span>
+        <span class="ta-hero-stat-l">Private</span>
       </div>
     </div>
 
     <!-- feature chips -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;">
-      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
-           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
-           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">🎵 Audio &amp; Video</span>
-      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
-           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
-           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">📄 Documents</span>
-      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
-           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
-           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">🗣️ Speaker Diarization</span>
-      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
-           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
-           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">📊 Speech Analytics</span>
-      <span style="background:rgba(99,102,241,0.2);border:1px solid rgba(129,140,248,0.28);
-           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
-           color:rgba(165,180,252,0.92);letter-spacing:0.02em;">🌐 37+ Languages</span>
+    <div class="ta-hero-chips">
+      <span class="ta-hero-chip ta-hc-blue">🎵 Audio &amp; Video</span>
+      <span class="ta-hero-chip ta-hc-blue">📄 Documents</span>
+      <span class="ta-hero-chip ta-hc-purple">🗣️ Speaker Diarization</span>
+      <span class="ta-hero-chip ta-hc-blue">📊 Speech Analytics</span>
+      <span class="ta-hero-chip ta-hc-indigo">🌐 37+ Languages</span>
     </div>
+
   </div>
 </div>
 """
@@ -2186,6 +2199,30 @@ _THEME_JS = """
       /* ── File upload area ── */
       '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
       '.upload-container:hover{border-color:#3b82f6!important}',
+      /* ── Hero ── */
+      '.ta-hero{background:linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%);border-radius:22px;padding:36px 44px 30px;color:#fff;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.32),0 2px 8px rgba(0,0,0,0.2)}',
+      '.ta-hero-blob-tr{position:absolute;top:-70px;right:-50px;width:320px;height:320px;background:radial-gradient(circle,rgba(59,130,246,0.22) 0%,transparent 68%);pointer-events:none}',
+      '.ta-hero-blob-bl{position:absolute;bottom:-50px;left:40px;width:240px;height:240px;background:radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 65%);pointer-events:none}',
+      '.ta-hero-grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.055) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}',
+      '.ta-hero-inner{position:relative}',
+      /* header row */
+      '.ta-hero-header{display:flex;align-items:center;gap:20px;margin-bottom:22px}',
+      '.ta-hero-icon-box{background:linear-gradient(135deg,rgba(255,255,255,0.13),rgba(255,255,255,0.04));border:1px solid rgba(255,255,255,0.2);border-radius:18px;padding:14px 16px;backdrop-filter:blur(12px);flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.14),0 4px 16px rgba(0,0,0,0.2)}',
+      '.ta-hero-eyebrow{font-size:0.67em;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(147,197,253,0.65);margin-bottom:5px}',
+      '.ta-hero-title{font-size:2.05em;font-weight:800;letter-spacing:-0.04em;line-height:1.05;background:linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}',
+      '.ta-hero-sub{color:rgba(148,163,184,0.8);font-size:0.83em;font-weight:400;margin-top:6px;-webkit-text-fill-color:rgba(148,163,184,0.8)}',
+      /* stats strip */
+      '.ta-hero-stats{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 20px;margin-bottom:18px;flex-wrap:wrap;row-gap:8px}',
+      '.ta-hero-stat{display:flex;flex-direction:column;align-items:center;flex:1;min-width:60px}',
+      '.ta-hero-stat-n{font-size:1.3em;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em}',
+      '.ta-hero-stat-l{font-size:0.67em;font-weight:600;color:rgba(148,163,184,0.7);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}',
+      '.ta-hero-stat-sep{width:1px;height:32px;background:rgba(255,255,255,0.12);flex-shrink:0;margin:0 4px}',
+      /* feature chips */
+      '.ta-hero-chips{display:flex;gap:7px;flex-wrap:wrap}',
+      '.ta-hero-chip{border-radius:8px;padding:4px 12px;font-size:0.72em;font-weight:600;letter-spacing:0.02em}',
+      '.ta-hc-blue{background:rgba(59,130,246,0.22);border:1px solid rgba(96,165,250,0.3);color:rgba(147,197,253,0.95)}',
+      '.ta-hc-purple{background:rgba(139,92,246,0.2);border:1px solid rgba(167,139,250,0.3);color:rgba(196,181,253,0.95)}',
+      '.ta-hc-indigo{background:rgba(99,102,241,0.22);border:1px solid rgba(129,140,248,0.3);color:rgba(165,180,252,0.95)}',
       /* ── Download section ── */
       '.ta-dl-wrap{padding:4px 2px}',
       '.ta-dl-desc{font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px}',
@@ -2194,7 +2231,7 @@ _THEME_JS = """
       '.ta-dl-win{background:linear-gradient(135deg,#1d4ed8,#3b82f6);box-shadow:0 4px 14px rgba(29,78,216,0.35)}',
       '.ta-dl-mac{background:linear-gradient(135deg,#15803d,#22c55e);box-shadow:0 4px 14px rgba(22,163,74,0.35)}',
       '.ta-dl-btn-title{font-size:0.95em;font-weight:700;color:#fff}',
-      '.ta-dl-btn-sub{font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px}',
+      '.ta-dl-btn-sub{font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.88);margin-top:1px}',
       '.ta-dl-update-row{margin-top:14px;padding-top:12px;border-top:1px solid var(--ta-card-border)}',
       '.ta-dl-update-label{font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px}',
       '.ta-dl-code{font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border)}',
@@ -2304,6 +2341,11 @@ _THEME_JS = """
     /* ── Labels ── */
     'html.dark label>span:first-child,html.dark .block-label{color:#94a3b8!important}',
     'html.dark .info{color:#64748b!important}',
+    /* ── Hero dark mode — add border + stronger glow to separate from dark page ── */
+    'html.dark .ta-hero{border:1px solid rgba(59,130,246,0.22)!important;box-shadow:0 8px 48px rgba(0,0,0,0.6),0 0 0 1px rgba(59,130,246,0.08),0 2px 8px rgba(0,0,0,0.4)!important}',
+    'html.dark .ta-hero-blob-tr{background:radial-gradient(circle,rgba(59,130,246,0.28) 0%,transparent 68%)!important}',
+    'html.dark .ta-hero-blob-bl{background:radial-gradient(circle,rgba(99,102,241,0.2) 0%,transparent 65%)!important}',
+    'html.dark .ta-hero-stats{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.08)!important}',
     /* ── Changelog dark mode ── */
     'html.dark .ta-cl-status{background:#14532d!important;border-color:#166534!important}',
     'html.dark .ta-cl-status-txt{color:#4ade80!important}',

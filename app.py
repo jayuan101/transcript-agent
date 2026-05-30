@@ -351,7 +351,7 @@ _PROVIDERS = {
     "Claude (Anthropic)": {
         "type": "anthropic",
         "placeholder": "sk-ant-api03-…",
-        "info": "console.anthropic.com → API keys → Create key",
+        "info": "console.anthropic.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "claude-opus-4-8",
             "claude-sonnet-4-6",
@@ -365,7 +365,7 @@ _PROVIDERS = {
     "OpenAI": {
         "type": "openai",
         "placeholder": "sk-…",
-        "info": "platform.openai.com → API keys",
+        "info": "platform.openai.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "gpt-4o",
             "gpt-4o-mini",
@@ -380,7 +380,7 @@ _PROVIDERS = {
     "Google Gemini": {
         "type": "openai_compat",
         "placeholder": "AIzaSy…",
-        "info": "aistudio.google.com → Get API key",
+        "info": "aistudio.google.com → Get API key · 🔒 Saved in your browser only — never on this server",
         "models": [
             "gemini-2.5-pro-preview-05-06",
             "gemini-2.0-flash-exp",
@@ -394,7 +394,7 @@ _PROVIDERS = {
     "Groq": {
         "type": "openai_compat",
         "placeholder": "gsk_…",
-        "info": "console.groq.com → API keys",
+        "info": "console.groq.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "llama-3.3-70b-versatile",
             "llama-3.1-70b-versatile",
@@ -408,7 +408,7 @@ _PROVIDERS = {
     "Mistral": {
         "type": "openai_compat",
         "placeholder": "…",
-        "info": "console.mistral.ai → API keys",
+        "info": "console.mistral.ai → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "mistral-large-latest",
             "mistral-medium-latest",
@@ -421,7 +421,7 @@ _PROVIDERS = {
     "Together AI": {
         "type": "openai_compat",
         "placeholder": "…",
-        "info": "api.together.ai → Settings → API keys",
+        "info": "api.together.ai → Settings → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "meta-llama/Llama-3-70b-chat-hf",
             "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
@@ -434,7 +434,7 @@ _PROVIDERS = {
     "Perplexity": {
         "type": "openai_compat",
         "placeholder": "pplx-…",
-        "info": "perplexity.ai → Settings → API",
+        "info": "perplexity.ai → Settings → API · 🔒 Saved in your browser only — never on this server",
         "models": [
             "llama-3.1-sonar-large-128k-online",
             "llama-3.1-sonar-huge-128k-online",
@@ -2674,6 +2674,80 @@ _THEME_JS = """
     watchDropdown('provider-sel', PKEY);
     watchDropdown('model-sel',    MKEY);
     setTimeout(restore, 2000);   /* wait for Gradio to finish rendering */
+  })();
+
+  /* ── 🔑 API key — saved per-provider in browser localStorage only ──────────
+     The key is NEVER sent to the server for storage. It lives exclusively in
+     the user's own browser on their device. Each AI provider gets its own
+     slot so switching providers swaps in the right key automatically.       */
+  (function(){
+    var AKEY = 'ta-apikey-';   /* prefix + provider label, e.g. ta-apikey-Claude (Anthropic) */
+
+    function apiInput() { return document.querySelector('input[type="password"]'); }
+    function curProvider() { return localStorage.getItem('ta-provider') || 'Claude (Anthropic)'; }
+
+    /* Save current key under the current provider slot */
+    function saveKey() {
+      var inp = apiInput(); if (!inp) return;
+      var slot = AKEY + curProvider();
+      if (inp.value) localStorage.setItem(slot, inp.value);
+      else           localStorage.removeItem(slot);
+    }
+
+    /* Fill the password field from localStorage (skip if user already typed) */
+    function restoreKey(provider) {
+      var slot  = AKEY + (provider || curProvider());
+      var saved = localStorage.getItem(slot);
+      if (!saved) return;
+      function trySet(n) {
+        if (n > 20) return;
+        var inp = apiInput();
+        if (!inp) { setTimeout(function(){ trySet(n + 1); }, 400); return; }
+        if (inp.value) return;   /* never overwrite what the user manually typed */
+        inp.value = saved;
+        /* dispatch events so Gradio and the banner JS both react */
+        ['input', 'change'].forEach(function(ev) {
+          inp.dispatchEvent(new Event(ev, { bubbles: true }));
+        });
+      }
+      trySet(0);
+    }
+
+    /* Attach save listeners to the password field */
+    function watchApiInput() {
+      function attach() {
+        var inp = apiInput();
+        if (!inp) { setTimeout(attach, 800); return; }
+        if (inp.dataset.taSaving) return;   /* avoid duplicate listeners */
+        inp.dataset.taSaving = '1';
+        inp.addEventListener('input',  saveKey);
+        inp.addEventListener('change', saveKey);
+      }
+      attach();
+    }
+
+    /* When the provider changes, clear the field and load the new provider's key */
+    function watchProviderForKey() {
+      function attach() {
+        var el = document.getElementById('provider-sel');
+        if (!el) { setTimeout(attach, 800); return; }
+        var last = curProvider();
+        new MutationObserver(function() {
+          var now = localStorage.getItem('ta-provider') || '';
+          if (now && now !== last) {
+            last = now;
+            var inp = apiInput();
+            if (inp) inp.value = '';           /* clear the old provider's key */
+            setTimeout(function(){ restoreKey(now); }, 1200); /* wait for Gradio to update the field label */
+          }
+        }).observe(el, { childList: true, subtree: true, characterData: true, attributes: true });
+      }
+      attach();
+    }
+
+    watchApiInput();
+    watchProviderForKey();
+    setTimeout(function(){ restoreKey(); }, 2800);   /* restore after everything else settles */
   })();
 })();
 """

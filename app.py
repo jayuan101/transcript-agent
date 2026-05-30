@@ -2125,8 +2125,6 @@ _THEME_JS = """
     var ps = document.createElement('style');
     ps.id = 'ta-static';
     ps.textContent = [
-      /* Light mode page base */
-      'body{background:#f1f5f9!important}',
       /* Custom checkboxes — visible in both modes */
       'input[type=checkbox]{-webkit-appearance:none!important;appearance:none!important;width:18px!important;height:18px!important;min-width:18px!important;border:2px solid #2563eb!important;border-radius:4px!important;background:#fff!important;cursor:pointer!important;position:relative!important;vertical-align:middle!important;flex-shrink:0!important}',
       'input[type=checkbox]:checked{background:#2563eb!important;border-color:#2563eb!important}',
@@ -2240,10 +2238,31 @@ _THEME_JS = """
     /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
-    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important}',
+    'html.dark .big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 4px 18px rgba(29,78,216,0.5)!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
+    /* ── New redesign: block/card shadow in dark ── */
+    'html.dark .block,html.dark .form,html.dark .padded{box-shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.2)!important;border-color:#2d3a4e!important}',
+    /* ── Inputs — dark border + focus ring ── */
+    'html.dark input[type=text],html.dark input[type=password],html.dark input:not([type]),html.dark textarea,html.dark select{border:1.5px solid #334155!important;background:#0f172a!important;color:#e2e8f0!important}',
+    'html.dark input[type=text]:focus,html.dark input[type=password]:focus,html.dark input:not([type]):focus,html.dark textarea:focus{border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,0.18)!important}',
+    /* ── Tab nav divider ── */
+    'html.dark .tabs>.tab-nav{border-bottom-color:#2d3a4e!important}',
+    'html.dark .tabs>.tab-nav button.selected{color:#60a5fa!important;border-bottom-color:#3b82f6!important}',
+    /* ── Accordion border ── */
+    'html.dark .accordion,html.dark .details{border-color:#2d3a4e!important}',
+    /* ── Cancel button — dark ── */
+    'html.dark button[aria-label="Stop / Cancel"],html.dark button.stop-btn{background:#1e1215!important;color:#f87171!important;border-color:#7f1d1d!important}',
+    'html.dark button[aria-label="Stop / Cancel"]:hover,html.dark button.stop-btn:hover{background:#2d1515!important;border-color:#ef4444!important}',
+    /* ── Upload drop zone — dark dashed border ── */
+    'html.dark .upload-container{border-color:#334155!important;border-style:dashed!important;background:#0f172a!important}',
+    'html.dark .upload-container:hover{border-color:#3b82f6!important}',
+    /* ── Dropdown listbox shadow — dark ── */
+    'html.dark [role=listbox]{box-shadow:0 8px 32px rgba(0,0,0,0.55)!important;border-color:#334155!important}',
+    /* ── Labels ── */
+    'html.dark label>span:first-child,html.dark .block-label{color:#94a3b8!important}',
+    'html.dark .info{color:#64748b!important}',
     /* scrollbars */
     'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
@@ -2403,10 +2422,11 @@ _THEME_JS = """
     var title  = document.getElementById('api-banner-title');
     var sub    = document.getElementById('api-banner-sub');
     if (banner && !banner.dataset.state) {
-      banner.style.background  = dark ? 'linear-gradient(135deg,#292107,#3b2d00)' : 'linear-gradient(135deg,#fffbeb,#fef3c7)';
-      banner.style.borderColor = dark ? '#d97706' : '#f59e0b';
+      banner.style.background  = dark ? '#1c1608'        : '#fffcf0';
+      banner.style.borderColor = dark ? '#78350f'        : '#fde68a';
+      banner.style.boxShadow   = dark ? '0 1px 4px rgba(120,53,15,0.18)' : '0 1px 4px rgba(245,158,11,0.08)';
       if (title) title.style.color = dark ? '#fbbf24' : '#92400e';
-      if (sub)   sub.style.color   = dark ? '#fcd34d' : '#a16207';
+      if (sub)   sub.style.color   = dark ? '#d97706' : '#a16207';
     }
   }
 

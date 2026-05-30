@@ -1557,16 +1557,16 @@ def process_file(
             elif kind == 'progress':
                 # text-only line in log — the ETA panel owns the visual bar
                 parts.append(
-                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<div><span style="color:#64748b;">[{ts}]</span> '
                     f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
             else:
                 parts.append(
-                    f'<div><span style="color:#334155;">[{ts}]</span> '
+                    f'<div><span style="color:#64748b;">[{ts}]</span> '
                     f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
         scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
-        inner = "".join(parts) + scroll if parts else '<span style="color:#334155;">Starting…</span>'
+        inner = "".join(parts) + scroll if parts else '<span style="color:#64748b;">Starting…</span>'
         return (
             '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
             'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
@@ -2199,8 +2199,8 @@ _THEME_JS = """
       /* ── File upload area ── */
       '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
       '.upload-container:hover{border-color:#3b82f6!important}',
-      /* ── Hero ── */
-      '.ta-hero{background:linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%);border-radius:22px;padding:36px 44px 30px;color:#fff;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.32),0 2px 8px rgba(0,0,0,0.2)}',
+      /* ── Hero — all text uses !important so Gradio light-theme can't override ── */
+      '.ta-hero{background:linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%);border-radius:22px;padding:36px 44px 30px;color:#fff!important;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.32),0 2px 8px rgba(0,0,0,0.2)}',
       '.ta-hero-blob-tr{position:absolute;top:-70px;right:-50px;width:320px;height:320px;background:radial-gradient(circle,rgba(59,130,246,0.22) 0%,transparent 68%);pointer-events:none}',
       '.ta-hero-blob-bl{position:absolute;bottom:-50px;left:40px;width:240px;height:240px;background:radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 65%);pointer-events:none}',
       '.ta-hero-grid{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,0.055) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}',
@@ -2208,21 +2208,29 @@ _THEME_JS = """
       /* header row */
       '.ta-hero-header{display:flex;align-items:center;gap:20px;margin-bottom:22px}',
       '.ta-hero-icon-box{background:linear-gradient(135deg,rgba(255,255,255,0.13),rgba(255,255,255,0.04));border:1px solid rgba(255,255,255,0.2);border-radius:18px;padding:14px 16px;backdrop-filter:blur(12px);flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.14),0 4px 16px rgba(0,0,0,0.2)}',
-      '.ta-hero-eyebrow{font-size:0.67em;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(147,197,253,0.88);margin-bottom:5px}',
-      '.ta-hero-title{font-size:2.05em;font-weight:800;letter-spacing:-0.04em;line-height:1.05;background:linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}',
-      '.ta-hero-sub{color:rgba(203,213,225,0.92);font-size:0.83em;font-weight:400;margin-top:6px;-webkit-text-fill-color:rgba(203,213,225,0.92)}',
+      '.ta-hero-eyebrow{font-size:0.67em!important;font-weight:700!important;letter-spacing:0.15em!important;text-transform:uppercase!important;color:rgba(147,197,253,0.95)!important;margin-bottom:5px!important}',
+      '.ta-hero-title{font-size:2.05em!important;font-weight:800!important;letter-spacing:-0.04em!important;line-height:1.05!important;background:linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%)!important;-webkit-background-clip:text!important;-webkit-text-fill-color:transparent!important;background-clip:text!important}',
+      '.ta-hero-sub{color:#cbd5e1!important;font-size:0.83em!important;font-weight:400!important;margin-top:6px!important;-webkit-text-fill-color:#cbd5e1!important}',
       /* stats strip */
-      '.ta-hero-stats{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 20px;margin-bottom:18px;flex-wrap:wrap;row-gap:8px}',
+      '.ta-hero-stats{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.18);border-radius:12px;padding:12px 20px;margin-bottom:18px;flex-wrap:wrap;row-gap:8px}',
       '.ta-hero-stat{display:flex;flex-direction:column;align-items:center;flex:1;min-width:60px}',
-      '.ta-hero-stat-n{font-size:1.3em;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em}',
-      '.ta-hero-stat-l{font-size:0.67em;font-weight:600;color:rgba(203,213,225,0.85);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}',
-      '.ta-hero-stat-sep{width:1px;height:32px;background:rgba(255,255,255,0.12);flex-shrink:0;margin:0 4px}',
+      '.ta-hero-stat-n{font-size:1.3em!important;font-weight:800!important;color:#fff!important;line-height:1!important;letter-spacing:-0.02em!important}',
+      '.ta-hero-stat-l{font-size:0.67em!important;font-weight:600!important;color:#e2e8f0!important;text-transform:uppercase!important;letter-spacing:0.06em!important;margin-top:2px!important}',
+      '.ta-hero-stat-sep{width:1px;height:32px;background:rgba(255,255,255,0.2);flex-shrink:0;margin:0 4px}',
       /* feature chips */
       '.ta-hero-chips{display:flex;gap:7px;flex-wrap:wrap}',
-      '.ta-hero-chip{border-radius:8px;padding:4px 12px;font-size:0.72em;font-weight:600;letter-spacing:0.02em}',
-      '.ta-hc-blue{background:rgba(59,130,246,0.22);border:1px solid rgba(96,165,250,0.3);color:rgba(147,197,253,0.95)}',
-      '.ta-hc-purple{background:rgba(139,92,246,0.2);border:1px solid rgba(167,139,250,0.3);color:rgba(196,181,253,0.95)}',
-      '.ta-hc-indigo{background:rgba(99,102,241,0.22);border:1px solid rgba(129,140,248,0.3);color:rgba(165,180,252,0.95)}',
+      '.ta-hero-chip{border-radius:8px;padding:4px 12px;font-size:0.72em!important;font-weight:600!important;letter-spacing:0.02em}',
+      '.ta-hc-blue{background:rgba(59,130,246,0.28);border:1px solid rgba(96,165,250,0.4);color:#bfdbfe!important}',
+      '.ta-hc-purple{background:rgba(139,92,246,0.25);border:1px solid rgba(167,139,250,0.4);color:#ddd6fe!important}',
+      '.ta-hc-indigo{background:rgba(99,102,241,0.28);border:1px solid rgba(129,140,248,0.4);color:#c7d2fe!important}',
+      /* ── Cancel button in results panel ── */
+      /* Stop button — compact pill, never bigger than its icon */
+      '.ta-cancel-btn{flex:0 0 44px!important;min-width:44px!important;max-width:44px!important}',
+      '.ta-cancel-btn button{width:44px!important;height:44px!important;padding:0!important;border-radius:10px!important;font-size:1.1em!important;font-weight:700!important;line-height:1!important;box-shadow:none!important;flex-shrink:0!important}',
+      /* Status bar fills remaining width */
+      '.ta-status-bar{flex:1 1 auto!important;min-width:0!important}',
+      /* ── Live log — light mode ── */
+      '#live-log,#live-log>*{background:#0f172a!important;border-color:#1e3a5f!important}',
       /* ── Download section ── */
       '.ta-dl-wrap{padding:4px 2px}',
       '.ta-dl-desc{font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px}',
@@ -2961,6 +2969,38 @@ _THEME_JS = """
     watchProviderForKey();
     setTimeout(function(){ restoreKey(); }, 2800);   /* restore after everything else settles */
   })();
+
+  /* ── 📍 Auto-scroll to results panel when Analyze is clicked ─────────────
+     When the user hits Analyze File (left sidebar), the progress updates
+     appear in the right panel. We scroll it into view so they see it.     */
+  (function(){
+    function attachAnalyzeScroll() {
+      /* Find the Analyze File button by its text */
+      var btns = document.querySelectorAll('button');
+      var analyzeBtn = null;
+      for (var i = 0; i < btns.length; i++) {
+        if ((btns[i].textContent || '').trim() === 'Analyze File') {
+          analyzeBtn = btns[i];
+          break;
+        }
+      }
+      if (!analyzeBtn) { setTimeout(attachAnalyzeScroll, 800); return; }
+      if (analyzeBtn.dataset.scrollWired) return;
+      analyzeBtn.dataset.scrollWired = '1';
+
+      analyzeBtn.addEventListener('click', function() {
+        /* Small delay so Gradio starts updating before we scroll */
+        setTimeout(function() {
+          var target = document.getElementById('ta-status-bar')
+                    || document.querySelector('.ta-status-bar');
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 400);
+      });
+    }
+    setTimeout(attachAnalyzeScroll, 1500);
+  })();
 })();
 """
 
@@ -3307,10 +3347,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 variant="primary", size="lg",
                 elem_classes=["big-btn"],
             )
-            cancel_btn = gr.Button(
-                "Stop / Cancel",
-                variant="stop", size="sm",
-            )
 
             result_state = gr.State(value=None)
 
@@ -3335,14 +3371,28 @@ with gr.Blocks(title="Transcript Agent") as demo:
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
 
-            status_bar = gr.HTML(value=_IDLE_STATUS)
+            with gr.Row(equal_height=True):
+                status_bar = gr.HTML(
+                    value=_IDLE_STATUS,
+                    elem_classes=["ta-status-bar"],
+                    elem_id="ta-status-bar",
+                )
+                cancel_btn = gr.Button(
+                    "⏹",
+                    variant="stop",
+                    size="sm",
+                    min_width=44,
+                    elem_classes=["ta-cancel-btn"],
+                    elem_id="ta-cancel-btn",
+                )
+
             eta_panel  = gr.HTML(value="")
             log_out    = gr.HTML(
                 value='<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
                       'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
                       'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;'
                       'line-height:1.7;color:#475569;">'
-                      '<span style="color:#334155;">Progress appears here once you click Analyze File…</span>'
+                      '<span style="color:#64748b;">Progress appears here once you click Analyze File…</span>'
                       '</div>',
                 elem_id="live-log",
                 label="Live Processing Log",
@@ -3381,6 +3431,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     )
 
     # ── Download + Changelog row ──────────────────────────────────────────────
+    _ON_HF = bool(os.environ.get("SPACE_ID"))   # True when running on HF Spaces
+
     with gr.Row():
         with gr.Column(scale=1):
             with gr.Accordion("🖥️  Get the Desktop App", open=False):
@@ -3388,7 +3440,17 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
         with gr.Column(scale=1):
             with gr.Accordion("📋  What's New", open=False):
-                gr.HTML(_CHANGELOG_HTML)
+                if _ON_HF:
+                    gr.HTML(
+                        f'<div style="padding:10px 4px;font-size:0.85em;color:var(--ta-card-sub);">'
+                        f'Full release notes are on GitHub.<br>'
+                        f'<a href="https://huggingface.co/spaces/Coastline6/transcript-agent/blob/main/CHANGELOG.md"'
+                        f'   target="_blank" style="color:#3b82f6;font-weight:600;">'
+                        f'View Changelog →</a>'
+                        f'</div>'
+                    )
+                else:
+                    gr.HTML(_CHANGELOG_HTML)
 
     gr.HTML("""
     <div style="text-align:center;padding:20px 0 4px;font-size:0.76em;color:#94a3b8;">

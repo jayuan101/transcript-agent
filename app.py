@@ -1859,10 +1859,9 @@ def process_file(
                 if dmsg[0] == "dl_done":
                     uploaded_file = dmsg[1]
                     log = _add_log(f"✅ Download complete — {Path(uploaded_file).name}", "done")
-                    yield _out(log=log, net="")   # clear network panel
+                    yield _out(log=log)
                     break
                 elif dmsg[0] == "dl_error":
-                    yield _out(net="")
                     yield _err(f"Download failed: {dmsg[1]}")
                     return
                 elif dmsg[0] == "dl_progress":
@@ -1872,6 +1871,7 @@ def process_file(
                     _total_dl_mb = recv_mb            # track for stats panel
                     _peak_dl_speed = max(_peak_dl_speed, speed / 1_048_576)
                     net_html = _net_panel_html("download", recv, total, speed)
+                    _last_net_dir = "down"
                     if total and total > 0:
                         pct = min(100.0, recv / total * 100)
                         log = _add_log(
@@ -3463,10 +3463,43 @@ _THEME_JS = """
       );
     }
 
-    function clearNet() {
-      var p = getPanel();
-      if (p) p.innerHTML = '';
+    var _idleTimer = null;
+    var _lastSpeed = 0;
+    var _lastDir   = '';
+
+    function idleNet() {
+      var p = getPanel(); if (!p) return;
+      var lastTxt = _lastSpeed > 0
+        ? ' &nbsp;·&nbsp; <span style="color:#64748b;font-size:0.78em;">Last: '
+          + fmt(_lastSpeed) + ' ' + (_lastDir === 'up' ? '⬆️' : '⬇️') + '</span>'
+        : '';
+      p.innerHTML = (
+        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
+        + '<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+        + 'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
+        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
+        + '<span>🌐</span>'
+        + '<span style="font-weight:600;color:var(--ta-card-text);">Network</span>'
+        + lastTxt
+        + '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
+        + '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
+        + 'animation:tapulse 2s ease-in-out infinite;"></span>'
+        + '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connected</span>'
+        + '</span></div></div>'
+      );
     }
+
+    function clearNet() {
+      clearTimeout(_idleTimer);
+      _idleTimer = setTimeout(idleNet, 1500);
+    }
+
+    /* Initialise panel immediately so it's never blank */
+    (function waitForPanel(){
+      var p = document.getElementById('ta-net-monitor');
+      if (p) { idleNet(); }
+      else    { setTimeout(waitForPanel, 300); }
+    })();
 
     /* Intercept XMLHttpRequest to detect Gradio file uploads */
     var _origOpen = XMLHttpRequest.prototype.open;
@@ -3483,12 +3516,14 @@ _THEME_JS = """
           && data && (data instanceof FormData || data instanceof Blob || data instanceof ArrayBuffer
                       || (typeof data === 'object' && data.size))) {
         _startTime = Date.now();
+        _lastDir   = 'up';
         self.upload.addEventListener('progress', function(e) {
           var elapsed = (Date.now() - _startTime) / 1000;
           var bps = elapsed > 0 ? e.loaded / elapsed : 0;
+          _lastSpeed = bps;
           showUpload(e.loaded, e.lengthComputable ? e.total : 0, bps);
         });
-        self.upload.addEventListener('load', function() { clearNet(); });
+        self.upload.addEventListener('load',  function() { clearNet(); });
         self.upload.addEventListener('error', function() { clearNet(); });
         self.upload.addEventListener('abort', function() { clearNet(); });
       }

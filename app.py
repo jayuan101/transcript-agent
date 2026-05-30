@@ -3207,7 +3207,7 @@ _THEME_JS = """
      If a newer version is available, shows a dismissible update banner with
      a "Download Update" button — just like a real desktop app.             */
   (function(){
-    var CURRENT  = '2.3';
+    var CURRENT  = '3.48';
     var RAW_URL  = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/app.py';
     var SETUP_WIN = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_windows.bat';
     var SETUP_MAC = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_mac.sh';
@@ -3404,7 +3404,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3"
+APP_VERSION = "3.48"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

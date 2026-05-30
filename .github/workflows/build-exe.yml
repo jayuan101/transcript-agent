@@ -1,0 +1,180 @@
+name: Build & Publish Desktop App
+
+on:
+  push:
+    tags: ['v*.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g. v3.48)'
+        required: false
+        default: 'v3.48'
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Windows .exe ────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows .exe
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller
+          pip install gradio anthropic openai groq
+          pip install pdfplumber fpdf2 python-docx
+          pip install deepgram-sdk>=3.2.0,<4.0.0 assemblyai elevenlabs rev_ai
+          pip install fastapi uvicorn[standard] python-multipart aiofiles httpx orjson
+          pip install requests packaging typing_extensions
+
+      - name: Build with PyInstaller
+        run: pyinstaller TranscriptAgent.spec
+
+      - name: Zip the onedir bundle
+        run: |
+          cd dist
+          Compress-Archive -Path TranscriptAgent -DestinationPath TranscriptAgent-win64.zip
+          cd ..
+
+      - name: Create single-file wrapper .exe
+        run: |
+          # Create a small wrapper .exe for users who just want one file to click
+          $wrapper = @"
+          @echo off
+          cd /d "%~dp0"
+          if not exist "TranscriptAgent\TranscriptAgent.exe" (
+            echo Extracting... please wait.
+            powershell -Command "Expand-Archive -Path TranscriptAgent-win64.zip -DestinationPath . -Force"
+          )
+          start "" "TranscriptAgent\TranscriptAgent.exe"
+          "@
+          Set-Content -Path dist/Launch_TranscriptAgent.bat -Value $wrapper
+        shell: pwsh
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: |
+            dist/TranscriptAgent-win64.zip
+            dist/TranscriptAgent/TranscriptAgent.exe
+
+  # ── Mac .dmg ────────────────────────────────────────────────────────────────
+  build-mac:
+    name: Build Mac .dmg
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          pip install --upgrade pip
+          pip install pyinstaller
+          pip install gradio anthropic openai groq
+          pip install pdfplumber fpdf2 python-docx
+          pip install "deepgram-sdk>=3.2.0,<4.0.0" assemblyai elevenlabs rev_ai
+          pip install fastapi "uvicorn[standard]" python-multipart aiofiles httpx orjson
+          pip install requests packaging typing_extensions
+
+      - name: Build with PyInstaller
+        run: pyinstaller TranscriptAgent.spec
+
+      - name: Create .dmg
+        run: |
+          brew install create-dmg || true
+          mkdir -p dist/dmg_staging
+          cp -r dist/TranscriptAgent.app dist/dmg_staging/
+          create-dmg \
+            --volname "Transcript Agent" \
+            --window-pos 200 120 \
+            --window-size 600 400 \
+            --icon-size 100 \
+            --icon "TranscriptAgent.app" 175 190 \
+            --hide-extension "TranscriptAgent.app" \
+            --app-drop-link 425 190 \
+            "dist/TranscriptAgent.dmg" \
+            "dist/dmg_staging/" \
+          || hdiutil create -volname "TranscriptAgent" \
+               -srcfolder dist/TranscriptAgent.app \
+               -ov -format UDZO dist/TranscriptAgent.dmg
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-build
+          path: dist/TranscriptAgent.dmg
+
+  # ── Publish to GitHub Releases ───────────────────────────────────────────────
+  publish:
+    name: Publish Release
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: artifacts/windows
+
+      - name: Download Mac build
+        uses: actions/download-artifact@v4
+        with:
+          name: mac-build
+          path: artifacts/mac
+
+      - name: Get version tag
+        id: version
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to transcript-agent releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "Transcript Agent ${{ steps.version.outputs.tag }}"
+          repository: jayuan101/transcript-agent-releases
+          token: ${{ secrets.RELEASE_TOKEN }}
+          body: |
+            ## Transcript Agent ${{ steps.version.outputs.tag }}
+
+            **Interview Mode** · **9 STT Engines** · **History** · **SRT/VTT/DOCX exports**
+
+            ### Install
+            | Platform | Download | Instructions |
+            |---|---|---|
+            | Windows | `TranscriptAgent-win64.zip` | Extract → run `TranscriptAgent.exe` |
+            | Mac | `TranscriptAgent.dmg` | Open → drag to Applications |
+
+            ### First run
+            The app opens your browser at http://localhost:7860 automatically.
+            Enter your API key and start transcribing.
+
+            > Full changelog: [CHANGELOG.md](https://github.com/jayuan101/transcript-agent/blob/main/CHANGELOG.md)
+          files: |
+            artifacts/windows/TranscriptAgent-win64.zip
+            artifacts/windows/TranscriptAgent/TranscriptAgent.exe
+            artifacts/mac/TranscriptAgent.dmg
+          draft: false
+          prerelease: false

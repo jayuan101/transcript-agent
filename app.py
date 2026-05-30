@@ -1116,9 +1116,20 @@ def stats_to_markdown(speaker_stats) -> str:
     if not speaker_stats:
         return "_No speech analytics available. Upload an audio or video file to see speaker stats._"
     lines = [
-        "**Pace reference:** 🐢 Slow < 120 wpm · 🚶 Normal 120–150 · 🏃 Fast 150–180 · ⚡ Very Fast > 180",
-        "",
-        "---",
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;'
+        'margin-bottom:14px;padding:10px 14px;background:#f8fafc;'
+        'border:1px solid #e2e8f0;border-radius:10px;">'
+        '<span style="font-size:0.75em;font-weight:700;text-transform:uppercase;'
+        'letter-spacing:0.08em;color:#64748b;margin-right:4px;">Pace&nbsp;reference</span>'
+        '<span style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#475569;">🐢 Slow &lt;120 wpm</span>'
+        '<span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#1d4ed8;">🚶 Normal 120–150</span>'
+        '<span style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#a16207;">🏃 Fast 150–180</span>'
+        '<span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#dc2626;">⚡ Very Fast &gt;180</span>'
+        '</div>',
         "",
     ]
     for s in speaker_stats:

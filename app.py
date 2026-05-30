@@ -607,6 +607,55 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 #api-banner-sub { color: #92400e !important; }
 
+/* ── Hero — guaranteed injection via Gradio CSS pipeline ── */
+.ta-hero {
+    background: linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%) !important;
+    border-radius: 22px !important;
+    padding: 36px 44px 30px !important;
+    color: #fff !important;
+    margin-bottom: 6px !important;
+    position: relative !important;
+    overflow: hidden !important;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.32), 0 2px 8px rgba(0,0,0,0.2) !important;
+}
+.ta-hero * { color: inherit; }
+.ta-hero-eyebrow { font-size: 0.67em !important; font-weight: 700 !important; letter-spacing: 0.15em !important; text-transform: uppercase !important; color: rgba(147,197,253,0.95) !important; margin-bottom: 5px !important; display: block; }
+.ta-hero-title { font-size: 2.05em !important; font-weight: 800 !important; letter-spacing: -0.04em !important; line-height: 1.05 !important; background: linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; display: block; }
+.ta-hero-sub { color: #cbd5e1 !important; font-size: 0.83em !important; margin-top: 6px !important; display: block; -webkit-text-fill-color: #cbd5e1 !important; }
+.ta-hero-stat-n { font-size: 1.3em !important; font-weight: 800 !important; color: #fff !important; display: block; }
+.ta-hero-stat-l { font-size: 0.67em !important; font-weight: 600 !important; color: #e2e8f0 !important; text-transform: uppercase !important; display: block; }
+.ta-hero-stats { background: rgba(255,255,255,0.10) !important; border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 12px !important; padding: 12px 20px !important; margin-bottom: 18px !important; display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 0 !important; }
+.ta-hero-stat { display: flex !important; flex-direction: column !important; align-items: center !important; flex: 1 !important; min-width: 60px !important; }
+.ta-hero-stat-sep { width: 1px !important; height: 32px !important; background: rgba(255,255,255,0.2) !important; flex-shrink: 0 !important; }
+.ta-hero-chips { display: flex !important; gap: 7px !important; flex-wrap: wrap !important; }
+.ta-hero-chip { border-radius: 8px !important; padding: 4px 12px !important; font-size: 0.72em !important; font-weight: 600 !important; }
+.ta-hc-blue { background: rgba(59,130,246,0.28) !important; border: 1px solid rgba(96,165,250,0.4) !important; color: #bfdbfe !important; }
+.ta-hc-purple { background: rgba(139,92,246,0.25) !important; border: 1px solid rgba(167,139,250,0.4) !important; color: #ddd6fe !important; }
+.ta-hc-indigo { background: rgba(99,102,241,0.28) !important; border: 1px solid rgba(129,140,248,0.4) !important; color: #c7d2fe !important; }
+.ta-hero-header { display: flex !important; align-items: center !important; gap: 20px !important; margin-bottom: 22px !important; }
+.ta-hero-icon-box { background: linear-gradient(135deg,rgba(255,255,255,0.13),rgba(255,255,255,0.04)) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 18px !important; padding: 14px 16px !important; flex-shrink: 0 !important; }
+.ta-hero-blob-tr, .ta-hero-blob-bl, .ta-hero-grid { position: absolute !important; pointer-events: none !important; }
+.ta-hero-blob-tr { top: -70px !important; right: -50px !important; width: 320px !important; height: 320px !important; background: radial-gradient(circle,rgba(59,130,246,0.22) 0%,transparent 68%) !important; }
+.ta-hero-blob-bl { bottom: -50px !important; left: 40px !important; width: 240px !important; height: 240px !important; background: radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 65%) !important; }
+.ta-hero-grid { inset: 0 !important; background-image: radial-gradient(rgba(255,255,255,0.055) 1px,transparent 1px) !important; background-size: 28px 28px !important; }
+.ta-hero-inner { position: relative !important; }
+
+/* ── Analyze button ── */
+.ta-analyze-btn button {
+    background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
+    color: #fff !important; font-size: 0.9em !important; font-weight: 700 !important;
+    border: none !important; border-radius: 8px !important;
+    padding: 8px 18px !important; width: 100% !important;
+    box-shadow: 0 3px 12px rgba(29,78,216,0.35) !important;
+    letter-spacing: 0.02em !important; transition: all 0.18s !important;
+}
+.ta-analyze-btn button:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.48) !important; }
+
+/* ── Stop button — tiny, flush right ── */
+.ta-cancel-btn { flex: 0 0 34px !important; min-width: 34px !important; max-width: 34px !important; }
+.ta-cancel-btn button { width: 34px !important; height: 34px !important; padding: 0 !important; border-radius: 7px !important; font-size: 0.82em !important; font-weight: 700 !important; line-height: 1 !important; box-shadow: none !important; }
+.ta-status-bar { flex: 1 1 auto !important; min-width: 0 !important; }
+
 /* ── Dark mode static rules (JS-injected sheet wins by cascade order) ── */
 html.dark { color-scheme: dark; color: #e2e8f0 !important; background: #0f172a !important; }
 html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
@@ -693,6 +742,13 @@ html.dark {
     --ta-stat-label:       #93c5fd;
     --ta-stat-val:         #e2e8f0;
 }
+
+/* ── Hero dark mode ── */
+html.dark .ta-hero { border: 1px solid rgba(59,130,246,0.22) !important; box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4) !important; }
+html.dark .ta-hero-blob-tr { background: radial-gradient(circle,rgba(59,130,246,0.28) 0%,transparent 68%) !important; }
+html.dark .ta-hero-blob-bl { background: radial-gradient(circle,rgba(99,102,241,0.2) 0%,transparent 65%) !important; }
+html.dark .ta-hero-stats { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
+html.dark .ta-analyze-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
 
 """
 

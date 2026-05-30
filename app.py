@@ -3819,7 +3819,7 @@ _DOWNLOAD_SECTION = f"""
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Transcript Agent") as demo:
+with gr.Blocks(title="Transcript Agent", js=_THEME_JS, theme=_THEME, css=CSS) as demo:
 
     gr.HTML(_THEME_TOGGLE)
     gr.HTML(_HERO)
@@ -4208,9 +4208,6 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
-        js=_THEME_JS,
-        theme=_THEME,
-        css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         max_file_size="4gb",
         inbrowser=not _docker,

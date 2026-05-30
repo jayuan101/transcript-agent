@@ -2591,6 +2591,90 @@ _THEME_JS = """
       if (b) b.remove();
     };
   })();
+
+  /* ── 🧠 Remember provider + model choice across sessions ──────────────────
+     Saves the user's AI provider and model to localStorage so they never
+     have to re-pick them on every visit.                                    */
+  (function(){
+    var PKEY = 'ta-provider';
+    var MKEY = 'ta-model';
+
+    /* Read the currently displayed value from a Gradio dropdown container */
+    function dropVal(id) {
+      var el = document.getElementById(id);
+      if (!el) return '';
+      var inp = el.querySelector('input[type="text"],input:not([type])');
+      if (inp && inp.value && inp.value.trim()) return inp.value.trim();
+      var span = el.querySelector('.selected_wrap span, button span');
+      if (span && span.textContent.trim()) return span.textContent.trim();
+      var btn = el.querySelector('button');
+      if (btn && btn.textContent.trim()) return btn.textContent.trim();
+      return '';
+    }
+
+    /* Click a named option inside a Gradio dropdown, then call cb when done */
+    function pickOption(id, text, cb) {
+      var el = document.getElementById(id);
+      if (!el || !text) return;
+      var trigger = el.querySelector('button');
+      if (!trigger) return;
+      trigger.click();                       /* open the listbox */
+      setTimeout(function() {
+        var opts = el.querySelectorAll('[role="option"],li');
+        for (var i = 0; i < opts.length; i++) {
+          if (opts[i].textContent.trim() === text) {
+            opts[i].click();
+            if (cb) setTimeout(cb, 800);   /* wait for Gradio server round-trip */
+            return;
+          }
+        }
+        trigger.click();                   /* option not found — close */
+      }, 200);
+    }
+
+    /* Watch a dropdown and persist its value whenever it changes */
+    function watchDropdown(id, key) {
+      function attach() {
+        var el = document.getElementById(id);
+        if (!el) { setTimeout(attach, 800); return; }
+        var last = '';
+        new MutationObserver(function() {
+          var v = dropVal(id);
+          if (v && v !== last) { last = v; localStorage.setItem(key, v); }
+        }).observe(el, { childList: true, subtree: true, characterData: true, attributes: true });
+      }
+      attach();
+    }
+
+    /* On page load: restore saved provider then model */
+    function restore() {
+      var provider = localStorage.getItem(PKEY);
+      var model    = localStorage.getItem(MKEY);
+      if (!provider && !model) return;
+
+      function tryRestore(attempt) {
+        if (attempt > 20) return;
+        var el = document.getElementById('provider-sel');
+        if (!el || !el.querySelector('button')) {
+          setTimeout(function(){ tryRestore(attempt + 1); }, 600);
+          return;
+        }
+        if (provider && dropVal('provider-sel') !== provider) {
+          /* Set provider first; model list updates via server round-trip */
+          pickOption('provider-sel', provider, function() {
+            if (model) pickOption('model-sel', model);
+          });
+        } else if (model) {
+          pickOption('model-sel', model);
+        }
+      }
+      tryRestore(0);
+    }
+
+    watchDropdown('provider-sel', PKEY);
+    watchDropdown('model-sel',    MKEY);
+    setTimeout(restore, 2000);   /* wait for Gradio to finish rendering */
+  })();
 })();
 """
 

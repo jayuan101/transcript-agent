@@ -474,10 +474,17 @@ FORMATS_MD = """
 """
 
 CSS = """
-footer { display: none !important; }
+/* Hide Gradio footer, version badge, and "Built with Gradio" link */
+footer,
+.gradio-footer,
+.built-with,
+[data-testid="footer"],
+.svelte-footer,
+a[href*="gradio.app"],
+a[href*="huggingface.co/spaces"]:not([id]) { display: none !important; }
 
 /* page */
-body { background: #f1f5f9 !important; }
+body { background: #f4f6fb !important; }
 
 /* ── Checkbox — fully custom so both checked and unchecked are visible ── */
 input[type="checkbox"] {
@@ -1994,40 +2001,91 @@ _THEME = gr.themes.Soft(
 
 # ── HTML snippets ───────────────────────────────────────────────────────────────
 _HERO = """
-<div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#2563eb 100%);
-     border-radius:16px;padding:36px 44px 32px;color:#fff;margin-bottom:8px;">
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-    <div style="font-size:3em;line-height:1;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.3));">🎙️</div>
-    <div>
-      <div style="font-size:1.9em;font-weight:800;letter-spacing:-0.03em;line-height:1.1;">Transcript Agent</div>
-      <div style="color:#93c5fd;font-size:0.95em;font-weight:500;margin-top:5px;">
-        AI-powered transcription &amp; analysis &mdash; Whisper + Claude
+<div style="background:linear-gradient(140deg,#060d1f 0%,#0f172a 35%,#162244 65%,#1a3a6e 100%);
+     border-radius:20px;padding:36px 44px 32px;color:#fff;margin-bottom:6px;
+     position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.28);">
+
+  <!-- ambient glow blobs -->
+  <div style="position:absolute;top:-60px;right:-40px;width:280px;height:280px;
+       background:radial-gradient(circle,rgba(59,130,246,0.18) 0%,transparent 70%);
+       pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-40px;left:60px;width:200px;height:200px;
+       background:radial-gradient(circle,rgba(99,102,241,0.12) 0%,transparent 70%);
+       pointer-events:none;"></div>
+
+  <div style="position:relative;">
+    <!-- logo row -->
+    <div style="display:flex;align-items:center;gap:18px;margin-bottom:20px;">
+      <div style="background:linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.04));
+           border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:13px 15px;
+           backdrop-filter:blur(12px);flex-shrink:0;
+           box-shadow:inset 0 1px 0 rgba(255,255,255,0.12);">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+          <circle cx="14" cy="14" r="8" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" fill="none"/>
+          <circle cx="14" cy="14" r="3" fill="white"/>
+          <line x1="14" y1="4"  x2="14" y2="7"  stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="14" y1="21" x2="14" y2="24" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="4"  y1="14" x2="7"  y2="14" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+          <line x1="21" y1="14" x2="24" y2="14" stroke="rgba(255,255,255,0.45)" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div style="font-size:0.68em;font-weight:700;letter-spacing:0.14em;
+             text-transform:uppercase;color:rgba(147,197,253,0.7);margin-bottom:5px;">
+          AI Transcription Platform
+        </div>
+        <div style="font-size:2em;font-weight:800;letter-spacing:-0.04em;line-height:1.05;
+             background:linear-gradient(110deg,#fff 30%,#93c5fd 80%);
+             -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+             background-clip:text;">
+          Transcript Agent
+        </div>
+        <div style="color:rgba(148,163,184,0.85);font-size:0.84em;font-weight:400;
+             margin-top:5px;-webkit-text-fill-color:rgba(148,163,184,0.85);">
+          Whisper transcription &nbsp;&middot;&nbsp; Multi-provider AI analysis &nbsp;&middot;&nbsp; Speaker diarization
+        </div>
       </div>
     </div>
-  </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;">
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🎵 Audio &amp; Video</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📄 Documents</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🗣️ Speaker Diarization</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">📊 Speech Analytics</span>
-    <span style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);border-radius:20px;padding:4px 13px;font-size:0.76em;font-weight:600;letter-spacing:0.02em;">🌐 37+ Languages</span>
+
+    <!-- feature chips -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
+           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
+           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">🎵 Audio &amp; Video</span>
+      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
+           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
+           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">📄 Documents</span>
+      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
+           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
+           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">🗣️ Speaker Diarization</span>
+      <span style="background:rgba(59,130,246,0.2);border:1px solid rgba(96,165,250,0.28);
+           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
+           color:rgba(147,197,253,0.92);letter-spacing:0.02em;">📊 Speech Analytics</span>
+      <span style="background:rgba(99,102,241,0.2);border:1px solid rgba(129,140,248,0.28);
+           border-radius:7px;padding:4px 11px;font-size:0.72em;font-weight:600;
+           color:rgba(165,180,252,0.92);letter-spacing:0.02em;">🌐 37+ Languages</span>
+    </div>
   </div>
 </div>
 """
 
 _API_BANNER = """
-<div id="api-banner" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;
-     border-radius:12px;padding:14px 20px;display:flex;align-items:center;gap:14px;
-     transition:background 0.35s,border-color 0.35s;">
-  <div id="api-banner-icon" style="font-size:1.6em;transition:all 0.3s;">🔑</div>
-  <div style="flex:1;">
-    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.9em;transition:color 0.3s;">API Key Required</div>
-    <div id="api-banner-sub" style="color:#92400e;font-size:0.8em;margin-top:2px;transition:color 0.3s;">
-      Enter your <span style="font-weight:700;color:#78350f;">Anthropic API key</span> below. Usage is billed directly to your account — nothing is stored here.
+<div id="api-banner" style="background:#fffcf0;border:1px solid #fde68a;
+     border-radius:14px;padding:13px 18px;display:flex;align-items:center;gap:13px;
+     transition:all 0.3s ease;margin-top:4px;box-shadow:0 1px 4px rgba(245,158,11,0.08);">
+  <div id="api-banner-icon" style="font-size:1.3em;flex-shrink:0;transition:all 0.25s;">🔑</div>
+  <div style="flex:1;min-width:0;">
+    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.85em;
+         transition:color 0.25s;letter-spacing:0.01em;">API Key Required</div>
+    <div id="api-banner-sub" style="color:#a16207;font-size:0.77em;margin-top:1px;transition:color 0.25s;">
+      Enter your provider API key below — billed directly to your account, never stored on this server.
     </div>
   </div>
-  <div id="api-banner-badge" style="display:none;background:#22c55e;color:#fff;font-size:0.72em;
-       font-weight:700;padding:4px 12px;border-radius:20px;letter-spacing:0.04em;">APPROVED ✓</div>
+  <div id="api-banner-badge" style="display:none;background:linear-gradient(135deg,#22c55e,#16a34a);
+       color:#fff;font-size:0.68em;font-weight:700;padding:4px 11px;border-radius:20px;
+       letter-spacing:0.06em;flex-shrink:0;box-shadow:0 2px 8px rgba(34,197,94,0.3);">
+    APPROVED ✓
+  </div>
 </div>
 """
 
@@ -2090,13 +2148,42 @@ _THEME_JS = """
       '--ta-step-wait-bg:#0f172a;--ta-step-wait-bdr:#334155;--ta-step-wait-clr:#475569;',
       '--ta-conn-line-done:#4ade80;--ta-conn-line-wait:#334155;--ta-stat-bg:rgba(15,23,42,0.6);',
       '--ta-stat-label:#93c5fd;--ta-stat-val:#e2e8f0}',
-      /* Process button */
-      '.big-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;font-size:1.08em!important;font-weight:700!important;border:none!important;border-radius:10px!important;padding:15px!important;width:100%!important;box-shadow:0 4px 14px rgba(29,78,216,0.40)!important}',
-      /* Scrollable dropdowns */
-      '[role=listbox]{max-height:220px!important;overflow-y:auto!important}',
+      /* ── Global typography ── */
+      '.gradio-container,.contain,.main{font-family:"Inter",system-ui,-apple-system,sans-serif!important}',
+      'body{background:#f4f6fb!important}',
+      /* ── Cards / blocks — elevated, consistent radius ── */
+      '.block,.form,.padded{border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 16px rgba(0,0,0,0.04)!important;border:1px solid #e8edf4!important;transition:box-shadow 0.2s!important}',
+      /* ── Inputs — cleaner focus ring ── */
+      'input[type=text],input[type=password],input:not([type]),textarea,select{border-radius:10px!important;border:1.5px solid #e2e8f0!important;transition:border-color 0.18s,box-shadow 0.18s!important;font-family:inherit!important}',
+      'input[type=text]:focus,input[type=password]:focus,input:not([type]):focus,textarea:focus{border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,0.12)!important;outline:none!important}',
+      /* ── Labels ── */
+      'label>span:first-child,.block-label{font-size:0.82em!important;font-weight:600!important;color:#475569!important;letter-spacing:0.01em!important}',
+      '.info{font-size:0.74em!important;color:#6b7280!important}',
+      /* ── Tabs — refined underline style ── */
+      '.tabs>.tab-nav{border-bottom:2px solid #e8edf4!important;gap:2px!important}',
+      '.tabs>.tab-nav button{font-weight:600!important;font-size:0.84em!important;padding:10px 16px!important;border-radius:8px 8px 0 0!important;letter-spacing:0.01em!important;transition:all 0.15s!important}',
+      '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important}',
+      /* ── Accordions ── */
+      '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
+      /* ── Analyze button ── */
+      '.big-btn button{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:1.06em!important;font-weight:700!important;border:none!important;border-radius:12px!important;padding:14px!important;width:100%!important;box-shadow:0 4px 18px rgba(29,78,216,0.38)!important;letter-spacing:0.02em!important;transition:all 0.18s!important}',
+      '.big-btn button:hover{transform:translateY(-1px)!important;box-shadow:0 6px 24px rgba(29,78,216,0.50)!important}',
+      /* ── Cancel / stop button ── */
+      'button[aria-label="Stop / Cancel"],button.stop-btn{background:#fff!important;color:#dc2626!important;border:1.5px solid #fca5a5!important;border-radius:10px!important;font-size:0.82em!important;font-weight:600!important;padding:7px 14px!important;transition:all 0.15s!important;width:100%!important;margin-top:6px!important}',
+      'button[aria-label="Stop / Cancel"]:hover,button.stop-btn:hover{background:#fef2f2!important;border-color:#ef4444!important}',
+      /* ── Scrollable dropdowns ── */
+      '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
-      /* Live log terminal */
-      '#live-log textarea{background:#0f172a!important;color:#86efac!important;font-family:"Courier New",monospace!important;font-size:0.80em!important;border-color:#1e3a5f!important}',
+      /* ── File upload area ── */
+      '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
+      '.upload-container:hover{border-color:#3b82f6!important}',
+      /* ── Scrollbar ── */
+      '::-webkit-scrollbar{width:6px;height:6px}',
+      '::-webkit-scrollbar-track{background:transparent}',
+      '::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:6px}',
+      '::-webkit-scrollbar-thumb:hover{background:#9ca3af}',
+      /* ── Live log terminal ── */
+      '#live-log textarea{background:#0a0f1e!important;color:#86efac!important;font-family:"JetBrains Mono","Courier New",monospace!important;font-size:0.79em!important;border-color:#1e3a5f!important;border-radius:10px!important;line-height:1.7!important}',
     ].join('');
     document.head.appendChild(ps);
   }
@@ -2753,15 +2840,15 @@ _THEME_JS = """
 """
 
 _IDLE_STATUS = """
-<div style="background:linear-gradient(135deg,#1e3a5f,#1e40af);border-radius:12px;
-     padding:18px 22px;display:flex;align-items:center;gap:16px;">
-  <div style="font-size:2em;">📂</div>
-  <div>
-    <div style="color:#fff;font-size:1em;font-weight:700;">Ready to process</div>
-    <div style="color:#93c5fd;font-size:0.85em;margin-top:3px;">
-      Upload a file on the left, then click <strong style="color:#fff;background:rgba(255,255,255,0.2);
-      padding:1px 8px;border-radius:4px;">Analyze File</strong>
-    </div>
+<div style="background:var(--ta-card-bg);border:1.5px dashed var(--ta-card-border);
+     border-radius:16px;padding:32px 24px;text-align:center;
+     transition:border-color 0.3s,background 0.3s;">
+  <div style="font-size:2.2em;margin-bottom:10px;opacity:0.45;line-height:1;">📂</div>
+  <div style="color:var(--ta-card-text);font-size:0.97em;font-weight:700;
+       letter-spacing:-0.01em;margin-bottom:5px;">Ready to process</div>
+  <div style="color:var(--ta-card-sub);font-size:0.82em;line-height:1.5;">
+    Upload a file on the left, then click<br>
+    <strong style="color:var(--ta-step-act-clr);font-weight:700;">Analyze File</strong> to begin
   </div>
 </div>
 """
@@ -2827,8 +2914,12 @@ _FORMATS = """
 """
 
 _SECTION = lambda label: f"""
-<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
-     color:var(--ta-card-sub);margin:4px 0 2px;">{label}</div>
+<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
+  <div style="height:1px;background:var(--ta-card-border);flex:1;opacity:0.7;"></div>
+  <div style="font-size:0.67em;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;
+       color:var(--ta-card-sub);white-space:nowrap;padding:0 2px;">{label}</div>
+  <div style="height:1px;background:var(--ta-card-border);flex:1;opacity:0.7;"></div>
+</div>
 """
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
@@ -3110,6 +3201,7 @@ if __name__ == "__main__":
         max_file_size="4gb",
         inbrowser=not _docker,
         show_error=True,
+        show_api=False,
         share=not _docker,
         strict_cors=not _docker,
     )

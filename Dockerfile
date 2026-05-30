@@ -48,6 +48,9 @@ ENV XDG_CACHE_HOME=/app/.cache
 # Gradio — listen on all interfaces so Docker port mapping works
 ENV GRADIO_SERVER_NAME=0.0.0.0
 ENV GRADIO_SERVER_PORT=7860
+# Disable Gradio analytics / version telemetry
+ENV GRADIO_ANALYTICS_ENABLED=False
+ENV GRADIO_TELEMETRY_ENABLED=False
 
 EXPOSE 7860
 EXPOSE 8000

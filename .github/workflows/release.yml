@@ -1,0 +1,36 @@
+name: Auto-Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read CHANGELOG
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          NOTES=$(awk "/^## ${VERSION}/{found=1; next} found && /^## v/{exit} found{print}" CHANGELOG.md)
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ github.ref_name }} — Ghost Scribe"
+          body: ${{ steps.changelog.outputs.notes }}
+          files: |
+            setup_windows.bat
+            setup_mac.sh
+          draft: false
+          prerelease: false

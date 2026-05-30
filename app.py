@@ -1225,7 +1225,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 21   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1233,12 +1233,13 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_t=gr.update(), dl_s=gr.update(), dl_r=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
-         dl_acc=gr.update(), log=gr.update(), eta=gr.update(), rs=None):
+         dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
+         net=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, rs)
+            dl_acc, log, eta, net, rs)
 
 
 _PDF_LANGUAGES = [
@@ -1410,6 +1411,56 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     return (
         f'<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:10px;">'
         f'{p1_box}{_connector(conn1)}{p2_box}{_connector(conn2)}{p3_box}'
+        f'</div>'
+    )
+
+
+def _net_panel_html(direction: str, received: int, total: int,
+                    speed_bps: float = 0, done: bool = False) -> str:
+    if done:
+        return ""
+    recv_mb  = received / 1_048_576
+    speed_mb = speed_bps / 1_048_576
+    pct      = min(100.0, received / total * 100) if total > 0 else 0
+    eta_str  = ""
+    if speed_bps > 0 and total > 0 and received < total:
+        secs = max(0, (total - received) / speed_bps)
+        eta_str = f"{int(secs//60)}m {int(secs%60):02d}s" if secs >= 60 else f"{int(secs)}s"
+
+    icon  = "⬆️" if direction == "upload" else "⬇️"
+    color = "#7c3aed" if direction == "upload" else "#2563eb"
+    size_str = f"{recv_mb:.1f} MB"
+    if total > 0:
+        size_str += f" / {total/1_048_576:.1f} MB"
+
+    bar = (
+        f'<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:6px 0;">'
+        f'<div style="width:{pct:.0f}%;height:100%;background:{color};'
+        f'border-radius:4px;transition:width 0.4s ease;"></div></div>'
+    ) if total > 0 else (
+        f'<style>@keyframes netslide{{0%{{left:-40%}}100%{{left:110%}}}}</style>'
+        f'<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;'
+        f'position:relative;margin:6px 0;">'
+        f'<div style="position:absolute;width:40%;height:100%;background:{color};'
+        f'border-radius:4px;animation:netslide 1.2s ease-in-out infinite;"></div></div>'
+    )
+
+    stats = f'<span style="color:{color};font-weight:700;">{speed_mb:.1f} MB/s</span>'
+    if eta_str:
+        stats += f' &nbsp;·&nbsp; <span style="color:#64748b;">ETA {eta_str}</span>'
+    if total > 0:
+        stats += f' &nbsp;·&nbsp; <span style="color:#64748b;">{pct:.0f}%</span>'
+
+    return (
+        f'<div style="background:var(--ta-card-bg);border:1px solid {color}33;'
+        f'border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
+        f'<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
+        f'<span>{icon}</span>'
+        f'<span style="font-weight:700;color:var(--ta-card-text);">{direction.title()}</span>'
+        f'<span style="color:#64748b;">{size_str}</span>'
+        f'<span style="margin-left:auto;font-size:0.78em;">{stats}</span>'
+        f'</div>'
+        f'{bar}'
         f'</div>'
     )
 
@@ -1689,7 +1740,19 @@ def process_file(
 
         threading.Thread(target=_dl_worker, daemon=True).start()
 
-        _dl_stall = 0
+        _dl_stall   = 0
+        _speed_hist = []   # [(timestamp, bytes_received)] for rolling speed calc
+
+        def _dl_speed(recv):
+            now = time.time()
+            _speed_hist.append((now, recv))
+            _speed_hist[:] = [(t, b) for t, b in _speed_hist if now - t < 4]
+            if len(_speed_hist) >= 2:
+                dt = _speed_hist[-1][0] - _speed_hist[0][0]
+                db = _speed_hist[-1][1] - _speed_hist[0][1]
+                return db / dt if dt > 0 else 0
+            return 0
+
         while True:
             try:
                 dmsg = _dl_q.get(timeout=1.0)
@@ -1698,23 +1761,27 @@ def process_file(
                 if dmsg[0] == "dl_done":
                     uploaded_file = dmsg[1]
                     log = _add_log(f"✅ Download complete — {Path(uploaded_file).name}", "done")
-                    yield _out(log=log)
+                    yield _out(log=log, net="")   # clear network panel
                     break
                 elif dmsg[0] == "dl_error":
+                    yield _out(net="")
                     yield _err(f"Download failed: {dmsg[1]}")
                     return
                 elif dmsg[0] == "dl_progress":
                     recv, total = dmsg[1], dmsg[2]
-                    recv_mb = max(0, recv) // 1024 // 1024
+                    speed = _dl_speed(recv)
+                    recv_mb = max(0, recv) / 1_048_576
+                    net_html = _net_panel_html("download", recv, total, speed)
                     if total and total > 0:
                         pct = min(100.0, recv / total * 100)
-                        total_mb = total // 1024 // 1024
-                        log = _add_log(f"⬇️  {recv_mb} MB / {total_mb} MB  ({pct:.0f}%)", "download")
+                        log = _add_log(
+                            f"⬇️  {recv_mb:.1f} MB / {total/1_048_576:.1f} MB  "
+                            f"({pct:.0f}%)  {speed/1_048_576:.1f} MB/s", "download")
                     else:
-                        log = _add_log(f"⬇️  {recv_mb} MB received…", "download")
+                        log = _add_log(f"⬇️  {recv_mb:.1f} MB  {speed/1_048_576:.1f} MB/s", "download")
                     yield _out(
                         status=_status_compact("⬇️", "Downloading…", _elapsed()),
-                        log=log,
+                        log=log, net=net_html,
                     )
             except Q.Empty:
                 _dl_stall += 1
@@ -2399,7 +2466,9 @@ _THEME_JS = """
       '.ta-cancel-btn button{width:34px!important;height:34px!important;padding:0!important;border-radius:7px!important;font-size:0.82em!important;font-weight:700!important;line-height:1!important;box-shadow:none!important;flex-shrink:0!important}',
       /* Status bar fills remaining width */
       '.ta-status-bar{flex:1 1 auto!important;min-width:0!important}',
-      /* ── Live log — light mode ── */
+      /* ── Network monitor panel ── */
+      '#ta-net-monitor{transition:all 0.3s}',
+      'html.dark #ta-net-monitor .ta-net-card{background:#1e293b!important;border-color:rgba(59,130,246,0.25)!important}',
       '#live-log,#live-log>*{background:#0f172a!important;border-color:#1e3a5f!important}',
       /* ── Download section ── */
       '.ta-dl-wrap{padding:4px 2px}',
@@ -3203,6 +3272,88 @@ _THEME_JS = """
     setTimeout(wireAnalyze, 1500);
   })();
 
+  /* ── 🌐 Network monitor — upload progress via XHR intercept ─────────────
+     Gradio uploads files via XHR to /upload. We intercept the upload event
+     and push live speed + progress into the #ta-net-monitor HTML component. */
+  (function(){
+    var _netPanel  = null;
+    var _startTime = 0;
+
+    function getPanel() {
+      if (!_netPanel) _netPanel = document.getElementById('ta-net-monitor');
+      return _netPanel;
+    }
+
+    function fmt(bps) {
+      if (bps > 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
+      if (bps > 1024)    return (bps/1024).toFixed(0)    + ' KB/s';
+      return bps.toFixed(0) + ' B/s';
+    }
+
+    function showUpload(loaded, total, bps) {
+      var p = getPanel(); if (!p) return;
+      var pct   = total > 0 ? Math.min(100, loaded/total*100) : 0;
+      var eta   = (bps > 0 && total > loaded) ? Math.round((total-loaded)/bps) : 0;
+      var color = '#7c3aed';
+      p.innerHTML = (
+        '<div style="background:var(--ta-card-bg);border:1px solid ' + color + '33;'
+        + 'border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
+        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
+        + '<span>⬆️</span>'
+        + '<span style="font-weight:700;color:var(--ta-card-text);">Upload</span>'
+        + '<span style="color:#64748b;">' + (loaded/1048576).toFixed(1) + ' MB'
+        + (total > 0 ? ' / ' + (total/1048576).toFixed(1) + ' MB' : '') + '</span>'
+        + '<span style="margin-left:auto;font-size:0.78em;">'
+        + '<span style="color:' + color + ';font-weight:700;">' + fmt(bps) + '</span>'
+        + (eta > 0 ? ' &nbsp;·&nbsp; <span style="color:#64748b;">ETA ' + eta + 's</span>' : '')
+        + (total > 0 ? ' &nbsp;·&nbsp; <span style="color:#64748b;">' + pct.toFixed(0) + '%</span>' : '')
+        + '</span></div>'
+        + '<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;'
+        + 'position:relative;margin-top:6px;">'
+        + (total > 0
+            ? '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:' + color
+              + ';border-radius:4px;transition:width 0.35s ease;"></div>'
+            : '<style>@keyframes netup{0%{left:-40%}100%{left:110%}}</style>'
+              + '<div style="position:absolute;width:40%;height:100%;background:' + color
+              + ';border-radius:4px;animation:netup 1.2s ease-in-out infinite;"></div>'
+          )
+        + '</div></div>'
+      );
+    }
+
+    function clearNet() {
+      var p = getPanel();
+      if (p) p.innerHTML = '';
+    }
+
+    /* Intercept XMLHttpRequest to detect Gradio file uploads */
+    var _origOpen = XMLHttpRequest.prototype.open;
+    var _origSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._taUrl = url || '';
+      return _origOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function(data) {
+      var self = this;
+      if (self._taUrl && (self._taUrl.indexOf('/upload') >= 0 || self._taUrl.indexOf('upload') >= 0)
+          && data && (data instanceof FormData || data instanceof Blob || data instanceof ArrayBuffer
+                      || (typeof data === 'object' && data.size))) {
+        _startTime = Date.now();
+        self.upload.addEventListener('progress', function(e) {
+          var elapsed = (Date.now() - _startTime) / 1000;
+          var bps = elapsed > 0 ? e.loaded / elapsed : 0;
+          showUpload(e.loaded, e.lengthComputable ? e.total : 0, bps);
+        });
+        self.upload.addEventListener('load', function() { clearNet(); });
+        self.upload.addEventListener('error', function() { clearNet(); });
+        self.upload.addEventListener('abort', function() { clearNet(); });
+      }
+      return _origSend.apply(this, arguments);
+    };
+  })();
+
   /* ── 🔄 In-app update checker (desktop / local only) ───────────────────────
      Skipped automatically on HF Spaces (window.location.hostname !== localhost).
      Fetches the current APP_VERSION from the HF Space raw file.
@@ -3696,6 +3847,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             )
 
             # stt timing shown in log, not a separate component
+            net_monitor = gr.HTML(value="", elem_id="ta-net-monitor")
 
             with gr.Tabs():
                 with gr.TabItem("Summary"):
@@ -3856,6 +4008,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             download_accordion,
             log_out,
             eta_panel,
+            net_monitor,
             result_state,
         ],
     )

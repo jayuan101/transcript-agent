@@ -607,6 +607,11 @@ html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 #api-banner-sub { color: #92400e !important; }
 
+/* ── Stats panel ── */
+.ta-stat-cell { display:flex;flex-direction:column;align-items:center;padding:0 16px;text-align:center;flex:1;min-width:100px; }
+.ta-stat-val  { font-size:0.88em;font-weight:700;color:var(--ta-card-text);white-space:nowrap; }
+.ta-stat-key  { font-size:0.68em;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-card-sub);margin-top:2px; }
+
 /* ── Hero — guaranteed injection via Gradio CSS pipeline ── */
 .ta-hero {
     background: linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%) !important;
@@ -1281,7 +1286,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1290,12 +1295,49 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), rs=None):
+         net=gr.update(), stats=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, net, rs)
+            dl_acc, log, eta, net, stats, rs)
+
+
+def _stats_panel_html(elapsed: str = "", tok_in: int = 0, tok_out: int = 0,
+                       dl_mb: float = 0, dl_speed: float = 0,
+                       done: bool = False) -> str:
+    import datetime as _dt
+    color = "#22c55e" if done else "#3b82f6"
+    icon  = "✅" if done else "⏳"
+
+    cells = []
+    if elapsed:
+        cells.append(f'<div class="ta-stat-cell"><div class="ta-stat-val">{icon} {elapsed}</div>'
+                     f'<div class="ta-stat-key">Duration</div></div>')
+    if tok_in or tok_out:
+        cells.append(f'<div class="ta-stat-cell">'
+                     f'<div class="ta-stat-val" style="color:{color};">'
+                     f'{tok_in:,} <span style="opacity:0.6;font-size:0.8em;">in</span> / '
+                     f'{tok_out:,} <span style="opacity:0.6;font-size:0.8em;">out</span></div>'
+                     f'<div class="ta-stat-key">🤖 Tokens</div></div>')
+    if dl_mb > 0:
+        speed_str = f"{dl_speed:.1f} MB/s" if dl_speed > 0 else ""
+        cells.append(f'<div class="ta-stat-cell">'
+                     f'<div class="ta-stat-val" style="color:#7c3aed;">{dl_mb:.1f} MB'
+                     f'{(" · " + speed_str) if speed_str else ""}</div>'
+                     f'<div class="ta-stat-key">📡 Downloaded</div></div>')
+
+    if not cells:
+        return ""
+
+    sep = '<div style="width:1px;background:var(--ta-card-border);align-self:stretch;margin:0 4px;"></div>'
+    return (
+        f'<div style="display:flex;align-items:center;gap:0;'
+        f'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+        f'border-radius:10px;padding:10px 16px;margin-bottom:8px;flex-wrap:wrap;row-gap:8px;">'
+        + sep.join(cells)
+        + '</div>'
+    )
 
 
 _PDF_LANGUAGES = [
@@ -1827,6 +1869,8 @@ def process_file(
                     recv, total = dmsg[1], dmsg[2]
                     speed = _dl_speed(recv)
                     recv_mb = max(0, recv) / 1_048_576
+                    _total_dl_mb = recv_mb            # track for stats panel
+                    _peak_dl_speed = max(_peak_dl_speed, speed / 1_048_576)
                     net_html = _net_panel_html("download", recv, total, speed)
                     if total and total > 0:
                         pct = min(100.0, recv / total * 100)
@@ -1935,6 +1979,7 @@ def process_file(
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
                 on_stt_done=lambda s: q.put(("stt_done", s)),
+                on_token_usage=lambda i, o: q.put(("tokens", i, o)),
                 on_log=on_log,
             )
             q.put(("done", result))
@@ -1951,6 +1996,10 @@ def process_file(
     stage           = "loading"
     last_activity   = time.time()
     stall_warned    = set()
+    _tok_in         = 0       # accumulate token counts
+    _tok_out        = 0
+    _total_dl_mb    = 0.0     # total MB downloaded this session
+    _peak_dl_speed  = 0.0
 
     def _eta_secs(pct):
         if pct <= 0.01:
@@ -2020,7 +2069,13 @@ def process_file(
 
         kind = msg[0]
 
-        if kind == "log":
+        if kind == "tokens":
+            _tok_in, _tok_out = msg[1], msg[2]
+            log_text = _add_log(f"🤖 Tokens: {_tok_in:,} in / {_tok_out:,} out", "ai")
+            yield _out(log=log_text,
+                       stats=_stats_panel_html(_elapsed(), _tok_in, _tok_out, _total_dl_mb))
+
+        elif kind == "log":
             log_text = _add_log(msg[1], "info")
             yield _out(log=log_text)
 
@@ -2196,6 +2251,8 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
+                                        _total_dl_mb, done=True),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
                     "out_dir": str(job_dir)},
@@ -3919,20 +3976,20 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     elem_id="ta-cancel-btn",
                 )
 
-            eta_panel  = gr.HTML(value="")
-            log_out    = gr.HTML(
-                value='<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
-                      'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
-                      'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;'
-                      'line-height:1.7;color:#475569;">'
-                      '<span style="color:#64748b;">Progress appears here once you click Analyze File…</span>'
+            eta_panel   = gr.HTML(value="")
+            stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
+            net_monitor = gr.HTML(value="", elem_id="ta-net-monitor")
+            log_out     = gr.HTML(
+                value='<div id="ta-log-wrap" style="'
+                      'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'
+                      'padding:14px 18px;min-height:160px;max-height:320px;'
+                      'overflow-y:auto;font-family:\'JetBrains Mono\',\'Courier New\',monospace;'
+                      'font-size:0.81em;line-height:1.75;">'
+                      '<span style="color:#475569;">Progress and logs appear here…</span>'
                       '</div>',
                 elem_id="live-log",
                 label="Live Processing Log",
             )
-
-            # stt timing shown in log, not a separate component
-            net_monitor = gr.HTML(value="", elem_id="ta-net-monitor")
 
             with gr.Tabs():
                 with gr.TabItem("Summary"):
@@ -4094,6 +4151,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             log_out,
             eta_panel,
             net_monitor,
+            stats_panel,
             result_state,
         ],
     )

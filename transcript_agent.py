@@ -58,7 +58,9 @@ class LLMClient:
                 kw["base_url"] = base_url
             self._client = _oai.OpenAI(**kw)
 
-    def chat(self, system: str, user: str, max_tokens: int, thinking: bool = False) -> str:
+    def chat(self, system: str, user: str, max_tokens: int,
+             thinking: bool = False, on_usage=None) -> str:
+        """on_usage(input_tokens, output_tokens) — called after each API response."""
         if self.provider == "anthropic":
             kw = {}
             if thinking:
@@ -70,6 +72,8 @@ class LLMClient:
                 messages=[{"role": "user", "content": user}],
                 **kw,
             )
+            if on_usage and hasattr(resp, "usage"):
+                on_usage(resp.usage.input_tokens, resp.usage.output_tokens)
             return next((b.text for b in resp.content if b.type == "text"), "")
         else:
             try:
@@ -81,6 +85,8 @@ class LLMClient:
                         {"role": "user", "content": user},
                     ],
                 )
+                if on_usage and resp.usage:
+                    on_usage(resp.usage.prompt_tokens, resp.usage.completion_tokens)
                 return resp.choices[0].message.content or ""
             except Exception as e:
                 err = str(e)
@@ -1080,10 +1086,19 @@ def process_transcript(
     language_variant: str = None,
     speaker_names: str = None,
     on_log=None,
+    on_token_usage=None,   # callable(total_input, total_output)
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
         if on_log: on_log(m)
+
+    _tok_in  = [0]
+    _tok_out = [0]
+    def _on_usage(inp, out):
+        _tok_in[0]  += inp
+        _tok_out[0] += out
+        if on_token_usage:
+            on_token_usage(_tok_in[0], _tok_out[0])
 
     config = config or ReportConfig()
     chunks = _chunk(raw_text)
@@ -1124,6 +1139,7 @@ def process_transcript(
             user=prompt,
             max_tokens=16000,
             thinking=(client.provider == "anthropic"),
+            on_usage=_on_usage,
         )
         results.append(_parse_json(raw))
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")
@@ -1394,6 +1410,7 @@ def run(
     on_stage_change=None,
     on_log=None,
     on_stt_done=None,               # callable(stt_secs: float) — fired when STT completes
+    on_token_usage=None,            # callable(total_input, total_output) — live token counts
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1463,6 +1480,7 @@ def run(
         language_variant=language_variant,
         speaker_names=speaker_names,
         on_log=on_log,
+        on_token_usage=on_token_usage,
     )
 
     result.detected_language = language_variant or language or _detected_lang or "Auto-detected"

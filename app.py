@@ -2208,14 +2208,14 @@ _THEME_JS = """
       /* header row */
       '.ta-hero-header{display:flex;align-items:center;gap:20px;margin-bottom:22px}',
       '.ta-hero-icon-box{background:linear-gradient(135deg,rgba(255,255,255,0.13),rgba(255,255,255,0.04));border:1px solid rgba(255,255,255,0.2);border-radius:18px;padding:14px 16px;backdrop-filter:blur(12px);flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.14),0 4px 16px rgba(0,0,0,0.2)}',
-      '.ta-hero-eyebrow{font-size:0.67em;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(147,197,253,0.65);margin-bottom:5px}',
+      '.ta-hero-eyebrow{font-size:0.67em;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:rgba(147,197,253,0.88);margin-bottom:5px}',
       '.ta-hero-title{font-size:2.05em;font-weight:800;letter-spacing:-0.04em;line-height:1.05;background:linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}',
-      '.ta-hero-sub{color:rgba(148,163,184,0.8);font-size:0.83em;font-weight:400;margin-top:6px;-webkit-text-fill-color:rgba(148,163,184,0.8)}',
+      '.ta-hero-sub{color:rgba(203,213,225,0.92);font-size:0.83em;font-weight:400;margin-top:6px;-webkit-text-fill-color:rgba(203,213,225,0.92)}',
       /* stats strip */
       '.ta-hero-stats{display:flex;align-items:center;gap:0;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:12px 20px;margin-bottom:18px;flex-wrap:wrap;row-gap:8px}',
       '.ta-hero-stat{display:flex;flex-direction:column;align-items:center;flex:1;min-width:60px}',
       '.ta-hero-stat-n{font-size:1.3em;font-weight:800;color:#fff;line-height:1;letter-spacing:-0.02em}',
-      '.ta-hero-stat-l{font-size:0.67em;font-weight:600;color:rgba(148,163,184,0.7);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}',
+      '.ta-hero-stat-l{font-size:0.67em;font-weight:600;color:rgba(203,213,225,0.85);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px}',
       '.ta-hero-stat-sep{width:1px;height:32px;background:rgba(255,255,255,0.12);flex-shrink:0;margin:0 4px}',
       /* feature chips */
       '.ta-hero-chips{display:flex;gap:7px;flex-wrap:wrap}',
@@ -3456,7 +3456,8 @@ if __name__ == "__main__":
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
     demo.queue(max_size=5, default_concurrency_limit=1)
-    demo.launch(
+    import inspect as _inspect
+    _launch_kw = dict(
         server_name=_host,
         server_port=_port,
         js=_THEME_JS,
@@ -3466,7 +3467,10 @@ if __name__ == "__main__":
         max_file_size="4gb",
         inbrowser=not _docker,
         show_error=True,
-        show_api=False,
         share=not _docker,
         strict_cors=not _docker,
     )
+    # show_api was added in Gradio 4.15 — skip on older builds
+    if "show_api" in _inspect.signature(demo.launch).parameters:
+        _launch_kw["show_api"] = False
+    demo.launch(**_launch_kw)

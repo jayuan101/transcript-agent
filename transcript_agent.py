@@ -65,13 +65,14 @@ class LLMClient:
             kw = {}
             if thinking:
                 kw["thinking"] = {"type": "adaptive"}
-            resp = self._client.messages.create(
+            with self._client.messages.stream(
                 model=self.model,
                 max_tokens=max_tokens,
                 system=system,
                 messages=[{"role": "user", "content": user}],
                 **kw,
-            )
+            ) as stream:
+                resp = stream.get_final_message()
             if on_usage and hasattr(resp, "usage"):
                 on_usage(resp.usage.input_tokens, resp.usage.output_tokens)
             return next((b.text for b in resp.content if b.type == "text"), "")

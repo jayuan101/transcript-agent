@@ -343,7 +343,8 @@ def _allow_sleep():
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,
-    AUDIO_EXTS, VIDEO_EXTS,
+    AUDIO_EXTS, VIDEO_EXTS, STT_ENGINES,
+    load_history, save_history_entry,
 )
 
 # ── AI provider configuration ─────────────────────────────────────────────────
@@ -459,8 +460,9 @@ _PROVIDERS = {
     },
 }
 
-OUT_DIR = Path(__file__).parent / "outputs"
+OUT_DIR      = Path(__file__).parent / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
+HISTORY_PATH = OUT_DIR / "history.jsonl"
 
 
 
@@ -1223,15 +1225,21 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 17   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
-         combined=gr.update(), dl_t=gr.update(), dl_s=gr.update(),
-         dl_r=gr.update(), dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
-         dl_acc=gr.update(), log=gr.update(), eta=gr.update(), rs=None):
+         combined=gr.update(), interview=gr.update(),
+         dl_t=gr.update(), dl_s=gr.update(), dl_r=gr.update(),
+         dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
+         dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
+         dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
+         stt_info=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
-            combined, dl_t, dl_s, dl_r, dl_c, dl_j, dl_p, dl_acc, log, eta, rs)
+            combined, interview,
+            dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
+            dl_srt, dl_vtt, dl_docx,
+            dl_acc, log, eta, stt_info, rs)
 
 
 _PDF_LANGUAGES = [
@@ -1487,6 +1495,10 @@ def process_file(
     panel_mode,
     num_speakers,
     whisper_model,
+    stt_engine,
+    stt_api_key,
+    interview_mode,
+    interview_deep,
     language_input,
     language_variant,
     report_style,
@@ -1709,6 +1721,8 @@ def process_file(
                 file_path=uploaded_file,
                 output_dir=str(job_dir),
                 whisper_model=whisper_model,
+                stt_engine=stt_engine,
+                stt_api_key=(stt_api_key or "").strip() or None,
                 panel_mode=False,
                 num_speakers=None,
                 config=config,
@@ -1719,9 +1733,13 @@ def process_file(
                 language=lang_code,
                 language_variant=lang_variant,
                 speaker_names=speaker_names or None,
+                interview_mode=interview_mode,
+                interview_deep=interview_deep,
+                history_path=HISTORY_PATH,
                 on_whisper_progress=on_whisper_progress if is_av else None,
                 on_raw_transcript=on_raw_transcript if is_av else None,
                 on_stage_change=on_stage_change if is_av else None,
+                on_stt_done=lambda s: q.put(("stt_done", s)),
                 on_log=on_log,
             )
             q.put(("done", result))
@@ -1888,11 +1906,78 @@ def process_file(
             analytics_md  = stats_to_markdown(result.speaker_stats)
             combined_text = build_combined_report(result, config)
 
-            f_t = str(job_dir / f"{stem}_transcript.txt")
-            f_s = str(job_dir / f"{stem}_speakers.txt")
-            f_r = str(job_dir / f"{stem}_report.md")
-            f_c = str(job_dir / f"{stem}_combined.txt")
-            f_j = str(job_dir / f"{stem}_full.json")
+            # ── Build Interview coaching tab ──────────────────────────────────
+            ia = result.interview_analysis
+            if ia and not ia.get("parse_error"):
+                qs = ia.get("questions", [])
+                _SCORE_COLOR = {
+                    "Great": "#22c55e", "Good": "#3b82f6",
+                    "Needs Improvement": "#f59e0b", "Missed": "#ef4444",
+                }
+                iv_html = (
+                    f'<div style="padding:4px 0;">'
+                    f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;'
+                    f'padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">'
+                    f'<span style="font-size:2em;">🎯</span>'
+                    f'<div><div style="font-weight:700;font-size:1em;">Overall Score: {ia.get("overall_score","—")}/100</div>'
+                    f'<div style="color:#16a34a;font-weight:600;">{ia.get("overall_verdict","")}</div></div>'
+                    f'</div>'
+                )
+                for q in qs:
+                    sc  = q.get("score","")
+                    col = _SCORE_COLOR.get(sc, "#6b7280")
+                    iv_html += (
+                        f'<div style="border:1px solid #e8edf4;border-radius:12px;'
+                        f'padding:14px 16px;margin-bottom:12px;border-left:4px solid {col};">'
+                        f'<div style="font-weight:700;margin-bottom:6px;">Q{q.get("id","")}: {q.get("question","")}</div>'
+                        f'<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">'
+                        f'<span style="background:{col};color:#fff;font-size:0.72em;font-weight:700;'
+                        f'padding:2px 10px;border-radius:20px;">{sc}</span>'
+                        f'<span style="font-size:0.8em;color:#64748b;">{q.get("score_reason","")}</span>'
+                        f'</div>'
+                        f'<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.84em;'
+                        f'font-weight:600;color:#475569;">Answer Summary</summary>'
+                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("answer_summary","")}</p></details>'
+                        f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
+                        f'font-weight:600;color:#1d4ed8;">💡 Ideal Answer</summary>'
+                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("ideal_answer","")}</p></details>'
+                        f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
+                        f'font-weight:600;color:#7c3aed;">🏋️ Coaching Tip</summary>'
+                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("coaching_tip","")}</p></details>'
+                        f'</div>'
+                    )
+                # Deep mode extras
+                if ia.get("advance_likelihood"):
+                    iv_html += (
+                        f'<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;'
+                        f'border:1px solid #bfdbfe;border-radius:12px;">'
+                        f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
+                        f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
+                        f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'
+                        f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
+                        f'{ia.get("advance_reasoning","")}</div>'
+                        f'</div>'
+                    )
+                iv_html += '</div>'
+            elif ia and ia.get("parse_error"):
+                iv_html = f'<pre style="font-size:0.8em;overflow:auto;">{ia.get("raw","")}</pre>'
+            else:
+                iv_html = '<p style="color:#94a3b8;">Enable <b>Interview Mode</b> before analyzing to see coaching results here.</p>'
+
+            # ── STT timing badge ──────────────────────────────────────────────
+            stt_info_md = ""
+            if result.stt_seconds > 0:
+                eng_label = STT_ENGINES.get(result.stt_engine, result.stt_engine)
+                stt_info_md = f"🎤 **{eng_label}** transcription took **{result.stt_seconds:.1f}s**"
+
+            f_t    = str(job_dir / f"{stem}_transcript.txt")
+            f_s    = str(job_dir / f"{stem}_speakers.txt")
+            f_r    = str(job_dir / f"{stem}_report.md")
+            f_c    = str(job_dir / f"{stem}_combined.txt")
+            f_j    = str(job_dir / f"{stem}_full.json")
+            f_srt  = str(job_dir / f"{stem}.srt")   if (job_dir / f"{stem}.srt").exists()  else None
+            f_vtt  = str(job_dir / f"{stem}.vtt")   if (job_dir / f"{stem}.vtt").exists()  else None
+            f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
             f_p_path = job_dir / f"{stem}_report.pdf"
             try:
                 _generate_pdf(stem, combined_text, f_p_path)
@@ -1913,8 +1998,11 @@ def process_file(
                 profiles=profiles_md,
                 analytics=analytics_md,
                 combined=combined_text,
+                interview=iv_html,
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
+                dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                stt_info=stt_info_md,
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
                     "out_dir": str(job_dir)},
@@ -3270,20 +3358,42 @@ with gr.Blocks(title="Transcript Agent") as demo:
             with gr.Accordion("Processing Options", open=True):
                 speakers_input = gr.Number(
                     label="Number of speakers (optional)",
-                    value=None,
-                    minimum=1,
-                    maximum=20,
-                    step=1,
-                    info="How many people are speaking? AI will label them as Speaker 1, Speaker 2, etc.",
+                    value=None, minimum=1, maximum=20, step=1,
+                    info="Leave blank to auto-detect. AI will label each speaker.",
+                )
+                stt_engine_input = gr.Dropdown(
+                    label="STT Engine",
+                    choices=[(v, k) for k, v in STT_ENGINES.items()],
+                    value="whisper_local",
+                    info="Whisper = local/offline · Others need an API key below",
+                )
+                stt_key_input = gr.Textbox(
+                    label="STT API Key (cloud engines only)",
+                    placeholder="Leave blank for Whisper local",
+                    type="password",
+                    visible=False,
+                    info="🔒 Stored in your browser only — never sent to this server",
                 )
                 whisper_input = gr.Dropdown(
-                    label="Whisper model",
+                    label="Whisper model size",
                     choices=["tiny", "base", "small", "medium", "large"],
                     value="base",
                     info="tiny = fastest   |   large = most accurate",
                 )
-                # panel_toggle kept as hidden dummy so existing wiring doesn't break
                 panel_toggle = gr.Checkbox(value=False, visible=False)
+
+            with gr.Accordion("🎤 Interview Mode", open=False):
+                interview_toggle = gr.Checkbox(
+                    label="Enable Interview Mode",
+                    value=False,
+                    info="Extracts every question + scores each answer: Great / Good / Needs Improvement / Missed",
+                )
+                interview_deep = gr.Checkbox(
+                    label="Deep Analysis",
+                    value=False,
+                    visible=False,
+                    info="Adds deflection rate, advancement likelihood, and prep guide",
+                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -3356,8 +3466,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
                 dl_report     = gr.File(label="Report (.md)")
                 dl_pdf        = gr.File(label="Report (.pdf)")
+                dl_docx       = gr.File(label="Report (.docx)")
                 dl_combined   = gr.File(label="Combined Report (.txt)")
                 dl_json       = gr.File(label="Raw Data (.json)")
+                dl_srt        = gr.File(label="Subtitles (.srt)")
+                dl_vtt        = gr.File(label="Subtitles (.vtt)")
                 gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
                 with gr.Row():
                     pdf_lang_input = gr.Dropdown(
@@ -3398,6 +3511,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 label="Live Processing Log",
             )
 
+            stt_timing = gr.Markdown(value="", elem_id="stt-timing")
+
             with gr.Tabs():
                 with gr.TabItem("Summary"):
                     summary_out = gr.Markdown(value="")
@@ -3423,6 +3538,21 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     analytics_out = gr.Markdown(
                         value="_Speech rate and accent analysis will appear here after processing._"
                     )
+
+                with gr.TabItem("🎤 Interview Coaching"):
+                    interview_out = gr.HTML(
+                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
+                    )
+
+                with gr.TabItem("📂 History"):
+                    history_refresh_btn = gr.Button("🔄 Refresh History", size="sm")
+                    history_table = gr.Dataframe(
+                        headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Score", "Verdict"],
+                        datatype=["str","str","str","number","str","str","str"],
+                        interactive=False,
+                        wrap=True,
+                    )
+                    history_load_btn = gr.Button("Load Selected Session", size="sm", visible=False)
 
                 with gr.TabItem("Copy All"):
                     combined_out = gr.Textbox(
@@ -3474,18 +3604,47 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[model_dropdown, user_api_key],
     )
 
-    # panel_toggle is hidden dummy — no change handler needed
+    # STT engine → show/hide cloud API key field
+    def on_stt_change(engine):
+        needs_key = engine != "whisper_local"
+        return gr.update(visible=needs_key)
+
+    stt_engine_input.change(fn=on_stt_change, inputs=stt_engine_input, outputs=stt_key_input)
+
+    # Interview mode toggle → show/hide deep mode
+    interview_toggle.change(
+        fn=lambda v: gr.update(visible=v),
+        inputs=interview_toggle,
+        outputs=interview_deep,
+    )
+
     language_input.change(
         fn=toggle_language_variant,
         inputs=language_input,
         outputs=language_variant,
     )
 
+    # History refresh
+    def refresh_history():
+        rows = []
+        for e in load_history(HISTORY_PATH):
+            rows.append([
+                e.get("timestamp",""), e.get("filename",""),
+                e.get("stt_engine",""), e.get("stt_secs",0),
+                e.get("ai_provider",""), e.get("overall_score","—"),
+                e.get("overall_verdict","—"),
+            ])
+        return rows or [["No history yet","","","","","",""]]
+
+    history_refresh_btn.click(fn=refresh_history, outputs=history_table)
+
     process_event = process_btn.click(
         fn=process_file,
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_input, whisper_input,
+            stt_engine_input, stt_key_input,
+            interview_toggle, interview_deep,
             language_input, language_variant,
             report_style,
             inc_summary, inc_key_points, inc_action,
@@ -3497,10 +3656,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
             status_bar,
             summary_out, transcript_out, dialogue_out,
             profiles_out, analytics_out, combined_out,
+            interview_out,
             dl_transcript, dl_speakers, dl_report, dl_combined, dl_json, dl_pdf,
+            dl_srt, dl_vtt, dl_docx,
             download_accordion,
             log_out,
             eta_panel,
+            stt_timing,
             result_state,
         ],
     )

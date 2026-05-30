@@ -171,7 +171,7 @@ except ImportError:
 
 # ── format constants ──────────────────────────────────────────────────────────
 
-AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus"}
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma"}
 VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
 
 # Approximate CPU realtime speed multiplier for each Whisper model size.
@@ -260,15 +260,95 @@ class TranscriptResult:
     speaker_map: dict = field(default_factory=dict)
     speaker_profiles: dict = field(default_factory=dict)
     speaker_stats: list = field(default_factory=list)
-    detected_language: str = ""   # human-readable, e.g. "English" or "Spanish (es-CO)"
+    detected_language: str = ""
+    segments: list = field(default_factory=list)       # raw Whisper segments [{start,end,text}]
+    stt_engine: str = "whisper_local"
+    stt_seconds: float = 0.0
+    interview_analysis: dict = field(default_factory=dict)  # filled when Interview Mode is on
 
 
-# ── file loaders ──────────────────────────────────────────────────────────────
+# ── export generators ─────────────────────────────────────────────────────────
 
 def _fmt_ts(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)
     return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
+
+
+def _fmt_srt_ts(seconds: float) -> str:
+    ms = int((seconds % 1) * 1000)
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _fmt_vtt_ts(seconds: float) -> str:
+    ms = int((seconds % 1) * 1000)
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+def generate_srt(segments: list) -> str:
+    if not segments:
+        return ""
+    lines = []
+    for i, seg in enumerate(segments, 1):
+        start = _fmt_srt_ts(float(seg.get("start", 0)))
+        end   = _fmt_srt_ts(float(seg.get("end",   0)))
+        text  = seg.get("text", "").strip()
+        lines.append(f"{i}\n{start} --> {end}\n{text}\n")
+    return "\n".join(lines)
+
+
+def generate_vtt(segments: list) -> str:
+    if not segments:
+        return ""
+    lines = ["WEBVTT", ""]
+    for i, seg in enumerate(segments, 1):
+        start = _fmt_vtt_ts(float(seg.get("start", 0)))
+        end   = _fmt_vtt_ts(float(seg.get("end",   0)))
+        text  = seg.get("text", "").strip()
+        lines.append(f"{i}\n{start} --> {end}\n{text}\n")
+    return "\n".join(lines)
+
+
+def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bool:
+    if not DOCX_AVAILABLE:
+        return False
+    doc = DocxDocument()
+    doc.add_heading(stem, 0)
+    if result.detected_language:
+        doc.add_paragraph(f"Language: {result.detected_language}")
+
+    if result.summary:
+        doc.add_heading("Summary", 1)
+        doc.add_paragraph(result.summary)
+
+    if result.key_points:
+        doc.add_heading("Key Points", 1)
+        for kp in result.key_points:
+            doc.add_paragraph(kp, style="List Bullet")
+
+    if result.action_items:
+        doc.add_heading("Action Items", 1)
+        for ai in result.action_items:
+            doc.add_paragraph(ai, style="List Bullet")
+
+    if result.speaker_dialogue:
+        doc.add_heading("Speaker Dialogue", 1)
+        doc.add_paragraph(result.speaker_dialogue)
+    elif result.clean_transcript:
+        doc.add_heading("Transcript", 1)
+        doc.add_paragraph(result.clean_transcript)
+
+    doc.save(output_path)
+    return True
+
+
+# ── file loaders ──────────────────────────────────────────────────────────────
 
 
 def load_audio_video(path: str, model_size: str = "base", on_progress=None,
@@ -352,10 +432,11 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     if tmp_path:
         os.unlink(tmp_path)
 
+    segs  = result.get("segments", [])
     lines = []
-    for seg in result["segments"]:
+    for seg in segs:
         lines.append(f"[{_fmt_ts(seg['start'])}] {seg['text'].strip()}")
-    return "\n".join(lines), detected
+    return "\n".join(lines), detected, segs
 
 
 def load_audio_video_panel(
@@ -515,6 +596,266 @@ def load_file(path: str, whisper_model: str = "base") -> tuple:
     if ext == ".pdf":
         return load_pdf(path), "PDF document"
     return p.read_text(encoding="utf-8", errors="replace"), "plain text"
+
+
+# ── STT engine dispatcher ─────────────────────────────────────────────────────
+# Each engine returns (timestamped_text: str, detected_lang: str, segments: list)
+# segments is a list of {start, end, text} dicts (empty list if engine doesn't provide them)
+
+STT_ENGINES = {
+    "whisper_local":   "Whisper (Local / Offline)",
+    "openai_whisper":  "OpenAI Whisper API",
+    "groq_whisper":    "Groq Whisper",
+    "deepgram":        "Deepgram",
+    "assemblyai":      "AssemblyAI",
+    "google_stt":      "Google Cloud STT",
+    "azure_speech":    "Azure Speech",
+    "elevenlabs":      "ElevenLabs Scribe",
+    "revai":           "Rev.ai",
+}
+
+
+def _stt_openai_api(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        import openai as _oai
+    except ImportError:
+        raise ImportError("openai package required: pip install openai")
+    client = _oai.OpenAI(api_key=api_key)
+    with open(path, "rb") as f:
+        kw = {"model": "whisper-1", "file": f, "response_format": "verbose_json"}
+        if language:
+            kw["language"] = language
+        resp = client.audio.transcriptions.create(**kw)
+    segs = [{"start": s.start, "end": s.end, "text": s.text}
+            for s in (resp.segments or [])]
+    lines = [f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs]
+    return "\n".join(lines) or resp.text, getattr(resp, "language", ""), segs
+
+
+def _stt_groq(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        from groq import Groq
+    except ImportError:
+        raise ImportError("groq package required: pip install groq")
+    client = Groq(api_key=api_key)
+    with open(path, "rb") as f:
+        kw = {"model": "whisper-large-v3-turbo", "file": (Path(path).name, f),
+              "response_format": "verbose_json", "timestamp_granularities": ["segment"]}
+        if language:
+            kw["language"] = language
+        resp = client.audio.transcriptions.create(**kw)
+    segs = [{"start": s.start, "end": s.end, "text": s.text}
+            for s in (getattr(resp, "segments", None) or [])]
+    lines = [f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs]
+    return "\n".join(lines) or getattr(resp, "text", ""), getattr(resp, "language", ""), segs
+
+
+def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        from deepgram import DeepgramClient, PrerecordedOptions
+    except ImportError:
+        raise ImportError("deepgram-sdk required: pip install deepgram-sdk")
+    dg = DeepgramClient(api_key)
+    with open(path, "rb") as f:
+        data = f.read()
+    opts = PrerecordedOptions(punctuate=True, diarize=True, utterances=True,
+                               language=language or "en", smart_format=True)
+    resp = dg.listen.rest.v("1").transcribe_file({"buffer": data}, opts)
+    result = resp.results.channels[0].alternatives[0]
+    segs, lines = [], []
+    for utt in (resp.results.utterances or []):
+        segs.append({"start": utt.start, "end": utt.end, "text": utt.transcript})
+        lines.append(f"[{_fmt_ts(utt.start)}] {utt.transcript}")
+    return "\n".join(lines) or result.transcript, language or "en", segs
+
+
+def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        import assemblyai as aai
+    except ImportError:
+        raise ImportError("assemblyai required: pip install assemblyai")
+    aai.settings.api_key = api_key
+    config = aai.TranscriptionConfig(
+        language_code=language or None,
+        language_detection=not bool(language),
+        speaker_labels=True,
+    )
+    transcript = aai.Transcriber().transcribe(path, config=config)
+    if transcript.status == aai.TranscriptStatus.error:
+        raise RuntimeError(f"AssemblyAI error: {transcript.error}")
+    segs, lines = [], []
+    for utt in (transcript.utterances or []):
+        start = utt.start / 1000.0
+        end   = utt.end / 1000.0
+        segs.append({"start": start, "end": end, "text": utt.text})
+        lines.append(f"[{_fmt_ts(start)}] {utt.text}")
+    detected = getattr(transcript, "language_code", language or "en")
+    return "\n".join(lines) or transcript.text, detected, segs
+
+
+def _stt_google(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        from google.cloud import speech as _gspeech
+        import google.auth as _gauth
+    except ImportError:
+        raise ImportError("google-cloud-speech required: pip install google-cloud-speech")
+    import os as _os
+    if api_key and not _os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        raise ValueError("Google Cloud STT requires a service-account JSON file path as the API key. "
+                         "Set it in the API key field.")
+    _os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = api_key
+    client = _gspeech.SpeechClient()
+    with open(path, "rb") as f:
+        audio = _gspeech.RecognitionAudio(content=f.read())
+    lang = (language or "en") + "-US" if len(language or "en") == 2 else (language or "en-US")
+    cfg = _gspeech.RecognitionConfig(
+        encoding=_gspeech.RecognitionConfig.AudioEncoding.LINEAR16,
+        language_code=lang,
+        enable_automatic_punctuation=True,
+        enable_word_time_offsets=True,
+    )
+    resp = client.recognize(config=cfg, audio=audio)
+    lines, segs = [], []
+    t = 0.0
+    for r in resp.results:
+        alt = r.alternatives[0]
+        words = alt.words
+        start = words[0].start_time.total_seconds() if words else t
+        end   = words[-1].end_time.total_seconds()  if words else t + 3
+        segs.append({"start": start, "end": end, "text": alt.transcript})
+        lines.append(f"[{_fmt_ts(start)}] {alt.transcript}")
+        t = end
+    return "\n".join(lines), lang, segs
+
+
+def _stt_azure(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        import azure.cognitiveservices.speech as _az
+    except ImportError:
+        raise ImportError("azure-cognitiveservices-speech required: pip install azure-cognitiveservices-speech")
+    # api_key format: "KEY:REGION" e.g. "abc123:eastus"
+    parts = api_key.split(":", 1)
+    if len(parts) != 2:
+        raise ValueError("Azure key must be in format KEY:REGION (e.g. abc123:eastus)")
+    key, region = parts
+    cfg = _az.SpeechConfig(subscription=key, region=region)
+    cfg.speech_recognition_language = (language or "en") + "-US" if len(language or "en") == 2 else (language or "en-US")
+    audio_cfg = _az.audio.AudioConfig(filename=path)
+    recognizer = _az.SpeechRecognizer(speech_config=cfg, audio_config=audio_cfg)
+    results, segs = [], []
+    done = [False]
+    def _done(evt): done[0] = True
+    recognizer.session_stopped.connect(_done)
+    recognizer.canceled.connect(_done)
+    recognizer.recognized.connect(lambda evt: results.append(evt.result))
+    recognizer.start_continuous_recognition()
+    import time as _time
+    while not done[0]:
+        _time.sleep(0.5)
+    recognizer.stop_continuous_recognition()
+    lines = []
+    for r in results:
+        if r.reason.name == "RecognizedSpeech":
+            lines.append(r.text)
+            segs.append({"start": 0, "end": 0, "text": r.text})
+    return "\n".join(lines), language or "en", segs
+
+
+def _stt_elevenlabs(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        from elevenlabs.client import ElevenLabs
+    except ImportError:
+        raise ImportError("elevenlabs required: pip install elevenlabs")
+    client = ElevenLabs(api_key=api_key)
+    with open(path, "rb") as f:
+        resp = client.speech_to_text.convert(
+            file=f,
+            model_id="scribe_v1",
+            language_code=language or None,
+        )
+    segs, lines = [], []
+    for w in (getattr(resp, "words", None) or []):
+        if getattr(w, "type", "") == "word":
+            segs.append({"start": w.start or 0, "end": w.end or 0, "text": w.text})
+    text = getattr(resp, "text", "") or " ".join(s["text"] for s in segs)
+    return text, getattr(resp, "language_code", language or "en"), segs
+
+
+def _stt_revai(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+    try:
+        from rev_ai import apiclient, jobstatus
+        import time as _time
+    except ImportError:
+        raise ImportError("rev_ai required: pip install rev_ai")
+    client = apiclient.RevAiAPIClient(api_key)
+    job = client.submit_job_local_file(path, language=language or "en")
+    while True:
+        details = client.get_job_details(job.id)
+        if details.status == jobstatus.JobStatus.TRANSCRIBED:
+            break
+        if details.status == jobstatus.JobStatus.FAILED:
+            raise RuntimeError(f"Rev.ai job failed: {details.failure_detail}")
+        _time.sleep(3)
+    transcript = client.get_transcript_object(job.id)
+    segs, lines = [], []
+    for mono in transcript.monologues:
+        words = mono.elements
+        text  = "".join(w.value for w in words if w.type == "text")
+        if words:
+            start = words[0].timestamp
+            end   = words[-1].end_timestamp
+        else:
+            start = end = 0
+        segs.append({"start": start, "end": end, "text": text})
+        lines.append(f"[{_fmt_ts(start)}] {text}")
+    return "\n".join(lines), language or "en", segs
+
+
+def stt_transcribe(
+    path: str, engine: str, api_key: str = None,
+    whisper_model: str = "base", language: str = None,
+    on_progress=None, on_stage_change=None, on_log=None,
+) -> tuple:
+    """Unified STT dispatcher. Returns (text, detected_lang, segments, stt_secs)."""
+    import time as _t
+    t0 = _t.time()
+    def _log(m):
+        _safe_print(f"  [STT] {m}")
+        if on_log: on_log(m)
+
+    _log(f"STT engine: {STT_ENGINES.get(engine, engine)}")
+
+    if engine == "whisper_local":
+        if on_stage_change: on_stage_change("extracting")
+        text, lang, segs = load_audio_video(
+            path, whisper_model,
+            on_progress=on_progress,
+            on_stage_change=on_stage_change,
+            language=language,
+            on_log=on_log,
+        )
+    elif engine == "openai_whisper":
+        text, lang, segs = _stt_openai_api(path, api_key, language, on_log)
+    elif engine == "groq_whisper":
+        text, lang, segs = _stt_groq(path, api_key, language, on_log)
+    elif engine == "deepgram":
+        text, lang, segs = _stt_deepgram(path, api_key, language, on_log)
+    elif engine == "assemblyai":
+        text, lang, segs = _stt_assemblyai(path, api_key, language, on_log)
+    elif engine == "google_stt":
+        text, lang, segs = _stt_google(path, api_key, language, on_log)
+    elif engine == "azure_speech":
+        text, lang, segs = _stt_azure(path, api_key, language, on_log)
+    elif engine == "elevenlabs":
+        text, lang, segs = _stt_elevenlabs(path, api_key, language, on_log)
+    elif engine == "revai":
+        text, lang, segs = _stt_revai(path, api_key, language, on_log)
+    else:
+        raise ValueError(f"Unknown STT engine: {engine}")
+
+    stt_secs = _t.time() - t0
+    _log(f"Transcription done in {stt_secs:.1f}s")
+    return text, lang, segs, stt_secs
 
 
 # ── speech analytics ──────────────────────────────────────────────────────────
@@ -823,6 +1164,105 @@ def process_transcript(
     return merged
 
 
+# ── Interview Mode ────────────────────────────────────────────────────────────
+
+_INTERVIEW_SYSTEM = """\
+You are an expert interview coach and communication analyst.
+Analyse the provided interview transcript and return a structured JSON object.
+Be specific, honest, and actionable. Use the exact keys shown below.
+"""
+
+_INTERVIEW_PROMPT = """\
+Analyse this interview transcript. Return ONLY valid JSON — no markdown fences.
+
+{{
+  "questions": [
+    {{
+      "id": 1,
+      "question": "<exact question text>",
+      "speaker": "<interviewer name or 'Interviewer'>",
+      "answer_summary": "<brief summary of what the candidate said>",
+      "score": "<Great|Good|Needs Improvement|Missed>",
+      "score_reason": "<one sentence why>",
+      "ideal_answer": "<how this question should ideally be answered>",
+      "coaching_tip": "<specific, actionable advice for this answer>"
+    }}
+  ],
+  "overall_score": "<0-100>",
+  "overall_verdict": "<Great|Good|Needs Improvement>",
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "weaknesses": ["<weakness 1>", "<weakness 2>"],
+  "prep_guide": ["<topic to study 1>", "<topic to study 2>"]
+}}
+
+--- DEEP MODE (only fill if requested) ---
+  "deflection_rate": "<0-100 % of questions deflected>",
+  "advance_likelihood": "<0-100 % chance of advancing>",
+  "advance_reasoning": "<why this likelihood>",
+  "weak_question_prep": [
+    {{"question": "...", "study_topics": ["..."], "sample_answer": "..."}}
+  ]
+--- END DEEP MODE ---
+
+TRANSCRIPT:
+{transcript}
+
+DEEP MODE REQUESTED: {deep_mode}
+"""
+
+
+def run_interview_analysis(
+    transcript: str,
+    client: "LLMClient",
+    deep_mode: bool = False,
+    on_log=None,
+) -> dict:
+    def _log(m):
+        _safe_print(f"  [Interview] {m}")
+        if on_log: on_log(m)
+
+    _log("Running interview analysis…")
+    prompt = _INTERVIEW_PROMPT.format(
+        transcript=transcript[:80_000],
+        deep_mode="YES" if deep_mode else "NO",
+    )
+    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=8000)
+    _log("Interview analysis complete.")
+    try:
+        # Strip markdown fences if model ignores instructions
+        clean = re.sub(r"```(?:json)?|```", "", raw).strip()
+        return json.loads(clean)
+    except Exception:
+        return {"raw": raw, "parse_error": True}
+
+
+# ── History ───────────────────────────────────────────────────────────────────
+
+import time as _time_mod
+import uuid as _uuid_mod
+
+
+def save_history_entry(entry: dict, history_path: "Path") -> None:
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(history_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+
+
+def load_history(history_path: "Path") -> list:
+    if not history_path.exists():
+        return []
+    entries = []
+    with open(history_path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    entries.append(json.loads(line))
+                except Exception:
+                    pass
+    return list(reversed(entries))  # newest first
+
+
 # ── combined report builder ───────────────────────────────────────────────────
 
 def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str:
@@ -881,6 +1321,9 @@ def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str
     paths["combined"]   = str(out / f"{stem}_combined.txt")
     paths["report"]     = str(out / f"{stem}_report.md")
     paths["json"]       = str(out / f"{stem}_full.json")
+    paths["srt"]        = str(out / f"{stem}.srt")
+    paths["vtt"]        = str(out / f"{stem}.vtt")
+    paths["docx"]       = str(out / f"{stem}_report.docx")
 
     Path(paths["transcript"]).write_text(result.clean_transcript, encoding="utf-8")
     Path(paths["speakers"]).write_text(result.speaker_dialogue, encoding="utf-8")
@@ -914,6 +1357,14 @@ def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str
     with open(paths["json"], "w", encoding="utf-8") as f:
         json.dump(result.__dict__, f, indent=2, ensure_ascii=False, default=str)
 
+    # SRT / VTT subtitles (only if segments available)
+    if result.segments:
+        Path(paths["srt"]).write_text(generate_srt(result.segments), encoding="utf-8")
+        Path(paths["vtt"]).write_text(generate_vtt(result.segments), encoding="utf-8")
+
+    # DOCX report
+    generate_docx(result, stem, paths["docx"])
+
     return paths
 
 
@@ -923,27 +1374,33 @@ def run(
     file_path: str,
     output_dir: str = "transcript_output",
     whisper_model: str = "base",
+    stt_engine: str = "whisper_local",   # see STT_ENGINES keys
+    stt_api_key: str = None,             # API key for cloud STT engines
     panel_mode: bool = False,
     num_speakers: int = None,
     config: ReportConfig = None,
     api_key: str = None,
-    provider: str = "anthropic",    # "anthropic" | "openai" | "openai_compat"
-    model: str = None,              # defaults per-provider if None
-    base_url: str = None,           # base URL for openai_compat providers
-    language: str = None,           # ISO-639-1 code e.g. "es", "en", or None for auto
-    language_variant: str = None,   # e.g. "Colombian Spanish (es-CO)"
-    speaker_names: str = None,      # e.g. "Jay Pendley, John Smith (Interviewer)"
-    on_whisper_progress=None,       # callable(pct: float) — live Whisper % updates
-    on_raw_transcript=None,         # callable(text: str) — fired the moment Whisper finishes
-    on_stage_change=None,           # callable(stage: str) — "extracting" | "whisper" | "claude"
-    on_log=None,                    # callable(msg: str) — human-readable step log
+    provider: str = "anthropic",
+    model: str = None,
+    base_url: str = None,
+    language: str = None,
+    language_variant: str = None,
+    speaker_names: str = None,
+    interview_mode: bool = False,
+    interview_deep: bool = False,
+    history_path: "Path | None" = None,
+    on_whisper_progress=None,
+    on_raw_transcript=None,
+    on_stage_change=None,
+    on_log=None,
+    on_stt_done=None,               # callable(stt_secs: float) — fired when STT completes
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
         if on_log: on_log(m)
 
     config = config or ReportConfig()
-    print(f"\nTranscript Agent {'(Panel)' if panel_mode else ''}")
+    _safe_print(f"\nTranscript Agent {'(Panel)' if panel_mode else ''}")
     _safe_print("=" * 50)
 
     fname = Path(file_path).name
@@ -952,34 +1409,39 @@ def run(
     if language:
         _log(f"Language: {language_variant or language}")
 
-    raw_whisperx = {}
+    raw_whisperx  = {}
     _detected_lang = ""
+    _segments      = []
+    _stt_secs      = 0.0
 
-    if panel_mode and ext in (AUDIO_EXTS | VIDEO_EXTS):
-        _log("Mode: Panel (multi-speaker diarization)")
-        if on_stage_change: on_stage_change("extracting")
-        raw_text, raw_whisperx = load_audio_video_panel(
-            file_path, whisper_model, num_speakers, language=language, on_log=on_log
-        )
-        _detected_lang = raw_whisperx.get("language", "")
-        fmt = "panel audio/video (diarized)"
-    elif ext in (AUDIO_EXTS | VIDEO_EXTS):
-        _log(f"Mode: Standard audio/video  |  Whisper model: {whisper_model}")
-        if on_stage_change: on_stage_change("extracting")
-        raw_text, _detected_lang = load_audio_video(
-            file_path, whisper_model,
-            on_progress=on_whisper_progress,
-            on_stage_change=on_stage_change,
-            language=language,
-            on_log=on_log,
-        )
-        fmt = "audio/video"
+    if ext in (AUDIO_EXTS | VIDEO_EXTS):
+        if panel_mode:
+            _log("Mode: Panel (multi-speaker diarization)")
+            if on_stage_change: on_stage_change("extracting")
+            raw_text, raw_whisperx = load_audio_video_panel(
+                file_path, whisper_model, num_speakers, language=language, on_log=on_log
+            )
+            _detected_lang = raw_whisperx.get("language", "")
+            fmt = "panel audio/video (diarized)"
+        else:
+            _log(f"STT engine: {STT_ENGINES.get(stt_engine, stt_engine)}  |  Whisper model: {whisper_model}")
+            raw_text, _detected_lang, _segments, _stt_secs = stt_transcribe(
+                file_path, stt_engine,
+                api_key=stt_api_key,
+                whisper_model=whisper_model,
+                language=language,
+                on_progress=on_whisper_progress,
+                on_stage_change=on_stage_change,
+                on_log=on_log,
+            )
+            fmt = "audio/video"
+        if on_stt_done:
+            on_stt_done(_stt_secs)
     else:
         _log(f"Mode: Document  ({ext or 'text'})")
         raw_text, fmt = load_file(file_path, whisper_model)
         _log(f"Document loaded: ~{len(raw_text.split()):,} words")
 
-    # fire immediately so the UI shows the raw transcript before Claude starts
     if on_raw_transcript:
         on_raw_transcript(raw_text)
 
@@ -988,6 +1450,7 @@ def run(
     if on_stage_change: on_stage_change("claude")
     _model = model or ("claude-opus-4-8" if provider == "anthropic" else "gpt-4o")
     client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+
     if speaker_names:
         _log(f"Speaker count provided: {speaker_names}")
     result = process_transcript(
@@ -1002,21 +1465,43 @@ def run(
         on_log=on_log,
     )
 
-    # Resolve display language: prefer user-specified variant label, then ISO code,
-    # then Whisper-detected code, fall back to "Auto-detected".
     result.detected_language = language_variant or language or _detected_lang or "Auto-detected"
+    result.segments    = _segments
+    result.stt_engine  = stt_engine
+    result.stt_seconds = _stt_secs
+
+    # ── Interview Mode ────────────────────────────────────────────────────────
+    if interview_mode:
+        _log("Running Interview Mode analysis…")
+        if on_stage_change: on_stage_change("interview")
+        result.interview_analysis = run_interview_analysis(
+            raw_text, client, deep_mode=interview_deep, on_log=on_log
+        )
 
     paths = save_results(result, config, output_dir, Path(file_path).stem)
+
+    # ── Save to history ───────────────────────────────────────────────────────
+    if history_path:
+        ia = result.interview_analysis
+        entry = {
+            "id": _uuid_mod.uuid4().hex[:12],
+            "timestamp": _time_mod.strftime("%Y-%m-%d %H:%M"),
+            "filename": fname,
+            "stt_engine": STT_ENGINES.get(stt_engine, stt_engine),
+            "stt_secs": round(_stt_secs, 1),
+            "ai_provider": provider,
+            "ai_model": _model,
+            "language": result.detected_language,
+            "word_count": len(raw_text.split()),
+            "overall_score": ia.get("overall_score", "") if ia else "",
+            "overall_verdict": ia.get("overall_verdict", "") if ia else "",
+            "paths": paths,
+            "summary": result.summary[:300],
+        }
+        save_history_entry(entry, Path(history_path))
+
     _log(f"Outputs saved to: {output_dir}/")
-
-    print(f"\n✓ Done! Outputs saved to: {output_dir}/")
-    print(f"\n{'─'*50}\nSUMMARY\n{'─'*50}")
-    _safe_print(result.summary)
-    if result.key_points:
-        print(f"\nKEY POINTS (first 5 of {len(result.key_points)})")
-        for p in result.key_points[:5]:
-            _safe_print(f"  • {p}")
-
+    _safe_print(f"\n✓ Done! Outputs: {output_dir}/")
     return result
 
 

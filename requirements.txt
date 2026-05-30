@@ -5,8 +5,17 @@ fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
-# Multi-provider LLM support (OpenAI, Gemini, Groq, etc.)
+# Multi-provider LLM + STT (OpenAI SDK covers Groq STT too)
 openai>=1.0.0
+groq>=0.9.0
+
+# Cloud STT engines (all optional — guarded by try/except in transcript_agent.py)
+deepgram-sdk>=3.0.0
+assemblyai>=0.17.0
+elevenlabs>=1.0.0
+rev_ai>=2.17.0
+# google-cloud-speech>=2.20.0      # uncomment if using Google Cloud STT
+# azure-cognitiveservices-speech>=1.35.0  # uncomment if using Azure Speech
 
 # Document formats
 python-docx>=1.1.0
@@ -23,4 +32,5 @@ openai-whisper>=20231117
 # ffmpeg binary is also required for audio/video:
 #   macOS:   brew install ffmpeg
 #   Ubuntu:  sudo apt install ffmpeg
-#   Windows: https://ffmpeg.org/download.html  (add to PATH)
+#   Windows: bundled via imageio-ffmpeg (installed automatically)
+imageio-ffmpeg>=0.4.9

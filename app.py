@@ -1705,11 +1705,13 @@ def process_file(
                     return
                 elif dmsg[0] == "dl_progress":
                     recv, total = dmsg[1], dmsg[2]
-                    if total:
-                        pct = recv / total * 100
-                        log = _add_log(f"⬇️  {recv//1024//1024} MB / {total//1024//1024} MB  ({pct:.0f}%)", "download")
+                    recv_mb = max(0, recv) // 1024 // 1024
+                    if total and total > 0:
+                        pct = min(100.0, recv / total * 100)
+                        total_mb = total // 1024 // 1024
+                        log = _add_log(f"⬇️  {recv_mb} MB / {total_mb} MB  ({pct:.0f}%)", "download")
                     else:
-                        log = _add_log(f"⬇️  {recv//1024//1024} MB received…", "download")
+                        log = _add_log(f"⬇️  {recv_mb} MB received…", "download")
                     yield _out(
                         status=_status_compact("⬇️", "Downloading…", _elapsed()),
                         log=log,
@@ -3540,8 +3542,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
             with gr.Accordion("Processing Options", open=True):
                 speakers_input = gr.Number(
                     label="Number of speakers (optional)",
-                    value=None, minimum=1, maximum=20, step=1,
-                    info="Leave blank to auto-detect. AI will label each speaker.",
+                    value=None, minimum=0, maximum=20, step=1,
+                    info="Leave blank or 0 to auto-detect. AI will label each speaker.",
                 )
                 stt_engine_input = gr.Dropdown(
                     label="STT Engine",

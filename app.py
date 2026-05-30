@@ -2186,6 +2186,23 @@ _THEME_JS = """
       /* ── File upload area ── */
       '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
       '.upload-container:hover{border-color:#3b82f6!important}',
+      /* ── Changelog ── */
+      '.ta-cl-wrap{max-height:360px;overflow-y:auto;padding:2px 4px 4px}',
+      '.ta-cl-status{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:14px}',
+      '.ta-cl-status-txt{font-size:0.78em;font-weight:600;color:#166534}',
+      '.ta-cl-status-badge{font-size:0.7em;font-weight:700;padding:2px 9px;border-radius:20px;background:#22c55e;color:#fff;letter-spacing:0.05em}',
+      '.ta-cl-status-badge.outdated{background:#f59e0b}',
+      '.ta-cl-entry{position:relative;padding:12px 14px 12px 18px;border-radius:12px;border:1px solid #e8edf4;background:#fff;margin-bottom:10px;border-left:3px solid #e2e8f0}',
+      '.ta-cl-entry.ta-cl-latest{background:#eff6ff;border-color:#bfdbfe;border-left-color:#3b82f6}',
+      '.ta-cl-meta{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}',
+      '.ta-cl-ver{font-size:0.72em;font-weight:800;padding:2px 10px;border-radius:20px;background:#dbeafe;color:#1d4ed8;letter-spacing:0.04em}',
+      '.ta-cl-latest .ta-cl-ver{background:#2563eb;color:#fff}',
+      '.ta-cl-new-badge{font-size:0.66em;font-weight:700;padding:2px 7px;border-radius:20px;background:#22c55e;color:#fff;letter-spacing:0.06em}',
+      '.ta-cl-date{font-size:0.73em;color:#94a3b8;font-weight:500}',
+      '.ta-cl-list{margin:0;padding:0 0 0 4px;list-style:none}',
+      '.ta-cl-list li{font-size:0.8em;line-height:1.65;color:#374151;padding:1px 0;display:flex;align-items:flex-start;gap:7px}',
+      '.ta-cl-list li::before{content:"→";color:#3b82f6;font-weight:700;flex-shrink:0;margin-top:1px;font-size:0.85em}',
+      '.ta-cl-latest .ta-cl-list li::before{color:#2563eb}',
       /* ── Scrollbar ── */
       '::-webkit-scrollbar{width:6px;height:6px}',
       '::-webkit-scrollbar-track{background:transparent}',
@@ -2274,6 +2291,17 @@ _THEME_JS = """
     /* ── Labels ── */
     'html.dark label>span:first-child,html.dark .block-label{color:#94a3b8!important}',
     'html.dark .info{color:#64748b!important}',
+    /* ── Changelog dark mode ── */
+    'html.dark .ta-cl-status{background:#14532d!important;border-color:#166534!important}',
+    'html.dark .ta-cl-status-txt{color:#4ade80!important}',
+    'html.dark .ta-cl-entry{background:#1e293b!important;border-color:#2d3a4e!important;border-left-color:#334155!important}',
+    'html.dark .ta-cl-entry.ta-cl-latest{background:#1e3a5f!important;border-color:#1e40af!important;border-left-color:#3b82f6!important}',
+    'html.dark .ta-cl-ver{background:#1e3a5f!important;color:#93c5fd!important}',
+    'html.dark .ta-cl-latest .ta-cl-ver{background:#2563eb!important;color:#fff!important}',
+    'html.dark .ta-cl-date{color:#64748b!important}',
+    'html.dark .ta-cl-list li{color:#cbd5e1!important}',
+    'html.dark .ta-cl-list li::before{color:#60a5fa!important}',
+    'html.dark .ta-cl-latest .ta-cl-list li::before{color:#93c5fd!important}',
     /* ── Pace reference chips ── */
     'html.dark .ta-pace-ref{background:#1e293b!important;border-color:#334155!important}',
     'html.dark .ta-pace-label{color:#94a3b8!important}',
@@ -3010,35 +3038,37 @@ _RELEASES = [
 APP_VERSION = "2.3"
 
 def _build_changelog():
-    latest = _RELEASES[0]["version"]
-    is_latest = APP_VERSION == latest
-    badge_color = "#22c55e" if is_latest else "#f59e0b"
+    latest      = _RELEASES[0]["version"]
+    is_latest   = APP_VERSION == latest
+    badge_cls   = "ta-cl-status-badge" if is_latest else "ta-cl-status-badge outdated"
     badge_text  = f"v{APP_VERSION} — Up to date ✓" if is_latest else f"v{APP_VERSION} — Update available"
-    header = (
-        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
-        f'<span style="font-size:0.8em;font-weight:700;color:var(--ta-card-sub);">Current version</span>'
-        f'<span style="background:{badge_color};color:#fff;font-size:0.72em;font-weight:700;'
-        f'padding:3px 10px;border-radius:20px;letter-spacing:0.04em;">{badge_text}</span>'
+
+    status = (
+        f'<div class="ta-cl-status">'
+        f'<span style="font-size:1.1em;">{"✅" if is_latest else "🔔"}</span>'
+        f'<span class="ta-cl-status-txt">Current version</span>'
+        f'<span class="{badge_cls}">{badge_text}</span>'
         f'</div>'
     )
-    rows = ""
-    for r in _RELEASES:
-        items = "".join(
-            f'<li style="margin:2px 0;color:var(--ta-card-text)">{n}</li>'
-            for n in r["notes"]
-        )
-        rows += (
-            f'<div style="margin-bottom:14px;">'
-            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">'
-            f'<span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);'
-            f'font-size:0.72em;font-weight:700;padding:2px 9px;border-radius:20px;'
-            f'letter-spacing:0.04em;">v{r["version"]}</span>'
-            f'<span style="font-size:0.75em;color:var(--ta-card-sub);">{r["date"]}</span>'
+
+    entries = ""
+    for i, r in enumerate(_RELEASES):
+        is_first = i == 0
+        entry_cls = "ta-cl-entry ta-cl-latest" if is_first else "ta-cl-entry"
+        new_badge = '<span class="ta-cl-new-badge">NEW</span>' if is_first else ""
+        items = "".join(f"<li><span>{n}</span></li>" for n in r["notes"])
+        entries += (
+            f'<div class="{entry_cls}">'
+            f'  <div class="ta-cl-meta">'
+            f'    <span class="ta-cl-ver">v{r["version"]}</span>'
+            f'    {new_badge}'
+            f'    <span class="ta-cl-date">🗓 {r["date"]}</span>'
+            f'  </div>'
+            f'  <ul class="ta-cl-list">{items}</ul>'
             f'</div>'
-            f'<ul style="margin:0 0 0 16px;padding:0;font-size:0.82em;line-height:1.7;">{items}</ul>'
-            f'</div>'
         )
-    return f'<div style="max-height:320px;overflow-y:auto;padding:4px 2px;">{header}{rows}</div>'
+
+    return f'<div class="ta-cl-wrap">{status}{entries}</div>'
 
 _CHANGELOG_HTML = _build_changelog()
 

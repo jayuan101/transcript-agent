@@ -353,7 +353,7 @@ _PROVIDERS = {
         "placeholder": "sk-ant-api03-…",
         "info": "console.anthropic.com → API keys → Create key",
         "models": [
-            "claude-opus-4-7",
+            "claude-opus-4-8",
             "claude-sonnet-4-6",
             "claude-haiku-4-5-20251001",
             "claude-3-5-sonnet-20241022",
@@ -1846,7 +1846,12 @@ def process_file(
         elif kind == "done":
             result = msg[1]
 
-            summary_md = f"## Summary\n\n{result.summary}"
+            # Strip any transcript/full-text section Claude may embed inside result.summary
+            _summary_text = re.sub(
+                r'\n*#{1,3}\s*(Full\s+)?Transcript[\s\S]*',
+                '', result.summary, flags=re.IGNORECASE
+            ).strip()
+            summary_md = f"## Summary\n\n{_summary_text}"
             if inc_key_points and result.key_points:
                 summary_md += "\n\n## Key Points\n" + "\n".join(f"- {p}" for p in result.key_points)
             if inc_action_items and result.action_items:
@@ -2798,6 +2803,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 variant="primary", size="lg",
                 elem_classes=["big-btn"],
             )
+            cancel_btn = gr.Button(
+                "Stop / Cancel",
+                variant="stop", size="sm",
+            )
 
             result_state = gr.State(value=None)
 
@@ -2896,7 +2905,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=language_variant,
     )
 
-    process_btn.click(
+    process_event = process_btn.click(
         fn=process_file,
         inputs=[
             file_input, path_input,
@@ -2919,6 +2928,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             result_state,
         ],
     )
+    cancel_btn.click(fn=None, cancels=[process_event])
 
     pdf_regen_btn.click(
         fn=generate_pdf_in_language,

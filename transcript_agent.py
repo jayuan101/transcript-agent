@@ -986,7 +986,7 @@ def run(
     _log(f"Text ready: ~{len(raw_text.split()):,} words  |  Passing to AI…")
 
     if on_stage_change: on_stage_change("claude")
-    _model = model or ("claude-opus-4-7" if provider == "anthropic" else "gpt-4o")
+    _model = model or ("claude-opus-4-8" if provider == "anthropic" else "gpt-4o")
     client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
     if speaker_names:
         _log(f"Speaker count provided: {speaker_names}")

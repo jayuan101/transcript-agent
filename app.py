@@ -2408,23 +2408,44 @@ _API_BANNER = """
 """
 
 _THEME_TOGGLE = """
-<!-- segmented light / dark control — inline styles so Gradio can't strip them -->
+<!-- ☀️🌙 Light / Dark toggle pill -->
 <div id="ta-widget"
   style="position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;
-         background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);
-         border:1px solid #e2e8f0;border-radius:28px;padding:4px;
-         box-shadow:0 2px 12px rgba(0,0,0,0.12);gap:2px;">
-  <button id="ta-btn-light" title="Light mode"
-    style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:22px;
-           border:none;cursor:pointer;font-size:0.82em;font-weight:600;
-           background:#3b82f6;color:#fff;transition:all 0.2s;">
+         background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);
+         border:1px solid #e2e8f0;border-radius:30px;padding:4px;
+         box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;transition:background 0.3s,border-color 0.3s;">
+  <button id="ta-btn-light"
+    style="display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;
+           border:none;cursor:pointer;font-size:0.82em;font-weight:700;
+           background:#3b82f6;color:#fff;transition:all 0.22s;box-shadow:0 2px 6px rgba(59,130,246,0.4);">
     ☀️ Light
   </button>
-  <button id="ta-btn-dark" title="Dark mode"
-    style="display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:22px;
-           border:none;cursor:pointer;font-size:0.82em;font-weight:600;
-           background:transparent;color:#64748b;transition:all 0.2s;">
+  <button id="ta-btn-dark"
+    style="display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;
+           border:none;cursor:pointer;font-size:0.82em;font-weight:700;
+           background:transparent;color:#64748b;transition:all 0.22s;">
     🌙 Dark
+  </button>
+</div>
+
+<!-- ▶ Floating play button — dark/light aware -->
+<div id="ta-float-wrap"
+  style="position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;
+         align-items:center;gap:8px;">
+  <div id="ta-float-label"
+    style="font-size:0.7em;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
+           color:#fff;background:rgba(29,78,216,0.85);backdrop-filter:blur(6px);
+           padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s;
+           pointer-events:none;white-space:nowrap;">
+    Analyze
+  </div>
+  <button id="ta-float-analyze"
+    style="width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+           background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;
+           font-size:1.4em;display:flex;align-items:center;justify-content:center;
+           box-shadow:0 4px 20px rgba(29,78,216,0.5);transition:all 0.2s;
+           outline:none;">
+    ▶
   </button>
 </div>
 """
@@ -2810,19 +2831,33 @@ _THEME_JS = """
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* Update button visuals */
+    /* ── Toggle pill visuals ── */
     var bl = document.getElementById('ta-btn-light');
     var bd = document.getElementById('ta-btn-dark');
     var wg = document.getElementById('ta-widget');
     if (bl && bd) {
-      bl.style.background = dark ? 'transparent' : '#3b82f6';
-      bl.style.color      = dark ? '#94a3b8'     : '#fff';
-      bd.style.background = dark ? '#3b82f6'     : 'transparent';
-      bd.style.color      = dark ? '#fff'         : '#64748b';
+      /* Active pill: solid blue with shadow. Inactive: transparent, muted text */
+      bl.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
+        + (dark ? 'background:transparent;color:#64748b;box-shadow:none;'
+                : 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);');
+      bd.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
+        + (dark ? 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);'
+                : 'background:transparent;color:#64748b;box-shadow:none;');
     }
     if (wg) {
-      wg.style.background  = dark ? 'rgba(15,23,42,0.95)' : 'rgba(255,255,255,0.95)';
+      wg.style.background  = dark ? 'rgba(15,23,42,0.96)' : 'rgba(255,255,255,0.96)';
       wg.style.borderColor = dark ? '#334155' : '#e2e8f0';
+    }
+
+    /* ── Floating ▶ button — adapts to dark/light ── */
+    var fb = document.getElementById('ta-float-analyze');
+    if (fb) {
+      fb.style.background  = dark
+        ? 'linear-gradient(135deg,#1e3a8a,#2563eb)'
+        : 'linear-gradient(135deg,#1d4ed8,#3b82f6)';
+      fb.style.boxShadow   = dark
+        ? '0 4px 20px rgba(37,99,235,0.7)'
+        : '0 4px 20px rgba(29,78,216,0.5)';
     }
 
     /* API banner */
@@ -3265,66 +3300,60 @@ _THEME_JS = """
     setTimeout(function(){ restoreKey(); }, 2800);   /* restore after everything else settles */
   })();
 
-  /* ── ▶ Floating Analyze button + auto-scroll ────────────────────────────
-     Adds a fixed ▶ pill in the top-right. Wired via event delegation (no
-     inline onclick) so Gradio's DOMPurify sanitizer cannot strip it.
-     Also auto-scrolls to the results panel when Analyze is triggered.    */
+  /* ── ▶ Floating play button — wired via event delegation, dark/light aware ──
+     Button HTML lives in _THEME_TOGGLE so it renders before JS runs.
+     Here we just wire the click + hover + label tooltip.                    */
   (function(){
-    /* Inject the floating button into the DOM */
-    function injectFloatBtn() {
-      if (document.getElementById('ta-float-analyze')) return;
-      var btn = document.createElement('button');
-      btn.id = 'ta-float-analyze';
-      btn.title = 'Analyze File';
-      btn.innerHTML = '&#9654;';   /* ▶ */
-      btn.style.cssText = (
-        'position:fixed;bottom:24px;right:24px;z-index:9998;'
-        + 'width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;'
-        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
-        + 'font-size:1.3em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 18px rgba(29,78,216,0.5);transition:all 0.18s;'
-      );
-      btn.addEventListener('mouseenter', function(){ this.style.transform='scale(1.12)'; });
-      btn.addEventListener('mouseleave', function(){ this.style.transform='scale(1)'; });
-      document.body.appendChild(btn);
+    /* Hover: show/hide "Analyze" label above the button */
+    function wireHover() {
+      var btn   = document.getElementById('ta-float-analyze');
+      var label = document.getElementById('ta-float-label');
+      if (!btn) { setTimeout(wireHover, 600); return; }
+      btn.addEventListener('mouseenter', function(){
+        this.style.transform = 'scale(1.1)';
+        if (label) label.style.opacity = '1';
+      });
+      btn.addEventListener('mouseleave', function(){
+        this.style.transform = 'scale(1)';
+        if (label) label.style.opacity = '0';
+      });
     }
 
-    /* Find the real Analyze File button and wire everything to it */
+    /* Find the real Analyze sidebar button and click it */
     function wireAnalyze() {
       var real = null;
       document.querySelectorAll('button').forEach(function(b){
-        var t = (b.textContent||'').trim();
-        if (t === 'Analyze File' || t === '▶  Analyze' || t.includes('Analyze')) real = b;
+        var t = (b.textContent || '').trim();
+        if (t.includes('Analyze')) real = b;
       });
       if (!real) { setTimeout(wireAnalyze, 800); return; }
-
-      /* Mark so we don't double-wire */
       if (real.dataset.taWired) return;
       real.dataset.taWired = '1';
 
       function doAnalyze() {
         real.click();
         setTimeout(function(){
-          var t = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
-          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 400);
       }
 
-      /* Wire floating button via event delegation on document */
+      /* Event delegation — survives DOM re-mounts */
       document.addEventListener('click', function(e){
-        if (e.target && e.target.id === 'ta-float-analyze') doAnalyze();
+        if (e.target && (e.target.id === 'ta-float-analyze' || e.target.closest('#ta-float-analyze')))
+          doAnalyze();
       });
 
-      /* Also wire real button's own click for scroll */
+      /* Sidebar button also scrolls */
       real.addEventListener('click', function(){
         setTimeout(function(){
-          var t = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
-          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
+          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 400);
       });
     }
 
-    injectFloatBtn();
+    wireHover();
     setTimeout(wireAnalyze, 1500);
   })();
 

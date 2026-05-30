@@ -1225,7 +1225,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 22   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 21   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1233,13 +1233,12 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_t=gr.update(), dl_s=gr.update(), dl_r=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
-         dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         stt_info=gr.update(), rs=None):
+         dl_acc=gr.update(), log=gr.update(), eta=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, stt_info, rs)
+            dl_acc, log, eta, rs)
 
 
 _PDF_LANGUAGES = [
@@ -1297,50 +1296,121 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
 
 
 def _step_tracker_html(stage: str, done: bool = False) -> str:
-    if done:
-        states = ["done", "done", "done"]
-    elif stage in ("loading",):
-        states = ["active", "waiting", "waiting"]
-    elif stage in ("extracting", "whisper"):
-        states = ["done", "active", "waiting"]
-    elif stage == "claude":
-        states = ["done", "done", "active"]
-    else:
-        states = ["active", "waiting", "waiting"]
+    # ── Map stage → which sub-steps are done/active/waiting ──────────────────
+    # Phases: p1 = Transcription, p2 = AI Analysis, p3 = Complete
+    # Sub-steps per phase:
+    #   p1: Load (📁), Extract (🔊), Transcribe (🎤)
+    #   p2: Analyze (🤖)
+    #   p3: Done (✅)
 
-    labels = [("📁", "Upload"), ("🎤", "Transcribe"), ("🤖", "Analyze")]
-    parts  = []
-    for i, ((icon, label), state) in enumerate(zip(labels, states)):
+    def _ss(state):
         if state == "done":
-            bg = "var(--ta-step-done-bg)"; bdr = "var(--ta-step-done-bdr)"
-            clr = "var(--ta-step-done-clr)"; dot = "✓"
-        elif state == "active":
-            bg = "var(--ta-step-act-bg)"; bdr = "var(--ta-step-act-bdr)"
-            clr = "var(--ta-step-act-clr)"; dot = "●"
+            return "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)", "✓"
+        if state == "active":
+            return "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)", "●"
+        return "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)", "○"
+
+    if done:
+        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
+        p2_state = "done"; p2_hint = "AI analysis complete"
+        p3_state = "done"; p3_hint = "All done!"
+        conn1 = conn2 = "var(--ta-conn-line-done)"
+    elif stage in ("loading",):
+        p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Loading file…"
+        p2_state = "waiting"; p2_hint = "Waiting"
+        p3_state = "waiting"; p3_hint = ""
+        conn1 = conn2 = "var(--ta-conn-line-wait)"
+    elif stage == "extracting":
+        p1_steps = ["done","active","waiting"]; p1_state = "active"; p1_hint = "Extracting audio…"
+        p2_state = "waiting"; p2_hint = "Waiting"
+        p3_state = "waiting"; p3_hint = ""
+        conn1 = conn2 = "var(--ta-conn-line-wait)"
+    elif stage == "whisper":
+        p1_steps = ["done","done","active"]; p1_state = "active"; p1_hint = "Converting speech…"
+        p2_state = "waiting"; p2_hint = "Waiting"
+        p3_state = "waiting"; p3_hint = ""
+        conn1 = conn2 = "var(--ta-conn-line-wait)"
+    elif stage in ("claude","interview"):
+        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
+        hint = "Reading & analyzing…" if stage == "claude" else "Scoring interview responses…"
+        p2_state = "active"; p2_hint = hint
+        p3_state = "waiting"; p3_hint = ""
+        conn1 = "var(--ta-conn-line-done)"; conn2 = "var(--ta-conn-line-wait)"
+    else:
+        p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Starting…"
+        p2_state = "waiting"; p2_hint = ""; p3_state = "waiting"; p3_hint = ""
+        conn1 = conn2 = "var(--ta-conn-line-wait)"
+
+    def _phase_box(phase_label, sub_labels, sub_states, phase_state, hint):
+        if phase_state == "done":
+            bb, bd, bt = "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)"
+        elif phase_state == "active":
+            bb, bd, bt = "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)"
         else:
-            bg = "var(--ta-step-wait-bg)"; bdr = "var(--ta-step-wait-bdr)"
-            clr = "var(--ta-step-wait-clr)"; dot = "○"
-        parts.append(
-            f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1;">'
-            f'<div style="background:{bg};border:2px solid {bdr};border-radius:50%;'
-            f'width:38px;height:38px;display:flex;align-items:center;justify-content:center;'
-            f'font-size:1.05em;font-weight:800;color:{clr};transition:all 0.4s;">{dot}</div>'
-            f'<div style="font-size:0.68em;font-weight:700;color:{clr};text-align:center;'
-            f'text-transform:uppercase;letter-spacing:0.06em;">{icon} {label}</div>'
+            bb, bd, bt = "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)"
+
+        # sub-step dots
+        dots_html = ""
+        for j, (icon, label) in enumerate(sub_labels):
+            state = sub_states[j] if j < len(sub_states) else "waiting"
+            bg, bdr, clr, dot = _ss(state)
+            dots_html += (
+                f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">'
+                f'<div style="background:{bg};border:1.5px solid {bdr};border-radius:50%;'
+                f'width:28px;height:28px;display:flex;align-items:center;justify-content:center;'
+                f'font-size:0.85em;font-weight:800;color:{clr};transition:all 0.35s;">{dot}</div>'
+                f'<div style="font-size:0.6em;font-weight:600;color:{clr};text-align:center;'
+                f'white-space:nowrap;">{icon}</div>'
+                f'</div>'
+            )
+            if j < len(sub_labels) - 1:
+                ac = "var(--ta-conn-line-done)" if sub_states[j] == "done" else "var(--ta-conn-line-wait)"
+                dots_html += (
+                    f'<div style="height:1.5px;width:14px;background:{ac};'
+                    f'margin-top:14px;flex-shrink:0;transition:background 0.35s;"></div>'
+                )
+
+        hint_html = (
+            f'<div style="font-size:0.66em;color:{bt};margin-top:5px;font-weight:500;'
+            f'letter-spacing:0.01em;min-height:10px;">{hint}</div>'
+        ) if hint else '<div style="min-height:10px;"></div>'
+
+        return (
+            f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:10px;'
+            f'padding:8px 10px;min-width:0;transition:all 0.35s;">'
+            f'<div style="font-size:0.63em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:{bt};margin-bottom:7px;">{phase_label}</div>'
+            f'<div style="display:flex;align-items:center;gap:0;">{dots_html}</div>'
+            f'{hint_html}'
             f'</div>'
         )
-        if i < 2:
-            lc = "var(--ta-conn-line-done)" if states[i] == "done" else "var(--ta-conn-line-wait)"
-            parts.append(
-                f'<div style="flex:0.6;height:2px;background:{lc};margin-top:19px;'
-                f'border-radius:2px;transition:background 0.4s;"></div>'
-            )
+
+    p1_box = _phase_box(
+        "Step 1 · Transcription",
+        [("📁","Load"), ("🔊","Extract"), ("🎤","Transcribe")],
+        p1_steps, p1_state, p1_hint,
+    )
+    p2_box = _phase_box(
+        "Step 2 · AI Analysis",
+        [("🤖","Analyze")],
+        [p2_state], p2_state, p2_hint,
+    )
+    p3_box = _phase_box(
+        "Step 3 · Complete",
+        [("✅","Done")],
+        [p3_state], p3_state, p3_hint,
+    )
+
+    def _connector(color):
+        return (
+            f'<div style="width:18px;height:2px;background:{color};flex-shrink:0;'
+            f'margin-top:28px;border-radius:2px;transition:background 0.4s;"></div>'
+        )
 
     return (
-        '<div style="display:flex;align-items:flex-start;padding:10px 16px 8px;'
-        'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
-        'border-radius:12px;margin-bottom:10px;">'
-        + "".join(parts) + "</div>"
+        f'<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:10px;">'
+        f'{p1_box}{_connector(conn1)}{p2_box}{_connector(conn2)}{p3_box}'
+        f'</div>'
     )
 
 
@@ -1964,11 +2034,10 @@ def process_file(
             else:
                 iv_html = '<p style="color:#94a3b8;">Enable <b>Interview Mode</b> before analyzing to see coaching results here.</p>'
 
-            # ── STT timing badge ──────────────────────────────────────────────
-            stt_info_md = ""
+            # ── STT timing into the log ───────────────────────────────────────
             if result.stt_seconds > 0:
                 eng_label = STT_ENGINES.get(result.stt_engine, result.stt_engine)
-                stt_info_md = f"🎤 **{eng_label}** transcription took **{result.stt_seconds:.1f}s**"
+                log_text = _add_log(f"🎤 {eng_label} — {result.stt_seconds:.1f}s", "done")
 
             f_t    = str(job_dir / f"{stem}_transcript.txt")
             f_s    = str(job_dir / f"{stem}_speakers.txt")
@@ -2002,7 +2071,6 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
-                stt_info=stt_info_md,
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
                     "out_dir": str(job_dir)},
@@ -2066,8 +2134,21 @@ _VARIANT_LABELS = {
 def toggle_language_variant(lang):
     variants = LANGUAGE_VARIANTS.get(lang, [])
     if variants:
-        return gr.update(choices=variants, value=variants[0][1], visible=True)
-    return gr.update(choices=[], value=None, visible=False)
+        # Use the preloaded full choices list so Gradio never rejects a value
+        # that isn't in the currently rendered choices (fixes Indian languages).
+        all_choices = [
+            (lbl, val)
+            for vs in LANGUAGE_VARIANTS.values()
+            for lbl, val in vs
+        ]
+        first_val = variants[0][1]
+        return gr.update(choices=all_choices, value=first_val,
+                         label="Regional variant / dialect",
+                         visible=True, interactive=True)
+    return gr.update(choices=[], value=None,
+                     label="Regional variant / dialect",
+                     visible=True, interactive=False,
+                     placeholder="No variants for this language")
 
 
 # ── build theme ────────────────────────────────────────────────────────────────
@@ -3058,36 +3139,137 @@ _THEME_JS = """
     setTimeout(function(){ restoreKey(); }, 2800);   /* restore after everything else settles */
   })();
 
-  /* ── 📍 Auto-scroll to results panel when Analyze is clicked ─────────────
-     When the user hits Analyze File (left sidebar), the progress updates
-     appear in the right panel. We scroll it into view so they see it.     */
+  /* ── ▶ Floating Analyze button + auto-scroll ────────────────────────────
+     Adds a fixed ▶ pill in the top-right. Wired via event delegation (no
+     inline onclick) so Gradio's DOMPurify sanitizer cannot strip it.
+     Also auto-scrolls to the results panel when Analyze is triggered.    */
   (function(){
-    function attachAnalyzeScroll() {
-      /* Find the Analyze File button by its text */
-      var btns = document.querySelectorAll('button');
-      var analyzeBtn = null;
-      for (var i = 0; i < btns.length; i++) {
-        if ((btns[i].textContent || '').trim() === 'Analyze File') {
-          analyzeBtn = btns[i];
-          break;
-        }
-      }
-      if (!analyzeBtn) { setTimeout(attachAnalyzeScroll, 800); return; }
-      if (analyzeBtn.dataset.scrollWired) return;
-      analyzeBtn.dataset.scrollWired = '1';
+    /* Inject the floating button into the DOM */
+    function injectFloatBtn() {
+      if (document.getElementById('ta-float-analyze')) return;
+      var btn = document.createElement('button');
+      btn.id = 'ta-float-analyze';
+      btn.title = 'Analyze File';
+      btn.innerHTML = '&#9654;';   /* ▶ */
+      btn.style.cssText = (
+        'position:fixed;bottom:24px;right:24px;z-index:9998;'
+        + 'width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;'
+        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'font-size:1.3em;display:flex;align-items:center;justify-content:center;'
+        + 'box-shadow:0 4px 18px rgba(29,78,216,0.5);transition:all 0.18s;'
+      );
+      btn.addEventListener('mouseenter', function(){ this.style.transform='scale(1.12)'; });
+      btn.addEventListener('mouseleave', function(){ this.style.transform='scale(1)'; });
+      document.body.appendChild(btn);
+    }
 
-      analyzeBtn.addEventListener('click', function() {
-        /* Small delay so Gradio starts updating before we scroll */
-        setTimeout(function() {
-          var target = document.getElementById('ta-status-bar')
-                    || document.querySelector('.ta-status-bar');
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
+    /* Find the real Analyze File button and wire everything to it */
+    function wireAnalyze() {
+      var real = null;
+      document.querySelectorAll('button').forEach(function(b){
+        if ((b.textContent||'').trim() === 'Analyze File') real = b;
+      });
+      if (!real) { setTimeout(wireAnalyze, 800); return; }
+
+      /* Mark so we don't double-wire */
+      if (real.dataset.taWired) return;
+      real.dataset.taWired = '1';
+
+      function doAnalyze() {
+        real.click();
+        setTimeout(function(){
+          var t = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
+          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 400);
+      }
+
+      /* Wire floating button via event delegation on document */
+      document.addEventListener('click', function(e){
+        if (e.target && e.target.id === 'ta-float-analyze') doAnalyze();
+      });
+
+      /* Also wire real button's own click for scroll */
+      real.addEventListener('click', function(){
+        setTimeout(function(){
+          var t = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
+          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }, 400);
       });
     }
-    setTimeout(attachAnalyzeScroll, 1500);
+
+    injectFloatBtn();
+    setTimeout(wireAnalyze, 1500);
+  })();
+
+  /* ── 🔄 In-app update checker (desktop / local only) ───────────────────────
+     Skipped automatically on HF Spaces (window.location.hostname !== localhost).
+     Fetches the current APP_VERSION from the HF Space raw file.
+     If a newer version is available, shows a dismissible update banner with
+     a "Download Update" button — just like a real desktop app.             */
+  (function(){
+    var CURRENT  = '2.3';
+    var RAW_URL  = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/app.py';
+    var SETUP_WIN = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_windows.bat';
+    var SETUP_MAC = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_mac.sh';
+
+    /* Only run on localhost / desktop app */
+    var host = window.location.hostname;
+    if (host !== 'localhost' && host !== '127.0.0.1' && host !== '') return;
+
+    function showUpdateBanner(latest) {
+      if (document.getElementById('ta-update-banner')) return;
+      var isWin = navigator.platform.toLowerCase().indexOf('win') >= 0;
+      var setupUrl = isWin ? SETUP_WIN : SETUP_MAC;
+      var setupFile = isWin ? 'setup_windows.bat' : 'setup_mac.sh';
+      var setupInstr = isWin ? 'Double-click to run' : 'Open Terminal → bash ~/Downloads/' + setupFile;
+
+      var b = document.createElement('div');
+      b.id = 'ta-update-banner';
+      b.style.cssText = (
+        'position:fixed;top:0;left:0;right:0;z-index:99999;'
+        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'display:flex;align-items:center;gap:14px;padding:12px 20px;'
+        + 'font-family:system-ui,sans-serif;font-size:0.88em;'
+        + 'box-shadow:0 2px 12px rgba(29,78,216,0.4);'
+      );
+      b.innerHTML = (
+        '<span style="font-size:1.3em;flex-shrink:0;">🔄</span>'
+        + '<div style="flex:1;">'
+        +   '<div style="font-weight:700;">Update available — v' + latest + '</div>'
+        +   '<div style="opacity:0.85;font-size:0.88em;">'
+        +     'You are on v' + CURRENT + '. Download the installer and choose "Update" when it runs.'
+        +   '</div>'
+        + '</div>'
+        + '<a id="ta-update-dl" href="' + setupUrl + '" download="' + setupFile + '" style="'
+        +   'background:#fff;color:#1d4ed8;font-weight:700;font-size:0.82em;'
+        +   'padding:7px 16px;border-radius:8px;text-decoration:none;white-space:nowrap;'
+        +   'flex-shrink:0;">⬇ Download Update</a>'
+        + '<button onclick="document.getElementById(\'ta-update-banner\').remove()" style="'
+        +   'background:rgba(255,255,255,0.2);border:none;color:#fff;cursor:pointer;'
+        +   'border-radius:6px;padding:6px 10px;font-size:1em;flex-shrink:0;">✕</button>'
+      );
+      document.body.prepend(b);
+
+      /* Nudge content down so banner doesn't overlap the app */
+      var gc = document.querySelector('.gradio-container, .contain');
+      if (gc) gc.style.marginTop = b.offsetHeight + 'px';
+    }
+
+    function checkVersion() {
+      fetch(RAW_URL + '?t=' + Date.now(), { cache: 'no-store' })
+        .then(function(r){ return r.text(); })
+        .then(function(src){
+          var m = src.match(/APP_VERSION[ \t]*=[ \t]*["']([^"']+)["']/);
+          if (!m) return;
+          var latest = m[1].trim();
+          if (latest !== CURRENT) showUpdateBanner(latest);
+        })
+        .catch(function(){}); /* silent — no network? just skip */
+    }
+
+    /* Check once on load, then every 6 hours */
+    setTimeout(checkVersion, 3000);
+    setInterval(checkVersion, 6 * 60 * 60 * 1000);
   })();
 })();
 """
@@ -3365,14 +3547,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     label="STT Engine",
                     choices=[(v, k) for k, v in STT_ENGINES.items()],
                     value="whisper_local",
-                    info="Whisper = local/offline · Others need an API key below",
                 )
                 stt_key_input = gr.Textbox(
-                    label="STT API Key (cloud engines only)",
-                    placeholder="Leave blank for Whisper local",
+                    label="STT API Key",
+                    placeholder="Required for cloud engines — leave blank for Whisper local",
                     type="password",
-                    visible=False,
-                    info="🔒 Stored in your browser only — never sent to this server",
+                    info="🔒 Saved in your browser only — never stored on this server",
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model size",
@@ -3382,16 +3562,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
-            with gr.Accordion("🎤 Interview Mode", open=False):
+            with gr.Accordion("🎤 Interview Mode", open=True):
                 interview_toggle = gr.Checkbox(
                     label="Enable Interview Mode",
-                    value=False,
+                    value=True,
                     info="Extracts every question + scores each answer: Great / Good / Needs Improvement / Missed",
                 )
                 interview_deep = gr.Checkbox(
                     label="Deep Analysis",
-                    value=False,
-                    visible=False,
+                    value=True,
+                    visible=True,
                     info="Adds deflection rate, advancement likelihood, and prep guide",
                 )
 
@@ -3412,7 +3592,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     label="Regional variant / dialect",
                     choices=_all_variant_choices,
                     value=None,
-                    visible=False,
+                    visible=True,
+                    interactive=False,
+                    info="Select a language above to unlock regional variants",
                 )
 
             with gr.Accordion("Report Format", open=False):
@@ -3511,7 +3693,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 label="Live Processing Log",
             )
 
-            stt_timing = gr.Markdown(value="", elem_id="stt-timing")
+            # stt timing shown in log, not a separate component
 
             with gr.Tabs():
                 with gr.TabItem("Summary"):
@@ -3545,14 +3727,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     )
 
                 with gr.TabItem("📂 History"):
-                    history_refresh_btn = gr.Button("🔄 Refresh History", size="sm")
+                    with gr.Row():
+                        history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
+                        gr.Markdown(
+                            "_Click any row to reload that session's summary._",
+                            elem_classes=["ta-history-hint"],
+                        )
                     history_table = gr.Dataframe(
                         headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Score", "Verdict"],
                         datatype=["str","str","str","number","str","str","str"],
                         interactive=False,
                         wrap=True,
                     )
-                    history_load_btn = gr.Button("Load Selected Session", size="sm", visible=False)
+                    history_selected_summary = gr.Markdown(value="", label="Session Summary")
 
                 with gr.TabItem("Copy All"):
                     combined_out = gr.Textbox(
@@ -3560,33 +3747,22 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         placeholder="All sections combined will appear here…",
                     )
 
-    # ── Download + Changelog row ──────────────────────────────────────────────
-    _ON_HF = bool(os.environ.get("SPACE_ID"))   # True when running on HF Spaces
+    # ── Footer — changelog link on HF website, update banner on desktop ─────────
+    _ON_HF = bool(os.environ.get("SPACE_ID"))
 
-    with gr.Row():
-        with gr.Column(scale=1):
-            with gr.Accordion("🖥️  Get the Desktop App", open=False):
-                gr.HTML(_DOWNLOAD_SECTION)
+    _changelog_link = (
+        'View changelog on '
+        '<a href="https://huggingface.co/spaces/Coastline6/transcript-agent/blob/main/CHANGELOG.md"'
+        '   target="_blank" style="color:#3b82f6;font-weight:600;">GitHub →</a>'
+        if _ON_HF else ""
+    )
 
-        with gr.Column(scale=1):
-            with gr.Accordion("📋  What's New", open=False):
-                if _ON_HF:
-                    gr.HTML(
-                        f'<div style="padding:10px 4px;font-size:0.85em;color:var(--ta-card-sub);">'
-                        f'Full release notes are on GitHub.<br>'
-                        f'<a href="https://huggingface.co/spaces/Coastline6/transcript-agent/blob/main/CHANGELOG.md"'
-                        f'   target="_blank" style="color:#3b82f6;font-weight:600;">'
-                        f'View Changelog →</a>'
-                        f'</div>'
-                    )
-                else:
-                    gr.HTML(_CHANGELOG_HTML)
-
-    gr.HTML("""
+    gr.HTML(f"""
     <div style="text-align:center;padding:20px 0 4px;font-size:0.76em;color:#94a3b8;">
       Transcript Agent &nbsp;&bull;&nbsp; Transcription by OpenAI Whisper
       &nbsp;&bull;&nbsp; Analysis by Anthropic Claude
       &nbsp;&bull;&nbsp; Files processed privately on your machine
+      {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
     </div>
     """)
 
@@ -3605,12 +3781,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
     # STT engine → show/hide cloud API key field
-    def on_stt_change(engine):
-        needs_key = engine != "whisper_local"
-        return gr.update(visible=needs_key)
-
-    stt_engine_input.change(fn=on_stt_change, inputs=stt_engine_input, outputs=stt_key_input)
-
     # Interview mode toggle → show/hide deep mode
     interview_toggle.change(
         fn=lambda v: gr.update(visible=v),
@@ -3620,11 +3790,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     language_input.change(
         fn=toggle_language_variant,
-        inputs=language_input,
-        outputs=language_variant,
+        inputs=[language_input],
+        outputs=[language_variant],
     )
 
-    # History refresh
+    # History helpers
     def refresh_history():
         rows = []
         for e in load_history(HISTORY_PATH):
@@ -3636,7 +3806,29 @@ with gr.Blocks(title="Transcript Agent") as demo:
             ])
         return rows or [["No history yet","","","","","",""]]
 
+    def load_history_row(evt: gr.SelectData):
+        """Called immediately when a row is clicked — no setTimeout race."""
+        entries = load_history(HISTORY_PATH)
+        idx = evt.index[0] if hasattr(evt, "index") else 0
+        if not entries or idx >= len(entries):
+            return "_No session data found._"
+        e = entries[idx]
+        md = (
+            f"### 📂 {e.get('filename','')}\n\n"
+            f"**Date:** {e.get('timestamp','')}  \n"
+            f"**STT Engine:** {e.get('stt_engine','')} ({e.get('stt_secs',0)}s)  \n"
+            f"**AI Provider:** {e.get('ai_provider','')} / {e.get('ai_model','')}  \n"
+            f"**Language:** {e.get('language','')}  \n"
+            f"**Words:** {e.get('word_count','')}  \n"
+        )
+        if e.get("overall_score"):
+            md += f"**Score:** {e.get('overall_score')}/100 — {e.get('overall_verdict','')}\n\n"
+        if e.get("summary"):
+            md += f"---\n**Summary preview:**\n\n{e['summary']}"
+        return md
+
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
+    history_table.select(fn=load_history_row, outputs=history_selected_summary)
 
     process_event = process_btn.click(
         fn=process_file,
@@ -3662,7 +3854,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
             download_accordion,
             log_out,
             eta_panel,
-            stt_timing,
             result_state,
         ],
     )

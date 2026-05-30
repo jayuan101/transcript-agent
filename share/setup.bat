@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 title Transcript Agent - First Time Setup
 echo.
 echo  ============================================

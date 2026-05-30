@@ -2942,6 +2942,156 @@ _SECTION = lambda label: f"""
 </div>
 """
 
+# ── Changelog ────────────────────────────────────────────────────────────────
+_RELEASES = [
+    {
+        "version": "2.3",
+        "date": "2025-05-30",
+        "notes": [
+            "Windows & Mac native installers (no Docker required)",
+            "Download buttons for installers added to the UI",
+            "Cancel button to stop transcription mid-run",
+            "API key remembered per-provider in browser (local only)",
+            "AI provider & model remembered across sessions",
+        ],
+    },
+    {
+        "version": "2.2",
+        "date": "2025-05-29",
+        "notes": [
+            "Professional UI redesign — refined hero, cards, tabs, buttons",
+            "Full dark mode support for all redesigned elements",
+            "Gradio footer, version badge & API tab hidden",
+            "Pace reference legend moved to top of Speech Analytics",
+        ],
+    },
+    {
+        "version": "2.1",
+        "date": "2025-05-15",
+        "notes": [
+            "Multi-provider LLM support: OpenAI, Gemini, Groq, Mistral, Together AI, Perplexity, Ollama",
+            "Claude model selector (Haiku / Sonnet / Opus) with latest public IDs",
+            "PDF report export with per-language translation",
+            "3-step processing tracker and live ETA panel",
+            "37+ languages with regional dialect variants",
+            "Indian language support (Hindi, Bengali, Tamil, Telugu, and more)",
+        ],
+    },
+    {
+        "version": "2.0",
+        "date": "2025-05-01",
+        "notes": [
+            "Speaker diarization (Panel Mode) via WhisperX",
+            "Speech analytics: WPM, pace label, accent detection",
+            "API key approval banner with live validation",
+            "Docker-based share package (setup.bat / setup.sh)",
+        ],
+    },
+]
+
+APP_VERSION = "2.3"
+
+def _build_changelog():
+    latest = _RELEASES[0]["version"]
+    is_latest = APP_VERSION == latest
+    badge_color = "#22c55e" if is_latest else "#f59e0b"
+    badge_text  = f"v{APP_VERSION} — Up to date ✓" if is_latest else f"v{APP_VERSION} — Update available"
+    header = (
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+        f'<span style="font-size:0.8em;font-weight:700;color:var(--ta-card-sub);">Current version</span>'
+        f'<span style="background:{badge_color};color:#fff;font-size:0.72em;font-weight:700;'
+        f'padding:3px 10px;border-radius:20px;letter-spacing:0.04em;">{badge_text}</span>'
+        f'</div>'
+    )
+    rows = ""
+    for r in _RELEASES:
+        items = "".join(
+            f'<li style="margin:2px 0;color:var(--ta-card-text)">{n}</li>'
+            for n in r["notes"]
+        )
+        rows += (
+            f'<div style="margin-bottom:14px;">'
+            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px;">'
+            f'<span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);'
+            f'font-size:0.72em;font-weight:700;padding:2px 9px;border-radius:20px;'
+            f'letter-spacing:0.04em;">v{r["version"]}</span>'
+            f'<span style="font-size:0.75em;color:var(--ta-card-sub);">{r["date"]}</span>'
+            f'</div>'
+            f'<ul style="margin:0 0 0 16px;padding:0;font-size:0.82em;line-height:1.7;">{items}</ul>'
+            f'</div>'
+        )
+    return f'<div style="max-height:320px;overflow-y:auto;padding:4px 2px;">{header}{rows}</div>'
+
+_CHANGELOG_HTML = _build_changelog()
+
+# ── Desktop download section ──────────────────────────────────────────────────
+_HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main"
+
+_DOWNLOAD_SECTION = f"""
+<div style="padding:4px 2px;">
+  <p style="font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px;">
+    Install Transcript Agent on your own computer — no Docker, no cloud.
+    Your files stay private on your machine.
+  </p>
+
+  <div style="display:flex;flex-direction:column;gap:10px;">
+
+    <a href="{_HF_RAW}/setup_windows.bat" download="setup_windows.bat"
+       style="display:flex;align-items:center;gap:12px;
+              background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+              color:#fff;border-radius:12px;padding:13px 18px;
+              text-decoration:none;font-weight:600;font-size:0.88em;
+              box-shadow:0 4px 14px rgba(29,78,216,0.35);transition:opacity 0.15s;">
+      <span style="font-size:1.5em;">🪟</span>
+      <div>
+        <div style="font-size:0.95em;font-weight:700;color:#fff;">Download for Windows</div>
+        <div style="font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px;">
+          setup_windows.bat &nbsp;·&nbsp; Double-click to install
+        </div>
+      </div>
+    </a>
+
+    <a href="{_HF_RAW}/setup_mac.sh" download="setup_mac.sh"
+       style="display:flex;align-items:center;gap:12px;
+              background:linear-gradient(135deg,#15803d,#22c55e);
+              color:#fff;border-radius:12px;padding:13px 18px;
+              text-decoration:none;font-weight:600;font-size:0.88em;
+              box-shadow:0 4px 14px rgba(22,163,74,0.35);transition:opacity 0.15s;">
+      <span style="font-size:1.5em;">🍎</span>
+      <div>
+        <div style="font-size:0.95em;font-weight:700;color:#fff;">Download for Mac</div>
+        <div style="font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px;">
+          setup_mac.sh &nbsp;·&nbsp; Run in Terminal to install
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--ta-card-border);">
+    <p style="font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px;">
+      Already installed? Run the installer again to update:
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <code style="font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border);">
+        Windows: setup_windows.bat → choose [2] Update
+      </code>
+      <code style="font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);
+            padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border);">
+        Mac: ./setup_mac.sh → choose [2] Update
+      </code>
+    </div>
+  </div>
+
+  <p style="font-size:0.74em;color:var(--ta-card-sub);margin:12px 0 0;">
+    🔒 Runs entirely on your machine &nbsp;·&nbsp;
+    No account needed &nbsp;·&nbsp;
+    Bring your own API key
+  </p>
+</div>
+"""
+
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
 with gr.Blocks(title="Transcript Agent") as demo:
@@ -3144,6 +3294,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         lines=30, buttons=["copy"], label="",
                         placeholder="All sections combined will appear here…",
                     )
+
+    # ── Download + Changelog row ──────────────────────────────────────────────
+    with gr.Row():
+        with gr.Column(scale=1):
+            with gr.Accordion("🖥️  Get the Desktop App", open=False):
+                gr.HTML(_DOWNLOAD_SECTION)
+
+        with gr.Column(scale=1):
+            with gr.Accordion("📋  What's New", open=False):
+                gr.HTML(_CHANGELOG_HTML)
 
     gr.HTML("""
     <div style="text-align:center;padding:20px 0 4px;font-size:0.76em;color:#94a3b8;">

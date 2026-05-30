@@ -1,21 +1,41 @@
 @echo off
+setlocal enabledelayedexpansion
 title Transcript Agent
 
-echo Stopping any old instance...
-taskkill /F /IM python.exe >nul 2>&1
-timeout /t 3 /nobreak >nul
+set "APPDIR=%~dp0"
 
-echo Starting Transcript Agent...
-start "" "C:\Users\Ja-Yuan Pendley\AppData\Local\Programs\Python\Python313\python.exe" "%~dp0app.py"
-
-echo Waiting for app to start...
-timeout /t 12 /nobreak >nul
-
-echo Opening browser...
-start "" "http://localhost:7860"
+:: ── Locate Python: prefer venv, then system python, then py launcher ──────────
+set "PYTHON="
+if exist "%APPDIR%venv\Scripts\python.exe" (
+    set "PYTHON=%APPDIR%venv\Scripts\python.exe"
+    goto :have_python
+)
+where python >nul 2>&1
+if %errorlevel%==0 (
+    set "PYTHON=python"
+    goto :have_python
+)
+where py >nul 2>&1
+if %errorlevel%==0 (
+    set "PYTHON=py"
+    goto :have_python
+)
 
 echo.
-echo App is running at: http://localhost:7860
-echo Close this window to stop the app.
+echo  ERROR: Python not found.
+echo  Run setup_windows.bat first to install everything.
 echo.
 pause
+exit /b 1
+
+:have_python
+echo.
+echo  Starting Transcript Agent...
+echo  Browser will open at http://localhost:7860
+echo.
+
+:: Start the app (opens in the same window so Ctrl+C stops it)
+start "" "http://localhost:7860"
+"%PYTHON%" "%APPDIR%app.py"
+
+endlocal

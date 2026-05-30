@@ -3,10 +3,14 @@
 Transcript Agent — PyInstaller spec
 Build: pyinstaller TranscriptAgent.spec
 Output: dist/TranscriptAgent/  (onedir — fast startup, no extraction delay)
+
+Version: bump APP_VERSION here — it propagates to Mac .app bundle info.
 """
 
 import sys
 from pathlib import Path
+
+APP_VERSION = "3.48"
 
 block_cipher = None
 HERE = Path(SPECPATH)
@@ -114,8 +118,8 @@ if sys.platform == 'darwin':
         info_plist={
             'CFBundleName':              'Transcript Agent',
             'CFBundleDisplayName':       'Transcript Agent',
-            'CFBundleVersion':           '3.48',
-            'CFBundleShortVersionString':'3.48',
+            'CFBundleVersion':           APP_VERSION,
+            'CFBundleShortVersionString':APP_VERSION,
             'NSHighResolutionCapable':   True,
             'LSBackgroundOnly':          False,
         },

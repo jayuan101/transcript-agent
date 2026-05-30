@@ -2186,6 +2186,19 @@ _THEME_JS = """
       /* ── File upload area ── */
       '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
       '.upload-container:hover{border-color:#3b82f6!important}',
+      /* ── Download section ── */
+      '.ta-dl-wrap{padding:4px 2px}',
+      '.ta-dl-desc{font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px}',
+      '.ta-dl-btn{display:flex;align-items:center;gap:12px;border-radius:12px;padding:13px 18px;text-decoration:none;font-weight:600;font-size:0.88em;transition:opacity 0.15s,box-shadow 0.15s}',
+      '.ta-dl-btn:hover{opacity:0.88}',
+      '.ta-dl-win{background:linear-gradient(135deg,#1d4ed8,#3b82f6);box-shadow:0 4px 14px rgba(29,78,216,0.35)}',
+      '.ta-dl-mac{background:linear-gradient(135deg,#15803d,#22c55e);box-shadow:0 4px 14px rgba(22,163,74,0.35)}',
+      '.ta-dl-btn-title{font-size:0.95em;font-weight:700;color:#fff}',
+      '.ta-dl-btn-sub{font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px}',
+      '.ta-dl-update-row{margin-top:14px;padding-top:12px;border-top:1px solid var(--ta-card-border)}',
+      '.ta-dl-update-label{font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px}',
+      '.ta-dl-code{font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border)}',
+      '.ta-dl-footer{font-size:0.74em;color:var(--ta-card-sub);margin:12px 0 0}',
       /* ── Changelog ── */
       '.ta-cl-wrap{max-height:360px;overflow-y:auto;padding:2px 4px 4px}',
       '.ta-cl-status{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:14px}',
@@ -2302,6 +2315,10 @@ _THEME_JS = """
     'html.dark .ta-cl-list li{color:#cbd5e1!important}',
     'html.dark .ta-cl-list li::before{color:#60a5fa!important}',
     'html.dark .ta-cl-latest .ta-cl-list li::before{color:#93c5fd!important}',
+    /* ── Download section dark mode ── */
+    'html.dark .ta-dl-win{box-shadow:0 4px 20px rgba(29,78,216,0.55)!important}',
+    'html.dark .ta-dl-mac{box-shadow:0 4px 20px rgba(22,163,74,0.50)!important}',
+    'html.dark .ta-dl-code{background:#0f172a!important;color:#cbd5e1!important;border-color:#334155!important}',
     /* ── Pace reference chips ── */
     'html.dark .ta-pace-ref{background:#1e293b!important;border-color:#334155!important}',
     'html.dark .ta-pace-label{color:#94a3b8!important}',
@@ -3076,63 +3093,41 @@ _CHANGELOG_HTML = _build_changelog()
 _HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main"
 
 _DOWNLOAD_SECTION = f"""
-<div style="padding:4px 2px;">
-  <p style="font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px;">
+<div class="ta-dl-wrap">
+  <p class="ta-dl-desc">
     Install Transcript Agent on your own computer — no Docker, no cloud.
     Your files stay private on your machine.
   </p>
 
   <div style="display:flex;flex-direction:column;gap:10px;">
 
-    <a href="{_HF_RAW}/setup_windows.bat" download="setup_windows.bat"
-       style="display:flex;align-items:center;gap:12px;
-              background:linear-gradient(135deg,#1d4ed8,#3b82f6);
-              color:#fff;border-radius:12px;padding:13px 18px;
-              text-decoration:none;font-weight:600;font-size:0.88em;
-              box-shadow:0 4px 14px rgba(29,78,216,0.35);transition:opacity 0.15s;">
-      <span style="font-size:1.5em;">🪟</span>
+    <a class="ta-dl-btn ta-dl-win" href="{_HF_RAW}/setup_windows.bat" download="setup_windows.bat">
+      <span style="font-size:1.5em;flex-shrink:0;">🪟</span>
       <div>
-        <div style="font-size:0.95em;font-weight:700;color:#fff;">Download for Windows</div>
-        <div style="font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px;">
-          setup_windows.bat &nbsp;·&nbsp; Double-click to install
-        </div>
+        <div class="ta-dl-btn-title">Download for Windows</div>
+        <div class="ta-dl-btn-sub">setup_windows.bat &nbsp;·&nbsp; Double-click to install</div>
       </div>
     </a>
 
-    <a href="{_HF_RAW}/setup_mac.sh" download="setup_mac.sh"
-       style="display:flex;align-items:center;gap:12px;
-              background:linear-gradient(135deg,#15803d,#22c55e);
-              color:#fff;border-radius:12px;padding:13px 18px;
-              text-decoration:none;font-weight:600;font-size:0.88em;
-              box-shadow:0 4px 14px rgba(22,163,74,0.35);transition:opacity 0.15s;">
-      <span style="font-size:1.5em;">🍎</span>
+    <a class="ta-dl-btn ta-dl-mac" href="{_HF_RAW}/setup_mac.sh" download="setup_mac.sh">
+      <span style="font-size:1.5em;flex-shrink:0;">🍎</span>
       <div>
-        <div style="font-size:0.95em;font-weight:700;color:#fff;">Download for Mac</div>
-        <div style="font-size:0.75em;font-weight:400;color:rgba(255,255,255,0.75);margin-top:1px;">
-          setup_mac.sh &nbsp;·&nbsp; Run in Terminal to install
-        </div>
+        <div class="ta-dl-btn-title">Download for Mac</div>
+        <div class="ta-dl-btn-sub">setup_mac.sh &nbsp;·&nbsp; Run in Terminal to install</div>
       </div>
     </a>
 
   </div>
 
-  <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--ta-card-border);">
-    <p style="font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px;">
-      Already installed? Run the installer again to update:
-    </p>
+  <div class="ta-dl-update-row">
+    <p class="ta-dl-update-label">Already installed? Run the installer again to update:</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <code style="font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);
-            padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border);">
-        Windows: setup_windows.bat → choose [2] Update
-      </code>
-      <code style="font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);
-            padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border);">
-        Mac: ./setup_mac.sh → choose [2] Update
-      </code>
+      <code class="ta-dl-code">Windows: setup_windows.bat → choose [2] Update</code>
+      <code class="ta-dl-code">Mac: ./setup_mac.sh → choose [2] Update</code>
     </div>
   </div>
 
-  <p style="font-size:0.74em;color:var(--ta-card-sub);margin:12px 0 0;">
+  <p class="ta-dl-footer">
     🔒 Runs entirely on your machine &nbsp;·&nbsp;
     No account needed &nbsp;·&nbsp;
     Bring your own API key

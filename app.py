@@ -1116,18 +1116,18 @@ def stats_to_markdown(speaker_stats) -> str:
     if not speaker_stats:
         return "_No speech analytics available. Upload an audio or video file to see speaker stats._"
     lines = [
-        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;'
+        '<div class="ta-pace-ref" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;'
         'margin-bottom:14px;padding:10px 14px;background:#f8fafc;'
         'border:1px solid #e2e8f0;border-radius:10px;">'
-        '<span style="font-size:0.75em;font-weight:700;text-transform:uppercase;'
+        '<span class="ta-pace-label" style="font-size:0.75em;font-weight:700;text-transform:uppercase;'
         'letter-spacing:0.08em;color:#64748b;margin-right:4px;">Pace&nbsp;reference</span>'
-        '<span style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;'
+        '<span class="ta-chip ta-chip-slow" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;'
         'padding:3px 10px;font-size:0.8em;font-weight:600;color:#475569;">🐢 Slow &lt;120 wpm</span>'
-        '<span style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;'
+        '<span class="ta-chip ta-chip-normal" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;'
         'padding:3px 10px;font-size:0.8em;font-weight:600;color:#1d4ed8;">🚶 Normal 120–150</span>'
-        '<span style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;'
+        '<span class="ta-chip ta-chip-fast" style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;'
         'padding:3px 10px;font-size:0.8em;font-weight:600;color:#a16207;">🏃 Fast 150–180</span>'
-        '<span style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;'
+        '<span class="ta-chip ta-chip-vfast" style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;'
         'padding:3px 10px;font-size:0.8em;font-weight:600;color:#dc2626;">⚡ Very Fast &gt;180</span>'
         '</div>',
         "",
@@ -2274,6 +2274,13 @@ _THEME_JS = """
     /* ── Labels ── */
     'html.dark label>span:first-child,html.dark .block-label{color:#94a3b8!important}',
     'html.dark .info{color:#64748b!important}',
+    /* ── Pace reference chips ── */
+    'html.dark .ta-pace-ref{background:#1e293b!important;border-color:#334155!important}',
+    'html.dark .ta-pace-label{color:#94a3b8!important}',
+    'html.dark .ta-chip-slow{background:#0f172a!important;border-color:#475569!important;color:#94a3b8!important}',
+    'html.dark .ta-chip-normal{background:#1e3a5f!important;border-color:#3b82f6!important;color:#93c5fd!important}',
+    'html.dark .ta-chip-fast{background:#3b2d00!important;border-color:#ca8a04!important;color:#fbbf24!important}',
+    'html.dark .ta-chip-vfast{background:#450a0a!important;border-color:#991b1b!important;color:#f87171!important}',
     /* scrollbars */
     'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',

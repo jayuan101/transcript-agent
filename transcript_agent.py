@@ -1276,6 +1276,8 @@ Be specific, honest, and actionable. Use the exact keys shown below.
 _INTERVIEW_PROMPT = """\
 Analyse this interview transcript carefully. Return ONLY valid JSON — no markdown fences.
 
+CRITICAL: Include EVERY question asked by the interviewer in the "questions" array — do not skip, merge, or omit any. If a follow-up or clarifying question was asked, include it as its own entry.
+
 Rules for answer_said:
 - Quote or closely paraphrase what the candidate ACTUALLY said — 3 to 5 sentences.
 - Include the specific points, examples, numbers, stories, or projects they mentioned.

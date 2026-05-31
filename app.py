@@ -2224,13 +2224,36 @@ def process_file(
                     "Great": "#22c55e", "Good": "#3b82f6",
                     "Needs Improvement": "#f59e0b", "Missed": "#ef4444",
                 }
+                _score_val = ia.get("overall_score", "—")
+                _verdict   = ia.get("overall_verdict", "")
+                try:
+                    _score_num = int(_score_val)
+                    _score_bg  = ("#166534" if _score_num >= 8 else
+                                  "#1d4ed8" if _score_num >= 6 else
+                                  "#92400e" if _score_num >= 4 else "#991b1b")
+                except (ValueError, TypeError):
+                    _score_bg = "#1e293b"
                 iv_html = (
                     f'<div style="padding:4px 0;">'
-                    f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;'
-                    f'padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">'
-                    f'<span style="font-size:2em;">🎯</span>'
-                    f'<div><div style="font-weight:700;font-size:1em;">Overall Score: {ia.get("overall_score","—")}/10</div>'
-                    f'<div style="color:#16a34a;font-weight:600;">{ia.get("overall_verdict","")}</div></div>'
+                    # ── Score hero card ──────────────────────────────────────
+                    f'<div style="background:{_score_bg};border-radius:16px;'
+                    f'padding:20px 24px;margin-bottom:20px;'
+                    f'display:flex;align-items:center;gap:20px;">'
+                    # Big score number
+                    f'<div style="background:rgba(255,255,255,0.15);border-radius:12px;'
+                    f'padding:10px 18px;text-align:center;min-width:80px;">'
+                    f'<div style="font-size:2.6em;font-weight:900;color:#fff;line-height:1;">'
+                    f'{_score_val}</div>'
+                    f'<div style="font-size:0.75em;font-weight:700;color:rgba(255,255,255,0.75);'
+                    f'letter-spacing:0.08em;text-transform:uppercase;">out of 10</div>'
+                    f'</div>'
+                    # Verdict text
+                    f'<div>'
+                    f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">'
+                    f'🎯 Overall Score</div>'
+                    f'<div style="font-size:1.3em;font-weight:800;color:#fff;">{_verdict}</div>'
+                    f'</div>'
                     f'</div>'
                 )
                 _DEFLECT_STYLE = {
@@ -2260,36 +2283,45 @@ def process_file(
                         )
 
                     iv_html += (
-                        f'<div style="border:1px solid #e8edf4;border-radius:12px;'
-                        f'padding:14px 16px;margin-bottom:16px;border-left:4px solid {col};">'
-                        # Question + score badge
-                        f'<div style="font-weight:700;font-size:0.95em;margin-bottom:8px;color:#1e293b;">'
-                        f'Q{q.get("id","")}: {q.get("question","")}</div>'
-                        f'<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">'
-                        f'<span style="background:{col};color:#fff;font-size:0.72em;font-weight:700;'
-                        f'padding:3px 12px;border-radius:20px;">{sc}</span>'
-                        f'<span style="font-size:0.82em;color:#64748b;">{q.get("score_reason","")}</span>'
+                        f'<div style="border:2px solid {col};border-radius:14px;'
+                        f'padding:16px 18px;margin-bottom:20px;background:#fff;">'
+                        # Q number chip + question text
+                        f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+                        f'<span style="background:{col};color:#fff;font-size:0.78em;font-weight:800;'
+                        f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">'
+                        f'Q{q.get("id","")}</span>'
+                        f'<div style="font-weight:700;font-size:1em;color:#0f172a;line-height:1.5;">'
+                        f'{q.get("question","")}</div>'
+                        f'</div>'
+                        # Score badge + reason on same row
+                        f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+                        f'<span style="background:{col};color:#fff;font-size:0.8em;font-weight:800;'
+                        f'padding:4px 14px;border-radius:20px;">{sc}</span>'
+                        f'<span style="font-size:0.85em;color:#334155;font-weight:500;">'
+                        f'{q.get("score_reason","")}</span>'
                         f'</div>'
                         + defl_html
-                        # What they said — open by default, distinct background
-                        + f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
-                        f'padding:10px 14px;margin-bottom:8px;">'
-                        f'<div style="font-size:0.78em;font-weight:700;text-transform:uppercase;'
-                        f'letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">📝 What they said</div>'
-                        f'<p style="font-size:0.86em;line-height:1.65;margin:0;color:#374151;">{answer_said}</p>'
+                        # What they said
+                        + f'<div style="background:#f1f5f9;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;'
+                        f'padding:12px 14px;margin-bottom:10px;">'
+                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;color:#475569;margin-bottom:6px;">📝 What they said</div>'
+                        f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#1e293b;">{answer_said}</p>'
                         f'</div>'
-                        # What you could have said — first-person, green tint
-                        f'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
-                        f'padding:10px 14px;margin-bottom:8px;">'
-                        f'<div style="font-size:0.78em;font-weight:700;text-transform:uppercase;'
-                        f'letter-spacing:0.06em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
-                        f'<p style="font-size:0.86em;line-height:1.65;margin:0;color:#166534;font-style:italic;">'
+                        # What you could have said
+                        f'<div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;'
+                        f'padding:12px 14px;margin-bottom:10px;">'
+                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
+                        f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#14532d;font-style:italic;">'
                         f'{model_answer}</p>'
                         f'</div>'
-                        # Coaching tip — collapsible
-                        + (f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
-                        f'font-weight:600;color:#7c3aed;">🏋️ Coaching Tip</summary>'
-                        f'<p style="font-size:0.83em;margin:6px 0 0;color:#374151;">{coaching_tip}</p></details>'
+                        # Coaching tip
+                        + (f'<div style="background:#faf5ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;'
+                        f'padding:12px 14px;">'
+                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;color:#7c3aed;margin-bottom:6px;">🏋️ Coaching Tip</div>'
+                        f'<p style="font-size:0.88em;margin:0;color:#3b0764;">{coaching_tip}</p></div>'
                         if coaching_tip else '')
                         + f'</div>'
                     )
@@ -2651,6 +2683,7 @@ _THEME_TOGGLE = """
 # path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
 _THEME_JS = """
 (function(){
+  window.__taThemeRan = true;
   var _dark = false;
 
   /* ── Inject toggle widget directly into <body> so Gradio can never remove it ─
@@ -4179,12 +4212,6 @@ _THEME_JS = """
     setInterval(_ping, 4000);
   })();
 
-  /* (update checker removed — releases tracked on GitHub) */
-  (function(){
-    if (false) {  /* intentionally empty */
-        +   'background:#fff;color:#1d4ed8;font-weight:700;font-size:0.82em;'
-        +   'padding:7px 16px;border-radius:8px;text-decoration:none;white-space:nowrap;'
-  })();
 })();
 """
 
@@ -4407,6 +4434,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
+    # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
+    # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
+    gr.HTML(_THEME_TOGGLE)
 
     # ── Browser-persisted settings (single BrowserState per setting) ───────────
     # stt_engine is intentionally excluded — restoring it via demo.load() triggers
@@ -4928,6 +4958,9 @@ with gr.Blocks(title="Transcript Agent") as demo:
                  speakers_input],
         queue=False,
     )
+
+    # Inject theme toggle + floating button via demo.load js= (guaranteed execution in Gradio 6.x)
+    demo.load(fn=None, js=f"() => {{ {_THEME_JS} }}")
 
 
 

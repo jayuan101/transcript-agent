@@ -2273,6 +2273,14 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
+def toggle_stt_engine(engine):
+    is_local = engine == "whisper_local"
+    return (
+        gr.update(visible=is_local),   # whisper_input
+        gr.update(visible=not is_local, label="STT API Key"),  # stt_key_input
+    )
+
+
 _VARIANT_LABELS = {
     "en": "English regional variant",
     "es": "Spanish regional variant",
@@ -3990,17 +3998,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     choices=[(v, k) for k, v in STT_ENGINES.items()],
                     value="whisper_local",
                 )
-                stt_key_input = gr.Textbox(
-                    label="STT API Key",
-                    placeholder="Required for cloud engines — leave blank for Whisper local",
-                    type="password",
-                    info="🔒 Saved in your browser only — never stored on this server",
-                )
                 whisper_input = gr.Dropdown(
                     label="Whisper model size",
                     choices=["tiny", "base", "small", "medium", "large"],
                     value="base",
                     info="tiny = fastest   |   large = most accurate",
+                    visible=True,
+                )
+                stt_key_input = gr.Textbox(
+                    label="STT API Key",
+                    placeholder="API key for the selected cloud STT engine",
+                    type="password",
+                    info="🔒 Saved in your browser only — never stored on this server",
+                    visible=False,
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
@@ -4238,8 +4248,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[model_dropdown, user_api_key],
     )
 
-    # STT engine → show/hide cloud API key field
-    # Interview mode toggle → show/hide deep mode
+    # STT engine → show/hide Whisper size vs cloud API key
+    stt_engine_input.change(
+        fn=toggle_stt_engine,
+        inputs=[stt_engine_input],
+        outputs=[whisper_input, stt_key_input],
+    )
+
     interview_toggle.change(
         fn=lambda v: gr.update(visible=v),
         inputs=interview_toggle,

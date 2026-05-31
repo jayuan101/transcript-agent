@@ -3762,7 +3762,7 @@ _THEME_JS = """
         +   'background:#fff;color:#1d4ed8;font-weight:700;font-size:0.82em;'
         +   'padding:7px 16px;border-radius:8px;text-decoration:none;white-space:nowrap;'
         +   'flex-shrink:0;">⬇ Download Update</a>'
-        + '<button onclick="document.getElementById(\'ta-update-banner\').remove()" style="'
+        + '<button onclick="document.getElementById(`ta-update-banner`).remove()" style="'
         +   'background:rgba(255,255,255,0.2);border:none;color:#fff;cursor:pointer;'
         +   'border-radius:6px;padding:6px 10px;font-size:1em;flex-shrink:0;">✕</button>'
       );
@@ -4417,6 +4417,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
 
+
 if __name__ == "__main__":
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
@@ -4426,7 +4427,7 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
-        head="<script defer>\n" + _THEME_JS + "\n</script>",
+        js=_THEME_JS,
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

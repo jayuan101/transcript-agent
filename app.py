@@ -2037,6 +2037,10 @@ def process_file(
                 on_log=on_log,
             )
             q.put(("done", result))
+        except ImportError as e:
+            # Missing optional SDK — give a clear install instruction
+            pkg = str(e)
+            q.put(("error", f"Missing package — run this in your terminal and restart:\n\n  pip install {pkg.split('pip install ')[-1].strip()}\n\n({pkg})"))
         except Exception as e:
             q.put(("error", str(e)))
 

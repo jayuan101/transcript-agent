@@ -2310,19 +2310,18 @@ def toggle_stt_engine(engine, main_api_key=""):
     is_local = engine == "whisper_local"
     models   = _STT_MODELS.get(engine, [])
 
-    # Auto-fill STT key from main key if provider matches
-    auto_key = gr.update()
+    # Build a single update for stt_key_input (visibility + optional auto-fill value)
+    key_kw = {"visible": not is_local}
     if engine in _STT_AUTOFILL_PREFIX:
-        prefix, name = _STT_AUTOFILL_PREFIX[engine]
+        prefix, _ = _STT_AUTOFILL_PREFIX[engine]
         if (main_api_key or "").startswith(prefix):
-            auto_key = gr.update(value=main_api_key)
+            key_kw["value"] = main_api_key
 
     return (
-        gr.update(visible=is_local),                                       # whisper_input
-        gr.update(visible=not is_local),                                   # stt_key_input
-        gr.update(visible=not is_local and bool(models),                   # stt_model_input
+        gr.update(visible=is_local),                                        # whisper_input
+        gr.update(**key_kw),                                                # stt_key_input
+        gr.update(visible=not is_local and bool(models),                    # stt_model_input
                   choices=models, value=models[0] if models else None),
-        auto_key,                                                          # stt_key_input value
     )
 
 
@@ -3564,6 +3563,7 @@ _THEME_JS = """
     /* ── rolling byte log: [{t: timestamp_ms, b: bytes}] ── */
     var _log  = [];
     var _WINDOW_MS = 3000;   /* 3-second rolling window */
+    var _pingMs = 0;         /* last measured round-trip latency */
 
     /* active upload state */
     var _upLoaded = 0, _upTotal = 0, _upStart = 0, _upActive = false;
@@ -3586,6 +3586,26 @@ _THEME_JS = """
       if (bps > 0)        return bps.toFixed(0)            + ' B/s';
       return '0 B/s';
     }
+
+    /* ── Periodic background speed test — fetches a small chunk every 6s ──
+       Keeps the display live even when no user transfer is happening.      */
+    (function pingLoop() {
+      var t0 = performance.now();
+      fetch(window.location.pathname + '?_spd=' + Date.now(), {
+        cache: 'no-store',
+        headers: { 'Range': 'bytes=0-8191' }   /* request just first 8 KB */
+      }).then(function(r) {
+        return r.arrayBuffer();
+      }).then(function(buf) {
+        var ms = performance.now() - t0;
+        _pingMs = Math.round(ms);
+        if (buf.byteLength > 0) _push(buf.byteLength);
+      }).catch(function() {
+        _pingMs = 0;
+      }).finally(function() {
+        setTimeout(pingLoop, 6000);
+      });
+    })();
 
     /* mini bar: 20 segments filled proportionally to log over last 3 s */
     function _bars(bps) {
@@ -3637,6 +3657,11 @@ _THEME_JS = """
         );
       } else {
         label = '🌐 Network';
+        /* show ping latency when speed is near-zero */
+        if (bps < 512 && _pingMs > 0) {
+          detail = '<span style="font-size:0.75em;color:var(--ta-card-sub,#64748b);margin-left:4px;">'
+                 + 'ping ' + _pingMs + ' ms</span>';
+        }
       }
 
       p.innerHTML = (
@@ -4344,7 +4369,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
     stt_engine_input.change(
         fn=toggle_stt_engine,
         inputs=[stt_engine_input, user_api_key],
-        outputs=[whisper_input, stt_key_input, stt_model_input, stt_key_input],
+        outputs=[whisper_input, stt_key_input, stt_model_input],
         queue=False,
     )
 

@@ -2209,7 +2209,7 @@ def process_file(
                         f'</div>'
                         + defl_html
                         # What they said — open by default, distinct background
-                        f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
+                        + f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
                         f'padding:10px 14px;margin-bottom:8px;">'
                         f'<div style="font-size:0.78em;font-weight:700;text-transform:uppercase;'
                         f'letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">📝 What they said</div>'

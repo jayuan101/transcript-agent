@@ -31,11 +31,14 @@ exit /b 1
 :have_python
 echo.
 echo  Starting Transcript Agent...
-echo  Browser will open at http://localhost:7860
+echo  Browser will open automatically when ready.
 echo.
 
-:: Start the app (opens in the same window so Ctrl+C stops it)
-start "" "http://localhost:7860"
+:: Background poller opens browser as soon as the server responds (max 60 s)
+start /b "" powershell -NoProfile -WindowStyle Hidden -Command ^
+  "for($i=0;$i-lt60;$i++){Start-Sleep 1;try{$null=Invoke-WebRequest http://127.0.0.1:7860 -UseBasicParsing -TimeoutSec 1;Start-Process 'http://localhost:7860';break}catch{}}"
+
+:: Run app in this window — Ctrl+C stops it cleanly
 "%PYTHON%" "%APPDIR%app.py"
 
 endlocal

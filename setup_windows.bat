@@ -7,7 +7,7 @@ set "APPDIR=%~dp0"
 set "VENV=%APPDIR%venv"
 set "VPYTHON=%VENV%\Scripts\python.exe"
 set "PIP=%VENV%\Scripts\pip.exe"
-set "CURRENT_VERSION=3.48"
+set "CURRENT_VERSION=3.49"
 
 cls
 echo.
@@ -189,11 +189,16 @@ goto :end
 :: ── Launch ────────────────────────────────────────────────────────────────────
 :launch
 echo.
-echo  Starting Transcript Agent...
-echo  Browser will open at http://localhost:7860
+echo  Starting Transcript Agent v!CURRENT_VERSION!...
+echo  Browser will open automatically when ready.
 echo  Press Ctrl+C to stop.
 echo.
-start "" "http://localhost:7860"
+
+:: Background PowerShell poller — opens browser once server responds (max 60 s)
+start /b "" powershell -NoProfile -WindowStyle Hidden -Command ^
+  "for($i=0;$i-lt60;$i++){Start-Sleep 1;try{$null=Invoke-WebRequest http://127.0.0.1:7860 -UseBasicParsing -TimeoutSec 1;Start-Process 'http://localhost:7860';break}catch{}}"
+
+:: Run app in this window so Ctrl+C stops it cleanly
 "!VPYTHON!" "!APPDIR!app.py"
 goto :end
 

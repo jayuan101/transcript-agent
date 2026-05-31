@@ -7,7 +7,8 @@
 
 services:
   transcript-agent:
-    image: ${DOCKERHUB_USERNAME}/transcript-agent:latest
+    image: ${DOCKERHUB_USERNAME:-sushi0934}/transcript-agent:latest
+    pull_policy: always          # re-pull on every `docker compose up` to auto-update
     container_name: transcript-agent
     ports:
       - "7860:7860"
@@ -21,6 +22,7 @@ services:
     environment:
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT=7860
+      - TZ=${TZ:-America/New_York}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]
@@ -28,6 +30,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # Optional: uncomment to auto-update the image every hour without touching the compose file
+  # watchtower:
+  #   image: containrrr/watchtower
+  #   volumes:
+  #     - /var/run/docker.sock:/var/run/docker.sock
+  #   command: --interval 3600 --cleanup transcript-agent
+  #   restart: unless-stopped
 
 volumes:
   whisper-cache:

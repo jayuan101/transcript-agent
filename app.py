@@ -2056,8 +2056,8 @@ def process_file(
     stall_warned    = set()
     _tok_in         = 0       # accumulate token counts
     _tok_out        = 0
-    _total_dl_mb    = 0.0     # total MB downloaded this session
-    _peak_dl_speed  = 0.0
+    # _total_dl_mb and _peak_dl_speed are NOT reset here — they were already
+    # initialised at the top of process_file and may hold URL-download values.
 
     def _eta_secs(pct):
         if pct <= 0.01:
@@ -2132,7 +2132,8 @@ def process_file(
             log_text = _add_log(f"🤖 Tokens: {_tok_in:,} in / {_tok_out:,} out", "ai")
             yield _out(log=log_text,
                        stats=_stats_panel_html(_elapsed(), _tok_in, _tok_out, _total_dl_mb,
-                                               model_name=model_name, provider_type=provider_type))
+                                               _peak_dl_speed, model_name=model_name,
+                                               provider_type=provider_type))
 
         elif kind == "log":
             log_text = _add_log(msg[1], "info")
@@ -2348,7 +2349,7 @@ def process_file(
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
-                                        _total_dl_mb, done=True,
+                                        _total_dl_mb, _peak_dl_speed, done=True,
                                         model_name=model_name, provider_type=provider_type),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
@@ -3763,13 +3764,9 @@ _THEME_JS = """
       var wrap = document.getElementById('model-sel');
       if (!wrap) return;
 
-      /* Update the visible input field immediately */
+      /* Update the visible input field immediately (visual only — Python handles state) */
       var input = wrap.querySelector('input');
-      if (input) {
-        var nv = Object.defineProperty(input, 'value', {});
-        input.value = models[0];
-        input.dispatchEvent(new Event('input', {bubbles: true}));
-      }
+      if (input) { input.value = models[0]; }
     }
 
     function wireProviderDrop() {

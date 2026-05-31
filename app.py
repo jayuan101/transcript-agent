@@ -1303,10 +1303,33 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
             dl_acc, log, eta, net, stats, rs)
 
 
+# Pricing: (input $/MTok, output $/MTok)
+_MODEL_PRICING: dict[str, tuple[float, float]] = {
+    "claude-opus-4-8":              (15.00, 75.00),
+    "claude-sonnet-4-6":            ( 3.00, 15.00),
+    "claude-haiku-4-5-20251001":    ( 0.80,  4.00),
+    "claude-3-5-sonnet-20241022":   ( 3.00, 15.00),
+    "claude-3-5-haiku-20241022":    ( 0.80,  4.00),
+    "claude-3-opus-20240229":       (15.00, 75.00),
+    "gpt-4o":                       ( 2.50, 10.00),
+    "gpt-4o-mini":                  ( 0.15,  0.60),
+    "gpt-4-turbo":                  (10.00, 30.00),
+    "o1":                           (15.00, 60.00),
+    "o1-mini":                      ( 3.00, 12.00),
+    "o3-mini":                      ( 1.10,  4.40),
+    "gpt-3.5-turbo":                ( 0.50,  1.50),
+    "gemini-2.5-pro-preview-05-06": ( 1.25,  5.00),
+    "gemini-2.0-flash-exp":         ( 0.075, 0.30),
+    "gemini-1.5-pro":               ( 1.25,  5.00),
+    "gemini-1.5-flash":             ( 0.075, 0.30),
+    "gemini-1.5-flash-8b":          ( 0.0375,0.15),
+}
+
+
 def _stats_panel_html(elapsed: str = "", tok_in: int = 0, tok_out: int = 0,
                        dl_mb: float = 0, dl_speed: float = 0,
-                       done: bool = False) -> str:
-    import datetime as _dt
+                       done: bool = False,
+                       model_name: str = "", provider_type: str = "") -> str:
     color = "#22c55e" if done else "#3b82f6"
     icon  = "✅" if done else "⏳"
 
@@ -1314,12 +1337,27 @@ def _stats_panel_html(elapsed: str = "", tok_in: int = 0, tok_out: int = 0,
     if elapsed:
         cells.append(f'<div class="ta-stat-cell"><div class="ta-stat-val">{icon} {elapsed}</div>'
                      f'<div class="ta-stat-key">Duration</div></div>')
+
     if tok_in or tok_out:
+        # Token counts
         cells.append(f'<div class="ta-stat-cell">'
                      f'<div class="ta-stat-val" style="color:{color};">'
-                     f'{tok_in:,} <span style="opacity:0.6;font-size:0.8em;">in</span> / '
-                     f'{tok_out:,} <span style="opacity:0.6;font-size:0.8em;">out</span></div>'
-                     f'<div class="ta-stat-key">🤖 Tokens</div></div>')
+                     f'{tok_in:,}<span style="opacity:0.6;font-size:0.78em;margin-left:2px;">in</span>'
+                     f'&nbsp;/&nbsp;'
+                     f'{tok_out:,}<span style="opacity:0.6;font-size:0.78em;margin-left:2px;">out</span>'
+                     f'</div>'
+                     f'<div class="ta-stat-key">🤖 Tokens (session)</div></div>')
+        # Cost estimate
+        pricing = _MODEL_PRICING.get(model_name)
+        if pricing and (tok_in or tok_out):
+            cost = tok_in / 1_000_000 * pricing[0] + tok_out / 1_000_000 * pricing[1]
+            cost_str = f"${cost:.4f}" if cost < 0.01 else f"${cost:.3f}"
+            mdl_short = (model_name.replace("claude-","").replace("-20241022","")
+                         .replace("-20240229","").replace("-preview-05-06",""))
+            cells.append(f'<div class="ta-stat-cell">'
+                         f'<div class="ta-stat-val" style="color:#f59e0b;">{cost_str}</div>'
+                         f'<div class="ta-stat-key">💰 Est. cost ({mdl_short})</div></div>')
+
     if dl_mb > 0:
         speed_str = f"{dl_speed:.1f} MB/s" if dl_speed > 0 else ""
         cells.append(f'<div class="ta-stat-cell">'
@@ -1330,11 +1368,11 @@ def _stats_panel_html(elapsed: str = "", tok_in: int = 0, tok_out: int = 0,
     if not cells:
         return ""
 
-    sep = '<div style="width:1px;background:var(--ta-card-border);align-self:stretch;margin:0 4px;"></div>'
+    sep = '<div style="width:1px;background:var(--ta-card-border,#e2e8f0);align-self:stretch;margin:0 4px;"></div>'
     return (
         f'<div style="display:flex;align-items:center;gap:0;'
-        f'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
-        f'border-radius:10px;padding:10px 16px;margin-bottom:8px;flex-wrap:wrap;row-gap:8px;">'
+        f'background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
+        f'border-radius:10px;padding:10px 16px;margin-top:8px;flex-wrap:wrap;row-gap:8px;">'
         + sep.join(cells)
         + '</div>'
     )
@@ -2070,7 +2108,8 @@ def process_file(
             _tok_in, _tok_out = msg[1], msg[2]
             log_text = _add_log(f"🤖 Tokens: {_tok_in:,} in / {_tok_out:,} out", "ai")
             yield _out(log=log_text,
-                       stats=_stats_panel_html(_elapsed(), _tok_in, _tok_out, _total_dl_mb))
+                       stats=_stats_panel_html(_elapsed(), _tok_in, _tok_out, _total_dl_mb,
+                                               model_name=model_name, provider_type=provider_type))
 
         elif kind == "log":
             log_text = _add_log(msg[1], "info")
@@ -2286,7 +2325,8 @@ def process_file(
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
-                                        _total_dl_mb, done=True),
+                                        _total_dl_mb, done=True,
+                                        model_name=model_name, provider_type=provider_type),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
                     "out_dir": str(job_dir)},
@@ -3574,152 +3614,173 @@ _THEME_JS = """
   })();
 
   /* ── 🌐 Live Network Speed Monitor ──────────────────────────────────────────
-     Tracks ALL network bytes in real-time:
-       • PerformanceObserver — every resource the browser loads
-       • XHR upload intercept — Gradio file uploads (progress events)
-       • Fetch intercept      — streaming SSE responses (AI output)
-     Renders a live speed gauge that updates every 500 ms. */
+     Tracks upload AND download bytes separately.
+     Shows per-direction live speed + session totals, both light & dark mode. */
   (function(){
-    /* ── rolling byte log: [{t: timestamp_ms, b: bytes}] ── */
-    var _log  = [];
-    var _WINDOW_MS = 3000;   /* 3-second rolling window */
-    var _pingMs = 0;         /* last measured round-trip latency */
+    var WIN_MS   = 3000;   /* 3-second rolling window for speed calc */
+    var _pingMs  = 0;
+
+    /* separate rolling logs for RX (download) and TX (upload) */
+    var _rxLog = [], _txLog = [];
+    /* session totals (bytes) */
+    var _rxTotal = 0, _txTotal = 0;
 
     /* active upload state */
     var _upLoaded = 0, _upTotal = 0, _upStart = 0, _upActive = false;
+    var _upLastPushed = 0;
 
-    function _push(bytes) {
-      if (bytes > 0) _log.push({t: Date.now(), b: bytes});
-    }
+    function _pushRx(b) { if (b > 0) { _rxLog.push({t:Date.now(),b:b}); _rxTotal += b; } }
+    function _pushTx(b) { if (b > 0) { _txLog.push({t:Date.now(),b:b}); _txTotal += b; } }
 
-    /* rolling speed in bytes/sec over the last _WINDOW_MS */
-    function _speed() {
+    function _speed(log) {
       var now = Date.now();
-      _log = _log.filter(function(e){ return now - e.t < _WINDOW_MS; });
-      var total = _log.reduce(function(s,e){ return s + e.b; }, 0);
-      return total / (_WINDOW_MS / 1000);
+      /* prune old entries in-place */
+      var i = 0;
+      while (i < log.length && now - log[i].t >= WIN_MS) i++;
+      if (i > 0) log.splice(0, i);
+      var tot = 0;
+      for (var j = 0; j < log.length; j++) tot += log[j].b;
+      return tot / (WIN_MS / 1000);
     }
 
-    function fmt(bps) {
+    function fmtSpeed(bps) {
       if (bps >= 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
       if (bps >= 1024)    return (bps/1024).toFixed(0)    + ' KB/s';
-      if (bps > 0)        return bps.toFixed(0)            + ' B/s';
+      if (bps > 0)        return Math.round(bps)          + ' B/s';
       return '0 B/s';
     }
+    function fmtSize(bytes) {
+      if (bytes >= 1073741824) return (bytes/1073741824).toFixed(2) + ' GB';
+      if (bytes >= 1048576)    return (bytes/1048576).toFixed(1)    + ' MB';
+      if (bytes >= 1024)       return (bytes/1024).toFixed(0)       + ' KB';
+      return bytes + ' B';
+    }
 
-    /* ── Periodic background speed test — fetches a small chunk every 6s ──
-       Keeps the display live even when no user transfer is happening.      */
+    /* ── Periodic background ping — keeps display live when idle ── */
     (function pingLoop() {
       var t0 = performance.now();
       fetch(window.location.pathname + '?_spd=' + Date.now(), {
         cache: 'no-store',
-        headers: { 'Range': 'bytes=0-8191' }   /* request just first 8 KB */
+        headers: { 'Range': 'bytes=0-8191' }
       }).then(function(r) {
         return r.arrayBuffer();
       }).then(function(buf) {
-        var ms = performance.now() - t0;
-        _pingMs = Math.round(ms);
-        if (buf.byteLength > 0) _push(buf.byteLength);
-      }).catch(function() {
-        _pingMs = 0;
-      }).finally(function() {
-        setTimeout(pingLoop, 6000);
-      });
+        _pingMs = Math.round(performance.now() - t0);
+        if (buf.byteLength > 0) _pushRx(buf.byteLength);
+      }).catch(function() { _pingMs = 0; })
+        .finally(function() { setTimeout(pingLoop, 6000); });
     })();
 
-    /* mini bar: 20 segments filled proportionally to log over last 3 s */
-    function _bars(bps) {
-      var SEGS = 20;
-      var MAX  = 5 * 1048576; /* 5 MB/s = full bar */
+    /* mini bar — 16 segments */
+    function _bars(bps, color) {
+      var SEGS = 16, MAX = 5*1048576;
       var fill = Math.min(SEGS, Math.round(bps / MAX * SEGS));
-      var color = bps > 1048576 ? '#22c55e' : bps > 102400 ? '#3b82f6' : '#64748b';
-      var bar = '';
+      var out = '';
       for (var i = 0; i < SEGS; i++) {
-        bar += '<span style="display:inline-block;width:3px;height:' + (i < fill ? 14 : 5) + 'px;'
-             + 'background:' + (i < fill ? color : 'var(--ta-card-border,#e2e8f0)') + ';'
-             + 'border-radius:2px;margin:0 1px;vertical-align:middle;transition:height 0.25s,background 0.25s;"></span>';
+        out += '<span style="display:inline-block;width:3px;height:'
+             + (i < fill ? 12 : 4) + 'px;background:'
+             + (i < fill ? color : 'var(--ta-card-border,#e2e8f0)')
+             + ';border-radius:2px;margin:0 1px;vertical-align:middle;'
+             + 'transition:height 0.2s,background 0.2s;"></span>';
       }
-      return bar;
+      return out;
+    }
+
+    function _dot(color) {
+      return '<span style="width:7px;height:7px;background:' + color + ';border-radius:50%;'
+           + 'display:inline-block;box-shadow:0 0 4px ' + color + ';'
+           + 'animation:tapulse 2s ease-in-out infinite;"></span>';
+    }
+
+    /* one row: icon | label | bars | dot+speed | session total */
+    function _row(icon, label, bps, total, color, extraDetail) {
+      var speedTxt = fmtSpeed(bps);
+      var totalTxt = fmtSize(total);
+      return '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
+           + '<span style="font-size:1em;line-height:1;">' + icon + '</span>'
+           + '<span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">' + label + '</span>'
+           + '<span style="display:flex;align-items:center;gap:1px;">' + _bars(bps, color) + '</span>'
+           + '<span style="display:inline-flex;align-items:center;gap:4px;'
+               + 'font-weight:800;color:' + color + ';min-width:80px;justify-content:flex-end;">'
+             + _dot(color) + '&nbsp;' + speedTxt
+           + '</span>'
+           + '<span style="margin-left:auto;font-size:0.78em;color:var(--ta-card-sub,#64748b);'
+               + 'white-space:nowrap;">session:&nbsp;' + totalTxt + '</span>'
+           + (extraDetail || '')
+           + '</div>';
     }
 
     function render() {
       var p = document.getElementById('ta-net-monitor');
       if (!p) return;
 
-      var bps   = _speed();
-      var color = bps > 1048576 ? '#22c55e' : bps > 102400 ? '#3b82f6' : '#94a3b8';
-      var dot   = '<span style="width:7px;height:7px;background:' + color + ';border-radius:50%;'
-                + 'display:inline-block;margin-right:5px;box-shadow:0 0 4px ' + color + ';'
-                + 'animation:tapulse 2s ease-in-out infinite;"></span>';
+      var rxBps = _speed(_rxLog);
+      var txBps = _speed(_txLog);
 
-      var label, detail = '';
+      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#94a3b8';
+      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#7c3aed' : '#94a3b8';
 
-      if (_upActive) {
-        /* File upload in progress — show progress bar */
-        var pct   = _upTotal > 0 ? Math.min(100, _upLoaded / _upTotal * 100) : 0;
-        var eta   = (bps > 0 && _upTotal > _upLoaded) ? Math.round((_upTotal - _upLoaded) / bps) : 0;
-        label = '⬆️ Uploading';
-        detail = (
-          '<div style="height:5px;background:var(--ta-card-border,#e2e8f0);border-radius:3px;'
-          + 'overflow:hidden;margin-top:6px;margin-bottom:2px;">'
-          + (_upTotal > 0
-              ? '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#7c3aed;'
-                + 'border-radius:3px;transition:width 0.3s;"></div>'
-              : '<div style="width:40%;height:100%;background:#7c3aed;border-radius:3px;'
-                + 'animation:netup 1.2s ease-in-out infinite;position:relative;left:-40%;"></div>')
+      /* upload progress bar when active */
+      var upDetail = '';
+      if (_upActive && _upTotal > 0) {
+        var pct = Math.min(100, _upLoaded / _upTotal * 100);
+        var eta = txBps > 0 && _upTotal > _upLoaded ? Math.round((_upTotal - _upLoaded) / txBps) : 0;
+        upDetail = '<div style="margin-top:4px;padding-left:82px;">'
+          + '<div style="height:4px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
+          + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#7c3aed;border-radius:2px;transition:width 0.3s;"></div>'
           + '</div>'
-          + (_upTotal > 0
-              ? '<span style="font-size:0.75em;color:#64748b;">'
-                + (_upLoaded/1048576).toFixed(1) + ' / ' + (_upTotal/1048576).toFixed(1) + ' MB'
-                + (eta > 0 ? ' &nbsp;·&nbsp; ETA ' + eta + 's' : '')
-                + ' &nbsp;·&nbsp; ' + pct.toFixed(0) + '%</span>'
-              : '')
-        );
-      } else {
-        label = '🌐 Network';
-        /* show ping latency when speed is near-zero */
-        if (bps < 512 && _pingMs > 0) {
-          detail = '<span style="font-size:0.75em;color:var(--ta-card-sub,#64748b);margin-left:4px;">'
-                 + 'ping ' + _pingMs + ' ms</span>';
-        }
+          + '<span style="font-size:0.75em;color:var(--ta-card-sub,#64748b);">'
+          + (_upLoaded/1048576).toFixed(1) + ' / ' + (_upTotal/1048576).toFixed(1) + ' MB'
+          + ' · ' + pct.toFixed(0) + '%'
+          + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
+      }
+
+      /* ping note when fully idle */
+      var pingNote = '';
+      if (rxBps < 512 && txBps < 512 && _pingMs > 0) {
+        pingNote = '<div style="font-size:0.74em;color:var(--ta-card-sub,#64748b);padding-top:3px;">'
+                 + '🏓 ping ' + _pingMs + ' ms</div>';
       }
 
       p.innerHTML = (
         '<style>'
         + '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.3}}'
-        + '@keyframes netup{0%{left:-40%}100%{left:110%}}'
         + '</style>'
         + '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-        + 'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
-        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;flex-wrap:wrap;">'
-        + '<span style="font-weight:700;color:var(--ta-card-text,#1e293b);">' + label + '</span>'
-        + '<span style="margin-left:auto;display:flex;align-items:center;gap:2px;">' + _bars(bps) + '</span>'
-        + '<span style="font-weight:800;font-size:0.9em;color:' + color + ';min-width:72px;text-align:right;">'
-        + dot + fmt(bps) + '</span>'
-        + '</div>'
-        + detail
+        + 'border-radius:10px;padding:10px 14px;margin-top:8px;">'
+        + '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+        + 'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
+        + _row('⬇️', 'Download', rxBps, _rxTotal, rxColor)
+        + '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
+        + _row('⬆️', 'Upload',   txBps, _txTotal, txColor, upDetail)
+        + pingNote
         + '</div>'
       );
     }
 
-    /* ── PerformanceObserver: catches every resource the page loads ── */
+    /* ── PerformanceObserver: resource downloads ── */
     if (window.PerformanceObserver) {
       try {
         var _obs = new PerformanceObserver(function(list) {
           list.getEntries().forEach(function(e) {
-            /* transferSize is 0 for cached / cross-origin no-CORS resources */
-            if (e.transferSize > 0) _push(e.transferSize);
-            /* fall back to encoded body size if transfer unavailable */
-            else if (e.encodedBodySize > 0) _push(e.encodedBodySize);
+            var b = e.transferSize > 0 ? e.transferSize : e.encodedBodySize;
+            if (b > 0) _pushRx(b);
           });
         });
         _obs.observe({entryTypes: ['resource']});
       } catch(ex) {}
     }
 
-    /* ── Fetch intercept: tracks streaming SSE (Gradio AI output stream) ── */
+    /* ── Fetch intercept: SSE/streaming responses (download) ── */
     var _origFetch = window.fetch;
     window.fetch = function(url, opts) {
+      /* track request body size as upload */
+      if (opts && opts.body) {
+        var bSz = 0;
+        if (typeof opts.body === 'string')      bSz = opts.body.length;
+        else if (opts.body && opts.body.byteLength) bSz = opts.body.byteLength;
+        if (bSz > 0) _pushTx(bSz);
+      }
       var result = _origFetch.apply(this, arguments);
       result.then(function(resp) {
         if (!resp || !resp.body) return;
@@ -3728,7 +3789,7 @@ _THEME_JS = """
           (function pump(){
             reader.read().then(function(chunk){
               if (chunk.done) return;
-              if (chunk.value) _push(chunk.value.byteLength);
+              if (chunk.value) _pushRx(chunk.value.byteLength);
               pump();
             }).catch(function(){});
           })();
@@ -3737,12 +3798,13 @@ _THEME_JS = """
       return result;
     };
 
-    /* ── XHR intercept: upload progress ── */
+    /* ── XHR intercept: upload progress + download bytes ── */
     var _origOpen = XMLHttpRequest.prototype.open;
     var _origSend = XMLHttpRequest.prototype.send;
 
     XMLHttpRequest.prototype.open = function(method, url) {
-      this._taUrl = url || '';
+      this._taUrl    = url || '';
+      this._taMethod = (method || '').toUpperCase();
       return _origOpen.apply(this, arguments);
     };
 
@@ -3753,31 +3815,29 @@ _THEME_JS = """
                               || data instanceof ArrayBuffer
                               || (typeof data === 'object' && data.size));
       if (isUpload) {
-        _upStart  = Date.now();
-        _upActive = true;
-        _upLoaded = 0; _upTotal = 0;
+        _upStart = Date.now(); _upActive = true;
+        _upLoaded = 0; _upTotal = 0; _upLastPushed = 0;
         self.upload.addEventListener('progress', function(e) {
+          var delta = e.loaded - _upLastPushed;
+          if (delta > 0) { _pushTx(delta); _upLastPushed = e.loaded; }
           _upLoaded = e.loaded;
           _upTotal  = e.lengthComputable ? e.total : 0;
-          var elapsed = (Date.now() - _upStart) / 1000;
-          if (elapsed > 0) _push(Math.max(0, e.loaded - (_upLoaded || 0)));
         });
         self.upload.addEventListener('load',  function() { _upActive = false; });
         self.upload.addEventListener('error', function() { _upActive = false; });
         self.upload.addEventListener('abort', function() { _upActive = false; });
       }
-      /* track XHR download bytes too */
+      /* XHR download bytes */
       self.addEventListener('progress', function(e) {
-        if (e.loaded > 0) _push(e.loaded > self._taLastLoaded
-          ? e.loaded - (self._taLastLoaded || 0) : e.loaded);
-        self._taLastLoaded = e.loaded;
+        var delta = e.loaded - (self._taLastRx || 0);
+        if (delta > 0) _pushRx(delta);
+        self._taLastRx = e.loaded;
       });
       return _origSend.apply(this, arguments);
     };
 
     /* ── Tick every 500 ms ── */
     setInterval(render, 500);
-    /* First render immediately */
     setTimeout(render, 800);
   })();
 
@@ -4270,23 +4330,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 )
 
             eta_panel   = gr.HTML(value="")
-            stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
-            net_monitor = gr.HTML(
-                value=(
-                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
-                    '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-                    'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
-                    '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
-                    '<span>🌐</span>'
-                    '<span style="font-weight:600;color:var(--ta-card-text,#1e293b);">Network</span>'
-                    '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
-                    '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
-                    'animation:tapulse 2s ease-in-out infinite;"></span>'
-                    '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connected</span>'
-                    '</span></div></div>'
-                ),
-                elem_id="ta-net-monitor",
-            )
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
                       'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'
@@ -4297,6 +4340,29 @@ with gr.Blocks(title="Transcript Agent") as demo:
                       '</div>',
                 elem_id="live-log",
                 label="Live Processing Log",
+            )
+            stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
+            net_monitor = gr.HTML(
+                value=(
+                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
+                    '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
+                    'border-radius:10px;padding:10px 14px;margin-top:8px;">'
+                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+                    'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
+                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
+                    '<span>⬇️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Download</span>'
+                    '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
+                    '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
+                    'animation:tapulse 2s ease-in-out infinite;"></span>'
+                    '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connecting…</span>'
+                    '</span></div>'
+                    '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
+                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
+                    '<span>⬆️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Upload</span>'
+                    '<span style="margin-left:auto;color:var(--ta-card-sub,#64748b);font-size:0.78em;">—</span>'
+                    '</div></div>'
+                ),
+                elem_id="ta-net-monitor",
             )
 
             with gr.Tabs():

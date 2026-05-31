@@ -2366,6 +2366,9 @@ _STT_AUTOFILL_PREFIX = {
 }
 
 
+_WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo"]
+
+
 def toggle_stt_engine(engine, main_api_key=""):
     is_local = engine == "whisper_local"
     models   = _STT_MODELS.get(engine, [])
@@ -2377,8 +2380,9 @@ def toggle_stt_engine(engine, main_api_key=""):
         if (main_api_key or "").startswith(prefix):
             key_kw["value"] = main_api_key
 
+    # whisper_input visibility is handled by JS (ta-whisper-size) to avoid
+    # a Gradio 6.15.x bug where dropdown visible updates corrupt the value.
     return (
-        gr.update(visible=is_local),                                        # whisper_input
         gr.update(**key_kw),                                                # stt_key_input
         gr.update(visible=not is_local and bool(models),                    # stt_model_input
                   choices=models, value=models[0] if models else None),
@@ -3613,6 +3617,56 @@ _THEME_JS = """
     setTimeout(wireAnalyze, 1500);
   })();
 
+  /* ── STT Engine → show/hide Whisper model size (JS bypass for Gradio bug) ─── */
+  (function() {
+    var _lastState = null;
+    function syncWhisperSize() {
+      var whisperEl = document.getElementById('ta-whisper-size');
+      if (!whisperEl) return;
+      var whisperBlock = whisperEl.closest('.block') || whisperEl.parentElement;
+      if (!whisperBlock) return;
+
+      /* In Gradio 6.x, all dropdown selected values live in input.border-none elements.
+         Find the one adjacent to the "STT Engine" label. */
+      var inputs = Array.from(document.querySelectorAll('input.border-none'));
+      var sttInput = null;
+      for (var i = 0; i < inputs.length; i++) {
+        /* Walk up to find the block, then check if the block's label says "STT Engine" */
+        var block = inputs[i].closest('.block');
+        if (block && block.textContent.indexOf('STT Engine') >= 0) {
+          sttInput = inputs[i];
+          break;
+        }
+      }
+
+      /* Fall back: look for input whose value looks like an STT engine name */
+      if (!sttInput) {
+        for (var j = 0; j < inputs.length; j++) {
+          var v = (inputs[j].value || '').toLowerCase();
+          if (v.indexOf('whisper') >= 0 || v.indexOf('deepgram') >= 0 ||
+              v.indexOf('assemblyai') >= 0 || v.indexOf('elevenlabs') >= 0 ||
+              v.indexOf('groq') >= 0 || v.indexOf('openai whisper') >= 0) {
+            sttInput = inputs[j];
+            break;
+          }
+        }
+      }
+
+      var isLocal = true;
+      if (sttInput) {
+        var val = (sttInput.value || '').toLowerCase();
+        isLocal = val === '' || val.indexOf('whisper (local') >= 0 || val.indexOf('offline') >= 0;
+      }
+
+      if (isLocal === _lastState) return;
+      _lastState = isLocal;
+      whisperBlock.style.display = isLocal ? '' : 'none';
+    }
+
+    setInterval(syncWhisperSize, 300);
+    setTimeout(syncWhisperSize, 2000);
+  })();
+
   /* ── 🌐 Live Network Speed Monitor ──────────────────────────────────────────
      Tracks upload AND download bytes separately.
      Shows per-direction live speed + session totals, both light & dark mode. */
@@ -4189,10 +4243,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model size",
-                    choices=["tiny", "base", "small", "medium", "large"],
+                    choices=_WHISPER_SIZES,
                     value="base",
-                    info="tiny = fastest   |   large = most accurate",
+                    info="tiny = fastest · turbo = large speed  |  large-v3 = most accurate",
                     visible=True,
+                    elem_id="ta-whisper-size",
                 )
                 stt_model_input = gr.Dropdown(
                     label="STT Model",
@@ -4451,12 +4506,11 @@ with gr.Blocks(title="Transcript Agent") as demo:
         queue=False,
     )
 
-    # STT engine → show/hide Whisper size / model dropdown / API key
+    # STT engine → show/hide model dropdown / API key (whisper visibility handled by JS)
     stt_engine_input.change(
         fn=toggle_stt_engine,
         inputs=[stt_engine_input, user_api_key],
-        outputs=[whisper_input, stt_key_input, stt_model_input],
-        queue=False,
+        outputs=[stt_key_input, stt_model_input],
     )
 
     interview_toggle.change(

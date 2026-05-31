@@ -183,7 +183,11 @@ VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
 
 # Approximate CPU realtime speed multiplier for each Whisper model size.
 # e.g. "base" processes ~16 minutes of audio per minute of wall-clock time.
-WHISPER_SPEED = {"tiny": 32, "base": 16, "small": 6, "medium": 2, "large": 1}
+WHISPER_SPEED = {
+    "tiny": 32, "base": 16, "small": 6, "medium": 2,
+    "large": 1, "large-v2": 1, "large-v3": 1,
+    "turbo": 8,   # large-v3-turbo: ~8x faster than large-v3
+}
 
 
 def _get_audio_duration(path: str) -> float:

@@ -3856,7 +3856,10 @@ _THEME_JS = """
       result.then(function(resp) {
         if (!resp || !resp.body) return;
         try {
-          var reader = resp.body.getReader();
+          /* Clone so the original body stream is not consumed — Gradio calls
+             response.json() on the original and would fail if we read it first */
+          var clone = resp.clone();
+          var reader = clone.body.getReader();
           (function pump(){
             reader.read().then(function(chunk){
               if (chunk.done) return;

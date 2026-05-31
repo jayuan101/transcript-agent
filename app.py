@@ -2170,24 +2170,44 @@ def process_file(
                     f'<div style="color:#16a34a;font-weight:600;">{ia.get("overall_verdict","")}</div></div>'
                     f'</div>'
                 )
+                _DEFLECT_STYLE = {
+                    "partial": ("⚠️ Deflected", "#f59e0b", "#fffbeb", "#fde68a"),
+                    "full":    ("🚫 Did Not Answer", "#ef4444", "#fef2f2", "#fecaca"),
+                }
                 for q in qs:
                     sc  = q.get("score","")
                     col = _SCORE_COLOR.get(sc, "#6b7280")
-                    # Support both old field name (answer_summary/ideal_answer) and new (answer_said/model_answer)
+                    # Support both old field names and new
                     answer_said  = q.get("answer_said") or q.get("answer_summary","")
                     model_answer = q.get("model_answer") or q.get("ideal_answer","")
                     coaching_tip = q.get("coaching_tip","")
+                    deflection   = (q.get("deflection") or "none").lower().strip()
+                    defl_note    = q.get("deflection_note","")
+
+                    # Build deflection badge HTML
+                    defl_html = ""
+                    if deflection in _DEFLECT_STYLE:
+                        dlbl, dcol, dbg, dbdr = _DEFLECT_STYLE[deflection]
+                        defl_html = (
+                            f'<div style="background:{dbg};border:1px solid {dbdr};border-radius:8px;'
+                            f'padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">'
+                            f'<span style="font-size:0.78em;font-weight:700;color:{dcol};white-space:nowrap;">{dlbl}</span>'
+                            + (f'<span style="font-size:0.78em;color:#374151;">{defl_note}</span>' if defl_note else '')
+                            + f'</div>'
+                        )
+
                     iv_html += (
                         f'<div style="border:1px solid #e8edf4;border-radius:12px;'
                         f'padding:14px 16px;margin-bottom:16px;border-left:4px solid {col};">'
                         # Question + score badge
                         f'<div style="font-weight:700;font-size:0.95em;margin-bottom:8px;color:#1e293b;">'
                         f'Q{q.get("id","")}: {q.get("question","")}</div>'
-                        f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+                        f'<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">'
                         f'<span style="background:{col};color:#fff;font-size:0.72em;font-weight:700;'
                         f'padding:3px 12px;border-radius:20px;">{sc}</span>'
                         f'<span style="font-size:0.82em;color:#64748b;">{q.get("score_reason","")}</span>'
                         f'</div>'
+                        + defl_html
                         # What they said — open by default, distinct background
                         f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
                         f'padding:10px 14px;margin-bottom:8px;">'

@@ -1278,6 +1278,11 @@ Rules for answer_said:
 - Do NOT generalise or summarise vaguely. Capture the real substance of their words.
 - If they gave no answer or deflected, say so plainly.
 
+Rules for deflection:
+- "none" = candidate answered directly and on-topic.
+- "partial" = candidate answered but avoided the core of the question, gave a vague or generic response, or pivoted to a different topic without fully addressing what was asked.
+- "full" = candidate completely skipped, refused, or gave a non-answer (e.g. "I'd rather not say", silence, or a wholly unrelated response).
+
 Rules for model_answer:
 - Write as if YOU are the candidate speaking right now — first-person, present tense.
 - Natural, confident, conversational voice. Sound human, not like a template.
@@ -1291,6 +1296,8 @@ Rules for model_answer:
       "question": "<exact question text from the transcript>",
       "speaker": "<interviewer name or 'Interviewer'>",
       "answer_said": "<3-5 sentences of exactly what the candidate said — specific points, examples, stories>",
+      "deflection": "<none|partial|full>",
+      "deflection_note": "<one sentence explaining HOW they deflected, or empty string if none>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why>",
       "model_answer": "<first-person natural answer as if you are the candidate speaking — confident, no bullets>",

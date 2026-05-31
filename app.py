@@ -3841,6 +3841,7 @@ _THEME_JS = """
     setTimeout(wireAnalyze, 1500);
   })();
 
+
   /* ── STT Engine → show/hide Whisper model size (JS bypass for Gradio bug) ─── */
   (function() {
     var _lastState = null;
@@ -4690,7 +4691,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     elem_id="ta-cancel-btn",
                 )
 
-            eta_panel   = gr.HTML(value="")
+            eta_panel   = gr.HTML(value="", elem_id="ta-eta-panel")
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
                       'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'

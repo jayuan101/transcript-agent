@@ -1270,19 +1270,31 @@ Be specific, honest, and actionable. Use the exact keys shown below.
 """
 
 _INTERVIEW_PROMPT = """\
-Analyse this interview transcript. Return ONLY valid JSON — no markdown fences.
+Analyse this interview transcript carefully. Return ONLY valid JSON — no markdown fences.
+
+Rules for answer_said:
+- Quote or closely paraphrase what the candidate ACTUALLY said — 3 to 5 sentences.
+- Include the specific points, examples, numbers, stories, or projects they mentioned.
+- Do NOT generalise or summarise vaguely. Capture the real substance of their words.
+- If they gave no answer or deflected, say so plainly.
+
+Rules for model_answer:
+- Write as if YOU are the candidate speaking right now — first-person, present tense.
+- Natural, confident, conversational voice. Sound human, not like a template.
+- No bullet points, no headers, no "I would say...". Just speak the answer directly.
+- 3-5 sentences. Include concrete detail or a brief story where appropriate.
 
 {{
   "questions": [
     {{
       "id": 1,
-      "question": "<exact question text>",
+      "question": "<exact question text from the transcript>",
       "speaker": "<interviewer name or 'Interviewer'>",
-      "answer_summary": "<brief summary of what the candidate said>",
+      "answer_said": "<3-5 sentences of exactly what the candidate said — specific points, examples, stories>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why>",
-      "ideal_answer": "<how this question should ideally be answered>",
-      "coaching_tip": "<specific, actionable advice for this answer>"
+      "model_answer": "<first-person natural answer as if you are the candidate speaking — confident, no bullets>",
+      "coaching_tip": "<one specific, actionable piece of advice for this answer>"
     }}
   ],
   "overall_score": "<0-10>",

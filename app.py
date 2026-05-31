@@ -2173,25 +2173,42 @@ def process_file(
                 for q in qs:
                     sc  = q.get("score","")
                     col = _SCORE_COLOR.get(sc, "#6b7280")
+                    # Support both old field name (answer_summary/ideal_answer) and new (answer_said/model_answer)
+                    answer_said  = q.get("answer_said") or q.get("answer_summary","")
+                    model_answer = q.get("model_answer") or q.get("ideal_answer","")
+                    coaching_tip = q.get("coaching_tip","")
                     iv_html += (
                         f'<div style="border:1px solid #e8edf4;border-radius:12px;'
-                        f'padding:14px 16px;margin-bottom:12px;border-left:4px solid {col};">'
-                        f'<div style="font-weight:700;margin-bottom:6px;">Q{q.get("id","")}: {q.get("question","")}</div>'
-                        f'<div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">'
+                        f'padding:14px 16px;margin-bottom:16px;border-left:4px solid {col};">'
+                        # Question + score badge
+                        f'<div style="font-weight:700;font-size:0.95em;margin-bottom:8px;color:#1e293b;">'
+                        f'Q{q.get("id","")}: {q.get("question","")}</div>'
+                        f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
                         f'<span style="background:{col};color:#fff;font-size:0.72em;font-weight:700;'
-                        f'padding:2px 10px;border-radius:20px;">{sc}</span>'
-                        f'<span style="font-size:0.8em;color:#64748b;">{q.get("score_reason","")}</span>'
+                        f'padding:3px 12px;border-radius:20px;">{sc}</span>'
+                        f'<span style="font-size:0.82em;color:#64748b;">{q.get("score_reason","")}</span>'
                         f'</div>'
-                        f'<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.84em;'
-                        f'font-weight:600;color:#475569;">Answer Summary</summary>'
-                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("answer_summary","")}</p></details>'
-                        f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
-                        f'font-weight:600;color:#1d4ed8;">💡 Ideal Answer</summary>'
-                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("ideal_answer","")}</p></details>'
-                        f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
+                        # What they said — open by default, distinct background
+                        f'<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;'
+                        f'padding:10px 14px;margin-bottom:8px;">'
+                        f'<div style="font-size:0.78em;font-weight:700;text-transform:uppercase;'
+                        f'letter-spacing:0.06em;color:#64748b;margin-bottom:6px;">📝 What they said</div>'
+                        f'<p style="font-size:0.86em;line-height:1.65;margin:0;color:#374151;">{answer_said}</p>'
+                        f'</div>'
+                        # What you could have said — first-person, green tint
+                        f'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;'
+                        f'padding:10px 14px;margin-bottom:8px;">'
+                        f'<div style="font-size:0.78em;font-weight:700;text-transform:uppercase;'
+                        f'letter-spacing:0.06em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
+                        f'<p style="font-size:0.86em;line-height:1.65;margin:0;color:#166534;font-style:italic;">'
+                        f'{model_answer}</p>'
+                        f'</div>'
+                        # Coaching tip — collapsible
+                        + (f'<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:0.84em;'
                         f'font-weight:600;color:#7c3aed;">🏋️ Coaching Tip</summary>'
-                        f'<p style="font-size:0.83em;margin:6px 0 0;">{q.get("coaching_tip","")}</p></details>'
-                        f'</div>'
+                        f'<p style="font-size:0.83em;margin:6px 0 0;color:#374151;">{coaching_tip}</p></details>'
+                        if coaching_tip else '')
+                        + f'</div>'
                     )
                 # Deep mode extras
                 if ia.get("advance_likelihood"):

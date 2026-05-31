@@ -1804,6 +1804,8 @@ def process_file(
     # ── Log helpers (must be defined before download section uses them) ────────
     start_time    = time.time()
     log_entries   = []
+    _total_dl_mb  = 0.0   # must be initialised before the URL-download section
+    _peak_dl_speed = 0.0
 
     def _ts():
         secs = int(time.time() - start_time)

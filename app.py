@@ -3413,6 +3413,45 @@ _THEME_JS = """
     setTimeout(function(){ restoreKey(); }, 2800);   /* restore after everything else settles */
   })();
 
+  /* ── ⚡ Instant provider→model swap (no server round-trip) ─────────────────
+     Gradio sends the provider change to Python, but we also update the model
+     dropdown client-side immediately so there's zero visible lag.            */
+  (function(){
+    var PROVIDERS = """ + repr({k: v["models"] for k, v in _PROVIDERS.items()}).replace("'", '"') + """;
+
+    function swapModels(providerName) {
+      var models = PROVIDERS[providerName];
+      if (!models || !models.length) return;
+
+      /* Find the model dropdown by its elem_id wrapper */
+      var sel = document.querySelector('#model-sel input, #model-sel [data-testid="dropdown"]');
+      var wrap = document.getElementById('model-sel');
+      if (!wrap) return;
+
+      /* Update the visible input field immediately */
+      var input = wrap.querySelector('input');
+      if (input) {
+        var nv = Object.defineProperty(input, 'value', {});
+        input.value = models[0];
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    }
+
+    function wireProviderDrop() {
+      var wrap = document.getElementById('provider-sel');
+      if (!wrap) { setTimeout(wireProviderDrop, 500); return; }
+      wrap.addEventListener('change', function(e){
+        swapModels(e.target.value || (wrap.querySelector('input') || {}).value || '');
+      });
+      /* Also intercept click on listbox options */
+      document.addEventListener('click', function(e) {
+        var opt = e.target.closest('#provider-sel [role=option]');
+        if (opt) swapModels((opt.textContent || '').trim());
+      });
+    }
+    setTimeout(wireProviderDrop, 1000);
+  })();
+
   /* ── ▶ Floating play button — wired via event delegation, dark/light aware ──
      Button HTML lives in _THEME_TOGGLE so it renders before JS runs.
      Here we just wire the click + hover + label tooltip.                    */
@@ -4246,6 +4285,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=on_provider_change,
         inputs=[provider_dropdown],
         outputs=[model_dropdown, user_api_key],
+        queue=False,
     )
 
     # STT engine → show/hide Whisper size vs cloud API key

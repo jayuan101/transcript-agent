@@ -1654,13 +1654,8 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     overlay_pct = ""
     if stage == "claude":
         overlay_pct = (
-            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
-            f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">50</div>'
-            f'<div style="font-size:2em;font-weight:700;color:{color};margin-bottom:6px;">%+</div>'
-            '</div>'
-            f'<div style="font-size:0.82em;color:var(--ta-card-sub);margin-bottom:12px;">'
-            'AI is reading the transcript and writing your report…</div>'
+            f'<div style="font-size:0.95em;font-weight:600;color:{text_clr};margin-bottom:12px;">'
+            '🤖 AI is reading the transcript and writing your report…</div>'
         )
     elif stage in ("loading", "extracting"):
         overlay_pct = (
@@ -1716,6 +1711,7 @@ def process_file(
     whisper_model,
     stt_engine,
     stt_api_key,
+    stt_model,
     interview_mode,
     interview_deep,
     language_input,
@@ -1962,6 +1958,7 @@ def process_file(
                 whisper_model=whisper_model,
                 stt_engine=stt_engine,
                 stt_api_key=(stt_api_key or "").strip() or None,
+                stt_model=(stt_model or "").strip() or None,
                 panel_mode=False,
                 num_speakers=None,
                 config=config,
@@ -2273,11 +2270,42 @@ def toggle_speakers(is_panel):
     return gr.update(visible=is_panel)
 
 
-def toggle_stt_engine(engine):
+_STT_MODELS = {
+    "whisper_local":  [],   # handled by whisper_input dropdown
+    "openai_whisper": ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"],
+    "groq_whisper":   ["whisper-large-v3-turbo", "whisper-large-v3", "distil-whisper-large-v3-en"],
+    "deepgram":       ["nova-2", "nova", "enhanced", "base"],
+    "assemblyai":     ["best", "nano"],
+    "google_stt":     ["latest_long", "latest_short", "command_and_search", "phone_call"],
+    "azure_speech":   ["conversation", "dictation", "command_and_search"],
+    "elevenlabs":     ["scribe_v1"],
+    "revai":          ["machine", "fusion"],
+}
+
+# Engines whose key can be auto-filled from the main AI provider key
+_STT_AUTOFILL_PREFIX = {
+    "openai_whisper": ("sk-", "OpenAI"),
+    "groq_whisper":   ("gsk_", "Groq"),
+}
+
+
+def toggle_stt_engine(engine, main_api_key=""):
     is_local = engine == "whisper_local"
+    models   = _STT_MODELS.get(engine, [])
+
+    # Auto-fill STT key from main key if provider matches
+    auto_key = gr.update()
+    if engine in _STT_AUTOFILL_PREFIX:
+        prefix, name = _STT_AUTOFILL_PREFIX[engine]
+        if (main_api_key or "").startswith(prefix):
+            auto_key = gr.update(value=main_api_key)
+
     return (
-        gr.update(visible=is_local),   # whisper_input
-        gr.update(visible=not is_local, label="STT API Key"),  # stt_key_input
+        gr.update(visible=is_local),                                       # whisper_input
+        gr.update(visible=not is_local),                                   # stt_key_input
+        gr.update(visible=not is_local and bool(models),                   # stt_model_input
+                  choices=models, value=models[0] if models else None),
+        auto_key,                                                          # stt_key_input value
     )
 
 
@@ -4044,6 +4072,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     info="tiny = fastest   |   large = most accurate",
                     visible=True,
                 )
+                stt_model_input = gr.Dropdown(
+                    label="STT Model",
+                    choices=[],
+                    value=None,
+                    visible=False,
+                    allow_custom_value=True,
+                )
                 stt_key_input = gr.Textbox(
                     label="STT API Key",
                     placeholder="API key for the selected cloud STT engine",
@@ -4288,11 +4323,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
         queue=False,
     )
 
-    # STT engine → show/hide Whisper size vs cloud API key
+    # STT engine → show/hide Whisper size / model dropdown / API key
     stt_engine_input.change(
         fn=toggle_stt_engine,
-        inputs=[stt_engine_input],
-        outputs=[whisper_input, stt_key_input],
+        inputs=[stt_engine_input, user_api_key],
+        outputs=[whisper_input, stt_key_input, stt_model_input, stt_key_input],
+        queue=False,
     )
 
     interview_toggle.change(
@@ -4348,7 +4384,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
         inputs=[
             file_input, path_input,
             panel_toggle, speakers_input, whisper_input,
-            stt_engine_input, stt_key_input,
+            stt_engine_input, stt_key_input, stt_model_input,
             interview_toggle, interview_deep,
             language_input, language_variant,
             report_style,

@@ -622,31 +622,42 @@ STT_ENGINES = {
 }
 
 
-def _stt_openai_api(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_openai_api(path: str, api_key: str, language: str = None, on_log=None,
+                    model: str = "whisper-1") -> tuple:
     try:
         import openai as _oai
     except ImportError:
         raise ImportError("openai package required: pip install openai")
     client = _oai.OpenAI(api_key=api_key)
-    with open(path, "rb") as f:
-        kw = {"model": "whisper-1", "file": f, "response_format": "verbose_json"}
-        if language:
-            kw["language"] = language
-        resp = client.audio.transcriptions.create(**kw)
+    _model = model or "whisper-1"
+    # gpt-4o-transcribe / gpt-4o-mini-transcribe use the chat completions audio API
+    if _model in ("gpt-4o-transcribe", "gpt-4o-mini-transcribe"):
+        with open(path, "rb") as f:
+            resp = client.audio.transcriptions.create(
+                model=_model, file=f, response_format="verbose_json",
+                **( {"language": language} if language else {} )
+            )
+    else:
+        with open(path, "rb") as f:
+            kw = {"model": _model, "file": f, "response_format": "verbose_json"}
+            if language:
+                kw["language"] = language
+            resp = client.audio.transcriptions.create(**kw)
     segs = [{"start": s.start, "end": s.end, "text": s.text}
             for s in (resp.segments or [])]
     lines = [f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs]
     return "\n".join(lines) or resp.text, getattr(resp, "language", ""), segs
 
 
-def _stt_groq(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
+              model: str = "whisper-large-v3-turbo") -> tuple:
     try:
         from groq import Groq
     except ImportError:
         raise ImportError("groq package required: pip install groq")
     client = Groq(api_key=api_key)
     with open(path, "rb") as f:
-        kw = {"model": "whisper-large-v3-turbo", "file": (Path(path).name, f),
+        kw = {"model": model or "whisper-large-v3-turbo", "file": (Path(path).name, f),
               "response_format": "verbose_json", "timestamp_granularities": ["segment"]}
         if language:
             kw["language"] = language
@@ -657,7 +668,8 @@ def _stt_groq(path: str, api_key: str, language: str = None, on_log=None) -> tup
     return "\n".join(lines) or getattr(resp, "text", ""), getattr(resp, "language", ""), segs
 
 
-def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
+                  model: str = "nova-2") -> tuple:
     try:
         from deepgram import DeepgramClient, PrerecordedOptions
     except ImportError:
@@ -665,8 +677,11 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None) ->
     dg = DeepgramClient(api_key)
     with open(path, "rb") as f:
         data = f.read()
-    opts = PrerecordedOptions(punctuate=True, diarize=True, utterances=True,
-                               language=language or "en", smart_format=True)
+    opts = PrerecordedOptions(
+        model=model or "nova-2",
+        punctuate=True, diarize=True, utterances=True,
+        language=language or "en", smart_format=True,
+    )
     resp = dg.listen.rest.v("1").transcribe_file({"buffer": data}, opts)
     result = resp.results.channels[0].alternatives[0]
     segs, lines = [], []
@@ -676,13 +691,16 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None) ->
     return "\n".join(lines) or result.transcript, language or "en", segs
 
 
-def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None,
+                    model: str = "best") -> tuple:
     try:
         import assemblyai as aai
     except ImportError:
         raise ImportError("assemblyai required: pip install assemblyai")
     aai.settings.api_key = api_key
+    _model = getattr(aai.SpeechModel, model or "best", aai.SpeechModel.best)
     config = aai.TranscriptionConfig(
+        speech_model=_model,
         language_code=language or None,
         language_detection=not bool(language),
         speaker_labels=True,
@@ -700,7 +718,8 @@ def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None) 
     return "\n".join(lines) or transcript.text, detected, segs
 
 
-def _stt_google(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_google(path: str, api_key: str, language: str = None, on_log=None,
+                model: str = "latest_long") -> tuple:
     try:
         from google.cloud import speech as _gspeech
         import google.auth as _gauth
@@ -718,6 +737,7 @@ def _stt_google(path: str, api_key: str, language: str = None, on_log=None) -> t
     cfg = _gspeech.RecognitionConfig(
         encoding=_gspeech.RecognitionConfig.AudioEncoding.LINEAR16,
         language_code=lang,
+        model=model or "latest_long",
         enable_automatic_punctuation=True,
         enable_word_time_offsets=True,
     )
@@ -735,40 +755,93 @@ def _stt_google(path: str, api_key: str, language: str = None, on_log=None) -> t
     return "\n".join(lines), lang, segs
 
 
-def _stt_azure(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _azure_split_audio(path: str, chunk_secs: int = 55) -> list:
+    """Split audio into chunks for Azure (which has a 60s REST limit)."""
+    import math as _math
+    dur = _get_audio_duration(path)
+    if dur <= 0 or dur <= chunk_secs:
+        return [path]
+    n = _math.ceil(dur / chunk_secs)
+    chunks = []
+    for i in range(n):
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp.close()
+        _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path,
+             "-ss", str(i * chunk_secs), "-t", str(chunk_secs),
+             "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1", tmp.name],
+            capture_output=True,
+        )
+        chunks.append(tmp.name)
+    return chunks
+
+
+def _stt_azure(path: str, api_key: str, language: str = None, on_log=None,
+               model: str = "conversation") -> tuple:
     try:
         import azure.cognitiveservices.speech as _az
     except ImportError:
         raise ImportError("azure-cognitiveservices-speech required: pip install azure-cognitiveservices-speech")
-    # api_key format: "KEY:REGION" e.g. "abc123:eastus"
-    parts = api_key.split(":", 1)
+    # api_key format: "KEY|REGION" e.g. "abc123|eastus"
+    sep = "|" if "|" in (api_key or "") else ":"
+    parts = (api_key or "").split(sep, 1)
     if len(parts) != 2:
-        raise ValueError("Azure key must be in format KEY:REGION (e.g. abc123:eastus)")
+        raise ValueError("Azure key must be in format KEY|REGION (e.g. abc123|eastus)")
     key, region = parts
-    cfg = _az.SpeechConfig(subscription=key, region=region)
-    cfg.speech_recognition_language = (language or "en") + "-US" if len(language or "en") == 2 else (language or "en-US")
-    audio_cfg = _az.audio.AudioConfig(filename=path)
-    recognizer = _az.SpeechRecognizer(speech_config=cfg, audio_config=audio_cfg)
-    results, segs = [], []
-    done = [False]
-    def _done(evt): done[0] = True
-    recognizer.session_stopped.connect(_done)
-    recognizer.canceled.connect(_done)
-    recognizer.recognized.connect(lambda evt: results.append(evt.result))
-    recognizer.start_continuous_recognition()
-    import time as _time
-    while not done[0]:
-        _time.sleep(0.5)
-    recognizer.stop_continuous_recognition()
-    lines = []
-    for r in results:
+
+    def _log(m):
+        if on_log: on_log(m)
+
+    lang_code = ((language or "en") + "-US" if len(language or "en") == 2
+                 else (language or "en-US"))
+
+    def _transcribe_chunk(chunk_path: str) -> tuple:
+        cfg = _az.SpeechConfig(subscription=key, region=region)
+        cfg.speech_recognition_language = lang_code
+        # Apply recognition mode
+        if model == "dictation":
+            cfg.set_property(_az.PropertyId.SpeechServiceConnection_RecoMode, "DICTATION")
+        elif model == "command_and_search":
+            cfg.set_property(_az.PropertyId.SpeechServiceConnection_RecoMode, "INTERACTIVE")
+        audio_cfg = _az.audio.AudioConfig(filename=chunk_path)
+        recognizer = _az.SpeechRecognizer(speech_config=cfg, audio_config=audio_cfg)
+        results_chunk = []
+        done_ev = [False]
+        recognizer.session_stopped.connect(lambda e: done_ev.__setitem__(0, True))
+        recognizer.canceled.connect(lambda e: done_ev.__setitem__(0, True))
+        recognizer.recognized.connect(lambda e: results_chunk.append(e.result))
+        recognizer.start_continuous_recognition()
+        import time as _t
+        while not done_ev[0]:
+            _t.sleep(0.3)
+        recognizer.stop_continuous_recognition()
+        return results_chunk
+
+    # Auto-chunk for long recordings (Azure REST limit is 60s)
+    chunks = _azure_split_audio(path, chunk_secs=55)
+    is_chunked = len(chunks) > 1
+    if is_chunked:
+        _log(f"Audio split into {len(chunks)} chunks (55s each) for Azure")
+
+    all_results = []
+    for i, chunk_path in enumerate(chunks):
+        if is_chunked:
+            _log(f"Transcribing chunk {i+1}/{len(chunks)}…")
+        all_results.extend(_transcribe_chunk(chunk_path))
+        if is_chunked and chunk_path != path:
+            try: os.unlink(chunk_path)
+            except Exception: pass
+
+    lines, segs = [], []
+    for r in all_results:
         if r.reason.name == "RecognizedSpeech":
             lines.append(r.text)
             segs.append({"start": 0, "end": 0, "text": r.text})
     return "\n".join(lines), language or "en", segs
 
 
-def _stt_elevenlabs(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_elevenlabs(path: str, api_key: str, language: str = None, on_log=None,
+                    model: str = "scribe_v1") -> tuple:
     try:
         from elevenlabs.client import ElevenLabs
     except ImportError:
@@ -777,7 +850,7 @@ def _stt_elevenlabs(path: str, api_key: str, language: str = None, on_log=None) 
     with open(path, "rb") as f:
         resp = client.speech_to_text.convert(
             file=f,
-            model_id="scribe_v1",
+            model_id=model or "scribe_v1",
             language_code=language or None,
         )
     segs, lines = [], []
@@ -788,14 +861,19 @@ def _stt_elevenlabs(path: str, api_key: str, language: str = None, on_log=None) 
     return text, getattr(resp, "language_code", language or "en"), segs
 
 
-def _stt_revai(path: str, api_key: str, language: str = None, on_log=None) -> tuple:
+def _stt_revai(path: str, api_key: str, language: str = None, on_log=None,
+               model: str = "machine") -> tuple:
     try:
         from rev_ai import apiclient, jobstatus
         import time as _time
     except ImportError:
         raise ImportError("rev_ai required: pip install rev_ai")
     client = apiclient.RevAiAPIClient(api_key)
-    job = client.submit_job_local_file(path, language=language or "en")
+    # "fusion" uses Rev.ai's highest-accuracy pipeline (premium tier)
+    submit_kw = {"language": language or "en"}
+    if model == "fusion":
+        submit_kw["metadata"] = "fusion"   # signals premium pipeline
+    job = client.submit_job_local_file(path, **submit_kw)
     while True:
         details = client.get_job_details(job.id)
         if details.status == jobstatus.JobStatus.TRANSCRIBED:
@@ -821,6 +899,7 @@ def _stt_revai(path: str, api_key: str, language: str = None, on_log=None) -> tu
 def stt_transcribe(
     path: str, engine: str, api_key: str = None,
     whisper_model: str = "base", language: str = None,
+    stt_model: str = None,   # model selection for cloud engines
     on_progress=None, on_stage_change=None, on_log=None,
 ) -> tuple:
     """Unified STT dispatcher. Returns (text, detected_lang, segments, stt_secs)."""
@@ -830,7 +909,8 @@ def stt_transcribe(
         _safe_print(f"  [STT] {m}")
         if on_log: on_log(m)
 
-    _log(f"STT engine: {STT_ENGINES.get(engine, engine)}")
+    model_note = f" ({stt_model})" if stt_model else ""
+    _log(f"STT engine: {STT_ENGINES.get(engine, engine)}{model_note}")
 
     if engine == "whisper_local":
         if on_stage_change: on_stage_change("extracting")
@@ -842,21 +922,21 @@ def stt_transcribe(
             on_log=on_log,
         )
     elif engine == "openai_whisper":
-        text, lang, segs = _stt_openai_api(path, api_key, language, on_log)
+        text, lang, segs = _stt_openai_api(path, api_key, language, on_log, model=stt_model)
     elif engine == "groq_whisper":
-        text, lang, segs = _stt_groq(path, api_key, language, on_log)
+        text, lang, segs = _stt_groq(path, api_key, language, on_log, model=stt_model)
     elif engine == "deepgram":
-        text, lang, segs = _stt_deepgram(path, api_key, language, on_log)
+        text, lang, segs = _stt_deepgram(path, api_key, language, on_log, model=stt_model)
     elif engine == "assemblyai":
-        text, lang, segs = _stt_assemblyai(path, api_key, language, on_log)
+        text, lang, segs = _stt_assemblyai(path, api_key, language, on_log, model=stt_model)
     elif engine == "google_stt":
-        text, lang, segs = _stt_google(path, api_key, language, on_log)
+        text, lang, segs = _stt_google(path, api_key, language, on_log, model=stt_model)
     elif engine == "azure_speech":
-        text, lang, segs = _stt_azure(path, api_key, language, on_log)
+        text, lang, segs = _stt_azure(path, api_key, language, on_log, model=stt_model)
     elif engine == "elevenlabs":
-        text, lang, segs = _stt_elevenlabs(path, api_key, language, on_log)
+        text, lang, segs = _stt_elevenlabs(path, api_key, language, on_log, model=stt_model)
     elif engine == "revai":
-        text, lang, segs = _stt_revai(path, api_key, language, on_log)
+        text, lang, segs = _stt_revai(path, api_key, language, on_log, model=stt_model)
     else:
         raise ValueError(f"Unknown STT engine: {engine}")
 
@@ -1393,6 +1473,7 @@ def run(
     whisper_model: str = "base",
     stt_engine: str = "whisper_local",   # see STT_ENGINES keys
     stt_api_key: str = None,             # API key for cloud STT engines
+    stt_model: str = None,               # model selection for cloud STT engines
     panel_mode: bool = False,
     num_speakers: int = None,
     config: ReportConfig = None,
@@ -1448,6 +1529,7 @@ def run(
                 api_key=stt_api_key,
                 whisper_model=whisper_model,
                 language=language,
+                stt_model=stt_model,
                 on_progress=on_whisper_progress,
                 on_stage_change=on_stage_change,
                 on_log=on_log,

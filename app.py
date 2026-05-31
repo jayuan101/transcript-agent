@@ -2513,6 +2513,54 @@ _THEME_JS = """
 (function(){
   var _dark = false;
 
+  /* ── Inject toggle widget directly into <body> so Gradio can never remove it ─
+     We do NOT use gr.HTML() for the buttons — Gradio 6 re-renders those
+     components and strips IDs/styles. Injecting via JS is permanent.           */
+  function _injectToggle() {
+    if (document.getElementById('ta-widget')) return;
+    var w = document.createElement('div');
+    w.id = 'ta-widget';
+    w.style.cssText = (
+      'position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;'
+      + 'background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);'
+      + 'border:1px solid #e2e8f0;border-radius:30px;padding:4px;'
+      + 'box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;'
+    );
+    w.innerHTML = (
+      '<button id="ta-btn-light" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
+      + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
+      + 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);">☀️ Light</button>'
+      + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
+      + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
+      + 'background:transparent;color:#64748b;">🌙 Dark</button>'
+    );
+    document.body.appendChild(w);
+
+    /* Also inject floating analyze button */
+    if (!document.getElementById('ta-float-wrap')) {
+      var fw = document.createElement('div');
+      fw.id = 'ta-float-wrap';
+      fw.style.cssText = (
+        'position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;'
+        + 'align-items:center;gap:8px;'
+      );
+      fw.innerHTML = (
+        '<div id="ta-float-label" style="font-size:0.7em;font-weight:700;letter-spacing:0.06em;'
+        + 'text-transform:uppercase;color:#fff;background:rgba(29,78,216,0.85);backdrop-filter:blur(6px);'
+        + 'padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s;pointer-events:none;'
+        + 'white-space:nowrap;">Analyze</div>'
+        + '<button id="ta-float-analyze" style="width:56px;height:56px;border-radius:50%;border:none;'
+        + 'cursor:pointer;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'font-size:1.4em;display:flex;align-items:center;justify-content:center;'
+        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;">▶</button>'
+      );
+      document.body.appendChild(fw);
+    }
+  }
+  /* Run immediately and re-check periodically in case body isn't ready yet */
+  document.body ? _injectToggle() : document.addEventListener('DOMContentLoaded', _injectToggle);
+  setInterval(function(){ if (!document.getElementById('ta-widget')) _injectToggle(); }, 2000);
+
   /* ── PERMANENT static CSS injected directly into <head> ─────────────────────
      Gradio 6 embeds css=CSS as JSON data in <script> tags and injects it later
      via its own pipeline — we can't rely on it being in the DOM at toggle time.
@@ -3886,7 +3934,6 @@ _DOWNLOAD_SECTION = f"""
 
 with gr.Blocks(title="Transcript Agent") as demo:
 
-    gr.HTML(_THEME_TOGGLE)
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
 

@@ -3915,6 +3915,62 @@ _THEME_JS = """
     setTimeout(render, 800);
   })();
 
+  /* ── 🔌 Server reconnect heartbeat ────────────────────────────────────────
+     Pings the server every 4 s.  If 2 consecutive pings fail, shows a
+     "Reconnecting…" banner.  When the server comes back, reloads the page
+     so Gradio re-initialises cleanly (avoids stale SSE connections).       */
+  (function(){
+    var _fails   = 0;
+    var _banner  = null;
+
+    function _showBanner() {
+      if (_banner) return;
+      _banner = document.createElement('div');
+      _banner.id = 'ta-reconnect-banner';
+      _banner.style.cssText = (
+        'position:fixed;top:0;left:0;right:0;z-index:99999;'
+        + 'background:#1e40af;color:#fff;text-align:center;'
+        + 'padding:10px 16px;font-size:0.88em;font-weight:600;'
+        + 'display:flex;align-items:center;justify-content:center;gap:10px;'
+      );
+      _banner.innerHTML = (
+        '<span style="display:inline-block;width:10px;height:10px;border:2px solid #fff;'
+        + 'border-top-color:transparent;border-radius:50%;animation:ta-spin 0.8s linear infinite;"></span>'
+        + '&nbsp;Server restarting — reconnecting automatically…'
+      );
+      var style = document.createElement('style');
+      style.textContent = '@keyframes ta-spin{to{transform:rotate(360deg)}}';
+      document.head.appendChild(style);
+      document.body.prepend(_banner);
+    }
+
+    function _hideBanner() {
+      if (_banner) { _banner.remove(); _banner = null; }
+    }
+
+    function _ping() {
+      fetch(window.location.origin + '/?_hb=' + Date.now(), {
+        cache: 'no-store', method: 'HEAD'
+      }).then(function(r) {
+        if (r.ok || r.status < 500) {
+          if (_fails >= 2) {
+            /* Server came back — reload so Gradio re-initialises */
+            window.location.reload();
+          }
+          _fails = 0;
+          _hideBanner();
+        } else {
+          _fails++;
+        }
+      }).catch(function() {
+        _fails++;
+        if (_fails >= 2) _showBanner();
+      });
+    }
+
+    setInterval(_ping, 4000);
+  })();
+
   /* ── 🔄 In-app update checker (desktop / local only) ───────────────────────
      Skipped automatically on HF Spaces (window.location.hostname !== localhost).
      Fetches the current APP_VERSION from the HF Space raw file.

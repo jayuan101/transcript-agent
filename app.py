@@ -4810,14 +4810,19 @@ with gr.Blocks(title="Transcript Agent") as demo:
     )
 
     # STT engine → show/hide model/key + save to BrowserState (single handler, no race)
-    def _toggle_and_save_stt(engine, main_key):
-        key_upd, model_upd = toggle_stt_engine(engine, main_key)
-        return key_upd, model_upd, engine
-
+    # STT engine toggle — split into two separate handlers so the UI update
+    # (toggle_stt_engine) is instant with no processing indicator, while the
+    # BrowserState save fires independently in the background.
     stt_engine_input.change(
-        fn=_toggle_and_save_stt,
+        fn=toggle_stt_engine,
         inputs=[stt_engine_input, user_api_key],
-        outputs=[stt_key_input, stt_model_input, bsw_stt],
+        outputs=[stt_key_input, stt_model_input],
+        queue=False,
+    )
+    stt_engine_input.change(
+        fn=lambda v: v,
+        inputs=[stt_engine_input],
+        outputs=[bsw_stt],
         queue=False,
     )
 
@@ -4913,7 +4918,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
     report_style.change(    fn=_id, inputs=report_style,     outputs=bsw_style,    queue=False)
     interview_toggle.change(fn=_id, inputs=interview_toggle, outputs=bsw_interview,queue=False)
     interview_deep.change(  fn=_id, inputs=interview_deep,   outputs=bsw_deep,     queue=False)
-    # stt_engine: handled above in _toggle_and_save_stt → outputs bsw_stt
+    # stt_engine: two handlers above — one for instant UI, one for BrowserState save
     inc_summary.change(     fn=_id, inputs=inc_summary,      outputs=bsw_inc_sum,  queue=False)
     inc_key_points.change(  fn=_id, inputs=inc_key_points,   outputs=bsw_inc_kp,   queue=False)
     inc_action.change(      fn=_id, inputs=inc_action,       outputs=bsw_inc_ac,   queue=False)

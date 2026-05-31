@@ -4179,75 +4179,11 @@ _THEME_JS = """
     setInterval(_ping, 4000);
   })();
 
-  /* ── 🔄 In-app update checker (desktop / local only) ───────────────────────
-     Skipped automatically on HF Spaces (window.location.hostname !== localhost).
-     Fetches the current APP_VERSION from the HF Space raw file.
-     If a newer version is available, shows a dismissible update banner with
-     a "Download Update" button — just like a real desktop app.             */
+  /* (update checker removed — releases tracked on GitHub) */
   (function(){
-    var CURRENT  = '3.49';
-    var RAW_URL  = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/app.py';
-    var SETUP_WIN = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_windows.bat';
-    var SETUP_MAC = 'https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main/setup_mac.sh';
-
-    /* Only run on localhost / desktop app */
-    var host = window.location.hostname;
-    if (host !== 'localhost' && host !== '127.0.0.1' && host !== '') return;
-
-    function showUpdateBanner(latest) {
-      if (document.getElementById('ta-update-banner')) return;
-      var isWin = navigator.platform.toLowerCase().indexOf('win') >= 0;
-      var setupUrl = isWin ? SETUP_WIN : SETUP_MAC;
-      var setupFile = isWin ? 'setup_windows.bat' : 'setup_mac.sh';
-      var setupInstr = isWin ? 'Double-click to run' : 'Open Terminal → bash ~/Downloads/' + setupFile;
-
-      var b = document.createElement('div');
-      b.id = 'ta-update-banner';
-      b.style.cssText = (
-        'position:fixed;top:0;left:0;right:0;z-index:99999;'
-        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
-        + 'display:flex;align-items:center;gap:14px;padding:12px 20px;'
-        + 'font-family:system-ui,sans-serif;font-size:0.88em;'
-        + 'box-shadow:0 2px 12px rgba(29,78,216,0.4);'
-      );
-      b.innerHTML = (
-        '<span style="font-size:1.3em;flex-shrink:0;">🔄</span>'
-        + '<div style="flex:1;">'
-        +   '<div style="font-weight:700;">Update available — v' + latest + '</div>'
-        +   '<div style="opacity:0.85;font-size:0.88em;">'
-        +     'You are on v' + CURRENT + '. Download the installer and choose "Update" when it runs.'
-        +   '</div>'
-        + '</div>'
-        + '<a id="ta-update-dl" href="' + setupUrl + '" download="' + setupFile + '" style="'
+    if (false) {  /* intentionally empty */
         +   'background:#fff;color:#1d4ed8;font-weight:700;font-size:0.82em;'
         +   'padding:7px 16px;border-radius:8px;text-decoration:none;white-space:nowrap;'
-        +   'flex-shrink:0;">⬇ Download Update</a>'
-        + '<button onclick="document.getElementById(`ta-update-banner`).remove()" style="'
-        +   'background:rgba(255,255,255,0.2);border:none;color:#fff;cursor:pointer;'
-        +   'border-radius:6px;padding:6px 10px;font-size:1em;flex-shrink:0;">✕</button>'
-      );
-      document.body.prepend(b);
-
-      /* Nudge content down so banner doesn't overlap the app */
-      var gc = document.querySelector('.gradio-container, .contain');
-      if (gc) gc.style.marginTop = b.offsetHeight + 'px';
-    }
-
-    function checkVersion() {
-      fetch(RAW_URL + '?t=' + Date.now(), { cache: 'no-store' })
-        .then(function(r){ return r.text(); })
-        .then(function(src){
-          var m = src.match(/APP_VERSION[ \t]*=[ \t]*["']([^"']+)["']/);
-          if (!m) return;
-          var latest = m[1].trim();
-          if (latest !== CURRENT) showUpdateBanner(latest);
-        })
-        .catch(function(){}); /* silent — no network? just skip */
-    }
-
-    /* Check once on load, then every 6 hours */
-    setTimeout(checkVersion, 3000);
-    setInterval(checkVersion, 6 * 60 * 60 * 1000);
   })();
 })();
 """
@@ -4382,7 +4318,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "3.49"
+APP_VERSION = "1.0"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

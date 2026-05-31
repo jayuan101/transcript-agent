@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent  |  Mac Installer  |  v3.49
+#   Transcript Agent  |  Mac Installer  |  v1.0
 #   Installs into a local Python venv — no Docker required.
 #   Run again at any time to update or repair.
 # ============================================================
@@ -11,7 +11,7 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="3.49"
+CURRENT_VERSION="1.0"
 APP_URL="http://localhost:7860"
 
 # ── Colour helpers ─────────────────────────────────────────

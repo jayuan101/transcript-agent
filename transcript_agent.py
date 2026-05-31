@@ -1576,6 +1576,15 @@ def run(
 
     if speaker_names:
         _log(f"Speaker count provided: {speaker_names}")
+
+    # Track final cumulative token counts for history
+    _final_tok = [0, 0]   # [in, out]
+    def _token_usage_wrapper(inp, out):
+        _final_tok[0] = inp
+        _final_tok[1] = out
+        if on_token_usage:
+            on_token_usage(inp, out)
+
     result = process_transcript(
         client, raw_text, fmt,
         panel_mode=panel_mode,
@@ -1586,7 +1595,7 @@ def run(
         language_variant=language_variant,
         speaker_names=speaker_names,
         on_log=on_log,
-        on_token_usage=on_token_usage,
+        on_token_usage=_token_usage_wrapper,
     )
 
     result.detected_language = language_variant or language or _detected_lang or "Auto-detected"
@@ -1619,6 +1628,8 @@ def run(
             "word_count": len(raw_text.split()),
             "overall_score": ia.get("overall_score", "") if ia else "",
             "overall_verdict": ia.get("overall_verdict", "") if ia else "",
+            "tok_in":  _final_tok[0],
+            "tok_out": _final_tok[1],
             "paths": paths,
             "summary": result.summary[:300],
         }

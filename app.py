@@ -4766,8 +4766,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
                             elem_classes=["ta-history-hint"],
                         )
                     history_table = gr.Dataframe(
-                        headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Score", "Verdict"],
-                        datatype=["str","str","str","number","str","str","str"],
+                        headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Tokens", "Cost", "Score", "Verdict"],
+                        datatype=["str","str","str","number","str","str","str","str","str"],
                         interactive=False,
                         wrap=True,
                     )
@@ -4842,17 +4842,35 @@ with gr.Blocks(title="Transcript Agent") as demo:
         outputs=[language_variant],
     )
 
+    def _history_cost(e):
+        """Compute cost string from a history entry's tok_in/tok_out + model."""
+        tok_in  = e.get("tok_in",  0) or 0
+        tok_out = e.get("tok_out", 0) or 0
+        if not (tok_in or tok_out):
+            return "—"
+        pricing = _MODEL_PRICING.get(e.get("ai_model", ""))
+        if not pricing:
+            return "—"
+        cost = tok_in / 1_000_000 * pricing[0] + tok_out / 1_000_000 * pricing[1]
+        return f"${cost:.4f}" if cost < 0.01 else f"${cost:.3f}"
+
     # History helpers
     def refresh_history():
         rows = []
         for e in load_history(HISTORY_PATH):
+            tok_in  = e.get("tok_in",  0) or 0
+            tok_out = e.get("tok_out", 0) or 0
+            tok_str = f"{tok_in:,}↑ {tok_out:,}↓" if (tok_in or tok_out) else "—"
             rows.append([
                 e.get("timestamp",""), e.get("filename",""),
                 e.get("stt_engine",""), e.get("stt_secs",0),
-                e.get("ai_provider",""), e.get("overall_score","—"),
+                e.get("ai_provider",""),
+                tok_str,
+                _history_cost(e),
+                e.get("overall_score","—"),
                 e.get("overall_verdict","—"),
             ])
-        return rows or [["No history yet","","","","","",""]]
+        return rows or [["No history yet","","","","","","","",""]]
 
     def load_history_row(evt: gr.SelectData):
         """Called immediately when a row is clicked — no setTimeout race."""
@@ -4861,6 +4879,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
         if not entries or idx >= len(entries):
             return "_No session data found._"
         e = entries[idx]
+        tok_in  = e.get("tok_in",  0) or 0
+        tok_out = e.get("tok_out", 0) or 0
+        tok_line = ""
+        if tok_in or tok_out:
+            cost_str = _history_cost(e)
+            tok_line = (
+                f"**Tokens:** {tok_in:,} in / {tok_out:,} out"
+                + (f"  —  **Est. cost:** {cost_str}" if cost_str != "—" else "")
+                + "  \n"
+            )
         md = (
             f"### 📂 {e.get('filename','')}\n\n"
             f"**Date:** {e.get('timestamp','')}  \n"
@@ -4868,6 +4896,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             f"**AI Provider:** {e.get('ai_provider','')} / {e.get('ai_model','')}  \n"
             f"**Language:** {e.get('language','')}  \n"
             f"**Words:** {e.get('word_count','')}  \n"
+            + tok_line
         )
         if e.get("overall_score"):
             md += f"**Score:** {e.get('overall_score')}/10 — {e.get('overall_verdict','')}\n\n"

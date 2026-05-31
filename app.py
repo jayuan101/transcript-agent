@@ -4426,7 +4426,7 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
-        js=_THEME_JS,
+        head="<script defer>\n" + _THEME_JS + "\n</script>",
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

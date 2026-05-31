@@ -3414,94 +3414,145 @@ _THEME_JS = """
     setTimeout(wireAnalyze, 1500);
   })();
 
-  /* ── 🌐 Network monitor — upload progress via XHR intercept ─────────────
-     Gradio uploads files via XHR to /upload. We intercept the upload event
-     and push live speed + progress into the #ta-net-monitor HTML component. */
+  /* ── 🌐 Live Network Speed Monitor ──────────────────────────────────────────
+     Tracks ALL network bytes in real-time:
+       • PerformanceObserver — every resource the browser loads
+       • XHR upload intercept — Gradio file uploads (progress events)
+       • Fetch intercept      — streaming SSE responses (AI output)
+     Renders a live speed gauge that updates every 500 ms. */
   (function(){
-    var _netPanel  = null;
-    var _startTime = 0;
+    /* ── rolling byte log: [{t: timestamp_ms, b: bytes}] ── */
+    var _log  = [];
+    var _WINDOW_MS = 3000;   /* 3-second rolling window */
 
-    function getPanel() {
-      if (!_netPanel) _netPanel = document.getElementById('ta-net-monitor');
-      return _netPanel;
+    /* active upload state */
+    var _upLoaded = 0, _upTotal = 0, _upStart = 0, _upActive = false;
+
+    function _push(bytes) {
+      if (bytes > 0) _log.push({t: Date.now(), b: bytes});
+    }
+
+    /* rolling speed in bytes/sec over the last _WINDOW_MS */
+    function _speed() {
+      var now = Date.now();
+      _log = _log.filter(function(e){ return now - e.t < _WINDOW_MS; });
+      var total = _log.reduce(function(s,e){ return s + e.b; }, 0);
+      return total / (_WINDOW_MS / 1000);
     }
 
     function fmt(bps) {
-      if (bps > 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
-      if (bps > 1024)    return (bps/1024).toFixed(0)    + ' KB/s';
-      return bps.toFixed(0) + ' B/s';
+      if (bps >= 1048576) return (bps/1048576).toFixed(1) + ' MB/s';
+      if (bps >= 1024)    return (bps/1024).toFixed(0)    + ' KB/s';
+      if (bps > 0)        return bps.toFixed(0)            + ' B/s';
+      return '0 B/s';
     }
 
-    function showUpload(loaded, total, bps) {
-      var p = getPanel(); if (!p) return;
-      var pct   = total > 0 ? Math.min(100, loaded/total*100) : 0;
-      var eta   = (bps > 0 && total > loaded) ? Math.round((total-loaded)/bps) : 0;
-      var color = '#7c3aed';
-      p.innerHTML = (
-        '<div style="background:var(--ta-card-bg);border:1px solid ' + color + '33;'
-        + 'border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
-        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
-        + '<span>⬆️</span>'
-        + '<span style="font-weight:700;color:var(--ta-card-text);">Upload</span>'
-        + '<span style="color:#64748b;">' + (loaded/1048576).toFixed(1) + ' MB'
-        + (total > 0 ? ' / ' + (total/1048576).toFixed(1) + ' MB' : '') + '</span>'
-        + '<span style="margin-left:auto;font-size:0.78em;">'
-        + '<span style="color:' + color + ';font-weight:700;">' + fmt(bps) + '</span>'
-        + (eta > 0 ? ' &nbsp;·&nbsp; <span style="color:#64748b;">ETA ' + eta + 's</span>' : '')
-        + (total > 0 ? ' &nbsp;·&nbsp; <span style="color:#64748b;">' + pct.toFixed(0) + '%</span>' : '')
-        + '</span></div>'
-        + '<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;'
-        + 'position:relative;margin-top:6px;">'
-        + (total > 0
-            ? '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:' + color
-              + ';border-radius:4px;transition:width 0.35s ease;"></div>'
-            : '<style>@keyframes netup{0%{left:-40%}100%{left:110%}}</style>'
-              + '<div style="position:absolute;width:40%;height:100%;background:' + color
-              + ';border-radius:4px;animation:netup 1.2s ease-in-out infinite;"></div>'
-          )
-        + '</div></div>'
-      );
+    /* mini bar: 20 segments filled proportionally to log over last 3 s */
+    function _bars(bps) {
+      var SEGS = 20;
+      var MAX  = 5 * 1048576; /* 5 MB/s = full bar */
+      var fill = Math.min(SEGS, Math.round(bps / MAX * SEGS));
+      var color = bps > 1048576 ? '#22c55e' : bps > 102400 ? '#3b82f6' : '#64748b';
+      var bar = '';
+      for (var i = 0; i < SEGS; i++) {
+        bar += '<span style="display:inline-block;width:3px;height:' + (i < fill ? 14 : 5) + 'px;'
+             + 'background:' + (i < fill ? color : 'var(--ta-card-border,#e2e8f0)') + ';'
+             + 'border-radius:2px;margin:0 1px;vertical-align:middle;transition:height 0.25s,background 0.25s;"></span>';
+      }
+      return bar;
     }
 
-    var _idleTimer = null;
-    var _lastSpeed = 0;
-    var _lastDir   = '';
-
-    function idleNet() {
-      var p = getPanel(); if (!p) return;
-      var lastTxt = _lastSpeed > 0
-        ? ' &nbsp;·&nbsp; <span style="color:#64748b;font-size:0.78em;">Last: '
-          + fmt(_lastSpeed) + ' ' + (_lastDir === 'up' ? '⬆️' : '⬇️') + '</span>'
-        : '';
-      p.innerHTML = (
-        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
-        + '<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
-        + 'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
-        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
-        + '<span>🌐</span>'
-        + '<span style="font-weight:600;color:var(--ta-card-text);">Network</span>'
-        + lastTxt
-        + '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
-        + '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
-        + 'animation:tapulse 2s ease-in-out infinite;"></span>'
-        + '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connected</span>'
-        + '</span></div></div>'
-      );
-    }
-
-    function clearNet() {
-      clearTimeout(_idleTimer);
-      _idleTimer = setTimeout(idleNet, 1500);
-    }
-
-    /* Initialise panel immediately so it's never blank */
-    (function waitForPanel(){
+    function render() {
       var p = document.getElementById('ta-net-monitor');
-      if (p) { idleNet(); }
-      else    { setTimeout(waitForPanel, 300); }
-    })();
+      if (!p) return;
 
-    /* Intercept XMLHttpRequest to detect Gradio file uploads */
+      var bps   = _speed();
+      var color = bps > 1048576 ? '#22c55e' : bps > 102400 ? '#3b82f6' : '#94a3b8';
+      var dot   = '<span style="width:7px;height:7px;background:' + color + ';border-radius:50%;'
+                + 'display:inline-block;margin-right:5px;box-shadow:0 0 4px ' + color + ';'
+                + 'animation:tapulse 2s ease-in-out infinite;"></span>';
+
+      var label, detail = '';
+
+      if (_upActive) {
+        /* File upload in progress — show progress bar */
+        var pct   = _upTotal > 0 ? Math.min(100, _upLoaded / _upTotal * 100) : 0;
+        var eta   = (bps > 0 && _upTotal > _upLoaded) ? Math.round((_upTotal - _upLoaded) / bps) : 0;
+        label = '⬆️ Uploading';
+        detail = (
+          '<div style="height:5px;background:var(--ta-card-border,#e2e8f0);border-radius:3px;'
+          + 'overflow:hidden;margin-top:6px;margin-bottom:2px;">'
+          + (_upTotal > 0
+              ? '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#7c3aed;'
+                + 'border-radius:3px;transition:width 0.3s;"></div>'
+              : '<div style="width:40%;height:100%;background:#7c3aed;border-radius:3px;'
+                + 'animation:netup 1.2s ease-in-out infinite;position:relative;left:-40%;"></div>')
+          + '</div>'
+          + (_upTotal > 0
+              ? '<span style="font-size:0.75em;color:#64748b;">'
+                + (_upLoaded/1048576).toFixed(1) + ' / ' + (_upTotal/1048576).toFixed(1) + ' MB'
+                + (eta > 0 ? ' &nbsp;·&nbsp; ETA ' + eta + 's' : '')
+                + ' &nbsp;·&nbsp; ' + pct.toFixed(0) + '%</span>'
+              : '')
+        );
+      } else {
+        label = '🌐 Network';
+      }
+
+      p.innerHTML = (
+        '<style>'
+        + '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.3}}'
+        + '@keyframes netup{0%{left:-40%}100%{left:110%}}'
+        + '</style>'
+        + '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
+        + 'border-radius:10px;padding:8px 14px;margin-bottom:8px;">'
+        + '<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;flex-wrap:wrap;">'
+        + '<span style="font-weight:700;color:var(--ta-card-text,#1e293b);">' + label + '</span>'
+        + '<span style="margin-left:auto;display:flex;align-items:center;gap:2px;">' + _bars(bps) + '</span>'
+        + '<span style="font-weight:800;font-size:0.9em;color:' + color + ';min-width:72px;text-align:right;">'
+        + dot + fmt(bps) + '</span>'
+        + '</div>'
+        + detail
+        + '</div>'
+      );
+    }
+
+    /* ── PerformanceObserver: catches every resource the page loads ── */
+    if (window.PerformanceObserver) {
+      try {
+        var _obs = new PerformanceObserver(function(list) {
+          list.getEntries().forEach(function(e) {
+            /* transferSize is 0 for cached / cross-origin no-CORS resources */
+            if (e.transferSize > 0) _push(e.transferSize);
+            /* fall back to encoded body size if transfer unavailable */
+            else if (e.encodedBodySize > 0) _push(e.encodedBodySize);
+          });
+        });
+        _obs.observe({entryTypes: ['resource']});
+      } catch(ex) {}
+    }
+
+    /* ── Fetch intercept: tracks streaming SSE (Gradio AI output stream) ── */
+    var _origFetch = window.fetch;
+    window.fetch = function(url, opts) {
+      var result = _origFetch.apply(this, arguments);
+      result.then(function(resp) {
+        if (!resp || !resp.body) return;
+        try {
+          var reader = resp.body.getReader();
+          (function pump(){
+            reader.read().then(function(chunk){
+              if (chunk.done) return;
+              if (chunk.value) _push(chunk.value.byteLength);
+              pump();
+            }).catch(function(){});
+          })();
+        } catch(ex) {}
+      }).catch(function(){});
+      return result;
+    };
+
+    /* ── XHR intercept: upload progress ── */
     var _origOpen = XMLHttpRequest.prototype.open;
     var _origSend = XMLHttpRequest.prototype.send;
 
@@ -3512,23 +3563,37 @@ _THEME_JS = """
 
     XMLHttpRequest.prototype.send = function(data) {
       var self = this;
-      if (self._taUrl && (self._taUrl.indexOf('/upload') >= 0 || self._taUrl.indexOf('upload') >= 0)
-          && data && (data instanceof FormData || data instanceof Blob || data instanceof ArrayBuffer
-                      || (typeof data === 'object' && data.size))) {
-        _startTime = Date.now();
-        _lastDir   = 'up';
+      var isUpload = self._taUrl && self._taUrl.indexOf('upload') >= 0
+                  && data && (data instanceof FormData || data instanceof Blob
+                              || data instanceof ArrayBuffer
+                              || (typeof data === 'object' && data.size));
+      if (isUpload) {
+        _upStart  = Date.now();
+        _upActive = true;
+        _upLoaded = 0; _upTotal = 0;
         self.upload.addEventListener('progress', function(e) {
-          var elapsed = (Date.now() - _startTime) / 1000;
-          var bps = elapsed > 0 ? e.loaded / elapsed : 0;
-          _lastSpeed = bps;
-          showUpload(e.loaded, e.lengthComputable ? e.total : 0, bps);
+          _upLoaded = e.loaded;
+          _upTotal  = e.lengthComputable ? e.total : 0;
+          var elapsed = (Date.now() - _upStart) / 1000;
+          if (elapsed > 0) _push(Math.max(0, e.loaded - (_upLoaded || 0)));
         });
-        self.upload.addEventListener('load',  function() { clearNet(); });
-        self.upload.addEventListener('error', function() { clearNet(); });
-        self.upload.addEventListener('abort', function() { clearNet(); });
+        self.upload.addEventListener('load',  function() { _upActive = false; });
+        self.upload.addEventListener('error', function() { _upActive = false; });
+        self.upload.addEventListener('abort', function() { _upActive = false; });
       }
+      /* track XHR download bytes too */
+      self.addEventListener('progress', function(e) {
+        if (e.loaded > 0) _push(e.loaded > self._taLastLoaded
+          ? e.loaded - (self._taLastLoaded || 0) : e.loaded);
+        self._taLastLoaded = e.loaded;
+      });
       return _origSend.apply(this, arguments);
     };
+
+    /* ── Tick every 500 ms ── */
+    setInterval(render, 500);
+    /* First render immediately */
+    setTimeout(render, 800);
   })();
 
   /* ── 🔄 In-app update checker (desktop / local only) ───────────────────────

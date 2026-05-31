@@ -1205,7 +1205,7 @@ Analyse this interview transcript. Return ONLY valid JSON — no markdown fences
       "coaching_tip": "<specific, actionable advice for this answer>"
     }}
   ],
-  "overall_score": "<0-100>",
+  "overall_score": "<0-10>",
   "overall_verdict": "<Great|Good|Needs Improvement>",
   "strengths": ["<strength 1>", "<strength 2>"],
   "weaknesses": ["<weakness 1>", "<weakness 2>"],

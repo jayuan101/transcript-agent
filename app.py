@@ -2169,7 +2169,7 @@ def process_file(
                     f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;'
                     f'padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">'
                     f'<span style="font-size:2em;">🎯</span>'
-                    f'<div><div style="font-weight:700;font-size:1em;">Overall Score: {ia.get("overall_score","—")}/100</div>'
+                    f'<div><div style="font-weight:700;font-size:1em;">Overall Score: {ia.get("overall_score","—")}/10</div>'
                     f'<div style="color:#16a34a;font-weight:600;">{ia.get("overall_verdict","")}</div></div>'
                     f'</div>'
                 )
@@ -4295,7 +4295,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             f"**Words:** {e.get('word_count','')}  \n"
         )
         if e.get("overall_score"):
-            md += f"**Score:** {e.get('overall_score')}/100 — {e.get('overall_verdict','')}\n\n"
+            md += f"**Score:** {e.get('overall_score')}/10 — {e.get('overall_verdict','')}\n\n"
         if e.get("summary"):
             md += f"---\n**Summary preview:**\n\n{e['summary']}"
         return md

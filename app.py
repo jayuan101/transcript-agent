@@ -3464,6 +3464,210 @@ _THEME_JS = """
     setTimeout(restore, 2000);   /* wait for Gradio to finish rendering */
   })();
 
+  /* ── 💾 Remember all settings (STT engine, checkboxes, language, style…) ───
+     Watches every UI control and saves its value to localStorage on change.
+     On page load, restores each saved value so the user's last session state
+     is exactly preserved.                                                    */
+  (function(){
+    /* id → { type: 'dropdown'|'checkbox'|'number', key: localStorage key } */
+    var FIELDS = {
+      'ta-stt-engine':       { type:'dropdown', key:'ta-stt-engine' },
+      'ta-whisper-size':     { type:'dropdown', key:'ta-whisper-size' },
+      'ta-language':         { type:'dropdown', key:'ta-language' },
+      'ta-report-style':     { type:'dropdown', key:'ta-report-style' },
+      'ta-interview-toggle': { type:'checkbox', key:'ta-interview' },
+      'ta-interview-deep':   { type:'checkbox', key:'ta-interview-deep' },
+      'ta-inc-summary':      { type:'checkbox', key:'ta-inc-summary' },
+      'ta-inc-keypoints':    { type:'checkbox', key:'ta-inc-keypoints' },
+      'ta-inc-action':       { type:'checkbox', key:'ta-inc-action' },
+      'ta-inc-transcript':   { type:'checkbox', key:'ta-inc-transcript' },
+      'ta-inc-profiles':     { type:'checkbox', key:'ta-inc-profiles' },
+      'ta-inc-analytics':    { type:'checkbox', key:'ta-inc-analytics' },
+      'ta-speakers':         { type:'number',   key:'ta-speakers' },
+    };
+
+    /* ── Watchers ── */
+    var _watching = {};   /* track which IDs already have listeners */
+
+    function attachWatcher(id, cfg) {
+      if (_watching[id]) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      _watching[id] = true;
+
+      if (cfg.type === 'dropdown') {
+        var last = (el.querySelector('input.border-none') || {}).value || '';
+        new MutationObserver(function() {
+          var inp = el.querySelector('input.border-none');
+          var v = inp ? inp.value : '';
+          if (v && v !== last) { last = v; localStorage.setItem(cfg.key, v); }
+        }).observe(el, {childList:true, subtree:true, characterData:true, attributes:true});
+      } else if (cfg.type === 'checkbox') {
+        var cb = el.querySelector('input[type=checkbox]');
+        if (!cb) { _watching[id] = false; return; }
+        cb.addEventListener('change', function() {
+          localStorage.setItem(cfg.key, cb.checked ? 'true' : 'false');
+        });
+      } else if (cfg.type === 'number') {
+        var ni = el.querySelector('input[type=number]');
+        if (!ni) { _watching[id] = false; return; }
+        ni.addEventListener('change', function() {
+          localStorage.setItem(cfg.key, ni.value);
+        });
+      }
+    }
+
+    function watchField(id, cfg) {
+      /* Try immediately, then retry for elements that start hidden */
+      (function try_(n) {
+        if (_watching[id]) return;
+        if (document.getElementById(id)) { attachWatcher(id, cfg); return; }
+        if (n < 30) setTimeout(function(){try_(n+1);}, 700);
+      })(0);
+    }
+
+    /* Document-level observer: attach watchers as soon as elements appear */
+    new MutationObserver(function() {
+      Object.keys(FIELDS).forEach(function(id) {
+        if (!_watching[id] && document.getElementById(id)) {
+          attachWatcher(id, FIELDS[id]);
+        }
+      });
+    }).observe(document.body, {childList:true, subtree:true});
+
+    /* ── Restore helpers ── */
+    function restoreDropdown(id, savedVal) {
+      if (!savedVal) return;
+      (function try_(n) {
+        var el = document.getElementById(id);
+        if (!el) { if (n<25) setTimeout(function(){try_(n+1);},600); return; }
+        var inp = el.querySelector('input.border-none');
+        if (inp && inp.value === savedVal) return;   /* already correct */
+        /* Trigger = input itself (Gradio Svelte dropdowns have no separate button).
+           Must dispatch full mouse sequence — Svelte listens on mousedown, not click. */
+        var trigger = inp || el.querySelector('button');
+        if (!trigger) { if (n<25) setTimeout(function(){try_(n+1);},400); return; }
+        ['mousedown','mouseup','click'].forEach(function(ev) {
+          trigger.dispatchEvent(new MouseEvent(ev, {bubbles:true, cancelable:true, view:window}));
+        });
+        setTimeout(function() {
+          /* Options render as a Svelte portal outside the component — search body.
+             Option text may include a leading checkmark (✓ ) — strip it when matching. */
+          var opts = document.body.querySelectorAll('[role=option], .options li, ul[id*=dropdown] li');
+          /* Narrow to visible ones */
+          var visible = Array.from(opts).filter(function(o) {
+            var r = o.getBoundingClientRect();
+            return r.width > 0 && r.height > 0;
+          });
+          var found = false;
+          for (var i = 0; i < visible.length; i++) {
+            var raw = visible[i].textContent.trim();
+            var txt = raw.replace(/^[✓✔✅][ ]*/, '');  /* strip checkmark */
+            var dv  = visible[i].getAttribute('data-value') || '';
+            if (txt === savedVal || dv === savedVal || raw === savedVal) {
+              visible[i].click(); found = true; break;
+            }
+          }
+          if (!found) { trigger.click(); }   /* close without change */
+        }, 400);
+      })(0);
+    }
+
+    function restoreCheckbox(id, savedVal) {
+      if (savedVal === null) return;
+      var want = savedVal === 'true';
+      (function try_(n) {
+        var el = document.getElementById(id);
+        var cb = el && el.querySelector('input[type=checkbox]');
+        if (!cb) { if (n<20) setTimeout(function(){try_(n+1);},500); return; }
+        if (cb.checked !== want) {
+          /* Click the label/span — Gradio listens on the label, not the input */
+          var lbl = el.querySelector('label') || cb.parentElement;
+          if (lbl) lbl.click(); else cb.click();
+        }
+      })(0);
+    }
+
+    function restoreNumber(id, savedVal) {
+      if (!savedVal) return;
+      (function try_(n) {
+        var el = document.getElementById(id);
+        var ni = el && el.querySelector('input[type=number]');
+        if (!ni) { if (n<20) setTimeout(function(){try_(n+1);},500); return; }
+        if (ni.value === savedVal) return;
+        ni.value = savedVal;
+        ['input','change'].forEach(function(ev){
+          ni.dispatchEvent(new Event(ev, {bubbles:true}));
+        });
+      })(0);
+    }
+
+    /* Open an accordion by its header text, run cb(), then close it */
+    function withAccordion(headerText, cb) {
+      var btns = Array.from(document.querySelectorAll('button'));
+      var btn  = btns.find(function(b) {
+        return b.textContent.trim().toLowerCase().indexOf(headerText.toLowerCase()) >= 0 &&
+               b.closest('.accordion, [data-accordion]') !== null ||
+               b.parentElement && b.parentElement.classList.contains('label-wrap');
+      });
+      /* Fallback: any button whose text starts with the header */
+      if (!btn) {
+        btn = btns.find(function(b){
+          return b.textContent.trim().toLowerCase().startsWith(headerText.toLowerCase());
+        });
+      }
+      if (!btn) { cb(); return; }
+      var isOpen = btn.getAttribute('aria-expanded') === 'true';
+      if (!isOpen) btn.click();
+      setTimeout(function() {
+        cb();
+        if (!isOpen) setTimeout(function(){ btn.click(); }, 500);
+      }, 600);
+    }
+
+    function restoreAll() {
+      /* ── Things always in the DOM ── */
+      restoreCheckbox('ta-interview-toggle', localStorage.getItem('ta-interview'));
+      restoreCheckbox('ta-interview-deep',   localStorage.getItem('ta-interview-deep'));
+      restoreNumber('ta-speakers',           localStorage.getItem('ta-speakers'));
+      restoreDropdown('ta-whisper-size',     localStorage.getItem('ta-whisper-size'));
+
+      /* ── Language accordion ── */
+      var langSaved  = localStorage.getItem('ta-language');
+      if (langSaved && langSaved !== 'auto') {
+        withAccordion('Language', function() {
+          restoreDropdown('ta-language', langSaved);
+        });
+      }
+
+      /* ── Report Format accordion — checkboxes + style ── */
+      var anyReport = ['ta-report-style','ta-inc-summary','ta-inc-keypoints',
+                       'ta-inc-action','ta-inc-transcript','ta-inc-profiles',
+                       'ta-inc-analytics']
+                      .some(function(k){ return localStorage.getItem(FIELDS[k] ? FIELDS[k].key : k) !== null; });
+      if (anyReport) {
+        withAccordion('Report Format', function() {
+          restoreDropdown('ta-report-style', localStorage.getItem('ta-report-style'));
+          ['ta-inc-summary','ta-inc-keypoints','ta-inc-action',
+           'ta-inc-transcript','ta-inc-profiles','ta-inc-analytics'].forEach(function(id) {
+            restoreCheckbox(id, localStorage.getItem(FIELDS[id].key));
+          });
+        });
+      }
+
+      /* ── STT engine last — triggers server call to show/hide related fields ── */
+      var sttSaved = localStorage.getItem('ta-stt-engine');
+      if (sttSaved && sttSaved !== 'Whisper (Local / Offline)') {
+        setTimeout(function(){ restoreDropdown('ta-stt-engine', sttSaved); }, 800);
+      }
+    }
+
+    /* Start watching all fields */
+    Object.keys(FIELDS).forEach(function(id) { watchField(id, FIELDS[id]); });
+    /* Restore after Gradio has finished rendering */
+    setTimeout(restoreAll, 3200);
+  })();
+
   /* ── 🔑 API key — saved per-provider in browser localStorage only ──────────
      The key is NEVER sent to the server for storage. It lives exclusively in
      the user's own browser on their device. Each AI provider gets its own
@@ -4264,6 +4468,23 @@ with gr.Blocks(title="Transcript Agent") as demo:
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
 
+    # ── Browser-persisted settings (single BrowserState per setting) ───────────
+    # stt_engine is intentionally excluded — restoring it via demo.load() triggers
+    # stt_engine.change() → _toggle_and_save_stt → causes STT Model to disappear.
+    bsr_whisper  = bsw_whisper  = gr.BrowserState("base",   storage_key="ta-bs-whisper")
+    bsr_language = bsw_language = gr.BrowserState("auto",   storage_key="ta-bs-language")
+    bsr_style    = bsw_style    = gr.BrowserState("formal", storage_key="ta-bs-style")
+    bsr_interview= bsw_interview= gr.BrowserState(True,     storage_key="ta-bs-interview")
+    bsr_deep     = bsw_deep     = gr.BrowserState(True,     storage_key="ta-bs-deep")
+    bsw_stt      = gr.BrowserState("whisper_local",         storage_key="ta-bs-stt")
+    bsr_inc_sum  = bsw_inc_sum  = gr.BrowserState(True,     storage_key="ta-bs-inc-sum")
+    bsr_inc_kp   = bsw_inc_kp   = gr.BrowserState(True,     storage_key="ta-bs-inc-kp")
+    bsr_inc_ac   = bsw_inc_ac   = gr.BrowserState(True,     storage_key="ta-bs-inc-ac")
+    bsr_inc_tr   = bsw_inc_tr   = gr.BrowserState(True,     storage_key="ta-bs-inc-tr")
+    bsr_inc_pr   = bsw_inc_pr   = gr.BrowserState(True,     storage_key="ta-bs-inc-pr")
+    bsr_inc_an   = bsw_inc_an   = gr.BrowserState(True,     storage_key="ta-bs-inc-an")
+    bsr_speakers = bsw_speakers = gr.BrowserState(None,     storage_key="ta-bs-speakers")
+
     with gr.Row():
         provider_dropdown = gr.Dropdown(
             label="AI Provider",
@@ -4311,11 +4532,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     label="Number of speakers (optional)",
                     value=None, minimum=0, maximum=20, step=1,
                     info="Leave blank or 0 to auto-detect. AI will label each speaker.",
+                    elem_id="ta-speakers",
                 )
                 stt_engine_input = gr.Dropdown(
                     label="STT Engine",
                     choices=[(v, k) for k, v in STT_ENGINES.items()],
                     value="whisper_local",
+                    elem_id="ta-stt-engine",
                 )
                 whisper_input = gr.Dropdown(
                     label="Whisper model size",
@@ -4346,12 +4569,14 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     label="Enable Interview Mode",
                     value=True,
                     info="Extracts every question + scores each answer: Great / Good / Needs Improvement / Missed",
+                    elem_id="ta-interview-toggle",
                 )
                 interview_deep = gr.Checkbox(
                     label="Deep Analysis",
                     value=True,
                     visible=True,
                     info="Adds deflection rate, advancement likelihood, and prep guide",
+                    elem_id="ta-interview-deep",
                 )
 
             with gr.Accordion("Language", open=False):
@@ -4359,6 +4584,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     label="Transcript language",
                     choices=LANGUAGES,
                     value="auto",
+                    elem_id="ta-language",
                 )
                 # Pre-load every possible variant value so Gradio never rejects
                 # a value update because the new value isn't in the current choices.
@@ -4386,6 +4612,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         ("Bullet-heavy — minimal prose",       "bullet"),
                     ],
                     value="formal",
+                    elem_id="ta-report-style",
                 )
                 gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
@@ -4400,13 +4627,13 @@ with gr.Blocks(title="Transcript Agent") as demo:
 </div>""")
                 with gr.Row():
                     with gr.Column(min_width=130):
-                        inc_summary    = gr.Checkbox(label="Summary",          value=True)
-                        inc_key_points = gr.Checkbox(label="Key points",       value=True)
-                        inc_action     = gr.Checkbox(label="Action items",     value=True)
+                        inc_summary    = gr.Checkbox(label="Summary",          value=True, elem_id="ta-inc-summary")
+                        inc_key_points = gr.Checkbox(label="Key points",       value=True, elem_id="ta-inc-keypoints")
+                        inc_action     = gr.Checkbox(label="Action items",     value=True, elem_id="ta-inc-action")
                     with gr.Column(min_width=130):
-                        inc_transcript = gr.Checkbox(label="Full transcript",  value=True)
-                        inc_profiles   = gr.Checkbox(label="Speaker profiles", value=True)
-                        inc_analytics  = gr.Checkbox(label="Speech analytics", value=True)
+                        inc_transcript = gr.Checkbox(label="Full transcript",  value=True, elem_id="ta-inc-transcript")
+                        inc_profiles   = gr.Checkbox(label="Speaker profiles", value=True, elem_id="ta-inc-profiles")
+                        inc_analytics  = gr.Checkbox(label="Speech analytics", value=True, elem_id="ta-inc-analytics")
 
             gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;
@@ -4582,11 +4809,16 @@ with gr.Blocks(title="Transcript Agent") as demo:
         queue=False,
     )
 
-    # STT engine → show/hide model dropdown / API key (whisper visibility handled by JS)
+    # STT engine → show/hide model/key + save to BrowserState (single handler, no race)
+    def _toggle_and_save_stt(engine, main_key):
+        key_upd, model_upd = toggle_stt_engine(engine, main_key)
+        return key_upd, model_upd, engine
+
     stt_engine_input.change(
-        fn=toggle_stt_engine,
+        fn=_toggle_and_save_stt,
         inputs=[stt_engine_input, user_api_key],
-        outputs=[stt_key_input, stt_model_input],
+        outputs=[stt_key_input, stt_model_input, bsw_stt],
+        queue=False,
     )
 
     interview_toggle.change(
@@ -4672,6 +4904,55 @@ with gr.Blocks(title="Transcript Agent") as demo:
         fn=generate_pdf_in_language,
         inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
         outputs=[dl_pdf],
+    )
+
+    # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
+    _id = lambda v: v
+    whisper_input.change(   fn=_id, inputs=whisper_input,    outputs=bsw_whisper,  queue=False)
+    language_input.change(  fn=_id, inputs=language_input,   outputs=bsw_language, queue=False)
+    report_style.change(    fn=_id, inputs=report_style,     outputs=bsw_style,    queue=False)
+    interview_toggle.change(fn=_id, inputs=interview_toggle, outputs=bsw_interview,queue=False)
+    interview_deep.change(  fn=_id, inputs=interview_deep,   outputs=bsw_deep,     queue=False)
+    # stt_engine: handled above in _toggle_and_save_stt → outputs bsw_stt
+    inc_summary.change(     fn=_id, inputs=inc_summary,      outputs=bsw_inc_sum,  queue=False)
+    inc_key_points.change(  fn=_id, inputs=inc_key_points,   outputs=bsw_inc_kp,   queue=False)
+    inc_action.change(      fn=_id, inputs=inc_action,       outputs=bsw_inc_ac,   queue=False)
+    inc_transcript.change(  fn=_id, inputs=inc_transcript,   outputs=bsw_inc_tr,   queue=False)
+    inc_profiles.change(    fn=_id, inputs=inc_profiles,     outputs=bsw_inc_pr,   queue=False)
+    inc_analytics.change(   fn=_id, inputs=inc_analytics,    outputs=bsw_inc_an,   queue=False)
+    speakers_input.change(  fn=_id, inputs=speakers_input,   outputs=bsw_speakers, queue=False)
+
+    # ── Restore on page load → reads bsr_* (READ instances, never written by .change) ──
+    def _restore_settings(whisper, lang, style, interview, deep,
+                          inc_s, inc_k, inc_a, inc_t, inc_p, inc_an, speakers):
+        def _b(v, default): return v if isinstance(v, bool) else default
+        return (
+            gr.update(value=whisper or "base"),
+            gr.update(value=lang    or "auto"),
+            gr.update(value=style   or "formal"),
+            gr.update(value=_b(interview,  True)),
+            gr.update(value=_b(deep,       True)),
+            gr.update(value=_b(inc_s,  True)),
+            gr.update(value=_b(inc_k,  True)),
+            gr.update(value=_b(inc_a,  True)),
+            gr.update(value=_b(inc_t,  True)),
+            gr.update(value=_b(inc_p,  True)),
+            gr.update(value=_b(inc_an, True)),
+            gr.update(value=speakers),
+        )
+
+    # Note: stt_engine_input is intentionally excluded from demo.load() outputs —
+    # updating it triggers stt_engine_input.change() → _toggle_and_save_stt, which
+    # in turn causes timing conflicts that hide the STT Model dropdown. The STT
+    # engine and Whisper model size are restored by the JS watcher instead.
+    demo.load(
+        fn=_restore_settings,
+        inputs=[bsr_whisper, bsr_language, bsr_style, bsr_interview, bsr_deep,
+                bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers],
+        outputs=[whisper_input, language_input, report_style, interview_toggle, interview_deep,
+                 inc_summary, inc_key_points, inc_action, inc_transcript, inc_profiles, inc_analytics,
+                 speakers_input],
+        queue=False,
     )
 
 

@@ -178,7 +178,7 @@ except ImportError:
 
 # ── format constants ──────────────────────────────────────────────────────────
 
-AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma"}
+AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma", ".amr"}
 VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
 
 # Approximate CPU realtime speed multiplier for each Whisper model size.

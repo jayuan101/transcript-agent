@@ -4749,7 +4749,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.16"
+APP_VERSION = "1.1.19"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -4903,7 +4903,7 @@ _DOWNLOAD_SECTION = f"""
 
 # ── UI ──────────────────────────────────────────────────────────────────────────
 
-with gr.Blocks(title="Transcript Agent") as demo:
+with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)

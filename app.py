@@ -2123,9 +2123,15 @@ def process_file(
             )
             q.put(("done", result))
         except ImportError as e:
-            # Missing optional SDK — give a clear install instruction
             pkg = str(e)
-            q.put(("error", f"Missing package — run this in your terminal and restart:\n\n  pip install {pkg.split('pip install ')[-1].strip()}\n\n({pkg})"))
+            install_cmd = pkg.split('pip install ')[-1].strip()
+            q.put(("error", (
+                f"A required package is not installed for the selected STT engine.\n\n"
+                f"Quick fix — change the STT Engine to Whisper (Local / Offline) in the sidebar, "
+                f"or install the missing package:\n\n"
+                f"  pip install {install_cmd}\n\n"
+                f"Then restart the app. ({pkg})"
+            )))
         except Exception as e:
             q.put(("error", str(e)))
 
@@ -4461,11 +4467,18 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.4",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: missing STT package error now tells user to switch to Whisper (Local) as the quick fix",
+        ],
+    },
+    {
         "version": "1.1.3",
         "date": "2026-06-01",
         "notes": [
-            "Fix: Windows python311.dll error — new Install-TranscriptAgent.bat extracts to %LOCALAPPDATA% and creates a Desktop shortcut",
-            "Fix: running TranscriptAgent.exe from inside the zip no longer silently fails",
+            "Fix: Windows python311.dll error — Install-TranscriptAgent.bat extracts to %LOCALAPPDATA% and creates a Desktop shortcut",
+            "Fix: running TranscriptAgent.exe from inside the zip no longer fails",
         ],
     },
     {
@@ -4558,7 +4571,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.3"
+APP_VERSION = "1.1.4"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

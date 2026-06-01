@@ -4461,6 +4461,14 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.3",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: Windows python311.dll error — new Install-TranscriptAgent.bat extracts to %LOCALAPPDATA% and creates a Desktop shortcut",
+            "Fix: running TranscriptAgent.exe from inside the zip no longer silently fails",
+        ],
+    },
+    {
         "version": "1.1.2",
         "date": "2026-05-31",
         "notes": [
@@ -4550,7 +4558,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.2"
+APP_VERSION = "1.1.3"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

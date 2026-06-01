@@ -14,6 +14,12 @@ if sys.stdout is None or sys.stderr is None:
     if sys.stderr is None:
         sys.stderr = _log
 
+# Windows: switch to SelectorEventLoop — ProactorEventLoop (default on Win32)
+# has a hard 30-second socket-write timeout that kills long streaming sessions.
+import asyncio
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 import gradio as gr
 import uuid
 import threading
@@ -2219,7 +2225,11 @@ def process_file(
                 f"Then restart the app. ({pkg})"
             )))
         except Exception as e:
-            q.put(("error", str(e)))
+            msg = str(e)
+            if "write operation timed out" in msg.lower():
+                msg = ("Connection timed out while sending data. "
+                       "If you are on a slow network, try a smaller Whisper model or a shorter file.")
+            q.put(("error", msg))
 
     t = threading.Thread(target=background, daemon=True)
     t.start()
@@ -4775,7 +4785,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.14"
+APP_VERSION = "1.1.15"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

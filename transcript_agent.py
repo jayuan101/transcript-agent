@@ -178,8 +178,18 @@ except ImportError:
 
 # ── format constants ──────────────────────────────────────────────────────────
 
-AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma", ".amr"}
-VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"}
+AUDIO_EXTS = {
+    ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma", ".amr",
+    ".mp2", ".mp4a", ".m4b", ".m4r", ".3gp", ".3g2", ".oga", ".spx", ".caf",
+    ".aiff", ".aif", ".aifc", ".au", ".ra", ".ram", ".rm", ".ac3", ".dts",
+    ".ape", ".wv", ".mka", ".mid", ".midi", ".kar",
+}
+VIDEO_EXTS = {
+    ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
+    ".flv", ".wmv", ".ts", ".mts", ".m2ts", ".vob", ".ogv",
+    ".3gp", ".3g2", ".f4v", ".divx", ".mpg", ".mpeg", ".m2v",
+    ".asf", ".rm", ".rmvb", ".dv", ".mxf",
+}
 
 # Approximate CPU realtime speed multiplier for each Whisper model size.
 # e.g. "base" processes ~16 minutes of audio per minute of wall-clock time.

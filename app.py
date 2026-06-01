@@ -490,8 +490,8 @@ SUPPORTED = list(AUDIO_EXTS | VIDEO_EXTS | {".srt", ".vtt", ".txt", ".md", ".doc
 
 FORMATS_MD = """
 **Accepted formats**
-🎵 `.mp3` `.wav` `.m4a` `.flac` `.ogg` `.aac` `.amr`
-🎬 `.mp4` `.mov` `.avi` `.mkv` `.webm`
+🎵 `.mp3` `.wav` `.m4a` `.flac` `.ogg` `.aac` `.opus` `.wma` `.amr` `.aiff` `.mp2` `.3gp` `.caf` `.ac3` `.ape` + more
+🎬 `.mp4` `.mov` `.avi` `.mkv` `.webm` `.flv` `.wmv` `.ts` `.mpg` `.vob` `.3gp` `.divx` + more
 📝 `.srt` `.vtt`   📄 `.pdf` `.docx` `.txt` `.md`
 """
 

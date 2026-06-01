@@ -4426,6 +4426,15 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.1",
+        "date": "2026-05-31",
+        "notes": [
+            "Fix: Summary, Transcript, and Speaker Dialogue tabs now always populate",
+            "Fix: JSON schema reordered — summary/key-points written first so they survive token-limit cuts",
+            "Fix: empty transcript fields fall back to raw STT text instead of blank output",
+        ],
+    },
+    {
         "version": "1.1",
         "date": "2026-05-31",
         "notes": [
@@ -4497,7 +4506,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1"
+APP_VERSION = "1.1.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

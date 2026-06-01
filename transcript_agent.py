@@ -1054,13 +1054,12 @@ Style: {style_note}
 {content}
 </transcript>
 
-Return JSON with exactly these keys:
+Return JSON with exactly these keys (analysis fields first, large transcript fields last):
 {{
   "speaker_map": {{"SPEAKER_00": "name or role", ...}},
-  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps",
-  "speaker_dialogue": "Readable dialogue with speaker labels",
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
+  "action_items": ["action 1", ...],
   "speaker_profiles": {{"Name": "2-3 sentence profile of contributions"}},
   "speaker_stats": [
     {{
@@ -1072,7 +1071,8 @@ Return JSON with exactly these keys:
       "accent_confidence": "medium"
     }}
   ],
-  "action_items": ["action 1", ...]
+  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps",
+  "speaker_dialogue": "Readable dialogue with speaker labels"
 }}
 
 For accent_indicators: analyze vocabulary, syntax, idiomatic expressions, and regional phrases.
@@ -1104,12 +1104,11 @@ Style: {style_note}
 {content}
 </transcript>
 
-Return JSON with exactly these keys:
+Return JSON with exactly these keys (in this order — analysis fields first, transcript last):
 {{
-  "clean_transcript": "Full cleaned transcript with timestamps preserved",
-  "speaker_dialogue": "Same content with speaker labels",
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
+  "action_items": [],
   "speaker_stats": [
     {{
       "name": "Single Speaker or identified name",
@@ -1120,7 +1119,8 @@ Return JSON with exactly these keys:
       "accent_confidence": "medium"
     }}
   ],
-  "action_items": []
+  "clean_transcript": "Full cleaned transcript with timestamps preserved",
+  "speaker_dialogue": "Same content with speaker labels"
 }}"""
 
 
@@ -1276,9 +1276,17 @@ def process_transcript(
 
     r = results[0] if n == 1 else None
 
+    # Build merged result; fall back to raw_text when the AI omitted transcript
+    # fields (happens when token limit hit before reaching those keys — now placed
+    # last in the JSON schema so analysis fields are always written first).
+    _ct = (r.get("clean_transcript", "") if r else
+           "\n\n".join(x.get("clean_transcript", "") for x in results))
+    _sd = (r.get("speaker_dialogue", "") if r else
+           "\n\n".join(x.get("speaker_dialogue", "") for x in results))
+
     merged = TranscriptResult(
-        clean_transcript=r.get("clean_transcript", "") if r else "\n\n".join(x.get("clean_transcript", "") for x in results),
-        speaker_dialogue=r.get("speaker_dialogue", "") if r else "\n\n".join(x.get("speaker_dialogue", "") for x in results),
+        clean_transcript=_ct or raw_text,
+        speaker_dialogue=_sd or raw_text,
         summary=r.get("summary", "") if r else _merge_summaries(client, results),
         key_points=r.get("key_points", []) if r else [p for x in results for p in x.get("key_points", [])],
         action_items=r.get("action_items", []) if r else [a for x in results for a in x.get("action_items", [])],

@@ -4467,6 +4467,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.8",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: pandas and gradio_client now bundled — prevents startup crash on some Windows configurations",
+        ],
+    },
+    {
         "version": "1.1.7",
         "date": "2026-06-01",
         "notes": [
@@ -4592,7 +4599,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.7"
+APP_VERSION = "1.1.8"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

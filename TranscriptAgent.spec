@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-APP_VERSION = "1.1.5"
+APP_VERSION = "1.1.8"
 
 block_cipher = None
 HERE = Path(SPECPATH)
@@ -83,6 +83,8 @@ a = Analysis(
         'deepgram', 'assemblyai', 'elevenlabs', 'rev_ai',
         # Utilities
         'numpy', 'numpy.core', 'numpy.lib',
+        'pandas', 'pandas.core', 'pandas.io',
+        'gradio_client',
         'safehttpx',
         'PIL', 'PIL.Image', 'requests', 'urllib3',
         'packaging', 'typing_extensions',
@@ -95,11 +97,10 @@ a = Analysis(
     excludes=[
         # Exclude heavy ML deps — installed separately by setup scripts
         # Users who want local Whisper run setup_windows.bat / setup_mac.sh first
+        # Only exclude heavy ML/training deps that are truly optional
         'torch', 'torchvision', 'torchaudio',
         'whisper', 'openai_whisper',
-        # numpy is intentionally NOT excluded — gradio requires it
-        'scipy', 'sklearn',
-        'matplotlib', 'pandas',
+        'scipy', 'sklearn', 'matplotlib',
         # Test/dev tooling
         'pytest', 'IPython', 'notebook',
         'tkinter',  # not needed for Gradio web UI

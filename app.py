@@ -1959,8 +1959,9 @@ def process_file(
             weight = 'font-weight:700;' if bold else ''
             if kind == 'header':
                 parts.append(
-                    f'<div style="color:{color};{weight}margin-top:8px;border-top:1px solid #1e3a5f;'
-                    f'padding-top:6px;letter-spacing:0.05em;">{text}</div>'
+                    f'<div style="background:#1e3a5f;color:#e2e8f0;font-weight:700;'
+                    f'margin:10px -16px 6px;padding:5px 16px;letter-spacing:0.07em;'
+                    f'font-size:0.85em;border-left:3px solid #3b82f6;">{text}</div>'
                 )
             elif kind == 'progress':
                 # text-only line in log — the ETA panel owns the visual bar
@@ -2941,7 +2942,11 @@ window.taDoUpdate = function(url, btn, platform) {
       /* Wire click at creation — guaranteed to fire, no timing dependency */
       fbtn.addEventListener('click', function() {
         var b = document.querySelector('.ta-analyze-btn');
-        if (b && !b.disabled) b.click();
+        if (b && !b.disabled) {
+          b.click();
+          var t = document.getElementById('ta-status-bar');
+          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       });
       fbtn.addEventListener('mouseenter', function() {
         this.style.transform = 'scale(1.1)';
@@ -4090,6 +4095,8 @@ window.taDoUpdate = function(url, btn, platform) {
       var btn = document.querySelector('.ta-analyze-btn');
       if (!btn || btn.disabled) return;
       btn.click();
+      var t = document.getElementById('ta-status-bar');
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function wireFloatBtn(fb) {
@@ -4110,6 +4117,15 @@ window.taDoUpdate = function(url, btn, platform) {
     /* Wire all present instances, then re-check every 800 ms for new ones */
     function wireAll() {
       document.querySelectorAll('#ta-float-analyze').forEach(wireFloatBtn);
+      /* Also wire the main Analyze button so clicking it scrolls to results */
+      document.querySelectorAll('#ta-analyze-btn button, .ta-analyze-btn button').forEach(function(mb) {
+        if (mb.dataset.taScrollWired) return;
+        mb.dataset.taScrollWired = '1';
+        mb.addEventListener('click', function() {
+          var t = document.getElementById('ta-status-bar');
+          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
     }
     wireAll();
     setInterval(wireAll, 800);

@@ -2907,48 +2907,7 @@ _API_BANNER = """
 </div>
 """
 
-_THEME_TOGGLE = """
-<!-- ☀️🌙 Light / Dark toggle pill -->
-<div id="ta-widget"
-  style="position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;
-         background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);
-         border:1px solid #e2e8f0;border-radius:30px;padding:4px;
-         box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;transition:background 0.3s,border-color 0.3s;">
-  <button id="ta-btn-light"
-    style="display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;
-           border:none;cursor:pointer;font-size:0.82em;font-weight:700;
-           background:#3b82f6;color:#fff;transition:all 0.22s;box-shadow:0 2px 6px rgba(59,130,246,0.4);">
-    ☀️ Light
-  </button>
-  <button id="ta-btn-dark"
-    style="display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;
-           border:none;cursor:pointer;font-size:0.82em;font-weight:700;
-           background:transparent;color:#64748b;transition:all 0.22s;">
-    🌙 Dark
-  </button>
-</div>
-
-<!-- ▶ Floating play button — dark/light aware -->
-<div id="ta-float-wrap"
-  style="position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;
-         align-items:center;gap:8px;">
-  <div id="ta-float-label"
-    style="font-size:0.7em;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;
-           color:#fff;background:rgba(29,78,216,0.85);backdrop-filter:blur(6px);
-           padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s;
-           pointer-events:none;white-space:nowrap;">
-    Analyze
-  </div>
-  <button id="ta-float-analyze"
-    style="width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
-           background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;
-           font-size:1.4em;display:flex;align-items:center;justify-content:center;
-           box-shadow:0 4px 20px rgba(29,78,216,0.5);transition:all 0.2s;
-           outline:none;">
-    ▶
-  </button>
-</div>
-"""
+_THEME_TOGGLE = ""  # buttons injected via _THEME_JS into <body> — not gr.HTML
 
 # ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
 # path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
@@ -2976,26 +2935,26 @@ window.taDoUpdate = function(url, btn, platform) {
      We do NOT use gr.HTML() for the buttons — Gradio 6 re-renders those
      components and strips IDs/styles. Injecting via JS is permanent.           */
   function _injectToggle() {
-    if (document.getElementById('ta-widget')) return;
-    var w = document.createElement('div');
-    w.id = 'ta-widget';
-    w.style.cssText = (
-      'position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;'
-      + 'background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);'
-      + 'border:1px solid #e2e8f0;border-radius:30px;padding:4px;'
-      + 'box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;'
-    );
-    w.innerHTML = (
-      '<button id="ta-btn-light" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-      + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
-      + 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);">☀️ Light</button>'
-      + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-      + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
-      + 'background:transparent;color:#64748b;">🌙 Dark</button>'
-    );
-    document.body.appendChild(w);
-
-    /* Also inject floating analyze button */
+    if (!document.getElementById('ta-widget')) {
+      var w = document.createElement('div');
+      w.id = 'ta-widget';
+      w.style.cssText = (
+        'position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;'
+        + 'background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);'
+        + 'border:1px solid #e2e8f0;border-radius:30px;padding:4px;'
+        + 'box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;'
+      );
+      w.innerHTML = (
+        '<button id="ta-btn-light" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
+        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
+        + 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);">☀️ Light</button>'
+        + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
+        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
+        + 'background:transparent;color:#64748b;">🌙 Dark</button>'
+      );
+      document.documentElement.appendChild(w);
+    }
+    /* Float button injected separately — always checked so it survives Gradio re-renders */
     if (!document.getElementById('ta-float-wrap')) {
       var fw = document.createElement('div');
       fw.id = 'ta-float-wrap';
@@ -3003,22 +2962,47 @@ window.taDoUpdate = function(url, btn, platform) {
         'position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;'
         + 'align-items:center;gap:8px;'
       );
-      fw.innerHTML = (
-        '<div id="ta-float-label" style="font-size:0.7em;font-weight:700;letter-spacing:0.06em;'
-        + 'text-transform:uppercase;color:#fff;background:rgba(29,78,216,0.85);backdrop-filter:blur(6px);'
-        + 'padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s;pointer-events:none;'
-        + 'white-space:nowrap;">Analyze</div>'
-        + '<button id="ta-float-analyze" style="width:56px;height:56px;border-radius:50%;border:none;'
-        + 'cursor:pointer;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
-        + 'font-size:1.4em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;">▶</button>'
+      var flabel = document.createElement('div');
+      flabel.id = 'ta-float-label';
+      flabel.style.cssText = (
+        'font-size:0.7em;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;'
+        + 'color:#fff;background:rgba(29,78,216,0.85);backdrop-filter:blur(6px);'
+        + 'padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s;'
+        + 'pointer-events:none;white-space:nowrap;'
       );
-      document.body.appendChild(fw);
+      flabel.textContent = 'Analyze';
+      var fbtn = document.createElement('button');
+      fbtn.id = 'ta-float-analyze';
+      fbtn.style.cssText = (
+        'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
+        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'font-size:1.4em;display:flex;align-items:center;justify-content:center;'
+        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;'
+      );
+      fbtn.textContent = '▶';
+      /* Wire click at creation — guaranteed to fire, no timing dependency */
+      fbtn.addEventListener('click', function() {
+        var b = document.querySelector('.ta-analyze-btn');
+        if (b && !b.disabled) b.click();
+      });
+      fbtn.addEventListener('mouseenter', function() {
+        this.style.transform = 'scale(1.1)';
+        flabel.style.opacity = '1';
+      });
+      fbtn.addEventListener('mouseleave', function() {
+        this.style.transform = 'scale(1)';
+        flabel.style.opacity = '0';
+      });
+      fw.appendChild(flabel);
+      fw.appendChild(fbtn);
+      /* Append to <html> not <body> — Gradio's DOM operations only touch <body>,
+         so this element is guaranteed to stay put and keep its event listeners. */
+      document.documentElement.appendChild(fw);
     }
   }
-  /* Run immediately and re-check periodically in case body isn't ready yet */
+  /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */
   document.body ? _injectToggle() : document.addEventListener('DOMContentLoaded', _injectToggle);
-  setInterval(function(){ if (!document.getElementById('ta-widget')) _injectToggle(); }, 2000);
+  setInterval(_injectToggle, 2000);
 
   /* ── PERMANENT static CSS injected directly into <head> ─────────────────────
      Gradio 6 embeds css=CSS as JSON data in <script> tags and injects it later
@@ -4140,42 +4124,37 @@ window.taDoUpdate = function(url, btn, platform) {
     setTimeout(wireProviderDrop, 1000);
   })();
 
-  /* ── ▶ Floating play button — wired via event delegation, dark/light aware ──
-     Button HTML lives in _THEME_TOGGLE so it renders before JS runs.
-     Here we just wire the click + hover + label tooltip.                    */
+  /* ── ▶ Floating play button — wire click + hover directly on every instance ──
+     Svelte blocks event bubbling from inside gr.HTML components, so document
+     delegation is unreliable. Wire each button directly instead.              */
   (function(){
-    /* Hover: show/hide "Analyze" label above the button */
-    function wireHover() {
-      var btn   = document.getElementById('ta-float-analyze');
+    function doAnalyze() {
+      var btn = document.querySelector('.ta-analyze-btn');
+      if (!btn || btn.disabled) return;
+      btn.click();
+    }
+
+    function wireFloatBtn(fb) {
+      if (fb.dataset.taWired) return;
+      fb.dataset.taWired = '1';
       var label = document.getElementById('ta-float-label');
-      if (!btn) { setTimeout(wireHover, 600); return; }
-      btn.addEventListener('mouseenter', function(){
+      fb.addEventListener('click', doAnalyze);
+      fb.addEventListener('mouseenter', function(){
         this.style.transform = 'scale(1.1)';
         if (label) label.style.opacity = '1';
       });
-      btn.addEventListener('mouseleave', function(){
+      fb.addEventListener('mouseleave', function(){
         this.style.transform = 'scale(1)';
         if (label) label.style.opacity = '0';
       });
     }
 
-    /* Click the real Analyze button — direct .click() is the only reliable way
-       to trigger Gradio/Svelte's event handler from external JS. */
-    function doAnalyze() {
-      var wrapper = document.getElementById('ta-analyze-btn');
-      var btn = (wrapper && wrapper.querySelector('button'))
-             || document.querySelector('.ta-analyze-btn button');
-      if (!btn || btn.disabled) return;
-      btn.click();
+    /* Wire all present instances, then re-check every 800 ms for new ones */
+    function wireAll() {
+      document.querySelectorAll('#ta-float-analyze').forEach(wireFloatBtn);
     }
-
-    /* Event delegation on document — survives any DOM re-mount */
-    document.addEventListener('click', function(e){
-      if (e.target && (e.target.id === 'ta-float-analyze' || e.target.closest('#ta-float-analyze')))
-        doAnalyze();
-    });
-
-    wireHover();
+    wireAll();
+    setInterval(wireAll, 800);
   })();
 
 
@@ -5502,8 +5481,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
 
-    # Inject theme toggle + floating button via demo.load js= (guaranteed execution in Gradio 6.x)
-    demo.load(fn=None, js=f"() => {{ {_THEME_JS} }}")
+    # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 
 
 

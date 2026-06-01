@@ -38,33 +38,6 @@ except ImportError:
     pass
 
 
-def _get_proxyscrape_proxies() -> list:
-    """Return proxy URLs to try when a direct download is blocked (403)."""
-    import requests as _r
-    api_key = os.environ.get("PROXYSCRAPE_API_KEY", "").strip()
-    params = {
-        "request": "displayproxies",
-        "proxy_format": "protocolipport",
-        "format": "text",
-        "anonymity": "elite,anonymous",
-        "timeout": "8000",
-        "country": "US,GB,DE,CA,AU,NL",
-    }
-    if api_key:
-        params["apiKey"] = api_key
-    try:
-        r = _r.get(
-            "https://api.proxyscrape.com/v3/free-proxy-list/get",
-            params=params,
-            timeout=10,
-        )
-        if r.ok:
-            lines = [l.strip() for l in r.text.splitlines() if l.strip()]
-            return ["http://" + l if "://" not in l else l for l in lines[:20]]
-    except Exception:
-        pass
-    return []
-
 
 def _resolve_nextcloud_token_url(url: str):
     """
@@ -107,19 +80,17 @@ def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
 
     Handles S3 application-level redirects (PermanentRedirect XML response with
     HTTP 200/301) by retrying against the correct endpoint.
-    On 403 Forbidden, retries via ProxyScrape proxy (uses PROXYSCRAPE_API_KEY env var).
     on_progress(bytes_received, total_bytes_or_0): called periodically during download.
     """
     import requests
 
-    def _do_get(u: str, proxies=None, timeout=300):
+    def _do_get(u: str, timeout=300):
         return requests.get(
             u,
             stream=True,
             timeout=timeout,
             headers={"User-Agent": "TranscriptAgent/1.0"},
             allow_redirects=True,
-            proxies=proxies,
         )
 
     resp = _do_get(url)
@@ -145,19 +116,6 @@ def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
                     _r.close()
             except Exception:
                 pass
-
-        # Strategy 2: retry via ProxyScrape proxy
-        if resp is None:
-            for proxy_url in _get_proxyscrape_proxies():
-                try:
-                    pr = {"http": proxy_url, "https": proxy_url}
-                    _r = _do_get(url, proxies=pr, timeout=90)
-                    if _r.ok:
-                        resp = _r
-                        break
-                    _r.close()
-                except Exception:
-                    continue
 
         if resp is None:
             raise ValueError(

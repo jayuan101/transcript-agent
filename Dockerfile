@@ -42,6 +42,10 @@ RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
 # Outputs directory (mount as volume so files persist across restarts)
 RUN mkdir -p /app/outputs
 
+# Non-root user required by HuggingFace Spaces
+RUN useradd -m -u 1000 -s /bin/sh user && chown -R user:user /app /entrypoint.sh
+USER user
+
 # Whisper model cache — mount as volume to avoid re-downloading on restart
 ENV XDG_CACHE_HOME=/app/.cache
 

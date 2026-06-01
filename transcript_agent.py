@@ -1127,9 +1127,54 @@ Return JSON with exactly these keys:
 # ── processing ────────────────────────────────────────────────────────────────
 
 def _parse_json(raw: str) -> dict:
-    raw = re.sub(r"^```(?:json)?\s*", "", raw.strip())
-    raw = re.sub(r"\s*```$", "", raw)
-    return json.loads(raw)
+    """Parse JSON from an AI response, recovering from truncated/malformed output."""
+    s = re.sub(r"^```(?:json)?\s*", "", raw.strip())
+    s = re.sub(r"\s*```$", "", s)
+
+    # Fast path: well-formed JSON
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        pass
+
+    # Find the outermost { ... } block
+    start = s.find('{')
+    if start == -1:
+        raise json.JSONDecodeError("No JSON object found in AI response", s, 0)
+
+    # Walk forward tracking brace/bracket depth.
+    # If the response was truncated, depth will be > 0 at end-of-string.
+    depth = arr = 0
+    in_str = esc = False
+    i = start
+    while i < len(s):
+        c = s[i]
+        if esc:                      esc = False; i += 1; continue
+        if c == '\\' and in_str:     esc = True;  i += 1; continue
+        if c == '"':                 in_str = not in_str; i += 1; continue
+        if not in_str:
+            if   c == '{': depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0 and arr == 0:
+                    # Found end of outermost object
+                    try:
+                        return json.loads(s[start:i + 1])
+                    except json.JSONDecodeError:
+                        pass  # keep walking
+            elif c == '[': arr += 1
+            elif c == ']' and arr > 0: arr -= 1
+        i += 1
+
+    # Truncated response — append the missing closing chars and retry
+    if depth > 0 or arr > 0:
+        closing = ']' * arr + '}' * depth
+        try:
+            return json.loads(s[start:] + closing)
+        except json.JSONDecodeError:
+            pass
+
+    raise json.JSONDecodeError("Cannot parse/repair JSON from AI response", s, 0)
 
 
 def _chunk(text: str, max_chars: int = 600_000) -> list:
@@ -1222,7 +1267,7 @@ def process_transcript(
         raw = client.chat(
             system=sys_prompt,
             user=prompt,
-            max_tokens=16000,
+            max_tokens=32000,
             thinking=(client.provider == "anthropic"),
             on_usage=_on_usage,
         )
@@ -1348,7 +1393,7 @@ def run_interview_analysis(
         transcript=transcript[:80_000],
         deep_mode="YES" if deep_mode else "NO",
     )
-    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=8000)
+    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=16000)
     _log("Interview analysis complete.")
     try:
         # Strip markdown fences if model ignores instructions

@@ -4109,29 +4109,35 @@ window.taDoUpdate = function(url, btn, platform) {
       });
     }
 
-    /* Find the real Analyze sidebar button by its CSS class (more reliable than text) */
-    function wireAnalyze() {
-      var real = document.querySelector('.ta-analyze-btn button');
-      if (!real) { setTimeout(wireAnalyze, 800); return; }
-      if (real.dataset.taWired) return;
-      real.dataset.taWired = '1';
-
-      function doAnalyze() {
-        real.click();
-        setTimeout(function(){
-          var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 400);
-      }
-
-      /* Event delegation — survives DOM re-mounts */
-      document.addEventListener('click', function(e){
-        if (e.target && (e.target.id === 'ta-float-analyze' || e.target.closest('#ta-float-analyze')))
-          doAnalyze();
+    /* Click the real Analyze button — looks it up fresh every time so stale
+       references after Gradio re-renders never silently fail.
+       Dispatches the full mousedown→mouseup→click sequence that Svelte needs. */
+    function doAnalyze() {
+      var btn = document.querySelector('.ta-analyze-btn button')
+             || document.querySelector('#ta-analyze-btn button');
+      if (!btn) return;
+      ['mousedown','mouseup','click'].forEach(function(ev){
+        btn.dispatchEvent(new MouseEvent(ev, {bubbles:true, cancelable:true, view:window}));
       });
+      setTimeout(function(){
+        var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
+        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 400);
+    }
 
-      /* Sidebar button also scrolls */
-      real.addEventListener('click', function(){
+    /* Event delegation on document — survives any DOM re-mount */
+    document.addEventListener('click', function(e){
+      if (e.target && (e.target.id === 'ta-float-analyze' || e.target.closest('#ta-float-analyze')))
+        doAnalyze();
+    });
+
+    /* Sidebar Analyze button also scrolls to status after click */
+    function wireSidebarScroll() {
+      var btn = document.querySelector('.ta-analyze-btn button');
+      if (!btn) { setTimeout(wireSidebarScroll, 800); return; }
+      if (btn.dataset.taScrollWired) return;
+      btn.dataset.taScrollWired = '1';
+      btn.addEventListener('click', function(){
         setTimeout(function(){
           var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
           if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -4140,7 +4146,7 @@ window.taDoUpdate = function(url, btn, platform) {
     }
 
     wireHover();
-    setTimeout(wireAnalyze, 1500);
+    setTimeout(wireSidebarScroll, 1500);
   })();
 
 
@@ -4575,6 +4581,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.11",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: floating ▶ button now correctly triggers analysis — dispatches full mousedown→mouseup→click sequence that Gradio/Svelte requires",
+        ],
+    },
+    {
         "version": "1.1.10",
         "date": "2026-06-01",
         "notes": [
@@ -4727,7 +4740,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.10"
+APP_VERSION = "1.1.11"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5065,6 +5078,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 "▶  Analyze",
                 variant="primary", size="sm",
                 elem_classes=["ta-analyze-btn"],
+                elem_id="ta-analyze-btn",
             )
 
             result_state = gr.State(value=None)

@@ -2100,7 +2100,7 @@ def process_file(
                         log = _add_log(f"⬇️  {recv_mb:.1f} MB  {speed/1_048_576:.1f} MB/s", "download")
                     yield _out(
                         status=_status_compact("⬇️", "Downloading…", _elapsed()),
-                        log=log, net=net_html,
+                        log=log,
                     )
             except Q.Empty:
                 _dl_stall += 1
@@ -4764,7 +4764,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.15"
+APP_VERSION = "1.1.16"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

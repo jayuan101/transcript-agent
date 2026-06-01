@@ -4467,6 +4467,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.5",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: Windows app now launches correctly — numpy bundled into installer (was excluded, caused crash on startup)",
+        ],
+    },
+    {
         "version": "1.1.4",
         "date": "2026-06-01",
         "notes": [
@@ -4571,7 +4578,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.4"
+APP_VERSION = "1.1.5"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -10,7 +10,7 @@ Version: bump APP_VERSION here — it propagates to Mac .app bundle info.
 import sys
 from pathlib import Path
 
-APP_VERSION = "1.1"
+APP_VERSION = "1.1.4"
 
 block_cipher = None
 HERE = Path(SPECPATH)
@@ -52,6 +52,7 @@ a = Analysis(
         # Cloud STT (optional — lazy-imported)
         'deepgram', 'assemblyai', 'elevenlabs', 'rev_ai',
         # Utilities
+        'numpy', 'numpy.core', 'numpy.lib',
         'PIL', 'PIL.Image', 'requests', 'urllib3',
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
@@ -65,7 +66,8 @@ a = Analysis(
         # Users who want local Whisper run setup_windows.bat / setup_mac.sh first
         'torch', 'torchvision', 'torchaudio',
         'whisper', 'openai_whisper',
-        'numpy', 'scipy', 'sklearn',
+        # numpy is intentionally NOT excluded — gradio requires it
+        'scipy', 'sklearn',
         'matplotlib', 'pandas',
         # Test/dev tooling
         'pytest', 'IPython', 'notebook',

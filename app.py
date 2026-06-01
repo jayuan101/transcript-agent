@@ -2112,11 +2112,6 @@ def process_file(
         log=log,
     )
 
-    # Note if we found a cached STT result
-    if _pre_transcribed:
-        log = _add_log("⚡ Resuming — using saved transcript, skipping re-transcription", "done")
-        yield _out(log=log)
-
     config = ReportConfig(
         style=report_style,
         include_summary=inc_summary,
@@ -2151,6 +2146,9 @@ def process_file(
 
     # ── check for a cached STT result so we can skip re-transcribing ─────────
     _pre_transcribed = _load_stt_cache(uploaded_file) if is_av else None
+    if _pre_transcribed:
+        log = _add_log("⚡ Resuming — using saved transcript, skipping re-transcription", "done")
+        yield _out(log=log)
 
     # ── thread communication ──────────────────────────────────────────────────
     q = Q.Queue()
@@ -4612,6 +4610,14 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.13",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: NameError crash — _pre_transcribed now assigned before it is checked",
+            "Fix: on_raw_transcript no longer fires twice on cache-hit path (duplicate queue message)",
+        ],
+    },
+    {
         "version": "1.1.12",
         "date": "2026-06-01",
         "notes": [
@@ -4779,7 +4785,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.12"
+APP_VERSION = "1.1.13"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -1598,7 +1598,6 @@ def run(
         raw_text, _detected_lang, _segments = pre_transcribed
         _log(f"Resuming from saved transcript (~{len(raw_text.split()):,} words) — skipping transcription")
         if on_stage_change: on_stage_change("whisper")
-        if on_raw_transcript: on_raw_transcript(raw_text)
         if on_stt_done: on_stt_done(0.0)
         fmt = "audio/video (cached)"
     elif ext in (AUDIO_EXTS | VIDEO_EXTS):

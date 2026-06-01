@@ -2549,7 +2549,7 @@ def process_file(
             elif ia and ia.get("parse_error"):
                 iv_html = f'<pre style="font-size:0.8em;overflow:auto;">{ia.get("raw","")}</pre>'
             else:
-                iv_html = '<p style="color:#94a3b8;">Enable <b>Interview Mode</b> before analyzing to see coaching results here.</p>'
+                iv_html = '<p style="color:#94a3b8;">No interview analysis available for this file type.</p>'
 
             # ── Update cache with lang + segments now that we have them ────────
             if _raw_stt_text:
@@ -4575,6 +4575,14 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.10",
+        "date": "2026-06-01",
+        "notes": [
+            "Interview Mode always on — checkboxes removed, mode and deep analysis always active",
+            "Windows exe rebuilt and verified: launches cleanly on Windows",
+        ],
+    },
+    {
         "version": "1.1.9",
         "date": "2026-06-01",
         "notes": [
@@ -4719,7 +4727,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.9"
+APP_VERSION = "1.1.10"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -4979,19 +4987,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
             with gr.Accordion("🎤 Interview Mode", open=True):
-                interview_toggle = gr.Checkbox(
-                    label="Enable Interview Mode",
-                    value=True,
-                    info="Extracts every question + scores each answer: Great / Good / Needs Improvement / Missed",
-                    elem_id="ta-interview-toggle",
-                )
-                interview_deep = gr.Checkbox(
-                    label="Deep Analysis",
-                    value=True,
-                    visible=True,
-                    info="Adds deflection rate, advancement likelihood, and prep guide",
-                    elem_id="ta-interview-deep",
-                )
+                gr.HTML('<div style="font-size:0.85em;color:var(--ta-card-sub,#64748b);padding:4px 0 8px;">'
+                        '✅ <b>Interview Mode</b> is always active — every question is scored and a coaching guide is generated.</div>')
+                interview_toggle = gr.Checkbox(value=True, visible=False, elem_id="ta-interview-toggle")
+                interview_deep   = gr.Checkbox(value=True, visible=False, elem_id="ta-interview-deep")
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(

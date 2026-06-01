@@ -23,3 +23,6 @@ test_sample.txt
 # Share dir — generated files only
 share/docker-compose.yml
 share/outputs/
+
+# Node / Playwright
+node_modules/

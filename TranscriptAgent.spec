@@ -16,14 +16,39 @@ APP_VERSION = "1.1.5"
 block_cipher = None
 HERE = Path(SPECPATH)
 
-# Collect data files from packages that embed resources at runtime
+# Collect data files from Gradio and all its micro-dependencies that embed
+# version.txt or other data files at runtime
 _gradio_datas,    _gradio_bins,    _gradio_hidden    = collect_all('gradio')
 _safehttpx_datas, _safehttpx_bins, _safehttpx_hidden = collect_all('safehttpx')
+_groovy_datas,    _groovy_bins,    _groovy_hidden    = collect_all('groovy')
+
+# Auto-discover version.txt files in all installed packages (handles any
+# remaining micro-deps that embed data files PyInstaller wouldn't otherwise find)
+import os as _os, importlib as _il
+def _auto_version_datas():
+    result = []
+    try:
+        import pkg_resources as _pr
+        for dist in _pr.working_set:
+            pkg = dist.project_name.replace('-', '_')
+            try:
+                mod = _il.import_module(pkg)
+                mod_dir = _os.path.dirname(mod.__file__)
+                for fname in ['version.txt', 'VERSION.txt', '_version.txt']:
+                    fpath = _os.path.join(mod_dir, fname)
+                    if _os.path.exists(fpath):
+                        result.append((fpath, pkg))
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return result
+_auto_version_datas = _auto_version_datas()
 
 a = Analysis(
     [str(HERE / 'launcher.py')],
     pathex=[str(HERE)],
-    binaries=[] + _gradio_bins + _safehttpx_bins,
+    binaries=[] + _gradio_bins + _safehttpx_bins + _groovy_bins,
     datas=[
         # Bundle the main application files
         (str(HERE / 'app.py'),              '.'),
@@ -33,7 +58,7 @@ a = Analysis(
         (str(HERE / 'setup_windows.bat'),   '.'),
         (str(HERE / 'setup_mac.sh'),        '.'),
         (str(HERE / 'run.bat'),             '.'),
-    ] + _gradio_datas + _safehttpx_datas,
+    ] + _gradio_datas + _safehttpx_datas + _groovy_datas + _auto_version_datas,
     hiddenimports=[
         # Gradio and web framework
         'gradio', 'gradio.themes', 'gradio.themes.soft',
@@ -63,7 +88,7 @@ a = Analysis(
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
         'multiprocessing',
-    ] + _gradio_hidden + _safehttpx_hidden,
+    ] + _gradio_hidden + _safehttpx_hidden + _groovy_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

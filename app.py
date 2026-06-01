@@ -4467,10 +4467,17 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.7",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: auto-collect version.txt from all Gradio micro-deps (groovy, safehttpx, etc.) — Windows app now launches",
+        ],
+    },
+    {
         "version": "1.1.6",
         "date": "2026-06-01",
         "notes": [
-            "Fix: Windows installer now properly bundles all Gradio data files (safehttpx/version.txt and others) using collect_all()",
+            "Fix: collect_all for gradio + safehttpx data files in bundle",
         ],
     },
     {
@@ -4585,7 +4592,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.6"
+APP_VERSION = "1.1.7"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -4181,7 +4181,13 @@ window.taDoUpdate = function(url, btn, platform) {
       var isLocal = true;
       if (sttInput) {
         var val = (sttInput.value || '').toLowerCase();
-        isLocal = val === '' || val.indexOf('whisper (local') >= 0 || val.indexOf('offline') >= 0;
+        /* Hide Whisper size for any cloud STT engine */
+        var isCloud = val.indexOf('deepgram') >= 0 || val.indexOf('assemblyai') >= 0 ||
+                      val.indexOf('openai') >= 0 || val.indexOf('groq') >= 0 ||
+                      val.indexOf('elevenlabs') >= 0 || val.indexOf('google') >= 0 ||
+                      val.indexOf('azure') >= 0 || val.indexOf('rev.ai') >= 0 ||
+                      val.indexOf('gladia') >= 0;
+        isLocal = !isCloud && (val === '' || val.indexOf('local') >= 0 || val.indexOf('offline') >= 0);
       }
 
       if (isLocal === _lastState) return;

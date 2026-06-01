@@ -679,10 +679,13 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
     except ImportError:
         raise ImportError("deepgram-sdk required: pip install deepgram-sdk")
     dg = DeepgramClient(api_key)
+    effective_model = model or "nova-2"
+    if on_log:
+        on_log(f"Deepgram model: {effective_model}", "info")
     with open(path, "rb") as f:
         data = f.read()
     opts = PrerecordedOptions(
-        model=model or "nova-2",
+        model=effective_model,
         punctuate=True, diarize=True, utterances=True,
         language=language or "en", smart_format=True,
         numerals=True,

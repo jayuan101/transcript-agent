@@ -2955,7 +2955,7 @@ window.taDoUpdate = function(url, btn, platform) {
         var b = document.querySelector('.ta-analyze-btn');
         if (b && !b.disabled) {
           b.click();
-          var t = document.getElementById('ta-status-bar');
+          var t = document.getElementById('ta-eta-panel');
           if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
@@ -4133,7 +4133,7 @@ window.taDoUpdate = function(url, btn, platform) {
         if (mb.dataset.taScrollWired) return;
         mb.dataset.taScrollWired = '1';
         mb.addEventListener('click', function() {
-          var t = document.getElementById('ta-status-bar');
+          var t = document.getElementById('ta-eta-panel');
           if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
         });
       });
@@ -5122,6 +5122,9 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
 
+            # ETA panel first — most important live feedback, scroll target on Analyze
+            eta_panel   = gr.HTML(value=_eta_panel_html("idle"), elem_id="ta-eta-panel")
+
             with gr.Row(equal_height=True):
                 status_bar = gr.HTML(
                     value=_IDLE_STATUS,
@@ -5136,8 +5139,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     elem_classes=["ta-cancel-btn"],
                     elem_id="ta-cancel-btn",
                 )
-
-            eta_panel   = gr.HTML(value=_eta_panel_html("idle"), elem_id="ta-eta-panel")
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
                       'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'

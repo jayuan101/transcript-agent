@@ -4426,6 +4426,19 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1",
+        "date": "2026-05-31",
+        "notes": [
+            "GitHub OTA update checker — auto-detects new releases, Windows + Mac one-click download buttons",
+            "Floating ▶ Analyze button — fixed click handler (CSS selector), works on all page states",
+            "AI analysis stage — live % progress bar with ETA estimate (elapsed-based curve)",
+            "Network monitor — always-on rendering from page load, never shows stale 'Connecting…'",
+            "Interview Q&A in History — shows candidate's exact words, score, and deflection flag per question",
+            "Transcript Output Language — translate transcript to any language after STT completes",
+            "ETA shown at every step — Transcription, AI Analysis, and Complete each display elapsed + remaining",
+        ],
+    },
+    {
         "version": "1.0",
         "date": "2026-05-31",
         "notes": [
@@ -4433,11 +4446,8 @@ _RELEASES = [
             "Interview Mode — per-question scoring (Great/Good/Needs Improvement/Missed), 10-point overall score",
             "Deep Analysis — deflection rate, advancement likelihood, interview coaching guide",
             "Session History — every job saved with tokens, cost, score, and full Q&A replay",
-            "Transcript Output Translation — get your transcript in any language, regardless of audio language",
             "Live Network Monitor — real-time upload/download speed, animated bars, always-on ping display",
             "Session Stats — token counts (in/out), estimated cost per model, download MB",
-            "ETA per step — live % and time-remaining for every processing stage",
-            "In-app Update Checker — one-click Windows and Mac download when a new version is available",
             "New exports — .srt subtitles, .vtt subtitles, .docx Word document",
             "Floating ▶ Analyze button — always visible bottom-right, never lost in scroll",
         ],

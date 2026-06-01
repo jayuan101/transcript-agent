@@ -34,7 +34,7 @@ jobs:
           pip install pyinstaller
           pip install gradio anthropic openai groq
           pip install pdfplumber fpdf2 python-docx
-          pip install deepgram-sdk>=3.2.0,<4.0.0 assemblyai elevenlabs rev_ai
+          pip install "deepgram-sdk>=3.2.0,<4.0.0" assemblyai elevenlabs rev_ai
           pip install fastapi uvicorn[standard] python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
 

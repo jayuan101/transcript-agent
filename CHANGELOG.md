@@ -1,5 +1,23 @@
 # Changelog
 
+## v1.1 — 2026-05-31
+- GitHub OTA update checker: auto-detects new releases, shows Windows + Mac one-click download buttons
+- Floating ▶ Analyze button: fixed click handler to use CSS class selector (works on all Gradio re-renders)
+- AI analysis stage: live % progress bar with ETA estimate (elapsed-based asymptotic curve)
+- Network monitor: always-on rendering from page load (retry loop instead of fixed timeout)
+- Interview Q&A in History tab: shows candidate's exact words per question with score + deflection flag
+- Transcript Output Language: translate transcript to any language after STT completes
+- v1.1 changelog and version bump across app.py and TranscriptAgent.spec
+
+## v1.0 — 2026-05-31
+- 9 STT engines: Whisper (local/offline), OpenAI, Groq, Deepgram, AssemblyAI, Google, Azure, ElevenLabs, Rev.ai
+- Interview Mode with per-question scoring and Deep Analysis
+- Session History with tokens, cost, and interview score
+- Live network monitor and session stats panel
+- New exports: .srt, .vtt, .docx
+- Floating ▶ Analyze button
+- In-app update checker
+
 ## v3.48 — 2025-05-30
 - 9 STT engines: Whisper (local), OpenAI Whisper API, Groq Whisper, Deepgram, AssemblyAI, Google Cloud STT, Azure Speech, ElevenLabs Scribe, Rev.ai
 - Interview Mode on by default: extracts every question, scores answers Great / Good / Needs Improvement / Missed

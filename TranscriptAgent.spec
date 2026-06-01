@@ -10,7 +10,7 @@ Version: bump APP_VERSION here — it propagates to Mac .app bundle info.
 import sys
 from pathlib import Path
 
-APP_VERSION = "1.0"
+APP_VERSION = "1.1"
 
 block_cipher = None
 HERE = Path(SPECPATH)

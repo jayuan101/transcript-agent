@@ -1634,6 +1634,16 @@ def run(
             "tok_out": _final_tok[1],
             "paths": paths,
             "summary": result.summary[:300],
+            "interview_questions": [
+                {
+                    "question":    q.get("question", ""),
+                    "answer_said": q.get("answer_said") or q.get("answer_summary", ""),
+                    "score":       q.get("score", ""),
+                    "score_reason": q.get("score_reason", ""),
+                    "deflection":  q.get("deflection", "none"),
+                }
+                for q in ia.get("questions", [])
+            ] if ia else [],
         }
         save_history_entry(entry, Path(history_path))
 

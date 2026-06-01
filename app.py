@@ -763,6 +763,30 @@ html.dark .ta-hero-blob-bl { background: radial-gradient(circle,rgba(99,102,241,
 html.dark .ta-hero-stats { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
 html.dark .ta-analyze-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
 
+/* ── Update banner ── */
+.ta-update-banner {
+    background: linear-gradient(135deg,#eff6ff,#dbeafe);
+    border: 2px solid #3b82f6;
+    border-radius: 14px;
+    padding: 16px 20px;
+    margin: 10px 0;
+    font-family: sans-serif;
+}
+html.dark .ta-update-banner {
+    background: linear-gradient(135deg,#1e3a5f,#1e40af22) !important;
+    border-color: #60a5fa !important;
+}
+.ta-upd-btn {
+    padding: 8px 16px; border-radius: 8px; border: none;
+    cursor: pointer; font-weight: 700; font-size: 0.85em;
+    transition: all 0.18s; white-space: nowrap;
+}
+.ta-upd-win { background: #1d4ed8; color: #fff; }
+.ta-upd-win:hover { background: #1e40af; transform: translateY(-1px); }
+.ta-upd-mac { background: #374151; color: #fff; }
+.ta-upd-mac:hover { background: #1f2937; transform: translateY(-1px); }
+.ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+
 """
 
 _SB = (
@@ -1403,6 +1427,26 @@ _PDF_LANGUAGES = [
 ]
 
 
+def _translate_transcript(
+    text: str, target_language: str, api_key: str,
+    provider: str = "anthropic", model: str = None, base_url: str = None,
+) -> str:
+    """Translate raw transcript text to target_language."""
+    _model = model or ("claude-sonnet-4-6" if provider == "anthropic" else "gpt-4o")
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    return client.chat(
+        system="You are a professional translator. Translate text accurately and naturally.",
+        user=(
+            f"Translate the following transcript to {target_language}. "
+            "Keep speaker labels (e.g. 'Speaker A:') unchanged. "
+            "Preserve timestamps in [HH:MM:SS] format unchanged. "
+            "Only return the translated text, nothing else.\n\n"
+            + text
+        ),
+        max_tokens=8192,
+    )
+
+
 def _translate_combined_text(
     combined_text: str, target_language: str, api_key: str,
     provider: str = "anthropic", model: str = None, base_url: str = None,
@@ -1697,22 +1741,62 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     # ── Other stages (loading / extracting / claude / whisper indeterminate) ──
     stage_cfg = {
-        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",        "Step 0 of 2", "var(--ta-step-act-clr)"),
-        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",   "Step 1 of 2", "var(--ta-step-done-clr)"),
-        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…", "Step 1 of 2", "var(--ta-step-act-clr)"),
-        "claude":     ("#a855f7",                 "Analyzing with AI…",  "Step 2 of 2", "#c4b5fd"),
+        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",        "Step 0 of 3", "var(--ta-step-act-clr)"),
+        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",   "Step 1 of 3", "var(--ta-step-done-clr)"),
+        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…", "Step 1 of 3", "var(--ta-step-act-clr)"),
+        "claude":     ("#a855f7",                 "Analyzing with AI…",  "Step 2 of 3", "#c4b5fd"),
     }
     color, label, step, text_clr = stage_cfg.get(
         stage, ("var(--ta-card-border)", "Processing…", "", "var(--ta-card-sub)")
     )
 
-    overlay_pct = ""
+    # ── Claude stage: elapsed-based simulated percentage ──────────────────────
     if stage == "claude":
-        overlay_pct = (
-            f'<div style="font-size:0.95em;font-weight:600;color:{text_clr};margin-bottom:12px;">'
-            '🤖 AI is reading the transcript and writing your report…</div>'
+        import math as _math, re as _re
+        _m = _re.match(r'(?:(\d+)m\s*)?(\d+)s', elapsed or "")
+        _elapsed_s = (int(_m.group(1) or 0) * 60 + int(_m.group(2) or 0)) if _m else 0
+        # Asymptotic curve: grows fast → slows → caps at 92% until done
+        ai_pct   = min(92, int(100 * (1 - _math.exp(-_elapsed_s / 40)))) if _elapsed_s > 0 else 5
+        # Estimate remaining: assume average total AI time ~60 s, remaining ∝ (100-ai_pct)
+        _est_rem = max(0, int((100 - ai_pct) * 0.6))
+        eta_str  = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
+
+        def _stat(lbl, val):
+            return (f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
+                    f'padding:8px 14px;flex:1;min-width:80px;text-align:center;">'
+                    f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:0.08em;color:var(--ta-stat-label);">{lbl}</div>'
+                    f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-stat-val);'
+                    f'font-family:monospace;">{val}</div></div>')
+
+        return tracker + (
+            '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
+            'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
+            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:12px;">'
+            f'Step 2 of 3 &nbsp;&mdash;&nbsp; Analyzing with AI</div>'
+            '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
+            f'<div style="font-size:4.5em;font-weight:900;color:#c4b5fd;'
+            f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">{ai_pct}</div>'
+            '<div style="font-size:2em;font-weight:700;color:#a855f7;margin-bottom:6px;">%</div>'
+            '</div>'
+            '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
+            'overflow:hidden;margin-bottom:10px;">'
+            f'<div style="width:{ai_pct}%;height:100%;'
+            'background:linear-gradient(90deg,#a855f7,#c4b5fd);'
+            'border-radius:8px;transition:width 0.6s ease;"></div></div>'
+            '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
+            + _stat("AI Progress", f"{ai_pct}%")
+            + _stat("ETA", eta_str)
+            + _stat("Elapsed", elapsed) +
+            '</div>'
+            '<div style="font-size:0.82em;color:#c4b5fd;margin-top:10px;">'
+            '🤖 Reading transcript and writing your report…</div>'
+            '</div>'
         )
-    elif stage in ("loading", "extracting"):
+
+    overlay_pct = ""
+    if stage in ("loading", "extracting"):
         overlay_pct = (
             '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
             f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
@@ -1771,6 +1855,7 @@ def process_file(
     interview_deep,
     language_input,
     language_variant,
+    transcript_output_lang,
     report_style,
     inc_summary,
     inc_key_points,
@@ -2363,6 +2448,30 @@ def process_file(
             except Exception:
                 f_p = None
 
+            # ── Translate transcript output if a different language was chosen ──
+            _out_lang = (transcript_output_lang or "Same as source").strip()
+            _display_transcript = result.clean_transcript
+            _display_dialogue   = result.speaker_dialogue
+            if _out_lang and _out_lang != "Same as source":
+                try:
+                    log_text = _add_log(f"🌐 Translating transcript to {_out_lang}…", "ai")
+                    yield _out(
+                        status=_status_compact("🌐", f"Translating to {_out_lang}…", _elapsed()),
+                        log=log_text,
+                    )
+                    _display_transcript = _translate_transcript(
+                        result.clean_transcript, _out_lang,
+                        api_key, provider_type, model_name, base_url,
+                    )
+                    if result.speaker_dialogue:
+                        _display_dialogue = _translate_transcript(
+                            result.speaker_dialogue, _out_lang,
+                            api_key, provider_type, model_name, base_url,
+                        )
+                except Exception as _te:
+                    log_text = _add_log(f"⚠️ Translation failed: {_te} — showing original", "warn")
+                    yield _out(log=log_text)
+
             total_elapsed = _elapsed()
             log_text = _add_header("✅  COMPLETE")
             log_text = _add_log(f"All done in {total_elapsed}. Results ready in all tabs.", "done")
@@ -2371,8 +2480,8 @@ def process_file(
                       + "<script>window.taJobEnd && window.taJobEnd()</script>",
                 eta=_eta_panel_html("done", elapsed=total_elapsed, done=True),
                 summary=summary_md,
-                transcript=result.clean_transcript,
-                dialogue=result.speaker_dialogue,
+                transcript=_display_transcript,
+                dialogue=_display_dialogue,
                 profiles=profiles_md,
                 analytics=analytics_md,
                 combined=combined_text,
@@ -2682,6 +2791,21 @@ _THEME_TOGGLE = """
 # ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
 # path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
 _THEME_JS = """
+/* ── OTA update button handler ── */
+window.taDoUpdate = function(url, btn, platform) {
+  if (!url) return;
+  btn.disabled = true;
+  btn.textContent = '⏳ Opening download…';
+  window.open(url, '_blank');
+  setTimeout(function() {
+    btn.textContent = platform === 'win'
+      ? '✅ Run the installer to update'
+      : '✅ Open .dmg to update';
+    btn.style.background = '#22c55e';
+    btn.style.color = '#fff';
+  }, 1800);
+};
+
 (function(){
   window.__taThemeRan = true;
   var _dark = false;
@@ -3836,13 +3960,9 @@ _THEME_JS = """
       });
     }
 
-    /* Find the real Analyze sidebar button and click it */
+    /* Find the real Analyze sidebar button by its CSS class (more reliable than text) */
     function wireAnalyze() {
-      var real = null;
-      document.querySelectorAll('button').forEach(function(b){
-        var t = (b.textContent || '').trim();
-        if (t.includes('Analyze')) real = b;
-      });
+      var real = document.querySelector('.ta-analyze-btn button');
       if (!real) { setTimeout(wireAnalyze, 800); return; }
       if (real.dataset.taWired) return;
       real.dataset.taWired = '1';
@@ -4151,9 +4271,14 @@ _THEME_JS = """
       return _origSend.apply(this, arguments);
     };
 
-    /* ── Tick every 500 ms ── */
-    setInterval(render, 500);
-    setTimeout(render, 800);
+    /* ── Start render loop — retry until element exists ── */
+    (function startRender() {
+      if (!document.getElementById('ta-net-monitor')) {
+        setTimeout(startRender, 250); return;
+      }
+      render();
+      setInterval(render, 500);
+    })();
   })();
 
   /* ── 🔌 Server reconnect heartbeat ────────────────────────────────────────
@@ -4301,6 +4426,23 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.0",
+        "date": "2026-05-31",
+        "notes": [
+            "9 STT engines — Whisper (local/offline), OpenAI, Groq, Deepgram, AssemblyAI, Google, Azure, ElevenLabs, Rev.ai",
+            "Interview Mode — per-question scoring (Great/Good/Needs Improvement/Missed), 10-point overall score",
+            "Deep Analysis — deflection rate, advancement likelihood, interview coaching guide",
+            "Session History — every job saved with tokens, cost, score, and full Q&A replay",
+            "Transcript Output Translation — get your transcript in any language, regardless of audio language",
+            "Live Network Monitor — real-time upload/download speed, animated bars, always-on ping display",
+            "Session Stats — token counts (in/out), estimated cost per model, download MB",
+            "ETA per step — live % and time-remaining for every processing stage",
+            "In-app Update Checker — one-click Windows and Mac download when a new version is available",
+            "New exports — .srt subtitles, .vtt subtitles, .docx Word document",
+            "Floating ▶ Analyze button — always visible bottom-right, never lost in scroll",
+        ],
+    },
+    {
         "version": "2.3",
         "date": "2025-05-30",
         "notes": [
@@ -4382,6 +4524,75 @@ def _build_changelog():
 
 _CHANGELOG_HTML = _build_changelog()
 
+# ── GitHub OTA update checker ─────────────────────────────────────────────────
+_GH_RELEASES_REPO = "jayuan101/transcript-agent-releases"
+
+def _check_github_update() -> str:
+    """Poll GitHub releases API; return update banner HTML or empty string."""
+    import urllib.request as _ur, json as _json
+    try:
+        req = _ur.Request(
+            f"https://api.github.com/repos/{_GH_RELEASES_REPO}/releases/latest",
+            headers={"User-Agent": f"TranscriptAgent/{APP_VERSION}",
+                     "Accept": "application/vnd.github.v3+json"},
+        )
+        with _ur.urlopen(req, timeout=6) as r:
+            data = _json.loads(r.read())
+        latest_tag = data.get("tag_name", "").lstrip("v")
+        if not latest_tag:
+            return ""
+        try:
+            from packaging.version import Version
+            newer = Version(latest_tag) > Version(APP_VERSION)
+        except Exception:
+            newer = latest_tag > APP_VERSION
+        if not newer:
+            return ""
+        assets   = {a["name"]: a["browser_download_url"] for a in data.get("assets", [])}
+        win_url  = (assets.get("TranscriptAgent-win64.zip")
+                    or assets.get("TranscriptAgent.exe")
+                    or data.get("html_url", ""))
+        mac_url  = assets.get("TranscriptAgent.dmg") or data.get("html_url", "")
+        html_url = data.get("html_url",
+                            f"https://github.com/{_GH_RELEASES_REPO}/releases/latest")
+        body     = (data.get("body") or "")[:180]
+        notes    = body + ("…" if len(data.get("body") or "") > 180 else "")
+        return _build_update_banner(latest_tag, win_url, mac_url, html_url, notes)
+    except Exception:
+        return ""
+
+
+def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
+    we = win_url.replace("'", "\\'")
+    me = mac_url.replace("'", "\\'")
+    notes_html = (f'<div style="font-size:0.78em;color:var(--ta-card-sub);margin-top:3px;">'
+                  f'{notes}</div>') if notes else ""
+    return f"""
+<div class="ta-update-banner">
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+    <span style="font-size:1.5em;flex-shrink:0;">🔔</span>
+    <div style="flex:1;min-width:160px;">
+      <div style="font-weight:800;font-size:0.95em;color:var(--ta-card-text);">
+        Update available — v{latest_tag}
+      </div>
+      {notes_html}
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button onclick="taDoUpdate('{we}',this,'win')" class="ta-upd-btn ta-upd-win">
+        🪟 Update Windows
+      </button>
+      <button onclick="taDoUpdate('{me}',this,'mac')" class="ta-upd-btn ta-upd-mac">
+        🍎 Update Mac
+      </button>
+      <a href="{html_url}" target="_blank"
+         style="font-size:0.78em;color:#3b82f6;white-space:nowrap;font-weight:600;">
+        Release notes →
+      </a>
+    </div>
+  </div>
+</div>
+"""
+
 # ── Desktop download section ──────────────────────────────────────────────────
 _HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main"
 
@@ -4434,6 +4645,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
+    update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)
@@ -4551,7 +4763,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
-                    label="Transcript language",
+                    label="Audio language (input)",
                     choices=LANGUAGES,
                     value="auto",
                     elem_id="ta-language",
@@ -4570,6 +4782,12 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     visible=True,
                     interactive=False,
                     info="Select a language above to unlock regional variants",
+                )
+                transcript_output_lang = gr.Dropdown(
+                    label="Transcript output language (translation)",
+                    choices=_PDF_LANGUAGES,
+                    value="Same as source",
+                    info="Translate the transcript & report to a different language after transcription",
                 )
 
             with gr.Accordion("Report Format", open=False):
@@ -4838,6 +5056,8 @@ with gr.Blocks(title="Transcript Agent") as demo:
             ])
         return rows or [["No history yet","","","","","","","",""]]
 
+    _SCORE_EMOJI = {"Great": "🟢", "Good": "🔵", "Needs Improvement": "🟡", "Missed": "🔴"}
+
     def load_history_row(evt: gr.SelectData):
         """Called immediately when a row is clicked — no setTimeout race."""
         entries = load_history(HISTORY_PATH)
@@ -4867,7 +5087,33 @@ with gr.Blocks(title="Transcript Agent") as demo:
         if e.get("overall_score"):
             md += f"**Score:** {e.get('overall_score')}/10 — {e.get('overall_verdict','')}\n\n"
         if e.get("summary"):
-            md += f"---\n**Summary preview:**\n\n{e['summary']}"
+            md += f"---\n**Summary preview:**\n\n{e['summary']}\n\n"
+
+        # ── Interview Q&A replay (candidate's own words only, no AI answers) ──
+        qs = e.get("interview_questions", [])
+        if qs:
+            md += "---\n## 🎤 Interview Q&A\n\n"
+            for i, q in enumerate(qs, 1):
+                question    = q.get("question", "").strip()
+                answer_said = q.get("answer_said", "").strip()
+                score       = q.get("score", "")
+                score_reason = q.get("score_reason", "").strip()
+                deflection  = (q.get("deflection") or "none").lower()
+                if not question:
+                    continue
+                emoji = _SCORE_EMOJI.get(score, "⚪")
+                defl_note = ""
+                if deflection == "partial":
+                    defl_note = "  ⚠️ *Partially deflected*"
+                elif deflection == "full":
+                    defl_note = "  🚫 *Did not answer*"
+                md += (
+                    f"**Q{i}: {question}**{defl_note}  \n"
+                    f"*Candidate said:* {answer_said}  \n"
+                    f"{emoji} **{score}**"
+                    + (f" — {score_reason}" if score_reason else "")
+                    + "  \n\n"
+                )
         return md
 
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
@@ -4881,6 +5127,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
             stt_engine_input, stt_key_input, stt_model_input,
             interview_toggle, interview_deep,
             language_input, language_variant,
+            transcript_output_lang,
             report_style,
             inc_summary, inc_key_points, inc_action,
             inc_transcript, inc_profiles, inc_analytics,
@@ -4958,6 +5205,10 @@ with gr.Blocks(title="Transcript Agent") as demo:
                  speakers_input],
         queue=False,
     )
+
+    # Check for updates on page load (non-blocking, skipped on HF Spaces)
+    if not bool(os.environ.get("SPACE_ID")):
+        demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
 
     # Inject theme toggle + floating button via demo.load js= (guaranteed execution in Gradio 6.x)
     demo.load(fn=None, js=f"() => {{ {_THEME_JS} }}")

@@ -2318,10 +2318,45 @@ def process_file(
                                   "#92400e" if _score_num >= 4 else "#991b1b")
                 except (ValueError, TypeError):
                     _score_bg = "#1e293b"
+                # Advancement likelihood from deep analysis
+                _adv_pct  = ia.get("advance_likelihood", "")
+                _adv_reason = ia.get("advance_reasoning", "")
+                try:
+                    _adv_num = int(str(_adv_pct).strip().rstrip("%"))
+                except (ValueError, TypeError):
+                    _adv_num = None
+                if _adv_num is not None:
+                    _adv_color  = ("#166534" if _adv_num >= 70 else
+                                   "#1d4ed8" if _adv_num >= 45 else "#991b1b")
+                    _adv_label  = ("Likely to advance" if _adv_num >= 70 else
+                                   "Borderline"       if _adv_num >= 45 else "Unlikely to advance")
+                    _adv_banner = (
+                        f'<div style="background:{_adv_color};border-radius:14px;'
+                        f'padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">'
+                        f'<div style="text-align:center;background:rgba(255,255,255,0.18);'
+                        f'border-radius:10px;padding:8px 16px;min-width:80px;">'
+                        f'<div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1;">'
+                        f'{_adv_num}%</div>'
+                        f'<div style="font-size:0.7em;font-weight:700;color:rgba(255,255,255,0.75);'
+                        f'text-transform:uppercase;letter-spacing:0.08em;">likelihood</div>'
+                        f'</div>'
+                        f'<div>'
+                        f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                        f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">'
+                        f'🚀 Advancing to Next Round</div>'
+                        f'<div style="font-size:1.15em;font-weight:800;color:#fff;">{_adv_label}</div>'
+                        + (f'<div style="font-size:0.82em;color:rgba(255,255,255,0.8);margin-top:4px;">'
+                           f'{_adv_reason}</div>' if _adv_reason else '')
+                        + f'</div></div>'
+                    )
+                else:
+                    _adv_banner = ""
+
                 iv_html = (
                     f'<div style="padding:4px 0;">'
+                    + _adv_banner
                     # ── Score hero card ──────────────────────────────────────
-                    f'<div style="background:{_score_bg};border-radius:16px;'
+                    + f'<div style="background:{_score_bg};border-radius:16px;'
                     f'padding:20px 24px;margin-bottom:20px;'
                     f'display:flex;align-items:center;gap:20px;">'
                     # Big score number
@@ -4426,6 +4461,15 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.2",
+        "date": "2026-05-31",
+        "notes": [
+            "Advancement likelihood % — shown at top of Interview Coaching tab (green ≥70%, blue ≥45%, red <45%)",
+            "Translate output to — language dropdown above Analyze button to translate transcript & report",
+            "Fix: Gradio 6.15.2 rendering bug that silently dropped the translate dropdown from the UI",
+        ],
+    },
+    {
         "version": "1.1.1",
         "date": "2026-05-31",
         "notes": [
@@ -4506,7 +4550,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.1"
+APP_VERSION = "1.1.2"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -4802,12 +4846,6 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     interactive=False,
                     info="Select a language above to unlock regional variants",
                 )
-                transcript_output_lang = gr.Dropdown(
-                    label="Transcript output language (translation)",
-                    choices=_PDF_LANGUAGES,
-                    value="Same as source",
-                    info="Translate the transcript & report to a different language after transcription",
-                )
 
             with gr.Accordion("Report Format", open=False):
                 report_style = gr.Dropdown(
@@ -4841,6 +4879,14 @@ with gr.Blocks(title="Transcript Agent") as demo:
                         inc_transcript = gr.Checkbox(label="Full transcript",  value=True, elem_id="ta-inc-transcript")
                         inc_profiles   = gr.Checkbox(label="Speaker profiles", value=True, elem_id="ta-inc-profiles")
                         inc_analytics  = gr.Checkbox(label="Speech analytics", value=True, elem_id="ta-inc-analytics")
+
+            transcript_output_lang = gr.Dropdown(
+                label="Translate output to",
+                choices=_PDF_LANGUAGES,
+                value="Same as source",
+                info="Translate transcript & report to a different language",
+                elem_id="ta-output-lang",
+            )
 
             gr.HTML("""
 <div style="font-size:0.7em;font-weight:700;text-transform:uppercase;

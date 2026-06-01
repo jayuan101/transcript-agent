@@ -149,13 +149,12 @@ jobs:
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Publish to transcript-agent releases
+      - name: Publish Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: "Transcript Agent ${{ steps.version.outputs.tag }}"
-          repository: jayuan101/transcript-agent-releases
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           body: |
             ## Transcript Agent ${{ steps.version.outputs.tag }}
 

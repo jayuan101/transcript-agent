@@ -2309,8 +2309,8 @@ def process_file(
                            eta=_eta_panel_html("extracting", elapsed=elapsed), log=log)
             elif stage == "whisper":
                 log = _add_header("🎤  TRANSCRIBING AUDIO  (Step 1 of 2)")
-                log = _add_log("Whisper model loaded — transcription in progress…", "info")
-                yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed),
+                log = _add_log(f"Whisper {whisper_model} loaded — transcription in progress…", "info")
+                yield _out(status=_status_compact("🎤", f"Transcribing audio…  [{whisper_model}]", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
             elif stage == "claude":
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
@@ -5411,7 +5411,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             result_state,
         ],
     )
-    cancel_btn.click(fn=None, cancels=[process_event])
+    cancel_btn.click(fn=None, cancels=[process_event], queue=False)
 
     pdf_regen_btn.click(
         fn=generate_pdf_in_language,

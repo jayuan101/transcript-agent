@@ -4467,10 +4467,17 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.6",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: Windows installer now properly bundles all Gradio data files (safehttpx/version.txt and others) using collect_all()",
+        ],
+    },
+    {
         "version": "1.1.5",
         "date": "2026-06-01",
         "notes": [
-            "Fix: Windows app now launches correctly — numpy bundled into installer (was excluded, caused crash on startup)",
+            "Fix: numpy now bundled — was excluded, caused crash on startup",
         ],
     },
     {
@@ -4578,7 +4585,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.5"
+APP_VERSION = "1.1.6"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

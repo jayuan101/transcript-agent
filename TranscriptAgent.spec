@@ -9,16 +9,21 @@ Version: bump APP_VERSION here — it propagates to Mac .app bundle info.
 
 import sys
 from pathlib import Path
+from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-APP_VERSION = "1.1.4"
+APP_VERSION = "1.1.5"
 
 block_cipher = None
 HERE = Path(SPECPATH)
 
+# Collect data files from packages that embed resources at runtime
+_gradio_datas,    _gradio_bins,    _gradio_hidden    = collect_all('gradio')
+_safehttpx_datas, _safehttpx_bins, _safehttpx_hidden = collect_all('safehttpx')
+
 a = Analysis(
     [str(HERE / 'launcher.py')],
     pathex=[str(HERE)],
-    binaries=[],
+    binaries=[] + _gradio_bins + _safehttpx_bins,
     datas=[
         # Bundle the main application files
         (str(HERE / 'app.py'),              '.'),
@@ -28,7 +33,7 @@ a = Analysis(
         (str(HERE / 'setup_windows.bat'),   '.'),
         (str(HERE / 'setup_mac.sh'),        '.'),
         (str(HERE / 'run.bat'),             '.'),
-    ],
+    ] + _gradio_datas + _safehttpx_datas,
     hiddenimports=[
         # Gradio and web framework
         'gradio', 'gradio.themes', 'gradio.themes.soft',
@@ -53,11 +58,12 @@ a = Analysis(
         'deepgram', 'assemblyai', 'elevenlabs', 'rev_ai',
         # Utilities
         'numpy', 'numpy.core', 'numpy.lib',
+        'safehttpx',
         'PIL', 'PIL.Image', 'requests', 'urllib3',
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
         'multiprocessing',
-    ],
+    ] + _gradio_hidden + _safehttpx_hidden,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

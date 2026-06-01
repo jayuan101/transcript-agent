@@ -685,6 +685,7 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         model=model or "nova-2",
         punctuate=True, diarize=True, utterances=True,
         language=language or "en", smart_format=True,
+        numerals=True,
     )
     resp = dg.listen.rest.v("1").transcribe_file({"buffer": data}, opts)
     result = resp.results.channels[0].alternatives[0]

@@ -1758,13 +1758,14 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
 
         def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
+            _id = ' id="ta-live-elapsed"' if label_txt == "Elapsed" else ''
             return (
                 f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
                 f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
                 f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:0.08em;color:var({label_var});">{label_txt}</div>'
                 f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
-                f'font-family:monospace;">{val_txt}</div></div>'
+                f'font-family:monospace;"{_id}>{val_txt}</div></div>'
             )
 
         return tracker + (
@@ -1813,12 +1814,13 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         eta_str  = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
 
         def _stat(lbl, val):
+            _id = ' id="ta-live-elapsed"' if lbl == "Elapsed" else ''
             return (f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
                     f'padding:8px 14px;flex:1;min-width:80px;text-align:center;">'
                     f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
                     f'letter-spacing:0.08em;color:var(--ta-stat-label);">{lbl}</div>'
                     f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-stat-val);'
-                    f'font-family:monospace;">{val}</div></div>')
+                    f'font-family:monospace;"{_id}>{val}</div></div>')
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
@@ -1881,7 +1883,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
         f'letter-spacing:0.08em;color:var(--ta-card-sub);">Elapsed</div>'
         f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
-        f'font-family:monospace;">{elapsed}</div>'
+        f'font-family:monospace;" id="ta-live-elapsed">{elapsed}</div>'
         f'</div>'
         f'{est_time_stat}'
         f'</div></div>'
@@ -3693,6 +3695,35 @@ window.taDoUpdate = function(url, btn, platform) {
     };
   })();
 
+  /* ── Live elapsed counter ──────────────────────────────────────────────────
+     The server yields every ~1 s so the Elapsed stat looks frozen between
+     updates. This JS timer updates #ta-live-elapsed every 200 ms so it
+     counts smoothly at all stages.                                         */
+  (function(){
+    var _t0 = 0, _iv = null;
+    function _fmt(s) {
+      var m = Math.floor(s/60), sec = Math.floor(s%60);
+      return m ? m + 'm ' + (sec < 10 ? '0' : '') + sec + 's' : sec + 's';
+    }
+    function _tick() {
+      var el = document.getElementById('ta-live-elapsed');
+      if (el && _t0) el.textContent = _fmt((Date.now() - _t0) / 1000);
+    }
+    /* Patch taJobStart/taJobEnd — defined just above */
+    var _oS = window.taJobStart, _oE = window.taJobEnd;
+    window.taJobStart = function(f) {
+      _t0 = Date.now();
+      if (_iv) clearInterval(_iv);
+      _iv = setInterval(_tick, 200);
+      if (_oS) _oS(f);
+    };
+    window.taJobEnd = function() {
+      if (_iv) { clearInterval(_iv); _iv = null; }
+      _t0 = 0;
+      if (_oE) _oE();
+    };
+  })();
+
   /* ── 🧠 Remember provider + model choice across sessions ──────────────────
      Saves the user's AI provider and model to localStorage so they never
      have to re-pick them on every visit.                                    */
@@ -4581,6 +4612,14 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.12",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: Elapsed counter now updates live every 200 ms (JS timer) — no longer frozen between server yields",
+            "Fix: floating ▶ button dispatches full mousedown→mouseup→click so Gradio/Svelte always triggers analysis",
+        ],
+    },
+    {
         "version": "1.1.11",
         "date": "2026-06-01",
         "notes": [
@@ -4740,7 +4779,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.11"
+APP_VERSION = "1.1.12"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

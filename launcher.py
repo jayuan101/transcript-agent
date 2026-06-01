@@ -34,6 +34,16 @@ os.chdir(BASE_DIR)
 if BUNDLE_DIR not in sys.path:
     sys.path.insert(0, BUNDLE_DIR)
 
+# ── Fix: PyInstaller --noconsole sets sys.stdout/stderr to None ───────────────
+# uvicorn's DefaultFormatter calls stream.isatty() → AttributeError on None.
+if sys.stdout is None or sys.stderr is None:
+    _log_path = os.path.join(BASE_DIR, "app.log")
+    _log = open(_log_path, "w", encoding="utf-8", errors="replace", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = _log
+    if sys.stderr is None:
+        sys.stderr = _log
+
 # ── Browser opener — polls until server responds ───────────────────────────────
 def _open_browser():
     import urllib.request

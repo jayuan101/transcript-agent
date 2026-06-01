@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 """Transcript Agent — Gradio UI with drag-and-drop | v2.1"""
 
-import gradio as gr
 import os
 import sys
+
+# Fix for PyInstaller --noconsole: sys.stdout/stderr are None when there is no
+# console window. uvicorn's DefaultFormatter calls stream.isatty() → crash.
+if sys.stdout is None or sys.stderr is None:
+    _log = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.log"),
+                "w", encoding="utf-8", errors="replace", buffering=1)
+    if sys.stdout is None:
+        sys.stdout = _log
+    if sys.stderr is None:
+        sys.stderr = _log
+
+import gradio as gr
 import uuid
 import threading
 import queue as Q

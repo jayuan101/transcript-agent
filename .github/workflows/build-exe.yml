@@ -47,20 +47,40 @@ jobs:
           Compress-Archive -Path TranscriptAgent -DestinationPath TranscriptAgent-win64.zip
           cd ..
 
-      - name: Create single-file wrapper .exe
-        run: |
-          # Create a small wrapper .exe for users who just want one file to click
-          $wrapper = @"
-          @echo off
-          cd /d "%~dp0"
-          if not exist "TranscriptAgent\TranscriptAgent.exe" (
-            echo Extracting... please wait.
-            powershell -Command "Expand-Archive -Path TranscriptAgent-win64.zip -DestinationPath . -Force"
-          )
-          start "" "TranscriptAgent\TranscriptAgent.exe"
-          "@
-          Set-Content -Path dist/Launch_TranscriptAgent.bat -Value $wrapper
+      - name: Create installer batch file
         shell: pwsh
+        run: |
+          $bat = @'
+@echo off
+setlocal
+echo ============================================
+echo  Transcript Agent Installer
+echo ============================================
+echo.
+
+set INSTALL_DIR=%LOCALAPPDATA%\TranscriptAgent
+echo Installing to: %INSTALL_DIR%
+echo.
+
+if exist "%INSTALL_DIR%\TranscriptAgent.exe" (
+  echo Updating existing installation...
+) else (
+  echo Fresh install...
+)
+
+powershell -NoProfile -Command "Expand-Archive -Path '%~dp0TranscriptAgent-win64.zip' -DestinationPath '%INSTALL_DIR%' -Force"
+if errorlevel 1 ( echo ERROR: Extraction failed. & pause & exit /b 1 )
+
+echo.
+echo Creating Desktop shortcut...
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Transcript Agent.lnk'); $s.TargetPath='%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe'; $s.WorkingDirectory='%INSTALL_DIR%\TranscriptAgent'; $s.Save()"
+
+echo.
+echo Done! Launching Transcript Agent...
+start "" "%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe"
+exit /b 0
+'@
+          Set-Content -Path dist\Install-TranscriptAgent.bat -Value $bat -Encoding utf8
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -69,6 +89,7 @@ jobs:
           path: |
             dist/TranscriptAgent-win64.zip
             dist/TranscriptAgent/TranscriptAgent.exe
+            dist/Install-TranscriptAgent.bat
 
   # ── Mac .dmg ────────────────────────────────────────────────────────────────
   build-mac:
@@ -160,20 +181,31 @@ jobs:
 
             **Interview Mode** · **9 STT Engines** · **History** · **SRT/VTT/DOCX exports**
 
-            ### Install
-            | Platform | Download | Instructions |
-            |---|---|---|
-            | Windows | `TranscriptAgent-win64.zip` | Extract → run `TranscriptAgent.exe` |
-            | Mac | `TranscriptAgent.dmg` | Open → drag to Applications |
+            ---
+
+            ### 🪟 Windows — Install
+            1. Download **both** `TranscriptAgent-win64.zip` and `Install-TranscriptAgent.bat` into the **same folder**
+            2. Double-click `Install-TranscriptAgent.bat`
+            3. It extracts to `%LOCALAPPDATA%\TranscriptAgent`, creates a Desktop shortcut, and launches automatically
+
+            > ⚠️ **Do NOT run `TranscriptAgent.exe` directly from inside the zip** — always use the installer or extract the zip first.
+
+            ### 🍎 Mac — Install
+            1. Download `TranscriptAgent.dmg`
+            2. Open it → drag **Transcript Agent** to Applications
+            3. Double-click to launch
+
+            ---
 
             ### First run
-            The app opens your browser at http://localhost:7860 automatically.
+            The app opens your browser at `http://localhost:7860` automatically.
             Enter your API key and start transcribing.
 
             > Full changelog: [CHANGELOG.md](https://github.com/jayuan101/transcript-agent/blob/main/CHANGELOG.md)
           files: |
             artifacts/windows/TranscriptAgent-win64.zip
             artifacts/windows/TranscriptAgent/TranscriptAgent.exe
+            artifacts/windows/Install-TranscriptAgent.bat
             artifacts/mac/TranscriptAgent.dmg
           draft: false
           prerelease: false

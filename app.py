@@ -1916,6 +1916,7 @@ def process_file(
     user_api_key,
     provider_name,
     model_name,
+    transcription_only=False,
 ):
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
@@ -2182,6 +2183,7 @@ def process_file(
                 on_log=on_log,
                 cancel_event=_cancel_ev,
                 pre_transcribed=_pre_transcribed,
+                transcription_only=bool(transcription_only),
             )
             q.put(("done", result))
         except ImportError as e:
@@ -2356,16 +2358,20 @@ def process_file(
         elif kind == "done":
             result = msg[1]
 
+            if transcription_only:
+                summary_md = "_Transcription only — AI analysis was skipped. See the Transcript tab for the full text._"
+            else:
             # Strip any transcript/full-text section Claude may embed inside result.summary
-            _summary_text = re.sub(
-                r'\n*#{1,3}\s*(Full\s+)?Transcript[\s\S]*',
-                '', result.summary, flags=re.IGNORECASE
-            ).strip()
-            summary_md = f"## Summary\n\n{_summary_text}"
-            if inc_key_points and result.key_points:
-                summary_md += "\n\n## Key Points\n" + "\n".join(f"- {p}" for p in result.key_points)
-            if inc_action_items and result.action_items:
-                summary_md += "\n\n## Action Items\n" + "\n".join(f"- [ ] {a}" for a in result.action_items)
+                _summary_text = re.sub(
+                    r'\n*#{1,3}\s*(Full\s+)?Transcript[\s\S]*',
+                    '', result.summary, flags=re.IGNORECASE
+                ).strip()
+                summary_md = f"## Summary\n\n{_summary_text}"
+            if not transcription_only:
+                if inc_key_points and result.key_points:
+                    summary_md += "\n\n## Key Points\n" + "\n".join(f"- {p}" for p in result.key_points)
+                if inc_action_items and result.action_items:
+                    summary_md += "\n\n## Action Items\n" + "\n".join(f"- [ ] {a}" for a in result.action_items)
 
             if result.speaker_profiles:
                 profiles_md = "\n\n---\n\n".join(
@@ -5089,6 +5095,11 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
      letter-spacing:0.1em;color:var(--ta-card-sub);margin:8px 0 4px;">
   Step 3 — Run
 </div>""")
+            transcription_only_toggle = gr.Checkbox(
+                label="Transcription only (skip AI analysis)",
+                value=False,
+                elem_id="ta-transcription-only",
+            )
             process_btn = gr.Button(
                 "▶  Analyze",
                 variant="primary", size="sm",
@@ -5396,6 +5407,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             inc_transcript, inc_profiles, inc_analytics,
             user_api_key,
             provider_dropdown, model_dropdown,
+            transcription_only_toggle,
         ],
         outputs=[
             status_bar,

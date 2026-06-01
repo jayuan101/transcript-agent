@@ -1587,6 +1587,7 @@ def run(
     on_token_usage=None,            # callable(total_input, total_output) — live token counts
     cancel_event=None,              # threading.Event — set to abort before LLM analysis starts
     pre_transcribed=None,           # (raw_text, lang, segments) — skip STT when provided
+    transcription_only: bool = False,  # skip AI analysis — return raw transcript immediately
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1645,6 +1646,16 @@ def run(
 
     if on_raw_transcript:
         on_raw_transcript(raw_text)
+
+    if transcription_only:
+        return TranscriptResult(
+            clean_transcript=raw_text,
+            speaker_dialogue=raw_text,
+            detected_language=_detected_lang,
+            segments=_segments,
+            stt_engine=stt_engine,
+            stt_seconds=_stt_secs,
+        )
 
     if cancel_event and cancel_event.is_set():
         raise RuntimeError("Job cancelled before AI analysis")

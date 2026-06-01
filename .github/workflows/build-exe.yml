@@ -50,37 +50,27 @@ jobs:
       - name: Create installer batch file
         shell: pwsh
         run: |
-          $bat = @'
-@echo off
-setlocal
-echo ============================================
-echo  Transcript Agent Installer
-echo ============================================
-echo.
-
-set INSTALL_DIR=%LOCALAPPDATA%\TranscriptAgent
-echo Installing to: %INSTALL_DIR%
-echo.
-
-if exist "%INSTALL_DIR%\TranscriptAgent.exe" (
-  echo Updating existing installation...
-) else (
-  echo Fresh install...
-)
-
-powershell -NoProfile -Command "Expand-Archive -Path '%~dp0TranscriptAgent-win64.zip' -DestinationPath '%INSTALL_DIR%' -Force"
-if errorlevel 1 ( echo ERROR: Extraction failed. & pause & exit /b 1 )
-
-echo.
-echo Creating Desktop shortcut...
-powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Transcript Agent.lnk'); $s.TargetPath='%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe'; $s.WorkingDirectory='%INSTALL_DIR%\TranscriptAgent'; $s.Save()"
-
-echo.
-echo Done! Launching Transcript Agent...
-start "" "%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe"
-exit /b 0
-'@
-          Set-Content -Path dist\Install-TranscriptAgent.bat -Value $bat -Encoding utf8
+          $lines = @(
+            '@echo off',
+            'setlocal',
+            'echo ============================================',
+            'echo  Transcript Agent Installer',
+            'echo ============================================',
+            'echo.',
+            'set INSTALL_DIR=%LOCALAPPDATA%\TranscriptAgent',
+            'echo Installing to: %INSTALL_DIR%',
+            'echo.',
+            'powershell -NoProfile -Command "Expand-Archive -Path ''%~dp0TranscriptAgent-win64.zip'' -DestinationPath ''%INSTALL_DIR%'' -Force"',
+            'if errorlevel 1 ( echo ERROR: Extraction failed. ^& pause ^& exit /b 1 )',
+            'echo.',
+            'echo Creating Desktop shortcut...',
+            'powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Transcript Agent.lnk''); $s.TargetPath=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe''; $s.WorkingDirectory=''%INSTALL_DIR%\TranscriptAgent''; $s.Save()"',
+            'echo.',
+            'echo Done! Launching Transcript Agent...',
+            'start "" "%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe"',
+            'exit /b 0'
+          )
+          $lines | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4

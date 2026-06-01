@@ -1571,6 +1571,8 @@ def run(
     on_log=None,
     on_stt_done=None,               # callable(stt_secs: float) — fired when STT completes
     on_token_usage=None,            # callable(total_input, total_output) — live token counts
+    cancel_event=None,              # threading.Event — set to abort before LLM analysis starts
+    pre_transcribed=None,           # (raw_text, lang, segments) — skip STT when provided
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1591,7 +1593,15 @@ def run(
     _segments      = []
     _stt_secs      = 0.0
 
-    if ext in (AUDIO_EXTS | VIDEO_EXTS):
+    if pre_transcribed is not None:
+        # Resume from a cached STT result — skip transcription entirely
+        raw_text, _detected_lang, _segments = pre_transcribed
+        _log(f"Resuming from saved transcript (~{len(raw_text.split()):,} words) — skipping transcription")
+        if on_stage_change: on_stage_change("whisper")
+        if on_raw_transcript: on_raw_transcript(raw_text)
+        if on_stt_done: on_stt_done(0.0)
+        fmt = "audio/video (cached)"
+    elif ext in (AUDIO_EXTS | VIDEO_EXTS):
         if panel_mode:
             _log("Mode: Panel (multi-speaker diarization)")
             if on_stage_change: on_stage_change("extracting")
@@ -1622,6 +1632,9 @@ def run(
 
     if on_raw_transcript:
         on_raw_transcript(raw_text)
+
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Job cancelled before AI analysis")
 
     _log(f"Text ready: ~{len(raw_text.split()):,} words  |  Passing to AI…")
 

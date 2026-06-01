@@ -472,6 +472,43 @@ OUT_DIR      = Path(__file__).parent / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
 HISTORY_PATH = OUT_DIR / "history.jsonl"
 
+_STT_CACHE_DIR = OUT_DIR / ".stt_cache"
+
+def _stt_cache_key(file_path: str) -> str:
+    import hashlib
+    try:
+        with open(file_path, "rb") as f:
+            chunk = f.read(1_048_576)  # first 1 MB is enough to fingerprint the file
+        return hashlib.sha256(chunk).hexdigest()[:20]
+    except Exception:
+        return ""
+
+def _load_stt_cache(file_path: str):
+    key = _stt_cache_key(file_path)
+    if not key:
+        return None
+    cache_file = _STT_CACHE_DIR / f"{key}.json"
+    if not cache_file.exists():
+        return None
+    try:
+        import json as _j
+        data = _j.loads(cache_file.read_text(encoding="utf-8"))
+        return data["raw_text"], data["lang"], data["segments"]
+    except Exception:
+        return None
+
+def _save_stt_cache(file_path: str, raw_text: str, lang: str, segments: list):
+    key = _stt_cache_key(file_path)
+    if not key:
+        return
+    _STT_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    cache_file = _STT_CACHE_DIR / f"{key}.json"
+    try:
+        import json as _j
+        cache_file.write_text(_j.dumps({"raw_text": raw_text, "lang": lang, "segments": segments}), encoding="utf-8")
+    except Exception:
+        pass
+
 
 
 SUPPORTED = list(AUDIO_EXTS | VIDEO_EXTS | {".srt", ".vtt", ".txt", ".md", ".docx", ".pdf"})
@@ -1534,6 +1571,10 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         p2_state = "active"; p2_hint = hint
         p3_state = "waiting"; p3_hint = ""
         conn1 = "var(--ta-conn-line-done)"; conn2 = "var(--ta-conn-line-wait)"
+    elif stage == "idle":
+        p1_steps = ["waiting","waiting","waiting"]; p1_state = "waiting"; p1_hint = ""
+        p2_state = "waiting"; p2_hint = ""; p3_state = "waiting"; p3_hint = ""
+        conn1 = conn2 = "var(--ta-conn-line-wait)"
     else:
         p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Starting…"
         p2_state = "waiting"; p2_hint = ""; p3_state = "waiting"; p3_hint = ""
@@ -1673,6 +1714,16 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     # ── Done ──────────────────────────────────────────────────────────────────
     tracker = _step_tracker_html(stage, done)
 
+    # ── Idle (before any job starts) ─────────────────────────────────────────
+    if stage == "idle":
+        return tracker + (
+            '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-card-border);'
+            'border-radius:16px;padding:20px 24px;font-family:sans-serif;text-align:center;">'
+            '<div style="color:var(--ta-card-sub);font-size:0.9em;">'
+            'Upload a file or paste a URL above to start processing</div>'
+            '</div>'
+        )
+
     if done:
         return tracker + (
             '<div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);'
@@ -1796,11 +1847,20 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         )
 
     overlay_pct = ""
+    est_time_stat = ""
     if stage in ("loading", "extracting"):
         overlay_pct = (
             '<div style="display:flex;align-items:flex-end;gap:4px;margin-bottom:14px;">'
             f'<div style="font-size:4.5em;font-weight:900;color:{text_clr};'
             f'font-family:monospace;line-height:1;">—</div></div>'
+        )
+        est_label = "< 5s" if stage == "loading" else "10–60s"
+        est_time_stat = (
+            f'<div style="background:var(--ta-stat-bg);border-radius:8px;padding:8px 14px;">'
+            f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:var(--ta-card-sub);">Est. Time</div>'
+            f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
+            f'font-family:monospace;">{est_label}</div></div>'
         )
 
     return tracker + (
@@ -1822,7 +1882,9 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         f'letter-spacing:0.08em;color:var(--ta-card-sub);">Elapsed</div>'
         f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
         f'font-family:monospace;">{elapsed}</div>'
-        f'</div></div></div>'
+        f'</div>'
+        f'{est_time_stat}'
+        f'</div></div>'
     )
 
 
@@ -2048,6 +2110,11 @@ def process_file(
         log=log,
     )
 
+    # Note if we found a cached STT result
+    if _pre_transcribed:
+        log = _add_log("⚡ Resuming — using saved transcript, skipping re-transcription", "done")
+        yield _out(log=log)
+
     config = ReportConfig(
         style=report_style,
         include_summary=inc_summary,
@@ -2076,6 +2143,12 @@ def process_file(
     job_dir.mkdir(parents=True, exist_ok=True)
     ext      = Path(uploaded_file).suffix.lower()
     is_av    = ext in (AUDIO_EXTS | VIDEO_EXTS)
+
+    # ── cancel event (set by GeneratorExit when user clicks Stop) ────────────
+    _cancel_ev = threading.Event()
+
+    # ── check for a cached STT result so we can skip re-transcribing ─────────
+    _pre_transcribed = _load_stt_cache(uploaded_file) if is_av else None
 
     # ── thread communication ──────────────────────────────────────────────────
     q = Q.Queue()
@@ -2120,6 +2193,8 @@ def process_file(
                 on_stt_done=lambda s: q.put(("stt_done", s)),
                 on_token_usage=lambda i, o: q.put(("tokens", i, o)),
                 on_log=on_log,
+                cancel_event=_cancel_ev,
+                pre_transcribed=_pre_transcribed,
             )
             q.put(("done", result))
         except ImportError as e:
@@ -2147,6 +2222,7 @@ def process_file(
     stall_warned    = set()
     _tok_in         = 0       # accumulate token counts
     _tok_out        = 0
+    _raw_stt_text   = ""      # raw STT text; stored here so "done" handler can update cache
     # _total_dl_mb and _peak_dl_speed are NOT reset here — they were already
     # initialised at the top of process_file and may hold URL-download values.
 
@@ -2167,6 +2243,9 @@ def process_file(
         try:
             msg = q.get(timeout=1.0)
             last_activity = time.time()
+        except GeneratorExit:
+            _cancel_ev.set()
+            raise
         except Q.Empty:
             elapsed  = _elapsed()
             quiet    = int(time.time() - last_activity)
@@ -2266,8 +2345,11 @@ def process_file(
             )
 
         elif kind == "transcript":
-            raw_shown = True
-            elapsed   = _elapsed()
+            raw_shown     = True
+            elapsed       = _elapsed()
+            _raw_stt_text = msg[1]
+            # Interim cache save (no lang/segments yet — updated fully on "done")
+            _save_stt_cache(uploaded_file, _raw_stt_text, "", [])
             log_text  = _add_log("✅ Transcription complete!", "done")
             log_text  = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
             log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
@@ -2469,6 +2551,13 @@ def process_file(
             else:
                 iv_html = '<p style="color:#94a3b8;">Enable <b>Interview Mode</b> before analyzing to see coaching results here.</p>'
 
+            # ── Update cache with lang + segments now that we have them ────────
+            if _raw_stt_text:
+                _save_stt_cache(uploaded_file,
+                                _raw_stt_text,
+                                result.detected_language or "",
+                                result.segments or [])
+
             # ── STT timing into the log ───────────────────────────────────────
             if result.stt_seconds > 0:
                 eng_label = STT_ENGINES.get(result.stt_engine, result.stt_engine)
@@ -2541,11 +2630,22 @@ def process_file(
             break
 
         elif kind == "error":
-            log_text = _add_log(f"🚨 {msg[1]}", "error")
-            yield _out(log=log_text)
-            yield _err(f"Processing failed: {msg[1]}")
+            err_msg = str(msg[1])
+            if "cancelled" in err_msg.lower():
+                stopped_elapsed = _elapsed()
+                log_text = _add_log("⏹ Stopped by user.", "warn")
+                yield _out(
+                    status=_status_compact("⏹", "Stopped.", stopped_elapsed),
+                    eta=_eta_panel_html("idle"),
+                    log=log_text,
+                )
+            else:
+                log_text = _add_log(f"🚨 {err_msg}", "error")
+                yield _out(log=log_text)
+                yield _err(f"Processing failed: {err_msg}")
             break
     finally:
+        _cancel_ev.set()   # always signal the background thread to stop
         _allow_sleep()
 
 
@@ -3574,6 +3674,14 @@ window.taDoUpdate = function(url, btn, platform) {
       } catch(e) {}
     }
 
+    /* ── Stop button tooltip ── */
+    (function addStopTooltip() {
+      var btn = document.getElementById('ta-cancel-btn');
+      if (!btn) { setTimeout(addStopTooltip, 300); return; }
+      var b = btn.querySelector('button') || btn;
+      b.title = 'Stop transcription';
+    })();
+
     /* Expose helpers for the Python→JS bridge (set via gr.HTML status updates) */
     window.taJobStart = function(filename) {
       localStorage.setItem('ta-job-running', JSON.stringify({ file: filename, started: Date.now() }));
@@ -4141,7 +4249,7 @@ window.taDoUpdate = function(url, btn, platform) {
         _pingMs = Math.round(performance.now() - t0);
         if (buf.byteLength > 0) _pushRx(buf.byteLength);
       }).catch(function() { _pingMs = 0; })
-        .finally(function() { setTimeout(pingLoop, 6000); });
+        .finally(function() { setTimeout(pingLoop, 2000); });
     })();
 
     /* mini bar — 16 segments */
@@ -4467,6 +4575,18 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.9",
+        "date": "2026-06-01",
+        "notes": [
+            "Stop button tooltip ('Stop transcription') on hover",
+            "Stop button now cancels AI analysis immediately, not just the UI stream",
+            "Transcript checkpoint cache — resubmitting the same file skips re-transcription",
+            "ETA panel visible from page load (idle step tracker shown before job starts)",
+            "Est. Time shown for Loading and Extracting stages",
+            "Network monitor ping reduced to 2 s — always shows live data",
+        ],
+    },
+    {
         "version": "1.1.8",
         "date": "2026-06-01",
         "notes": [
@@ -4599,7 +4719,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.8"
+APP_VERSION = "1.1.9"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -4989,7 +5109,7 @@ with gr.Blocks(title="Transcript Agent") as demo:
                     elem_id="ta-cancel-btn",
                 )
 
-            eta_panel   = gr.HTML(value="", elem_id="ta-eta-panel")
+            eta_panel   = gr.HTML(value=_eta_panel_html("idle"), elem_id="ta-eta-panel")
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
                       'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'

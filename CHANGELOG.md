@@ -1,5 +1,44 @@
 # Changelog
 
+## v1.1.10 — 2026-06-01
+- Interview Mode always on: checkboxes removed, mode and deep analysis permanently active
+- Windows exe rebuilt and verified launching cleanly on Windows
+- Docker workflow: continue-on-error on description step so build never fails on token scope
+
+## v1.1.9 — 2026-06-01
+- Stop button: tooltip "Stop transcription" on hover
+- Stop button now cancels AI analysis immediately via threading.Event cancel flag
+- Transcript checkpoint cache: re-submitting same file skips re-transcription
+- ETA panel visible from page load with idle step tracker
+- Est. Time stat shown for Loading and Extracting stages
+- Network monitor ping reduced from 6 s to 2 s for always-live display
+
+## v1.1.8 — 2026-06-01
+- Fix: pandas and gradio_client now bundled in Windows exe
+
+## v1.1.7 — 2026-06-01
+- Fix: auto-collect version.txt from all Gradio micro-deps; groovy added to collect_all
+
+## v1.1.6 — 2026-06-01
+- Fix: collect_all for gradio and safehttpx data files in PyInstaller bundle
+
+## v1.1.5 — 2026-06-01
+- Fix: numpy now bundled — was excluded, caused crash on Windows startup
+
+## v1.1.4 — 2026-06-01
+- Fix: missing STT package error now tells user to switch to Whisper (Local) as the quick fix
+
+## v1.1.3 — 2026-06-01
+- Fix: Windows python311.dll error — installer extracts to %LOCALAPPDATA% and creates Desktop shortcut
+
+## v1.1.2 — 2026-05-31
+- Advancement likelihood % shown at top of Interview Coaching tab
+- Translate output to: language dropdown above Analyze button
+
+## v1.1.1 — 2026-05-31
+- Fix: Summary, Transcript, and Speaker Dialogue tabs now always populate
+- Fix: JSON schema reordered so summary survives token-limit cuts
+
 ## v1.1 — 2026-05-31
 - GitHub OTA update checker: auto-detects new releases, shows Windows + Mac one-click download buttons
 - Floating ▶ Analyze button: fixed click handler to use CSS class selector (works on all Gradio re-renders)

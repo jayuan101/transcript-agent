@@ -4149,20 +4149,14 @@ window.taDoUpdate = function(url, btn, platform) {
       });
     }
 
-    /* Click the real Analyze button — looks it up fresh every time so stale
-       references after Gradio re-renders never silently fail.
-       Dispatches the full mousedown→mouseup→click sequence that Svelte needs. */
+    /* Click the real Analyze button — direct .click() is the only reliable way
+       to trigger Gradio/Svelte's event handler from external JS. */
     function doAnalyze() {
-      var btn = document.querySelector('.ta-analyze-btn button')
-             || document.querySelector('#ta-analyze-btn button');
-      if (!btn) return;
-      ['mousedown','mouseup','click'].forEach(function(ev){
-        btn.dispatchEvent(new MouseEvent(ev, {bubbles:true, cancelable:true, view:window}));
-      });
-      setTimeout(function(){
-        var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
-        if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 400);
+      var wrapper = document.getElementById('ta-analyze-btn');
+      var btn = (wrapper && wrapper.querySelector('button'))
+             || document.querySelector('.ta-analyze-btn button');
+      if (!btn || btn.disabled) return;
+      btn.click();
     }
 
     /* Event delegation on document — survives any DOM re-mount */
@@ -4171,22 +4165,7 @@ window.taDoUpdate = function(url, btn, platform) {
         doAnalyze();
     });
 
-    /* Sidebar Analyze button also scrolls to status after click */
-    function wireSidebarScroll() {
-      var btn = document.querySelector('.ta-analyze-btn button');
-      if (!btn) { setTimeout(wireSidebarScroll, 800); return; }
-      if (btn.dataset.taScrollWired) return;
-      btn.dataset.taScrollWired = '1';
-      btn.addEventListener('click', function(){
-        setTimeout(function(){
-          var target = document.getElementById('ta-status-bar') || document.querySelector('.ta-status-bar');
-          if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 400);
-      });
-    }
-
     wireHover();
-    setTimeout(wireSidebarScroll, 1500);
   })();
 
 

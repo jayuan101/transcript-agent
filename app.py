@@ -2938,15 +2938,15 @@ window.taDoUpdate = function(url, btn, platform) {
       );
       document.documentElement.appendChild(w);
     }
-    /* Float button injected separately — always checked so it survives Gradio re-renders */
-    if (!document.getElementById('ta-float-wrap')) {
+    /* Floating ▶ button — lives in <body>, MutationObserver re-injects it
+       the moment Gradio removes it so it is never gone for more than one paint. */
+    function _buildFloat() {
       var fw = document.createElement('div');
       fw.id = 'ta-float-wrap';
-      /* Use fixed positioning as primary; JS scroll handler overrides to absolute
-         if CSS position:fixed is broken by an ancestor CSS transform (Gradio quirk). */
       fw.style.cssText = (
-        'position:fixed;bottom:28px;right:28px;z-index:2147483647;display:flex;flex-direction:column;'
-        + 'align-items:center;gap:8px;will-change:transform;'
+        'position:fixed;bottom:28px;right:28px;z-index:2147483647;'
+        + 'display:flex;flex-direction:column;align-items:center;gap:8px;'
+        + 'pointer-events:none;'
       );
       var flabel = document.createElement('div');
       flabel.id = 'ta-float-label';
@@ -2963,10 +2963,9 @@ window.taDoUpdate = function(url, btn, platform) {
         'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
         + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
         + 'font-size:1.4em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;'
+        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
       );
       fbtn.textContent = '▶';
-      /* Wire click at creation — guaranteed to fire, no timing dependency */
       fbtn.addEventListener('click', function() {
         var b = document.querySelector('.ta-analyze-btn');
         if (b && !b.disabled) {
@@ -2985,29 +2984,18 @@ window.taDoUpdate = function(url, btn, platform) {
       });
       fw.appendChild(flabel);
       fw.appendChild(fbtn);
-      /* Append to <html> not <body> — Gradio's DOM operations only touch <body>,
-         so this element is guaranteed to stay put and keep its event listeners. */
-      document.documentElement.appendChild(fw);
+      return fw;
     }
-
-    /* rAF pin-loop — re-pins the button to the viewport bottom-right every frame.
-       Works regardless of whether scrolling is via window or an inner Gradio container,
-       and survives any CSS position:fixed breakage caused by ancestor transforms. */
-    if (!window.__taPinLoop) {
-      window.__taPinLoop = true;
-      (function _taPin() {
-        var el = document.getElementById('ta-float-wrap');
-        if (el && el.offsetHeight) {
-          var vw = window.innerWidth  || document.documentElement.clientWidth  || 1280;
-          var vh = window.innerHeight || document.documentElement.clientHeight || 800;
-          el.style.position = 'fixed';
-          el.style.top      = (vh - el.offsetHeight - 28) + 'px';
-          el.style.left     = (vw - el.offsetWidth  - 28) + 'px';
-          el.style.bottom   = 'auto';
-          el.style.right    = 'auto';
-        }
-        requestAnimationFrame(_taPin);
-      })();
+    function _ensureFloat() {
+      if (!document.getElementById('ta-float-wrap') && document.body) {
+        document.body.appendChild(_buildFloat());
+      }
+    }
+    _ensureFloat();
+    /* MutationObserver: re-inject within the same paint cycle if Gradio removes it */
+    if (!window.__taFloatObs) {
+      window.__taFloatObs = true;
+      new MutationObserver(_ensureFloat).observe(document.body, { childList: true });
     }
   }
   /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */

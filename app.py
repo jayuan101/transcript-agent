@@ -786,7 +786,7 @@ def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
 
     eta_html = ""
     if eta_secs is not None and eta_secs > 0:
-        finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
+        finish_str = (_dt.datetime.utcnow() + _dt.timedelta(seconds=eta_secs)).strftime("%H:%M UTC")
         eta_html = (
             f'<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">'
             f'<span style="background:#dbeafe;border-radius:6px;padding:4px 12px;'
@@ -1647,7 +1647,7 @@ def _net_panel_html(direction: str, received: int, total: int,
 
 
 def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
-                    elapsed: str = "", done: bool = False) -> str:
+                    elapsed: str = "", done: bool = False, word_count: int = 0) -> str:
     import datetime as _dt
 
     _slide_css = (
@@ -1698,7 +1698,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "—"
         finish_str = ""
         if eta_secs and eta_secs > 0:
-            finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
+            finish_str = (_dt.datetime.utcnow() + _dt.timedelta(seconds=eta_secs)).strftime("%H:%M UTC")
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
@@ -1731,10 +1731,11 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     # ── Other stages (loading / extracting / claude / whisper indeterminate) ──
     stage_cfg = {
-        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",        "Step 0 of 3", "var(--ta-step-act-clr)"),
-        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",   "Step 1 of 3", "var(--ta-step-done-clr)"),
-        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…", "Step 1 of 3", "var(--ta-step-act-clr)"),
-        "claude":     ("#a855f7",                 "Analyzing with AI…",  "Step 2 of 3", "#c4b5fd"),
+        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",              "Step 0 of 3", "var(--ta-step-act-clr)"),
+        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",         "Step 1 of 3", "var(--ta-step-done-clr)"),
+        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…",       "Step 1 of 3", "var(--ta-step-act-clr)"),
+        "stt_cloud":  ("var(--ta-step-act-bdr)",  "Uploading & transcribing…", "Step 1 of 3", "var(--ta-step-act-clr)"),
+        "claude":     ("#a855f7",                 "Analyzing with AI…",        "Step 2 of 3", "#c4b5fd"),
     }
     color, label, step, text_clr = stage_cfg.get(
         stage, ("var(--ta-card-border)", "Processing…", "", "var(--ta-card-sub)")
@@ -1745,11 +1746,18 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         import math as _math, re as _re
         _m = _re.match(r'(?:(\d+)m\s*)?(\d+)s', elapsed or "")
         _elapsed_s = (int(_m.group(1) or 0) * 60 + int(_m.group(2) or 0)) if _m else 0
+        # Total estimated AI time: scale by word count if known, else default 90s
+        _total_ai = max(90, int(word_count * 0.14)) if word_count > 0 else 90
         # Asymptotic curve: grows fast → slows → caps at 92% until done
-        ai_pct   = min(92, int(100 * (1 - _math.exp(-_elapsed_s / 40)))) if _elapsed_s > 0 else 5
-        # Estimate remaining: assume average total AI time ~60 s, remaining ∝ (100-ai_pct)
-        _est_rem = max(0, int((100 - ai_pct) * 0.6))
+        ai_pct   = min(92, int(100 * (1 - _math.exp(-_elapsed_s / (_total_ai * 0.4))))) if _elapsed_s > 0 else 5
+        # Estimate remaining from asymptotic curve
+        _est_rem = max(0, int(_total_ai - _elapsed_s))
         eta_str  = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
+        # Sub-label
+        if word_count > 0:
+            _sub_label = f"🤖 Analyzing {word_count:,}-word transcript — writing full report…"
+        else:
+            _sub_label = "🤖 Reading transcript and writing your report…"
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
@@ -1777,8 +1785,8 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
             + _stat_card("Elapsed", elapsed) +
             '</div>'
-            '<div style="font-size:0.82em;color:#c4b5fd;margin-top:10px;">'
-            '🤖 Reading transcript and writing your report…</div>'
+            f'<div style="font-size:0.82em;color:#c4b5fd;margin-top:10px;">'
+            f'{_sub_label}</div>'
             '</div>'
         )
 
@@ -2026,9 +2034,8 @@ def process_file(
     _peak_dl_speed = 0.0
 
     def _ts():
-        secs = int(time.time() - start_time)
-        m, s = divmod(secs, 60)
-        return f"{m:02d}:{s:02d}"
+        import datetime as _dt
+        return _dt.datetime.utcnow().strftime("%H:%M UTC")
 
     def _elapsed():
         secs = int(time.time() - start_time)
@@ -2299,6 +2306,7 @@ def process_file(
     _tok_in         = 0       # accumulate token counts
     _tok_out        = 0
     _raw_stt_text   = ""      # raw STT text; stored here so "done" handler can update cache
+    _word_count     = 0       # word count of transcript, for Claude ETA estimation
     # _total_dl_mb and _peak_dl_speed are NOT reset here — they were already
     # initialised at the top of process_file and may hold URL-download values.
 
@@ -2353,6 +2361,8 @@ def process_file(
                 stall_warned.add(stall_key)
                 log = _add_log("🚨  10 min waiting for AI response. Check your API key quota or try a faster model.", "error")
                 yield _out(log=log)
+            elif stage == "claude" and quiet > 0 and quiet % 30 == 0:
+                yield _out(eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count))
 
             # ── eta panel update ─────────────────────────────────────────────
             if stage in ("whisper",):
@@ -2360,12 +2370,15 @@ def process_file(
                 eta_upd = _eta_panel_html("whisper", pct=whisper_pct or None,
                                           eta_secs=eta_s, elapsed=elapsed)
                 yield _out(status=_status_compact("🎤", "Transcribing audio…", elapsed), eta=eta_upd)
+            elif stage == "stt_cloud":
+                yield _out(status=_status_compact("☁️", "Uploading & transcribing…", elapsed),
+                           eta=_eta_panel_html("stt_cloud", elapsed=elapsed))
             elif stage == "extracting":
                 yield _out(status=_status_compact("🎬", "Extracting audio…", elapsed),
                            eta=_eta_panel_html("extracting", elapsed=elapsed))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed))
+                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count))
             else:
                 yield _out(status=_status_compact("⏳", "Loading…", elapsed),
                            eta=_eta_panel_html("loading", elapsed=elapsed))
@@ -2401,7 +2414,7 @@ def process_file(
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log("Sending transcript to AI for analysis…", "ai")
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed), log=log)
+                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
@@ -2424,6 +2437,7 @@ def process_file(
             raw_shown     = True
             elapsed       = _elapsed()
             _raw_stt_text = msg[1]
+            _word_count   = len(_raw_stt_text.split())
             # Interim cache save (no lang/segments yet — updated fully on "done")
             _save_stt_cache(uploaded_file, _raw_stt_text, "", [])
             log_text  = _add_log("✅ Transcription complete!", "done")
@@ -2431,7 +2445,7 @@ def process_file(
             log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
             yield _out(
                 status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                eta=_eta_panel_html("claude", elapsed=elapsed),
+                eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count),
                 transcript=msg[1],
                 log=log_text,
             )
@@ -5562,6 +5576,14 @@ if __name__ == "__main__":
     # show_api was added in Gradio 4.15 — skip on older builds
     if "show_api" in _inspect.signature(demo.launch).parameters:
         _launch_kw["show_api"] = False
+
+    import socket as _socket
+    try:
+        _lan_ip = _socket.gethostbyname(_socket.gethostname())
+    except Exception:
+        _lan_ip = "unknown"
+    print(f"\n  Local:   http://127.0.0.1:{_port}")
+    print(f"  Network: http://{_lan_ip}:{_port}\n")
 
     if _docker:
         # HF Spaces / Docker: launch Gradio on port 7860, then graft REST API

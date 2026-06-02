@@ -750,7 +750,7 @@ def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
 
 
 def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
-                  model: str = "nova-2") -> tuple:
+                  model: str = "nova-2", on_stage_change=None) -> tuple:
     try:
         import httpx as _httpx
         from deepgram import DeepgramClient, PrerecordedOptions
@@ -767,6 +767,9 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         smart_format=True, numerals=True,
         **lang_kw,
     )
+
+    if on_stage_change:
+        on_stage_change("extracting")
 
     # Extract audio from video files before uploading — a 3-hour MP4 can be
     # several GB; the same content as 64 kbps mono MP3 is ~90 MB.  This also
@@ -794,6 +797,9 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         except Exception as _e:
             if on_log:
                 on_log(f"Audio extraction failed ({_e}), uploading original", "warn")
+
+    if on_stage_change:
+        on_stage_change("stt_cloud")
 
     try:
         with open(upload_path, "rb") as f:
@@ -1074,7 +1080,7 @@ def stt_transcribe(
     elif engine == "groq_whisper":
         text, lang, segs = _stt_groq(path, api_key, language, on_log, model=stt_model)
     elif engine == "deepgram":
-        text, lang, segs = _stt_deepgram(path, api_key, language, on_log, model=stt_model)
+        text, lang, segs = _stt_deepgram(path, api_key, language, on_log, model=stt_model, on_stage_change=on_stage_change)
     elif engine == "assemblyai":
         text, lang, segs = _stt_assemblyai(path, api_key, language, on_log, model=stt_model)
     elif engine == "google_stt":

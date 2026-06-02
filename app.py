@@ -4435,36 +4435,19 @@ def _cap_row(icon, label, items, style="act"):
     )
 
 _CAPABILITIES = (
-    '<style>'
-    '.ta-caps-details{background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
-    'border-radius:10px;font-family:sans-serif;overflow:hidden;}'
-    '.ta-caps-summary{display:flex;align-items:center;justify-content:space-between;'
-    'padding:10px 16px;cursor:pointer;list-style:none;user-select:none;}'
-    '.ta-caps-summary::-webkit-details-marker{display:none;}'
-    '.ta-caps-summary-label{font-size:0.72em;font-weight:800;text-transform:uppercase;'
-    'letter-spacing:0.1em;color:var(--ta-card-text);}'
-    '.ta-caps-chevron{font-size:0.7em;color:var(--ta-card-sub);transition:transform 0.2s;}'
-    '.ta-caps-details[open] .ta-caps-chevron{transform:rotate(180deg);}'
-    '.ta-caps-body{padding:0 16px 12px;}'
-    '</style>'
-    '<details class="ta-caps-details">'
-    '<summary class="ta-caps-summary">'
-    '<span class="ta-caps-summary-label">⚡ What we support</span>'
-    '<span class="ta-caps-chevron">▼</span>'
-    '</summary>'
-    '<div class="ta-caps-body">'
+    '<div style="font-family:sans-serif;">'
     + _cap_row("🎵", "Audio", ["mp3","wav","m4a","flac","ogg","aac","opus","wma","amr","aiff","+ more"])
     + _cap_row("🎬", "Video", ["mp4","mov","avi","mkv","webm","flv","wmv","ts","mpg","vob","+ more"], "done")
     + _cap_row("📄", "Documents", ["pdf","docx","txt","md","srt","vtt"], "wait")
     + _cap_row("🎤", "STT engines", ["Whisper","Deepgram","AssemblyAI","OpenAI","Groq","ElevenLabs","+ more"])
     + _cap_row("🤖", "AI providers", ["Claude","OpenAI","Gemini","Groq","Mistral","Together","Perplexity","Ollama"], "done")
     + _cap_row("📤", "Outputs", ["Summary","Transcript","Speaker dialogue","PDF","DOCX","SRT","VTT","JSON"], "wait")
-    + '<div style="display:flex;gap:4px;flex-wrap:wrap;padding-top:8px;">'
+    + '<div style="display:flex;gap:4px;flex-wrap:wrap;padding-top:8px;border-top:1px solid var(--ta-card-border);margin-top:4px;">'
     + "".join(_badge(f, "wait") for f in [
         "Speaker detection","Multi-language","Interview coaching",
         "Live ETA","Transcription-only","URL import","Dark mode"
     ])
-    + '</div></div></details>'
+    + '</div></div>'
 )
 
 _SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'
@@ -4941,7 +4924,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Or paste a file path or URL (large files / no upload wait)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
-            gr.HTML(_CAPABILITIES)
+            with gr.Accordion("⚡ What we support", open=False):
+                gr.HTML(_CAPABILITIES)
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Processing Options", open=True):

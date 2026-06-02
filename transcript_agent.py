@@ -236,7 +236,7 @@ def _get_audio_duration(path: str) -> float:
         ffprobe = str(_p.with_name(_p.name.replace("ffmpeg", "ffprobe")))
         result = _sp.run(
             [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", path],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True,
         )
         data = json.loads(result.stdout)
         return float(data["format"]["duration"])
@@ -247,7 +247,7 @@ def _get_audio_duration(path: str) -> float:
     try:
         result = _sp.run(
             [FFMPEG_EXE, "-i", path],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True, text=True,
         )
         m = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.?\d*)", result.stderr)
         if m:
@@ -765,12 +765,11 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         language=language or "en", smart_format=True,
         numerals=True,
     )
-    import httpx, mimetypes as _mt
+    import mimetypes as _mt
     mime = _mt.guess_type(path)[0] or "audio/mpeg"
     with open(path, "rb") as f:
         resp = dg.listen.rest.v("1").transcribe_file(
             {"buffer": f, "mimetype": mime}, opts,
-            timeout=httpx.Timeout(900.0, connect=15.0),
         )
     result = resp.results.channels[0].alternatives[0]
     segs, lines = [], []

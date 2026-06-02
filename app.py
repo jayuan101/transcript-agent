@@ -84,7 +84,7 @@ def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
     """
     import requests
 
-    def _do_get(u: str, timeout=300):
+    def _do_get(u: str, timeout=None):
         return requests.get(
             u,
             stream=True,
@@ -4908,7 +4908,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.40"
+APP_VERSION = "1.1.41"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -4957,7 +4957,7 @@ def _check_github_update() -> str:
             headers={"User-Agent": f"TranscriptAgent/{APP_VERSION}",
                      "Accept": "application/vnd.github.v3+json"},
         )
-        with _ur.urlopen(req, timeout=6) as r:
+        with _ur.urlopen(req) as r:
             data = _json.loads(r.read())
         latest_tag = data.get("tag_name", "").lstrip("v")
         if not latest_tag:

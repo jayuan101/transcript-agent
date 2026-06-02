@@ -1454,12 +1454,52 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     #   p2: Analyze (🤖)
     #   p3: Done (✅)
 
-    def _ss(state):
+    # pulse keyframes injected once
+    _PULSE_CSS = (
+        '<style>'
+        '@keyframes ta-pulse-ring{'
+        '0%{box-shadow:0 0 0 0 rgba(37,99,235,0.45)}'
+        '70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}'
+        '100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}'
+        '}'
+        '</style>'
+    )
+
+    def _node(icon, state, is_last_in_group=False):
         if state == "done":
-            return "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)", "✓"
-        if state == "active":
-            return "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)", "●"
-        return "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)", "○"
+            bg   = "var(--ta-step-done-bg)"
+            bdr  = "var(--ta-step-done-bdr)"
+            clr  = "var(--ta-step-done-clr)"
+            anim = ""
+            inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
+        elif state == "active":
+            bg   = "var(--ta-step-act-bg)"
+            bdr  = "var(--ta-step-act-bdr)"
+            clr  = "var(--ta-step-act-clr)"
+            anim = "animation:ta-pulse-ring 1.6s ease-out infinite;"
+            inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
+        else:
+            bg   = "var(--ta-step-wait-bg)"
+            bdr  = "var(--ta-step-wait-bdr)"
+            clr  = "var(--ta-step-wait-clr)"
+            anim = ""
+            inner = f'<span style="font-size:0.85em;line-height:1;opacity:0.5;">{icon}</span>'
+
+        return (
+            f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">'
+            f'<div style="width:42px;height:42px;border-radius:50%;background:{bg};'
+            f'border:2px solid {bdr};display:flex;align-items:center;justify-content:center;'
+            f'transition:all 0.35s;{anim}">'
+            f'{inner}'
+            f'</div>'
+            f'</div>'
+        )
+
+    def _hline(color, width="28px"):
+        return (
+            f'<div style="width:{width};height:2px;background:{color};border-radius:2px;'
+            f'flex-shrink:0;margin-bottom:22px;transition:background 0.4s;align-self:center;"></div>'
+        )
 
     if done:
         p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
@@ -1468,24 +1508,20 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         conn1 = conn2 = "var(--ta-conn-line-done)"
     elif stage in ("loading",):
         p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Loading file…"
-        p2_state = "waiting"; p2_hint = "Waiting"
-        p3_state = "waiting"; p3_hint = ""
+        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage == "extracting":
         p1_steps = ["done","active","waiting"]; p1_state = "active"; p1_hint = "Extracting audio…"
-        p2_state = "waiting"; p2_hint = "Waiting"
-        p3_state = "waiting"; p3_hint = ""
+        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage == "whisper":
         p1_steps = ["done","done","active"]; p1_state = "active"; p1_hint = "Converting speech…"
-        p2_state = "waiting"; p2_hint = "Waiting"
-        p3_state = "waiting"; p3_hint = ""
+        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage in ("claude","interview"):
         p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
         hint = "Reading & analyzing…" if stage == "claude" else "Scoring interview responses…"
-        p2_state = "active"; p2_hint = hint
-        p3_state = "waiting"; p3_hint = ""
+        p2_state = "active"; p2_hint = hint; p3_state = "waiting"; p3_hint = ""
         conn1 = "var(--ta-conn-line-done)"; conn2 = "var(--ta-conn-line-wait)"
     elif stage == "idle":
         p1_steps = ["waiting","waiting","waiting"]; p1_state = "waiting"; p1_hint = ""
@@ -1496,75 +1532,67 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         p2_state = "waiting"; p2_hint = ""; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
 
-    def _phase_box(phase_label, sub_labels, sub_states, phase_state, hint):
-        if phase_state == "done":
-            bb, bd, bt = "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)"
-        elif phase_state == "active":
-            bb, bd, bt = "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)", "var(--ta-step-act-clr)"
-        else:
-            bb, bd, bt = "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)"
+    def _phase_color(state):
+        if state == "done":   return "var(--ta-step-done-clr)"
+        if state == "active": return "var(--ta-step-act-clr)"
+        return "var(--ta-step-wait-clr)"
 
-        # sub-step dots
-        dots_html = ""
-        for j, (icon, label) in enumerate(sub_labels):
-            state = sub_states[j] if j < len(sub_states) else "waiting"
-            bg, bdr, clr, dot = _ss(state)
-            dots_html += (
-                f'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
-                f'<div style="background:{bg};border:1.5px solid {bdr};border-radius:50%;'
-                f'width:20px;height:20px;display:flex;align-items:center;justify-content:center;'
-                f'font-size:0.7em;font-weight:800;color:{clr};transition:all 0.35s;">{dot}</div>'
-                f'<div style="font-size:0.52em;font-weight:600;color:{clr};text-align:center;'
-                f'white-space:nowrap;">{icon}</div>'
-                f'</div>'
-            )
-            if j < len(sub_labels) - 1:
-                ac = "var(--ta-conn-line-done)" if sub_states[j] == "done" else "var(--ta-conn-line-wait)"
-                dots_html += (
-                    f'<div style="height:1.5px;width:10px;background:{ac};'
-                    f'margin-top:10px;flex-shrink:0;transition:background 0.35s;"></div>'
-                )
-
+    def _phase_col(label, nodes_html, hint, state):
+        clr = _phase_color(state)
         hint_html = (
-            f'<div style="font-size:0.58em;color:{bt};margin-top:3px;font-weight:500;'
-            f'letter-spacing:0.01em;min-height:8px;">{hint}</div>'
-        ) if hint else '<div style="min-height:8px;"></div>'
-
+            f'<div style="font-size:0.64em;font-weight:600;color:{clr};'
+            f'text-align:center;margin-top:4px;min-height:14px;letter-spacing:0.01em;">{hint}</div>'
+        ) if hint else '<div style="min-height:14px;"></div>'
+        label_clr = clr
         return (
-            f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:8px;'
-            f'padding:5px 7px;min-width:0;transition:all 0.35s;">'
-            f'<div style="font-size:0.56em;font-weight:800;text-transform:uppercase;'
-            f'letter-spacing:0.08em;color:{bt};margin-bottom:4px;">{phase_label}</div>'
-            f'<div style="display:flex;align-items:center;gap:0;">{dots_html}</div>'
+            f'<div style="display:flex;flex-direction:column;align-items:center;'
+            f'padding:10px 8px 8px;">'
+            f'<div style="font-size:0.6em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:{label_clr};margin-bottom:8px;white-space:nowrap;">{label}</div>'
+            f'<div style="display:flex;align-items:center;gap:0;">{nodes_html}</div>'
             f'{hint_html}'
             f'</div>'
         )
 
-    p1_box = _phase_box(
-        "Step 1 · Transcription",
-        [("📁","Load"), ("🔊","Extract"), ("🎤","Transcribe")],
-        p1_steps, p1_state, p1_hint,
-    )
-    p2_box = _phase_box(
-        "Step 2 · AI Analysis",
-        [("🤖","Analyze")],
-        [p2_state], p2_state, p2_hint,
-    )
-    p3_box = _phase_box(
-        "Step 3 · Complete",
-        [("✅","Done")],
-        [p3_state], p3_state, p3_hint,
-    )
+    # build phase 1 node row
+    p1_icons = [("📁", p1_steps[0]), ("🔊", p1_steps[1]), ("🎤", p1_steps[2])]
+    p1_nodes = ""
+    for i, (ic, st) in enumerate(p1_icons):
+        p1_nodes += _node(ic, st)
+        if i < len(p1_icons) - 1:
+            lc = "var(--ta-conn-line-done)" if p1_steps[i] == "done" else "var(--ta-conn-line-wait)"
+            p1_nodes += _hline(lc, "20px")
 
-    def _connector(color):
+    p1_col = _phase_col("Step 1 · Transcription", p1_nodes, p1_hint, p1_state)
+    p2_col = _phase_col("Step 2 · AI Analysis",   _node("🤖", p2_state), p2_hint, p2_state)
+    p3_col = _phase_col("Step 3 · Complete",       _node("✅", p3_state), p3_hint, p3_state)
+
+    def _phase_box_wrap(col_html, state):
+        if state == "done":
+            bb, bd = "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)"
+        elif state == "active":
+            bb, bd = "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)"
+        else:
+            bb, bd = "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)"
         return (
-            f'<div style="width:10px;height:1.5px;background:{color};flex-shrink:0;'
-            f'margin-top:20px;border-radius:2px;transition:background 0.4s;"></div>'
+            f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:12px;'
+            f'min-width:0;transition:all 0.35s;">{col_html}</div>'
+        )
+
+    def _big_connector(color):
+        return (
+            f'<div style="width:18px;height:2px;background:{color};border-radius:2px;'
+            f'flex-shrink:0;align-self:center;margin-bottom:10px;transition:background 0.4s;"></div>'
         )
 
     return (
-        f'<div style="display:flex;align-items:flex-start;gap:0;margin-bottom:10px;">'
-        f'{p1_box}{_connector(conn1)}{p2_box}{_connector(conn2)}{p3_box}'
+        _PULSE_CSS +
+        f'<div style="display:flex;align-items:stretch;gap:0;margin-bottom:10px;">'
+        f'{_phase_box_wrap(p1_col, p1_state)}'
+        f'{_big_connector(conn1)}'
+        f'{_phase_box_wrap(p2_col, p2_state)}'
+        f'{_big_connector(conn2)}'
+        f'{_phase_box_wrap(p3_col, p3_state)}'
         f'</div>'
     )
 

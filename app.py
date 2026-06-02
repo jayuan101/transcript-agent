@@ -4658,6 +4658,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.37",
+        "date": "2026-06-01",
+        "notes": [
+            "Verified: Interview Mode profile upload, Re-analyze with Profile button, and float ▶ button confirmed live on space",
+        ],
+    },
+    {
         "version": "1.1.36",
         "date": "2026-06-01",
         "notes": [
@@ -4887,7 +4894,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.36"
+APP_VERSION = "1.1.37"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -1458,6 +1458,28 @@ _PULSE_CSS = (
 )
 
 
+def _step_vars(state: str):
+    """Return (bg, bdr, clr) CSS-variable strings for done/active/waiting."""
+    if state == "done":   return "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)", "var(--ta-step-done-clr)"
+    if state == "active": return "var(--ta-step-act-bg)",  "var(--ta-step-act-bdr)",  "var(--ta-step-act-clr)"
+    return                       "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)", "var(--ta-step-wait-clr)"
+
+
+def _stat_card(label: str, val: str,
+               label_var: str = "--ta-stat-label",
+               val_var:   str = "--ta-stat-val") -> str:
+    """Stat tile used inside progress panels (elapsed, ETA, done-by…)."""
+    _id = ' id="ta-live-elapsed"' if label == "Elapsed" else ''
+    return (
+        f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
+        f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
+        f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.08em;color:var({label_var});">{label}</div>'
+        f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
+        f'font-family:monospace;"{_id}>{val}</div></div>'
+    )
+
+
 def _step_tracker_html(stage: str, done: bool = False) -> str:
     # ── Map stage → which sub-steps are done/active/waiting ──────────────────
     # Phases: p1 = Transcription, p2 = AI Analysis, p3 = Complete
@@ -1467,21 +1489,11 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     #   p3: Done (✅)
 
     def _node(icon, state):
-        if state == "done":
-            bg   = "var(--ta-step-done-bg)"
-            bdr  = "var(--ta-step-done-bdr)"
-            anim = ""
-            inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
-        elif state == "active":
-            bg   = "var(--ta-step-act-bg)"
-            bdr  = "var(--ta-step-act-bdr)"
-            anim = "animation:ta-pulse-ring 1.6s ease-out infinite;"
-            inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
-        else:
-            bg   = "var(--ta-step-wait-bg)"
-            bdr  = "var(--ta-step-wait-bdr)"
-            anim = ""
-            inner = f'<span style="font-size:0.85em;line-height:1;opacity:0.5;">{icon}</span>'
+        bg, bdr, _ = _step_vars(state)
+        anim  = "animation:ta-pulse-ring 1.6s ease-out infinite;" if state == "active" else ""
+        inner = (f'<span style="font-size:0.85em;line-height:1;opacity:0.5;">{icon}</span>'
+                 if state == "waiting"
+                 else f'<span style="font-size:1.05em;line-height:1;">{icon}</span>')
 
         return (
             f'<div style="display:flex;flex-direction:column;align-items:center;gap:5px;">'
@@ -1530,13 +1542,8 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         p2_state = "waiting"; p2_hint = ""; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
 
-    def _phase_color(state):
-        if state == "done":   return "var(--ta-step-done-clr)"
-        if state == "active": return "var(--ta-step-act-clr)"
-        return "var(--ta-step-wait-clr)"
-
     def _phase_col(label, nodes_html, hint, state):
-        clr = _phase_color(state)
+        _, _, clr = _step_vars(state)
         hint_html = (
             f'<div style="font-size:0.64em;font-weight:600;color:{clr};'
             f'text-align:center;margin-top:4px;min-height:14px;letter-spacing:0.01em;">{html.escape(hint)}</div>'
@@ -1565,12 +1572,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     p3_col = _phase_col("Step 3 · Complete",       _node("✅", p3_state), p3_hint, p3_state)
 
     def _phase_box_wrap(col_html, state):
-        if state == "done":
-            bb, bd = "var(--ta-step-done-bg)", "var(--ta-step-done-bdr)"
-        elif state == "active":
-            bb, bd = "var(--ta-step-act-bg)", "var(--ta-step-act-bdr)"
-        else:
-            bb, bd = "var(--ta-step-wait-bg)", "var(--ta-step-wait-bdr)"
+        bb, bd, _ = _step_vars(state)
         return (
             f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:12px;'
             f'min-width:0;transition:all 0.35s;">{col_html}</div>'
@@ -1698,17 +1700,6 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         if eta_secs and eta_secs > 0:
             finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
 
-        def _stat(label_txt, val_txt, label_var="--ta-stat-label", val_var="--ta-stat-val"):
-            _id = ' id="ta-live-elapsed"' if label_txt == "Elapsed" else ''
-            return (
-                f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
-                f'padding:8px 14px;flex:1;min-width:90px;text-align:center;">'
-                f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:0.08em;color:var({label_var});">{label_txt}</div>'
-                f'<div style="font-size:1.3em;font-weight:800;color:var({val_var});'
-                f'font-family:monospace;"{_id}>{val_txt}</div></div>'
-            )
-
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
             'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
@@ -1733,8 +1724,8 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             'background:linear-gradient(90deg,var(--ta-step-act-bdr),var(--ta-step-act-clr));'
             'border-radius:8px;transition:width 0.5s ease;"></div></div>'
             '<div style="display:flex;gap:12px;flex-wrap:wrap;">'
-            + (_stat("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
-            + _stat("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
+            + (_stat_card("Done By", finish_str, "--ta-step-done-clr", "--ta-step-done-clr") if finish_str else "")
+            + _stat_card("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val") +
             '</div></div>'
         )
 
@@ -1760,15 +1751,6 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         _est_rem = max(0, int((100 - ai_pct) * 0.6))
         eta_str  = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
 
-        def _stat(lbl, val):
-            _id = ' id="ta-live-elapsed"' if lbl == "Elapsed" else ''
-            return (f'<div style="background:var(--ta-stat-bg);border-radius:8px;'
-                    f'padding:8px 14px;flex:1;min-width:80px;text-align:center;">'
-                    f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-                    f'letter-spacing:0.08em;color:var(--ta-stat-label);">{lbl}</div>'
-                    f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-stat-val);'
-                    f'font-family:monospace;"{_id}>{val}</div></div>')
-
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
             'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
@@ -1793,7 +1775,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             'background:linear-gradient(90deg,#a855f7,#c4b5fd);'
             'border-radius:8px;transition:width 0.6s ease;"></div></div>'
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
-            + _stat("Elapsed", elapsed) +
+            + _stat_card("Elapsed", elapsed) +
             '</div>'
             '<div style="font-size:0.82em;color:#c4b5fd;margin-top:10px;">'
             '🤖 Reading transcript and writing your report…</div>'
@@ -4432,9 +4414,11 @@ _FORMATS = """
 """
 
 def _badge(text, style="act"):
-    bg  = "var(--ta-step-act-bg)"   if style == "act"  else "var(--ta-step-done-bg)"  if style == "done" else "var(--ta-step-wait-bg)"
-    clr = "var(--ta-step-act-clr)"  if style == "act"  else "var(--ta-step-done-clr)" if style == "done" else "var(--ta-card-sub)"
-    bdr = "" if style != "wait" else "border:1px solid var(--ta-card-border);"
+    _state = "active" if style == "act" else "done" if style == "done" else "waiting"
+    bg, _, clr = _step_vars(_state)
+    if style == "wait":
+        clr = "var(--ta-card-sub)"
+    bdr = "border:1px solid var(--ta-card-border);" if style == "wait" else ""
     return (f'<span style="background:{bg};color:{clr};{bdr}'
             f'font-size:0.72em;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;">{text}</span>')
 

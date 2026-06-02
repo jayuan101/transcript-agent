@@ -4666,6 +4666,15 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.30",
+        "date": "2026-06-01",
+        "notes": [
+            "Interview Mode now optional — visible checkbox, off by default (was always-on)",
+            "Fix: transcription-only mode no longer errors on missing output files",
+            "Fix: floating ▶ button stays viewport-pinned during scroll — z-index maxed, JS scroll fallback added",
+        ],
+    },
+    {
         "version": "1.1.13",
         "date": "2026-06-01",
         "notes": [
@@ -4841,7 +4850,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.28"
+APP_VERSION = "1.1.30"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

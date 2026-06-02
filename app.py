@@ -4435,10 +4435,24 @@ def _cap_row(icon, label, items, style="act"):
     )
 
 _CAPABILITIES = (
-    '<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
-    'border-radius:10px;padding:14px 16px;font-family:sans-serif;">'
-    '<div style="font-size:0.72em;font-weight:800;text-transform:uppercase;'
-    'letter-spacing:0.1em;color:var(--ta-card-text);margin-bottom:10px;">⚡ What we support</div>'
+    '<style>'
+    '.ta-caps-details{background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+    'border-radius:10px;font-family:sans-serif;overflow:hidden;}'
+    '.ta-caps-summary{display:flex;align-items:center;justify-content:space-between;'
+    'padding:10px 16px;cursor:pointer;list-style:none;user-select:none;}'
+    '.ta-caps-summary::-webkit-details-marker{display:none;}'
+    '.ta-caps-summary-label{font-size:0.72em;font-weight:800;text-transform:uppercase;'
+    'letter-spacing:0.1em;color:var(--ta-card-text);}'
+    '.ta-caps-chevron{font-size:0.7em;color:var(--ta-card-sub);transition:transform 0.2s;}'
+    '.ta-caps-details[open] .ta-caps-chevron{transform:rotate(180deg);}'
+    '.ta-caps-body{padding:0 16px 12px;}'
+    '</style>'
+    '<details class="ta-caps-details">'
+    '<summary class="ta-caps-summary">'
+    '<span class="ta-caps-summary-label">⚡ What we support</span>'
+    '<span class="ta-caps-chevron">▼</span>'
+    '</summary>'
+    '<div class="ta-caps-body">'
     + _cap_row("🎵", "Audio", ["mp3","wav","m4a","flac","ogg","aac","opus","wma","amr","aiff","+ more"])
     + _cap_row("🎬", "Video", ["mp4","mov","avi","mkv","webm","flv","wmv","ts","mpg","vob","+ more"], "done")
     + _cap_row("📄", "Documents", ["pdf","docx","txt","md","srt","vtt"], "wait")
@@ -4450,7 +4464,7 @@ _CAPABILITIES = (
         "Speaker detection","Multi-language","Interview coaching",
         "Live ETA","Transcription-only","URL import","Dark mode"
     ])
-    + '</div></div>'
+    + '</div></div></details>'
 )
 
 _SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'

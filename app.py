@@ -1991,6 +1991,7 @@ def process_file(
     model_name,
     transcription_only=False,
 ):
+    yield _NOCHANGE   # immediate tick — clears the loading indicator right away
     # Route unified model dropdown to the correct STT parameter
     if stt_engine == "whisper_local":
         _whisper_model = stt_model or "base"

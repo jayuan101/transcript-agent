@@ -2614,12 +2614,12 @@ _WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "tu
 
 
 _STT_KEY_BANNER = (
-    '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;'
+    '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:8px;'
     'padding:8px 14px;display:flex;align-items:center;gap:8px;font-family:sans-serif;">'
-    '<span style="font-size:1.05em;flex-shrink:0;">🔑</span>'
+    '<span style="font-size:1.1em;flex-shrink:0;">🔑</span>'
     '<div style="flex:1;min-width:0;">'
-    '<span style="font-weight:700;color:#92400e;font-size:0.84em;">API Key Required</span>'
-    '<span style="color:#a16207;font-size:0.76em;margin-left:5px;">'
+    '<span style="font-weight:700;color:#92400e;font-size:0.88em;">API Key Required</span>'
+    '<span style="color:#78350f;font-size:0.82em;margin-left:6px;">'
     'Enter your API key below. Billed to your account — nothing stored here.'
     '</span></div></div>'
 )
@@ -2754,13 +2754,13 @@ _HERO = """
 """
 
 _API_BANNER = """
-<div id="api-banner" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;
+<div id="api-banner" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:10px;
      padding:10px 16px;display:flex;align-items:center;gap:10px;margin-top:6px;font-family:sans-serif;
      transition:all 0.25s;">
-  <span id="api-banner-icon" style="font-size:1.1em;flex-shrink:0;transition:all 0.25s;">🔑</span>
+  <span id="api-banner-icon" style="font-size:1.2em;flex-shrink:0;transition:all 0.25s;">🔑</span>
   <div style="flex:1;min-width:0;">
-    <span id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.84em;">API Key Required</span>
-    <span id="api-banner-sub" style="color:#a16207;font-size:0.76em;margin-left:6px;">
+    <span id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.88em;">API Key Required</span>
+    <span id="api-banner-sub" style="color:#78350f;font-size:0.82em;margin-left:6px;">
       Enter your provider key — billed to your account, never stored here.
     </span>
   </div>
@@ -3471,7 +3471,7 @@ window.taDoUpdate = function(url, btn, platform) {
           _bs(banner, 'background',   'linear-gradient(135deg,#fffbeb,#fef3c7)');
           _bs(banner, 'border-color', '#f59e0b');
           if (title) { title.textContent = 'API Key Required'; _bs(title, 'color', '#92400e'); }
-          if (sub)   { sub.innerHTML = 'Enter your API key below (Anthropic, OpenAI, Gemini, Groq, etc.). Billed to your account — nothing stored here.'; _bs(sub, 'color', '#a16207'); }
+          if (sub)   { sub.innerHTML = 'Enter your API key below (Anthropic, OpenAI, Gemini, Groq, etc.). Billed to your account — nothing stored here.'; _bs(sub, 'color', '#78350f'); }
         }
         if (icon)  icon.textContent = '🔑';
         if (badge) badge.style.display = 'none';

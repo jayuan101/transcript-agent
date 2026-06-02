@@ -1,6 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
-title Transcript Agent — Setup
+title Transcript Agent - Setup
 chcp 65001 >nul 2>&1
 
 set "APPDIR=%~dp0"
@@ -16,7 +16,7 @@ echo    Transcript Agent  ^|  Windows Installer
 echo  ============================================================
 echo.
 
-:: ── Already installed? Show menu ─────────────────────────────────────────────
+:: -- Already installed? Show menu ---------------------------------------------
 if exist "!VPYTHON!" (
     echo  Existing installation found.
     echo.
@@ -34,10 +34,10 @@ if exist "!VPYTHON!" (
     goto :launch
 )
 
-:: ── Fresh install ─────────────────────────────────────────────────────────────
+:: -- Fresh install -------------------------------------------------------------
 :fresh_install
 
-:: Step 1 — Detect Python
+:: Step 1 - Detect Python
 echo  [1/5] Checking for Python 3.9+...
 
 set "PY="
@@ -64,7 +64,7 @@ if %errorlevel% neq 0 (
 )
 for /f "tokens=*" %%v in ('"!PY!" --version 2^>^&1') do echo  Found: %%v
 
-:: Step 2 — Virtual environment
+:: Step 2 - Virtual environment
 echo.
 echo  [2/5] Setting up virtual environment...
 if exist "!VPYTHON!" (
@@ -75,7 +75,7 @@ if exist "!VPYTHON!" (
     echo  Created: !VENV!
 )
 
-:: Step 3 — Install dependencies
+:: Step 3 - Install dependencies
 echo.
 echo  [3/5] Installing dependencies...
 echo  First run downloads about 2 GB and takes 5-15 minutes.
@@ -100,7 +100,7 @@ echo   Installing bundled ffmpeg...
 
 echo  All dependencies installed.
 
-:: Step 4 — API key
+:: Step 4 - API key
 echo.
 echo  [4/5] API key setup...
 if exist "!APPDIR!.env" (
@@ -118,7 +118,7 @@ if exist "!APPDIR!.env" (
     )
 )
 
-:: Step 5 — Desktop shortcut
+:: Step 5 - Desktop shortcut
 echo.
 echo  [5/5] Creating desktop shortcut...
 call :make_shortcut
@@ -140,7 +140,7 @@ set /p "LAUNCH= Launch Transcript Agent now? [Y/n]: "
 if /i "!LAUNCH!" neq "n" goto :launch
 goto :end
 
-:: ── Update flow ───────────────────────────────────────────────────────────────
+:: -- Update flow ---------------------------------------------------------------
 :update
 echo  Checking for updates...
 echo.
@@ -186,7 +186,7 @@ set /p "LAUNCH= Launch app now? [Y/n]: "
 if /i "!LAUNCH!" neq "n" goto :launch
 goto :end
 
-:: ── Launch ────────────────────────────────────────────────────────────────────
+:: -- Launch --------------------------------------------------------------------
 :launch
 echo.
 echo  Starting Transcript Agent v!CURRENT_VERSION!...
@@ -194,7 +194,7 @@ echo  Browser will open automatically when ready.
 echo  Press Ctrl+C to stop.
 echo.
 
-:: Background PowerShell poller — opens browser once server responds (max 60 s)
+:: Background PowerShell poller - opens browser once server responds (max 60 s)
 start /b "" powershell -NoProfile -WindowStyle Hidden -Command ^
   "for($i=0;$i-lt60;$i++){Start-Sleep 1;try{$null=Invoke-WebRequest http://127.0.0.1:7860 -UseBasicParsing -TimeoutSec 1;Start-Process 'http://localhost:7860';break}catch{}}"
 
@@ -202,7 +202,7 @@ start /b "" powershell -NoProfile -WindowStyle Hidden -Command ^
 "!VPYTHON!" "!APPDIR!app.py"
 goto :end
 
-:: ── Shortcut helper ───────────────────────────────────────────────────────────
+:: -- Shortcut helper -----------------------------------------------------------
 :make_shortcut
 set "PSSCRIPT=%TEMP%\ta_shortcut_%RANDOM%.ps1"
 (

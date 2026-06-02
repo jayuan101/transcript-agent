@@ -723,7 +723,11 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         language=language or "en", smart_format=True,
         numerals=True,
     )
-    resp = dg.listen.rest.v("1").transcribe_file({"buffer": data}, opts)
+    import httpx
+    resp = dg.listen.rest.v("1").transcribe_file(
+        {"buffer": data}, opts,
+        timeout=httpx.Timeout(300.0, connect=10.0),
+    )
     result = resp.results.channels[0].alternatives[0]
     segs, lines = [], []
     for utt in (resp.results.utterances or []):

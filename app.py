@@ -2613,7 +2613,7 @@ _STT_KEY_BANNER = (
     '</span></div></div>'
 )
 
-def toggle_stt_engine(engine, main_api_key=""):
+def toggle_stt_engine(engine, main_api_key="", stored_model=None):
     is_local = engine == "whisper_local"
     models   = _WHISPER_SIZES if is_local else _STT_MODELS.get(engine, [])
 
@@ -2625,7 +2625,12 @@ def toggle_stt_engine(engine, main_api_key=""):
 
     label   = "Whisper model size" if is_local else "STT Model"
     info    = "tiny = fastest · turbo ≈ large speed  |  large-v3 = most accurate" if is_local else ""
-    default = "base" if is_local else (models[0] if models else None)
+    if stored_model and stored_model in models:
+        default = stored_model
+    elif is_local:
+        default = "base"
+    else:
+        default = models[0] if models else None
 
     banner = gr.update(visible=not is_local, value=_STT_KEY_BANNER if not is_local else "")
 
@@ -5468,24 +5473,44 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             gr.update(value=speakers),
         )
 
-    # Note: stt_engine_input is intentionally excluded from demo.load() outputs —
-    # updating it triggers stt_engine_input.change() → _toggle_and_save_stt, which
-    # in turn causes timing conflicts. The engine value is restored by JS instead.
-    # The second demo.load below reads the stored engine from BrowserState and calls
-    # toggle_stt_engine so the model dropdown shows the right choices on first load.
+    # Single combined restore — eliminates the race condition where two separate
+    # demo.load calls both wrote to stt_model_input and the last one to arrive
+    # (often _restore_settings with "base") would overwrite toggle_stt_engine's
+    # correct Deepgram choice.  The stored model (bsr_whisper) is passed through
+    # toggle_stt_engine so Deepgram restores nova-3 (or whatever was last used)
+    # instead of always defaulting to the first item in the list.
+    def _restore_all(stored_model, lang, style, interview, deep,
+                     inc_s, inc_k, inc_a, inc_t, inc_p, inc_an, speakers, stt_engine):
+        def _b(v, default): return v if isinstance(v, bool) else default
+        key_upd, model_upd, banner_upd = toggle_stt_engine(
+            stt_engine or "whisper_local", "", stored_model=stored_model,
+        )
+        return (
+            key_upd,
+            model_upd,
+            banner_upd,
+            gr.update(value=lang    or "auto"),
+            gr.update(value=style   or "formal"),
+            gr.update(value=_b(interview,  True)),
+            gr.update(value=_b(deep,       True)),
+            gr.update(value=_b(inc_s,  True)),
+            gr.update(value=_b(inc_k,  True)),
+            gr.update(value=_b(inc_a,  True)),
+            gr.update(value=_b(inc_t,  True)),
+            gr.update(value=_b(inc_p,  True)),
+            gr.update(value=_b(inc_an, True)),
+            gr.update(value=speakers),
+        )
+
     demo.load(
-        fn=_restore_settings,
+        fn=_restore_all,
         inputs=[bsr_whisper, bsr_language, bsr_style, bsr_interview, bsr_deep,
-                bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers],
-        outputs=[stt_model_input, language_input, report_style, interview_toggle, interview_deep,
+                bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers,
+                bsw_stt],
+        outputs=[stt_key_input, stt_model_input, stt_key_banner,
+                 language_input, report_style, interview_toggle, interview_deep,
                  inc_summary, inc_key_points, inc_action, inc_transcript, inc_profiles, inc_analytics,
                  speakers_input],
-        queue=False,
-    )
-    demo.load(
-        fn=lambda engine: toggle_stt_engine(engine or "whisper_local", ""),
-        inputs=[bsw_stt],
-        outputs=[stt_key_input, stt_model_input, stt_key_banner],
         queue=False,
     )
 

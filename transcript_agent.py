@@ -752,10 +752,10 @@ def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
 def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
                   model: str = "nova-2") -> tuple:
     try:
-        from deepgram import DeepgramClient, PrerecordedOptions
+        from deepgram import DeepgramClient, DeepgramClientOptions, PrerecordedOptions
     except ImportError:
         raise ImportError("deepgram-sdk required: pip install deepgram-sdk")
-    dg = DeepgramClient(api_key)
+    dg = DeepgramClient(api_key, DeepgramClientOptions(options={"timeout": 300}))
     effective_model = model or "nova-2"
     if on_log:
         on_log(f"Deepgram model: {effective_model}", "info")

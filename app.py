@@ -2180,7 +2180,7 @@ def process_file(
     def on_stage_change(stage):
         q.put(("stage", stage))
 
-    def on_log(msg):
+    def on_log(msg, kind=None):
         q.put(("log", msg))
 
     def background():

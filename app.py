@@ -4866,6 +4866,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     # stt_engine is intentionally excluded — restoring it via demo.load() triggers
     # stt_engine.change() → _toggle_and_save_stt → causes STT Model to disappear.
     bsr_whisper  = bsw_whisper  = gr.BrowserState("base",   storage_key="ta-bs-whisper")
+    bsr_stt_model= bsw_stt_model= gr.BrowserState(None,    storage_key="ta-bs-stt-model")
     bsr_language = bsw_language = gr.BrowserState("auto",   storage_key="ta-bs-language")
     bsr_style    = bsw_style    = gr.BrowserState("formal", storage_key="ta-bs-style")
     bsr_interview= bsw_interview= gr.BrowserState(True,     storage_key="ta-bs-interview")
@@ -5440,7 +5441,19 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
     _id = lambda v: v
-    stt_model_input.change( fn=_id, inputs=stt_model_input,  outputs=bsw_whisper,  queue=False)
+    # Route model saves to the correct state: Whisper models → bsw_whisper,
+    # cloud STT models → bsw_stt_model.  Prevents "base" (a valid Whisper AND
+    # legacy Deepgram name) from bleeding across engines on page reload.
+    def _save_stt_model(engine, model):
+        if engine == "whisper_local":
+            return model, gr.update()
+        return gr.update(), model
+    stt_model_input.change(
+        fn=_save_stt_model,
+        inputs=[stt_engine_input, stt_model_input],
+        outputs=[bsw_whisper, bsw_stt_model],
+        queue=False,
+    )
     language_input.change(  fn=_id, inputs=language_input,   outputs=bsw_language, queue=False)
     report_style.change(    fn=_id, inputs=report_style,     outputs=bsw_style,    queue=False)
     interview_toggle.change(fn=_id, inputs=interview_toggle, outputs=bsw_interview,queue=False)
@@ -5479,11 +5492,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     # correct Deepgram choice.  The stored model (bsr_whisper) is passed through
     # toggle_stt_engine so Deepgram restores nova-3 (or whatever was last used)
     # instead of always defaulting to the first item in the list.
-    def _restore_all(stored_model, lang, style, interview, deep,
+    def _restore_all(whisper_model, stt_model, lang, style, interview, deep,
                      inc_s, inc_k, inc_a, inc_t, inc_p, inc_an, speakers, stt_engine):
         def _b(v, default): return v if isinstance(v, bool) else default
+        engine = stt_engine or "whisper_local"
+        stored = whisper_model if engine == "whisper_local" else stt_model
         key_upd, model_upd, banner_upd = toggle_stt_engine(
-            stt_engine or "whisper_local", "", stored_model=stored_model,
+            engine, "", stored_model=stored,
         )
         return (
             key_upd,
@@ -5504,7 +5519,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     demo.load(
         fn=_restore_all,
-        inputs=[bsr_whisper, bsr_language, bsr_style, bsr_interview, bsr_deep,
+        inputs=[bsr_whisper, bsr_stt_model, bsr_language, bsr_style, bsr_interview, bsr_deep,
                 bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers,
                 bsw_stt],
         outputs=[stt_key_input, stt_model_input, stt_key_banner,

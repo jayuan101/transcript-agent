@@ -24,6 +24,9 @@ test_sample.txt
 share/docker-compose.yml
 share/outputs/
 
+# Distribution builds
+dist/
+
 # Node / Playwright
 node_modules/
 

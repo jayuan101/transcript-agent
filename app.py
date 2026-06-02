@@ -5366,6 +5366,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             provider_dropdown, model_dropdown,
             transcription_only_toggle,
         ],
+        concurrency_id="analyze",
+        concurrency_limit=1,
         outputs=[
             status_bar,
             summary_out, transcript_out, dialogue_out,
@@ -5541,7 +5543,7 @@ if __name__ == "__main__":
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
-    demo.queue(max_size=5, default_concurrency_limit=1)
+    demo.queue(max_size=5, default_concurrency_limit=4)
     import inspect as _inspect
     _launch_kw = dict(
         server_name=_host,

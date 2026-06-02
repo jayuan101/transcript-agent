@@ -767,13 +767,46 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         smart_format=True, numerals=True,
         **lang_kw,
     )
-    import mimetypes as _mt
-    mime = _mt.guess_type(path)[0] or "audio/mpeg"
-    with open(path, "rb") as f:
-        resp = dg.listen.rest.v("1").transcribe_file(
-            {"buffer": f, "mimetype": mime}, opts,
-            timeout=_httpx.Timeout(300.0, connect=15.0),
-        )
+
+    # Extract audio from video files before uploading — a 3-hour MP4 can be
+    # several GB; the same content as 64 kbps mono MP3 is ~90 MB.  This also
+    # removes the timeout issue: Deepgram processes at ~5× real-time so a
+    # 3-hour file takes ~36 min server-side; we use no read timeout so the
+    # connection never gets cut while waiting for the response.
+    upload_path = path
+    _tmp_audio  = None
+    ext = Path(path).suffix.lower()
+    if ext in VIDEO_EXTS or ext in AUDIO_EXTS:
+        try:
+            _tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+            _tmp.close()
+            _sp.run(
+                [FFMPEG_EXE, "-y", "-i", path,
+                 "-acodec", "libmp3lame", "-ar", "16000", "-ac", "1", "-q:a", "5",
+                 _tmp.name],
+                capture_output=True, check=True,
+            )
+            upload_path = _tmp.name
+            _tmp_audio  = _tmp.name
+            if on_log:
+                sz_mb = Path(upload_path).stat().st_size / 1_048_576
+                on_log(f"Audio extracted for upload ({sz_mb:.1f} MB)", "info")
+        except Exception as _e:
+            if on_log:
+                on_log(f"Audio extraction failed ({_e}), uploading original", "warn")
+
+    try:
+        with open(upload_path, "rb") as f:
+            resp = dg.listen.rest.v("1").transcribe_file(
+                {"buffer": f, "mimetype": "audio/mpeg"},
+                opts,
+                timeout=_httpx.Timeout(None, connect=15.0),  # no read timeout
+            )
+    finally:
+        if _tmp_audio:
+            try: os.unlink(_tmp_audio)
+            except Exception: pass
+
     result = resp.results.channels[0].alternatives[0]
     detected_lang = getattr(resp.results.channels[0], "detected_language", None) or language or "en"
     segs, lines = [], []

@@ -4930,7 +4930,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     value="whisper_local",
                     elem_id="ta-stt-engine",
                 )
-                stt_key_banner = gr.HTML(value="", visible=False)
+                stt_key_banner = gr.HTML(value="", visible=True, elem_id="ta-stt-key-banner")
                 stt_model_input = gr.Dropdown(
                     label="Whisper model size",
                     choices=_WHISPER_SIZES,
@@ -4945,7 +4945,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     placeholder="API key for the selected cloud STT engine",
                     type="password",
                     info="🔒 Saved in your browser only — never stored on this server",
-                    visible=False,
+                    visible=True,
+                    elem_id="ta-stt-key-input",
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 

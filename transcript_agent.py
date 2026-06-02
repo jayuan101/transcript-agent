@@ -667,23 +667,45 @@ def _stt_openai_api(path: str, api_key: str, language: str = None, on_log=None,
         raise ImportError("openai package required: pip install openai")
     client = _oai.OpenAI(api_key=api_key)
     _model = model or "whisper-1"
-    # gpt-4o-transcribe / gpt-4o-mini-transcribe use the chat completions audio API
-    if _model in ("gpt-4o-transcribe", "gpt-4o-mini-transcribe"):
-        with open(path, "rb") as f:
-            resp = client.audio.transcriptions.create(
-                model=_model, file=f, response_format="verbose_json",
-                **( {"language": language} if language else {} )
-            )
-    else:
-        with open(path, "rb") as f:
+
+    def _log(m):
+        if on_log: on_log(m)
+
+    def _transcribe_one(chunk_path):
+        if _model in ("gpt-4o-transcribe", "gpt-4o-mini-transcribe"):
+            with open(chunk_path, "rb") as f:
+                return client.audio.transcriptions.create(
+                    model=_model, file=f, response_format="verbose_json",
+                    **( {"language": language} if language else {} )
+                )
+        with open(chunk_path, "rb") as f:
             kw = {"model": _model, "file": f, "response_format": "verbose_json"}
             if language:
                 kw["language"] = language
-            resp = client.audio.transcriptions.create(**kw)
-    segs = [{"start": s.start, "end": s.end, "text": s.text}
-            for s in (resp.segments or [])]
-    lines = [f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs]
-    return "\n".join(lines) or resp.text, getattr(resp, "language", ""), segs
+            return client.audio.transcriptions.create(**kw)
+
+    chunks = _split_audio_for_api(path, chunk_secs=1200)
+    is_chunked = len(chunks) > 1
+    if is_chunked:
+        _log(f"Audio split into {len(chunks)} x 20-min chunks for OpenAI API (25 MB limit)")
+
+    all_segs, all_lines, detected_lang = [], [], ""
+    for idx, (chunk_path, offset) in enumerate(chunks):
+        if is_chunked:
+            _log(f"Transcribing chunk {idx + 1}/{len(chunks)}...")
+        try:
+            resp = _transcribe_one(chunk_path)
+            detected_lang = detected_lang or getattr(resp, "language", "")
+            segs = [{"start": s.start + offset, "end": s.end + offset, "text": s.text}
+                    for s in (resp.segments or [])]
+            all_segs.extend(segs)
+            all_lines.extend(f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs)
+        finally:
+            if is_chunked and chunk_path != path:
+                try: os.unlink(chunk_path)
+                except Exception: pass
+
+    return "\n".join(all_lines) or "", detected_lang, all_segs
 
 
 def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
@@ -693,16 +715,38 @@ def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
     except ImportError:
         raise ImportError("groq package required: pip install groq")
     client = Groq(api_key=api_key)
-    with open(path, "rb") as f:
-        kw = {"model": model or "whisper-large-v3-turbo", "file": (Path(path).name, f),
-              "response_format": "verbose_json", "timestamp_granularities": ["segment"]}
-        if language:
-            kw["language"] = language
-        resp = client.audio.transcriptions.create(**kw)
-    segs = [{"start": s.start, "end": s.end, "text": s.text}
-            for s in (getattr(resp, "segments", None) or [])]
-    lines = [f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs]
-    return "\n".join(lines) or getattr(resp, "text", ""), getattr(resp, "language", ""), segs
+    _model = model or "whisper-large-v3-turbo"
+
+    def _log(m):
+        if on_log: on_log(m)
+
+    chunks = _split_audio_for_api(path, chunk_secs=1200)
+    is_chunked = len(chunks) > 1
+    if is_chunked:
+        _log(f"Audio split into {len(chunks)} x 20-min chunks for Groq API (25 MB limit)")
+
+    all_segs, all_lines, detected_lang = [], [], ""
+    for idx, (chunk_path, offset) in enumerate(chunks):
+        if is_chunked:
+            _log(f"Transcribing chunk {idx + 1}/{len(chunks)}...")
+        try:
+            with open(chunk_path, "rb") as f:
+                kw = {"model": _model, "file": (Path(chunk_path).name, f),
+                      "response_format": "verbose_json", "timestamp_granularities": ["segment"]}
+                if language:
+                    kw["language"] = language
+                resp = client.audio.transcriptions.create(**kw)
+            detected_lang = detected_lang or getattr(resp, "language", "")
+            segs = [{"start": s.start + offset, "end": s.end + offset, "text": s.text}
+                    for s in (getattr(resp, "segments", None) or [])]
+            all_segs.extend(segs)
+            all_lines.extend(f"[{_fmt_ts(s['start'])}] {s['text'].strip()}" for s in segs)
+        finally:
+            if is_chunked and chunk_path != path:
+                try: os.unlink(chunk_path)
+                except Exception: pass
+
+    return "\n".join(all_lines) or "", detected_lang, all_segs
 
 
 def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
@@ -715,19 +759,19 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
     effective_model = model or "nova-2"
     if on_log:
         on_log(f"Deepgram model: {effective_model}", "info")
-    with open(path, "rb") as f:
-        data = f.read()
     opts = PrerecordedOptions(
         model=effective_model,
         punctuate=True, diarize=True, utterances=True,
         language=language or "en", smart_format=True,
         numerals=True,
     )
-    import httpx
-    resp = dg.listen.rest.v("1").transcribe_file(
-        {"buffer": data}, opts,
-        timeout=httpx.Timeout(300.0, connect=10.0),
-    )
+    import httpx, mimetypes as _mt
+    mime = _mt.guess_type(path)[0] or "audio/mpeg"
+    with open(path, "rb") as f:
+        resp = dg.listen.rest.v("1").transcribe_file(
+            {"buffer": f, "mimetype": mime}, opts,
+            timeout=httpx.Timeout(900.0, connect=15.0),
+        )
     result = resp.results.channels[0].alternatives[0]
     segs, lines = [], []
     for utt in (resp.results.utterances or []):
@@ -798,6 +842,29 @@ def _stt_google(path: str, api_key: str, language: str = None, on_log=None,
         lines.append(f"[{_fmt_ts(start)}] {alt.transcript}")
         t = end
     return "\n".join(lines), lang, segs
+
+
+def _split_audio_for_api(path: str, chunk_secs: int = 1200) -> list:
+    """Split audio into (chunk_path, start_offset_secs) tuples for APIs with a 25 MB cap.
+    Encodes as 80 kbps mono MP3 — 20-min chunk ≈ 12 MB, well under the limit."""
+    import math as _math
+    dur = _get_audio_duration(path)
+    if dur <= 0 or dur <= chunk_secs:
+        return [(path, 0.0)]
+    n = _math.ceil(dur / chunk_secs)
+    chunks = []
+    for i in range(n):
+        tmp = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
+        tmp.close()
+        offset = i * chunk_secs
+        _sp.run(
+            [FFMPEG_EXE, "-y", "-i", path,
+             "-ss", str(offset), "-t", str(chunk_secs),
+             "-acodec", "libmp3lame", "-ar", "16000", "-ac", "1", "-q:a", "5", tmp.name],
+            capture_output=True,
+        )
+        chunks.append((tmp.name, float(offset)))
+    return chunks
 
 
 def _azure_split_audio(path: str, chunk_secs: int = 55) -> list:

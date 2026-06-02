@@ -1791,13 +1791,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             f'font-family:monospace;line-height:1;">—</div></div>'
         )
         est_label = "< 5s" if stage == "loading" else "10–60s"
-        est_time_stat = (
-            f'<div style="background:var(--ta-stat-bg);border-radius:8px;padding:8px 14px;">'
-            f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-            f'letter-spacing:0.08em;color:var(--ta-card-sub);">Est. Time</div>'
-            f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
-            f'font-family:monospace;">{est_label}</div></div>'
-        )
+        est_time_stat = _stat_card("Est. Time", est_label, "--ta-card-sub", "--ta-card-val")
 
     return tracker + (
         f'<div style="background:var(--ta-card-bg);border:2px solid {color};'
@@ -1813,14 +1807,9 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         f'border-radius:8px;opacity:0.85;animation:pgslide 1.6s ease-in-out infinite;"></div>'
         f'</div>'
         f'<div style="display:flex;gap:8px;">'
-        f'<div style="background:var(--ta-stat-bg);border-radius:8px;padding:8px 14px;">'
-        f'<div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
-        f'letter-spacing:0.08em;color:var(--ta-card-sub);">Elapsed</div>'
-        f'<div style="font-size:1.3em;font-weight:800;color:var(--ta-card-val);'
-        f'font-family:monospace;" id="ta-live-elapsed">{elapsed}</div>'
-        f'</div>'
-        f'{est_time_stat}'
-        f'</div></div>'
+        + _stat_card("Elapsed", elapsed, "--ta-card-sub", "--ta-card-val")
+        + est_time_stat
+        + '</div></div>'
     )
 
 

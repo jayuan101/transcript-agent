@@ -2957,7 +2957,7 @@ window.taDoUpdate = function(url, btn, platform) {
             var vh = window.innerHeight || 800;
             var bh = window.__taFH || 90;
             var bw = window.__taFW || 70;
-            el.style.top  = (st + 18) + 'px';
+            el.style.top  = (st + Math.round((vh - bh) / 2)) + 'px';
             el.style.left = (sl + vw - bw - 18) + 'px';
           }
           _taTick = false;

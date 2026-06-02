@@ -4678,6 +4678,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.33",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: floating ▶ button verified to follow user while scrolling — confirmed via Playwright scroll test",
+        ],
+    },
+    {
         "version": "1.1.32",
         "date": "2026-06-01",
         "notes": [
@@ -4877,7 +4884,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.32"
+APP_VERSION = "1.1.33"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

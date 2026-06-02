@@ -817,8 +817,9 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
     detected_lang = getattr(resp.results.channels[0], "detected_language", None) or language or "en"
     segs, lines = [], []
     for utt in (resp.results.utterances or []):
-        segs.append({"start": utt.start, "end": utt.end, "text": utt.transcript})
-        lines.append(f"[{_fmt_ts(utt.start)}] {utt.transcript}")
+        spk = f"Speaker {utt.speaker}: " if utt.speaker is not None else ""
+        segs.append({"start": utt.start, "end": utt.end, "text": utt.transcript, "speaker": utt.speaker})
+        lines.append(f"[{_fmt_ts(utt.start)}] {spk}{utt.transcript}")
     return "\n".join(lines) or result.transcript, detected_lang, segs
 
 
@@ -843,8 +844,9 @@ def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None,
     for utt in (transcript.utterances or []):
         start = utt.start / 1000.0
         end   = utt.end / 1000.0
-        segs.append({"start": start, "end": end, "text": utt.text})
-        lines.append(f"[{_fmt_ts(start)}] {utt.text}")
+        spk = f"Speaker {utt.speaker}: " if getattr(utt, "speaker", None) else ""
+        segs.append({"start": start, "end": end, "text": utt.text, "speaker": getattr(utt, "speaker", None)})
+        lines.append(f"[{_fmt_ts(start)}] {spk}{utt.text}")
     detected = getattr(transcript, "language_code", language or "en")
     return "\n".join(lines) or transcript.text, detected, segs
 

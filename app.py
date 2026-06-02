@@ -1465,13 +1465,13 @@ def _translate_combined_text(
 
 def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
                               provider_name: str = "Claude (Anthropic)", model_name: str = None):
-    """Generate (or re-generate) the PDF in the chosen language."""
+    """Generate (or re-generate) the PDF and DOCX in the chosen language."""
     if not result_state:
-        return gr.update()
-    stem         = result_state["stem"]
-    combined     = result_state["combined_text"]
-    detected     = result_state.get("detected_language", "")
-    out_dir      = Path(result_state["out_dir"])
+        return gr.update(), gr.update()
+    stem     = result_state["stem"]
+    combined = result_state["combined_text"]
+    detected = result_state.get("detected_language", "")
+    out_dir  = Path(result_state["out_dir"])
 
     if target_lang and target_lang != "Same as source":
         cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
@@ -1479,13 +1479,38 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
             combined, target_lang, api_key,
             provider=cfg["type"], model=model_name, base_url=cfg["base_url"],
         )
-        pdf_name = f"{stem}_report_{target_lang.replace(' ', '_')}.pdf"
+        suffix   = f"_{target_lang.replace(' ', '_')}"
     else:
-        pdf_name = f"{stem}_report.pdf"
+        suffix = ""
 
-    pdf_path = out_dir / pdf_name
+    pdf_path  = out_dir / f"{stem}_report{suffix}.pdf"
+    docx_path = out_dir / f"{stem}_report{suffix}.docx"
+
     _generate_pdf(f"{stem}  [{detected or target_lang}]", combined, pdf_path)
-    return str(pdf_path)
+
+    # DOCX — reconstruct minimal TranscriptResult from stored state
+    try:
+        from transcript_agent import generate_docx, TranscriptResult
+        _r = TranscriptResult(
+            summary          = result_state.get("summary", ""),
+            key_points       = result_state.get("key_points", []),
+            action_items     = result_state.get("action_items", []),
+            speaker_dialogue = result_state.get("speaker_dialogue", ""),
+            clean_transcript = result_state.get("clean_transcript", ""),
+            detected_language= detected,
+        )
+        if target_lang and target_lang != "Same as source":
+            # For translated DOCX write the combined translated text as transcript
+            _r.clean_transcript = combined
+            _r.summary = ""
+            _r.key_points = []
+            _r.action_items = []
+        generate_docx(_r, f"{stem}  [{detected or target_lang}]", str(docx_path))
+        docx_out = str(docx_path) if docx_path.exists() else None
+    except Exception:
+        docx_out = None
+
+    return str(pdf_path), docx_out
 
 
 _PULSE_CSS = (
@@ -2590,7 +2615,12 @@ def process_file(
                                         model_name=model_name, provider_type=provider_type),
                 rs={"stem": stem, "combined_text": combined_text,
                     "detected_language": result.detected_language,
-                    "out_dir": str(job_dir)},
+                    "out_dir": str(job_dir),
+                    "summary": result.summary or "",
+                    "key_points": result.key_points or [],
+                    "action_items": result.action_items or [],
+                    "speaker_dialogue": result.speaker_dialogue or "",
+                    "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
             )
             break
@@ -5119,12 +5149,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
                 with gr.Row():
                     pdf_lang_input = gr.Dropdown(
-                        label="PDF transcript language",
+                        label="Output language (PDF & DOCX)",
                         choices=_PDF_LANGUAGES,
                         value="Same as source",
                         scale=3,
                     )
-                    pdf_regen_btn = gr.Button("Generate PDF", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("Generate PDF + DOCX", scale=1, size="sm")
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -5477,7 +5507,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     pdf_regen_btn.click(
         fn=generate_pdf_in_language,
         inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
-        outputs=[dl_pdf],
+        outputs=[dl_pdf, dl_docx],
     )
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────

@@ -4824,7 +4824,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.42"
+APP_VERSION = "1.1.43"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5597,8 +5597,9 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     # Note: stt_engine_input is intentionally excluded from demo.load() outputs —
     # updating it triggers stt_engine_input.change() → _toggle_and_save_stt, which
-    # in turn causes timing conflicts that hide the STT Model dropdown. The STT
-    # engine and Whisper model size are restored by the JS watcher instead.
+    # in turn causes timing conflicts. The engine value is restored by JS instead.
+    # The second demo.load below reads the stored engine from BrowserState and calls
+    # toggle_stt_engine so the model dropdown shows the right choices on first load.
     demo.load(
         fn=_restore_settings,
         inputs=[bsr_whisper, bsr_language, bsr_style, bsr_interview, bsr_deep,
@@ -5606,6 +5607,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         outputs=[stt_model_input, language_input, report_style, interview_toggle, interview_deep,
                  inc_summary, inc_key_points, inc_action, inc_transcript, inc_profiles, inc_analytics,
                  speakers_input],
+        queue=False,
+    )
+    demo.load(
+        fn=lambda engine: toggle_stt_engine(engine or "whisper_local", ""),
+        inputs=[bsw_stt],
+        outputs=[stt_key_input, stt_model_input],
         queue=False,
     )
 

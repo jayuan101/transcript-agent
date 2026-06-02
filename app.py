@@ -574,6 +574,47 @@ html.dark {
   --ta-stat-val:      #e2e8f0;
 }
 
+/* ── Done panel ── */
+.ta-done-panel { background:linear-gradient(135deg,#d1fae5,#a7f3d0);border:2px solid #10b981;border-radius:16px;padding:28px 32px;text-align:center;font-family:sans-serif; }
+html.dark .ta-done-panel { background:linear-gradient(135deg,#064e3b,#065f46) !important;border-color:#10b981 !important; }
+.ta-done-title { color:#065f46;font-size:1.5em;font-weight:800;margin-top:8px;letter-spacing:-0.02em; }
+html.dark .ta-done-title { color:#6ee7b7 !important; }
+.ta-done-stat-label { font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#047857; }
+html.dark .ta-done-stat-label { color:#34d399 !important; }
+.ta-done-stat-val { font-size:1.6em;font-weight:800;color:#065f46; }
+html.dark .ta-done-stat-val { color:#6ee7b7 !important; }
+.ta-done-stat-box { background:rgba(255,255,255,0.6);border-radius:10px;padding:10px 20px; }
+html.dark .ta-done-stat-box { background:rgba(0,0,0,0.3) !important; }
+
+/* ── Interview question cards ── */
+.ta-q-card { border-radius:14px;padding:16px 18px;margin-bottom:20px;background:#fff; }
+html.dark .ta-q-card { background:#1e293b !important; }
+.ta-q-title { font-weight:700;font-size:1em;color:#0f172a;line-height:1.5; }
+html.dark .ta-q-title { color:#f1f5f9 !important; }
+.ta-q-reason { font-size:0.85em;color:#334155;font-weight:500; }
+html.dark .ta-q-reason { color:#94a3b8 !important; }
+.ta-q-said { background:#f1f5f9;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px; }
+html.dark .ta-q-said { background:#0f172a !important;border-left-color:#475569 !important; }
+.ta-q-said-label { font-size:0.75em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#475569;margin-bottom:6px; }
+html.dark .ta-q-said-label { color:#94a3b8 !important; }
+.ta-q-said-text { font-size:0.88em;line-height:1.7;margin:0;color:#1e293b; }
+html.dark .ta-q-said-text { color:#cbd5e1 !important; }
+.ta-q-ideal { background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;padding:12px 14px;margin-bottom:10px; }
+html.dark .ta-q-ideal { background:#052e16 !important;border-left-color:#4ade80 !important; }
+.ta-q-ideal-label { font-size:0.75em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#15803d;margin-bottom:6px; }
+html.dark .ta-q-ideal-label { color:#4ade80 !important; }
+.ta-q-ideal-text { font-size:0.88em;line-height:1.7;margin:0;color:#14532d;font-style:italic; }
+html.dark .ta-q-ideal-text { color:#86efac !important; }
+.ta-q-tip { background:#faf5ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;padding:12px 14px; }
+html.dark .ta-q-tip { background:#1e0a2e !important;border-left-color:#c084fc !important; }
+.ta-q-tip-label { font-size:0.75em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:#7c3aed;margin-bottom:6px; }
+html.dark .ta-q-tip-label { color:#c084fc !important; }
+.ta-q-tip-text { font-size:0.88em;margin:0;color:#3b0764; }
+html.dark .ta-q-tip-text { color:#e9d5ff !important; }
+.ta-q-deep { margin-top:12px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px; }
+html.dark .ta-q-deep { background:#0c1a3a !important;border-color:#1e3a5f !important; }
+html.dark .ta-q-deep div, html.dark .ta-q-deep b { color:#93c5fd !important; }
+
 /* ── Base ── */
 body { background: var(--ta-bg) !important; }
 html.dark { color-scheme: dark; }
@@ -1669,23 +1710,17 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     if done:
         return tracker + (
-            '<div style="background:linear-gradient(135deg,#d1fae5,#a7f3d0);'
-            'border:2px solid #10b981;border-radius:16px;padding:28px 32px;'
-            'text-align:center;font-family:sans-serif;">'
+            '<div class="ta-done-panel">'
             '<div style="font-size:3em;line-height:1;">&#10003;</div>'
-            '<div style="color:#065f46;font-size:1.5em;font-weight:800;margin-top:8px;'
-            'letter-spacing:-0.02em;">All Done!</div>'
+            '<div class="ta-done-title">All Done!</div>'
             '<div style="display:flex;justify-content:center;gap:20px;margin-top:14px;flex-wrap:wrap;">'
-            '<div style="background:rgba(255,255,255,0.6);border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#047857;">Total Time</div>'
-            f'<div style="font-size:1.6em;font-weight:800;color:#065f46;'
-            f'font-family:monospace;">{elapsed}</div>'
+            '<div class="ta-done-stat-box">'
+            '<div class="ta-done-stat-label">Total Time</div>'
+            f'<div class="ta-done-stat-val" style="font-family:monospace;">{elapsed}</div>'
             '</div>'
-            '<div style="background:rgba(255,255,255,0.6);border-radius:10px;padding:10px 20px;">'
-            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#047857;">Progress</div>'
-            '<div style="font-size:1.6em;font-weight:800;color:#065f46;">100%</div>'
+            '<div class="ta-done-stat-box">'
+            '<div class="ta-done-stat-label">Progress</div>'
+            '<div class="ta-done-stat-val">100%</div>'
             '</div>'
             '</div>'
             '</div>'
@@ -1926,43 +1961,32 @@ def _build_interview_html(ia: dict) -> str:
             )
 
         html += (
-            f'<div style="border:2px solid {col};border-radius:14px;padding:16px 18px;'
-            f'margin-bottom:20px;background:#fff;">'
+            f'<div class="ta-q-card" style="border:2px solid {col};">'
             f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
             f'<span style="background:{col};color:#fff;font-size:0.78em;font-weight:800;'
             f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">'
             f'Q{q.get("id","")}</span>'
-            f'<div style="font-weight:700;font-size:1em;color:#0f172a;line-height:1.5;">'
-            f'{q.get("question","")}</div></div>'
+            f'<div class="ta-q-title">{q.get("question","")}</div></div>'
             f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
             f'<span style="background:{col};color:#fff;font-size:0.8em;font-weight:800;'
             f'padding:4px 14px;border-radius:20px;">{sc}</span>'
-            f'<span style="font-size:0.85em;color:#334155;font-weight:500;">'
-            f'{q.get("score_reason","")}</span></div>'
+            f'<span class="ta-q-reason">{q.get("score_reason","")}</span></div>'
             + defl_html
-            + f'<div style="background:#f1f5f9;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;'
-            f'padding:12px 14px;margin-bottom:10px;">'
-            f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-            f'letter-spacing:0.08em;color:#475569;margin-bottom:6px;">📝 What they said</div>'
-            f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#1e293b;">{answer_said}</p></div>'
-            f'<div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;'
-            f'padding:12px 14px;margin-bottom:10px;">'
-            f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-            f'letter-spacing:0.08em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
-            f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#14532d;font-style:italic;">'
-            f'{model_answer}</p></div>'
-            + (f'<div style="background:#faf5ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;'
-               f'padding:12px 14px;">'
-               f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-               f'letter-spacing:0.08em;color:#7c3aed;margin-bottom:6px;">🏋️ Coaching Tip</div>'
-               f'<p style="font-size:0.88em;margin:0;color:#3b0764;">{coaching_tip}</p></div>'
+            + f'<div class="ta-q-said">'
+            f'<div class="ta-q-said-label">📝 What they said</div>'
+            f'<p class="ta-q-said-text">{answer_said}</p></div>'
+            f'<div class="ta-q-ideal">'
+            f'<div class="ta-q-ideal-label">💬 What you could have said</div>'
+            f'<p class="ta-q-ideal-text">{model_answer}</p></div>'
+            + (f'<div class="ta-q-tip">'
+               f'<div class="ta-q-tip-label">🏋️ Coaching Tip</div>'
+               f'<p class="ta-q-tip-text">{coaching_tip}</p></div>'
                if coaching_tip else '')
             + '</div>'
         )
     if ia.get("advance_likelihood"):
         html += (
-            f'<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;'
-            f'border:1px solid #bfdbfe;border-radius:12px;">'
+            f'<div class="ta-q-deep">'
             f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
             f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
             f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'

@@ -2560,20 +2560,27 @@ def process_file(
                 eng_label = STT_ENGINES.get(result.stt_engine, result.stt_engine)
                 log_text = _add_log(f"🎤 {eng_label} — {result.stt_seconds:.1f}s", "done")
 
-            f_t    = str(job_dir / f"{stem}_transcript.txt")
-            f_s    = str(job_dir / f"{stem}_speakers.txt")
-            f_r    = str(job_dir / f"{stem}_report.md")
-            f_c    = str(job_dir / f"{stem}_combined.txt")
-            f_j    = str(job_dir / f"{stem}_full.json")
-            f_srt  = str(job_dir / f"{stem}.srt")   if (job_dir / f"{stem}.srt").exists()  else None
-            f_vtt  = str(job_dir / f"{stem}.vtt")   if (job_dir / f"{stem}.vtt").exists()  else None
-            f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
-            f_p_path = job_dir / f"{stem}_report.pdf"
-            try:
-                _generate_pdf(stem, combined_text, f_p_path)
-                f_p = str(f_p_path)
-            except Exception:
-                f_p = None
+            _f_t_path = job_dir / f"{stem}_transcript.txt"
+            if transcription_only:
+                _f_t_path.write_text(result.clean_transcript, encoding="utf-8")
+                f_t = str(_f_t_path)
+                f_s = f_r = f_c = f_j = f_p = None
+                f_srt = f_vtt = f_docx = None
+            else:
+                f_t    = str(_f_t_path)
+                f_s    = str(job_dir / f"{stem}_speakers.txt")
+                f_r    = str(job_dir / f"{stem}_report.md")
+                f_c    = str(job_dir / f"{stem}_combined.txt")
+                f_j    = str(job_dir / f"{stem}_full.json")
+                f_srt  = str(job_dir / f"{stem}.srt")   if (job_dir / f"{stem}.srt").exists()  else None
+                f_vtt  = str(job_dir / f"{stem}.vtt")   if (job_dir / f"{stem}.vtt").exists()  else None
+                f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
+                f_p_path = job_dir / f"{stem}_report.pdf"
+                try:
+                    _generate_pdf(stem, combined_text, f_p_path)
+                    f_p = str(f_p_path)
+                except Exception:
+                    f_p = None
 
             # ── Translate transcript output if a different language was chosen ──
             _out_lang = (transcript_output_lang or "Same as source").strip()
@@ -2934,9 +2941,11 @@ window.taDoUpdate = function(url, btn, platform) {
     if (!document.getElementById('ta-float-wrap')) {
       var fw = document.createElement('div');
       fw.id = 'ta-float-wrap';
+      /* Use fixed positioning as primary; JS scroll handler overrides to absolute
+         if CSS position:fixed is broken by an ancestor CSS transform (Gradio quirk). */
       fw.style.cssText = (
-        'position:fixed;bottom:28px;right:28px;z-index:9998;display:flex;flex-direction:column;'
-        + 'align-items:center;gap:8px;'
+        'position:fixed;bottom:28px;right:28px;z-index:2147483647;display:flex;flex-direction:column;'
+        + 'align-items:center;gap:8px;will-change:transform;'
       );
       var flabel = document.createElement('div');
       flabel.id = 'ta-float-label';
@@ -2979,6 +2988,37 @@ window.taDoUpdate = function(url, btn, platform) {
          so this element is guaranteed to stay put and keep its event listeners. */
       document.documentElement.appendChild(fw);
     }
+
+    /* Scroll/resize guard — runs once per page load.
+       If window-level scroll fires it means html/body is the scroll container,
+       which means CSS position:fixed may be offset by any ancestor transform.
+       In that case switch to absolute positioning updated per scroll frame. */
+    if (!window.__taScrollGuard) {
+      window.__taScrollGuard = true;
+      function _taRepin() {
+        var el = document.getElementById('ta-float-wrap');
+        if (!el) return;
+        var st = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        var sl = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+        if (st > 0 || sl > 0) {
+          /* page itself scrolls — switch to absolute so the button stays viewport-pinned */
+          el.style.position = 'absolute';
+          el.style.bottom   = 'auto';
+          el.style.right    = 'auto';
+          el.style.top      = (st + window.innerHeight - 96) + 'px';
+          el.style.left     = (sl + window.innerWidth  - 96) + 'px';
+        } else {
+          /* Gradio inner-scroll or no scroll — position:fixed is correct */
+          el.style.position = 'fixed';
+          el.style.top  = 'auto';
+          el.style.left = 'auto';
+          el.style.bottom = '28px';
+          el.style.right  = '28px';
+        }
+      }
+      window.addEventListener('scroll', _taRepin, {passive: true});
+      window.addEventListener('resize', _taRepin, {passive: true});
+    }
   }
   /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */
   document.body ? _injectToggle() : document.addEventListener('DOMContentLoaded', _injectToggle);
@@ -3013,6 +3053,8 @@ window.taDoUpdate = function(url, btn, platform) {
       '--ta-step-wait-bg:#0f172a;--ta-step-wait-bdr:#334155;--ta-step-wait-clr:#475569;',
       '--ta-conn-line-done:#4ade80;--ta-conn-line-wait:#334155;--ta-stat-bg:rgba(15,23,42,0.6);',
       '--ta-stat-label:#93c5fd;--ta-stat-val:#e2e8f0}',
+      /* ── Floating analyze button — always on top, always viewport-pinned ── */
+      '#ta-float-wrap{z-index:2147483647!important;pointer-events:all!important}',
       /* ── Global typography ── */
       '.gradio-container,.contain,.main{font-family:"Inter",system-ui,-apple-system,sans-serif!important}',
       'body{background:#f4f6fb!important}',
@@ -5058,11 +5100,9 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
-            with gr.Accordion("🎤 Interview Mode", open=True):
-                gr.HTML('<div style="font-size:0.85em;color:var(--ta-card-sub,#64748b);padding:4px 0 8px;">'
-                        '✅ <b>Interview Mode</b> is always active — every question is scored and a coaching guide is generated.</div>')
-                interview_toggle = gr.Checkbox(value=True, visible=False, elem_id="ta-interview-toggle")
-                interview_deep   = gr.Checkbox(value=True, visible=False, elem_id="ta-interview-deep")
+            with gr.Accordion("🎤 Interview Mode", open=False):
+                interview_toggle = gr.Checkbox(label="Enable Interview Mode — score every question and generate a coaching guide", value=False, elem_id="ta-interview-toggle")
+                interview_deep   = gr.Checkbox(label="Deep Analysis (deflection rate, advancement likelihood)", value=False, elem_id="ta-interview-deep")
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(

@@ -2606,6 +2606,17 @@ _STT_AUTOFILL_PREFIX = {
 _WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo"]
 
 
+_STT_KEY_BANNER = (
+    '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;'
+    'padding:8px 14px;display:flex;align-items:center;gap:8px;font-family:sans-serif;">'
+    '<span style="font-size:1.05em;flex-shrink:0;">🔑</span>'
+    '<div style="flex:1;min-width:0;">'
+    '<span style="font-weight:700;color:#92400e;font-size:0.84em;">API Key Required</span>'
+    '<span style="color:#a16207;font-size:0.76em;margin-left:5px;">'
+    'Enter your API key below. Billed to your account — nothing stored here.'
+    '</span></div></div>'
+)
+
 def toggle_stt_engine(engine, main_api_key=""):
     is_local = engine == "whisper_local"
     models   = _WHISPER_SIZES if is_local else _STT_MODELS.get(engine, [])
@@ -2620,10 +2631,13 @@ def toggle_stt_engine(engine, main_api_key=""):
     info    = "tiny = fastest · turbo ≈ large speed  |  large-v3 = most accurate" if is_local else ""
     default = "base" if is_local else (models[0] if models else None)
 
+    banner = gr.update(visible=not is_local, value=_STT_KEY_BANNER if not is_local else "")
+
     return (
         gr.update(**key_kw),                                                # stt_key_input
         gr.update(choices=models, value=default, label=label, info=info,   # stt_model_input
                   visible=bool(models)),
+        banner,                                                             # stt_key_banner
     )
 
 
@@ -4920,6 +4934,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     value="whisper_local",
                     elem_id="ta-stt-engine",
                 )
+                stt_key_banner = gr.HTML(value="", visible=False)
                 stt_model_input = gr.Dropdown(
                     label="Whisper model size",
                     choices=_WHISPER_SIZES,
@@ -5217,7 +5232,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     stt_engine_input.change(
         fn=toggle_stt_engine,
         inputs=[stt_engine_input, user_api_key],
-        outputs=[stt_key_input, stt_model_input],
+        outputs=[stt_key_input, stt_model_input, stt_key_banner],
         queue=False,
     )
     stt_engine_input.change(
@@ -5473,7 +5488,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     demo.load(
         fn=lambda engine: toggle_stt_engine(engine or "whisper_local", ""),
         inputs=[bsw_stt],
-        outputs=[stt_key_input, stt_model_input],
+        outputs=[stt_key_input, stt_model_input, stt_key_banner],
         queue=False,
     )
 

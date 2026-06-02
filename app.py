@@ -1691,42 +1691,12 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     # ── Idle (before any job starts) ─────────────────────────────────────────
     if stage == "idle":
-        def _row(icon, label, items):
-            badges = "".join(
-                f'<span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);'
-                f'font-size:0.72em;font-weight:600;padding:2px 8px;border-radius:5px;'
-                f'white-space:nowrap;">{i}</span>' for i in items
-            )
-            return (
-                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;'
-                f'border-bottom:1px solid var(--ta-card-border);">'
-                f'<span style="font-size:1.1em;min-width:22px;">{icon}</span>'
-                f'<div>'
-                f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:0.07em;color:var(--ta-card-sub);margin-bottom:4px;">{label}</div>'
-                f'<div style="display:flex;gap:5px;flex-wrap:wrap;">{badges}</div>'
-                f'</div></div>'
-            )
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-card-border);'
-            'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
-            '<div style="font-size:0.8em;font-weight:800;text-transform:uppercase;'
-            'letter-spacing:0.1em;color:var(--ta-card-text);margin-bottom:14px;">'
-            '⚡ What we support</div>'
-            + _row("🎵", "Audio formats", ["mp3","wav","m4a","flac","ogg","aac","opus","wma","amr","aiff","+ more"])
-            + _row("🎬", "Video formats", ["mp4","mov","avi","mkv","webm","flv","wmv","ts","mpg","vob","+ more"])
-            + _row("📄", "Documents", ["pdf","docx","txt","md","srt","vtt"])
-            + _row("🎤", "STT engines", ["Whisper (local)","Deepgram","AssemblyAI","OpenAI","Groq","ElevenLabs","+ more"])
-            + _row("🤖", "AI providers", ["Claude","OpenAI","Gemini","Groq","Mistral","Together","Perplexity","Ollama"])
-            + _row("📤", "Outputs", ["Summary","Transcript","Speaker dialogue","PDF","DOCX","SRT","VTT","JSON"])
-            + '<div style="display:flex;gap:5px;flex-wrap:wrap;padding-top:10px;">'
-            + "".join(
-                f'<span style="background:var(--ta-step-wait-bg);border:1px solid var(--ta-card-border);'
-                f'color:var(--ta-card-sub);font-size:0.7em;padding:2px 8px;border-radius:5px;">{f}</span>'
-                for f in ["Speaker detection","Multi-language","Interview coaching",
-                          "Live ETA","Transcription-only mode","URL import","Dark mode"]
-            )
-            + '</div></div>'
+            'border-radius:16px;padding:20px 24px;font-family:sans-serif;text-align:center;">'
+            '<div style="color:var(--ta-card-sub);font-size:0.9em;">'
+            'Upload a file or paste a URL to start</div>'
+            '</div>'
         )
 
     if done:
@@ -4604,6 +4574,44 @@ _FORMATS = """
 </div>
 """
 
+def _badge(text, style="act"):
+    bg  = "var(--ta-step-act-bg)"   if style == "act"  else "var(--ta-step-done-bg)"  if style == "done" else "var(--ta-step-wait-bg)"
+    clr = "var(--ta-step-act-clr)"  if style == "act"  else "var(--ta-step-done-clr)" if style == "done" else "var(--ta-card-sub)"
+    bdr = "" if style != "wait" else "border:1px solid var(--ta-card-border);"
+    return (f'<span style="background:{bg};color:{clr};{bdr}'
+            f'font-size:0.72em;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap;">{text}</span>')
+
+def _cap_row(icon, label, items, style="act"):
+    return (
+        f'<div style="display:flex;align-items:flex-start;gap:10px;padding:7px 0;'
+        f'border-bottom:1px solid var(--ta-card-border);">'
+        f'<span style="font-size:1.05em;min-width:22px;">{icon}</span>'
+        f'<div><div style="font-size:0.68em;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.07em;color:var(--ta-card-sub);margin-bottom:4px;">{label}</div>'
+        f'<div style="display:flex;gap:4px;flex-wrap:wrap;">'
+        + "".join(_badge(i, style) for i in items)
+        + '</div></div></div>'
+    )
+
+_CAPABILITIES = (
+    '<div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+    'border-radius:10px;padding:14px 16px;font-family:sans-serif;">'
+    '<div style="font-size:0.72em;font-weight:800;text-transform:uppercase;'
+    'letter-spacing:0.1em;color:var(--ta-card-text);margin-bottom:10px;">⚡ What we support</div>'
+    + _cap_row("🎵", "Audio", ["mp3","wav","m4a","flac","ogg","aac","opus","wma","amr","aiff","+ more"])
+    + _cap_row("🎬", "Video", ["mp4","mov","avi","mkv","webm","flv","wmv","ts","mpg","vob","+ more"], "done")
+    + _cap_row("📄", "Documents", ["pdf","docx","txt","md","srt","vtt"], "wait")
+    + _cap_row("🎤", "STT engines", ["Whisper","Deepgram","AssemblyAI","OpenAI","Groq","ElevenLabs","+ more"])
+    + _cap_row("🤖", "AI providers", ["Claude","OpenAI","Gemini","Groq","Mistral","Together","Perplexity","Ollama"], "done")
+    + _cap_row("📤", "Outputs", ["Summary","Transcript","Speaker dialogue","PDF","DOCX","SRT","VTT","JSON"], "wait")
+    + '<div style="display:flex;gap:4px;flex-wrap:wrap;padding-top:8px;">'
+    + "".join(_badge(f, "wait") for f in [
+        "Speaker detection","Multi-language","Interview coaching",
+        "Live ETA","Transcription-only","URL import","Dark mode"
+    ])
+    + '</div></div>'
+)
+
 _SECTION = lambda label: f"""
 <div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
   <div style="height:1px;background:var(--ta-card-border);flex:1;opacity:0.7;"></div>
@@ -5010,7 +5018,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Or paste a file path or URL (large files / no upload wait)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
-            gr.HTML(_FORMATS)
+            gr.HTML(_CAPABILITIES)
 
             gr.HTML(_SECTION("Step 2 — Configure"))
             with gr.Accordion("Processing Options", open=True):

@@ -22,7 +22,7 @@ from typing import Optional
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse, RedirectResponse, HTMLResponse
+from fastapi.responses import JSONResponse, StreamingResponse, HTMLResponse
 import uvicorn
 from dotenv import load_dotenv
 
@@ -134,12 +134,6 @@ def _run_transcription(
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────
-
-@app.get("/", include_in_schema=False)
-def root():
-    """Root — redirect to the interactive API docs."""
-    return RedirectResponse(url="/docs")
-
 
 @app.get("/health")
 def health():

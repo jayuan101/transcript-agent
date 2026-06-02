@@ -5630,20 +5630,29 @@ if __name__ == "__main__":
     _docker = _host == "0.0.0.0"
     demo.queue(max_size=5, default_concurrency_limit=1)
     import inspect as _inspect
-    _launch_kw = dict(
-        server_name=_host,
-        server_port=_port,
-        js=_THEME_JS,
-        theme=_THEME,
-        css=CSS,
-        allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
-        max_file_size="4gb",
-        inbrowser=not _docker,
-        show_error=True,
-        share=not _docker,
-        strict_cors=not _docker,
-    )
-    # show_api was added in Gradio 4.15 — skip on older builds
-    if "show_api" in _inspect.signature(demo.launch).parameters:
-        _launch_kw["show_api"] = False
-    demo.launch(**_launch_kw)
+
+    if _docker:
+        # HF Spaces / Docker: mount REST API + Gradio UI together on port 7860.
+        # HF Spaces only exposes 7860, so the API must share this port.
+        from api import app as _rest_app
+        gr.mount_gradio_app(_rest_app, demo, path="/")
+        import uvicorn as _uvicorn
+        _uvicorn.run(_rest_app, host=_host, port=_port, log_level="info")
+    else:
+        _launch_kw = dict(
+            server_name=_host,
+            server_port=_port,
+            js=_THEME_JS,
+            theme=_THEME,
+            css=CSS,
+            allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
+            max_file_size="4gb",
+            inbrowser=True,
+            show_error=True,
+            share=True,
+            strict_cors=False,
+        )
+        # show_api was added in Gradio 4.15 — skip on older builds
+        if "show_api" in _inspect.signature(demo.launch).parameters:
+            _launch_kw["show_api"] = False
+        demo.launch(**_launch_kw)

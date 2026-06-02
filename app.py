@@ -320,6 +320,7 @@ from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,
     AUDIO_EXTS, VIDEO_EXTS, STT_ENGINES,
     load_history, save_history_entry,
+    run_interview_analysis, extract_profile_text,
 )
 
 # ── AI provider configuration ─────────────────────────────────────────────────
@@ -1892,6 +1893,142 @@ def _err(msg: str) -> tuple:
     return _out(status=html, eta="")
 
 
+def _build_interview_html(ia: dict) -> str:
+    """Render interview analysis dict → HTML string for the coaching tab."""
+    if not ia:
+        return '<p style="color:#94a3b8;">No interview analysis available for this file type.</p>'
+    if ia.get("parse_error"):
+        return f'<pre style="font-size:0.8em;overflow:auto;">{ia.get("raw","")}</pre>'
+
+    qs = ia.get("questions", [])
+    _SCORE_COLOR = {
+        "Great": "#22c55e", "Good": "#3b82f6",
+        "Needs Improvement": "#f59e0b", "Missed": "#ef4444",
+    }
+    _score_val = ia.get("overall_score", "—")
+    _verdict   = ia.get("overall_verdict", "")
+    try:
+        _score_num = int(_score_val)
+        _score_bg  = ("#166534" if _score_num >= 8 else
+                      "#1d4ed8" if _score_num >= 6 else
+                      "#92400e" if _score_num >= 4 else "#991b1b")
+    except (ValueError, TypeError):
+        _score_bg = "#1e293b"
+
+    _adv_pct    = ia.get("advance_likelihood", "")
+    _adv_reason = ia.get("advance_reasoning", "")
+    try:
+        _adv_num = int(str(_adv_pct).strip().rstrip("%"))
+    except (ValueError, TypeError):
+        _adv_num = None
+    if _adv_num is not None:
+        _adv_color = ("#166534" if _adv_num >= 70 else "#1d4ed8" if _adv_num >= 45 else "#991b1b")
+        _adv_label = ("Likely to advance" if _adv_num >= 70 else
+                      "Borderline"        if _adv_num >= 45 else "Unlikely to advance")
+        _adv_banner = (
+            f'<div style="background:{_adv_color};border-radius:14px;'
+            f'padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">'
+            f'<div style="text-align:center;background:rgba(255,255,255,0.18);'
+            f'border-radius:10px;padding:8px 16px;min-width:80px;">'
+            f'<div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1;">{_adv_num}%</div>'
+            f'<div style="font-size:0.7em;font-weight:700;color:rgba(255,255,255,0.75);'
+            f'text-transform:uppercase;letter-spacing:0.08em;">likelihood</div></div>'
+            f'<div><div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">🚀 Advancing to Next Round</div>'
+            f'<div style="font-size:1.15em;font-weight:800;color:#fff;">{_adv_label}</div>'
+            + (f'<div style="font-size:0.82em;color:rgba(255,255,255,0.8);margin-top:4px;">{_adv_reason}</div>'
+               if _adv_reason else '')
+            + f'</div></div>'
+        )
+    else:
+        _adv_banner = ""
+
+    html = (
+        f'<div style="padding:4px 0;">'
+        + _adv_banner
+        + f'<div style="background:{_score_bg};border-radius:16px;padding:20px 24px;margin-bottom:20px;'
+        f'display:flex;align-items:center;gap:20px;">'
+        f'<div style="background:rgba(255,255,255,0.15);border-radius:12px;padding:10px 18px;'
+        f'text-align:center;min-width:80px;">'
+        f'<div style="font-size:2.6em;font-weight:900;color:#fff;line-height:1;">{_score_val}</div>'
+        f'<div style="font-size:0.75em;font-weight:700;color:rgba(255,255,255,0.75);'
+        f'letter-spacing:0.08em;text-transform:uppercase;">out of 10</div></div>'
+        f'<div><div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+        f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">🎯 Overall Score</div>'
+        f'<div style="font-size:1.3em;font-weight:800;color:#fff;">{_verdict}</div></div></div>'
+    )
+    _DEFLECT_STYLE = {
+        "partial": ("⚠️ Deflected",      "#f59e0b", "#fffbeb", "#fde68a"),
+        "full":    ("🚫 Did Not Answer", "#ef4444", "#fef2f2", "#fecaca"),
+    }
+    for q in qs:
+        sc           = q.get("score", "")
+        col          = _SCORE_COLOR.get(sc, "#6b7280")
+        answer_said  = q.get("answer_said") or q.get("answer_summary", "")
+        model_answer = q.get("model_answer") or q.get("ideal_answer", "")
+        coaching_tip = q.get("coaching_tip", "")
+        deflection   = (q.get("deflection") or "none").lower().strip()
+        defl_note    = q.get("deflection_note", "")
+
+        defl_html = ""
+        if deflection in _DEFLECT_STYLE:
+            dlbl, dcol, dbg, dbdr = _DEFLECT_STYLE[deflection]
+            defl_html = (
+                f'<div style="background:{dbg};border:1px solid {dbdr};border-radius:8px;'
+                f'padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">'
+                f'<span style="font-size:0.78em;font-weight:700;color:{dcol};white-space:nowrap;">{dlbl}</span>'
+                + (f'<span style="font-size:0.78em;color:#374151;">{defl_note}</span>' if defl_note else '')
+                + '</div>'
+            )
+
+        html += (
+            f'<div style="border:2px solid {col};border-radius:14px;padding:16px 18px;'
+            f'margin-bottom:20px;background:#fff;">'
+            f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+            f'<span style="background:{col};color:#fff;font-size:0.78em;font-weight:800;'
+            f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">'
+            f'Q{q.get("id","")}</span>'
+            f'<div style="font-weight:700;font-size:1em;color:#0f172a;line-height:1.5;">'
+            f'{q.get("question","")}</div></div>'
+            f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+            f'<span style="background:{col};color:#fff;font-size:0.8em;font-weight:800;'
+            f'padding:4px 14px;border-radius:20px;">{sc}</span>'
+            f'<span style="font-size:0.85em;color:#334155;font-weight:500;">'
+            f'{q.get("score_reason","")}</span></div>'
+            + defl_html
+            + f'<div style="background:#f1f5f9;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;'
+            f'padding:12px 14px;margin-bottom:10px;">'
+            f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:#475569;margin-bottom:6px;">📝 What they said</div>'
+            f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#1e293b;">{answer_said}</p></div>'
+            f'<div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;'
+            f'padding:12px 14px;margin-bottom:10px;">'
+            f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
+            f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#14532d;font-style:italic;">'
+            f'{model_answer}</p></div>'
+            + (f'<div style="background:#faf5ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;'
+               f'padding:12px 14px;">'
+               f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
+               f'letter-spacing:0.08em;color:#7c3aed;margin-bottom:6px;">🏋️ Coaching Tip</div>'
+               f'<p style="font-size:0.88em;margin:0;color:#3b0764;">{coaching_tip}</p></div>'
+               if coaching_tip else '')
+            + '</div>'
+        )
+    if ia.get("advance_likelihood"):
+        html += (
+            f'<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;'
+            f'border:1px solid #bfdbfe;border-radius:12px;">'
+            f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
+            f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
+            f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'
+            f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
+            f'{ia.get("advance_reasoning","")}</div></div>'
+        )
+    html += '</div>'
+    return html
+
+
 def process_file(
     uploaded_file,
     path_input,
@@ -1903,6 +2040,7 @@ def process_file(
     stt_model,
     interview_mode,
     interview_deep,
+    candidate_profile,
     language_input,
     language_variant,
     transcript_output_lang,
@@ -2175,6 +2313,7 @@ def process_file(
                 speaker_names=speaker_names or None,
                 interview_mode=interview_mode,
                 interview_deep=interview_deep,
+                candidate_profile=candidate_profile or "",
                 history_path=HISTORY_PATH,
                 on_whisper_progress=on_whisper_progress if is_av else None,
                 on_raw_transcript=on_raw_transcript if is_av else None,
@@ -2388,166 +2527,7 @@ def process_file(
             combined_text = build_combined_report(result, config)
 
             # ── Build Interview coaching tab ──────────────────────────────────
-            ia = result.interview_analysis
-            if ia and not ia.get("parse_error"):
-                qs = ia.get("questions", [])
-                _SCORE_COLOR = {
-                    "Great": "#22c55e", "Good": "#3b82f6",
-                    "Needs Improvement": "#f59e0b", "Missed": "#ef4444",
-                }
-                _score_val = ia.get("overall_score", "—")
-                _verdict   = ia.get("overall_verdict", "")
-                try:
-                    _score_num = int(_score_val)
-                    _score_bg  = ("#166534" if _score_num >= 8 else
-                                  "#1d4ed8" if _score_num >= 6 else
-                                  "#92400e" if _score_num >= 4 else "#991b1b")
-                except (ValueError, TypeError):
-                    _score_bg = "#1e293b"
-                # Advancement likelihood from deep analysis
-                _adv_pct  = ia.get("advance_likelihood", "")
-                _adv_reason = ia.get("advance_reasoning", "")
-                try:
-                    _adv_num = int(str(_adv_pct).strip().rstrip("%"))
-                except (ValueError, TypeError):
-                    _adv_num = None
-                if _adv_num is not None:
-                    _adv_color  = ("#166534" if _adv_num >= 70 else
-                                   "#1d4ed8" if _adv_num >= 45 else "#991b1b")
-                    _adv_label  = ("Likely to advance" if _adv_num >= 70 else
-                                   "Borderline"       if _adv_num >= 45 else "Unlikely to advance")
-                    _adv_banner = (
-                        f'<div style="background:{_adv_color};border-radius:14px;'
-                        f'padding:16px 22px;margin-bottom:14px;display:flex;align-items:center;gap:16px;">'
-                        f'<div style="text-align:center;background:rgba(255,255,255,0.18);'
-                        f'border-radius:10px;padding:8px 16px;min-width:80px;">'
-                        f'<div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1;">'
-                        f'{_adv_num}%</div>'
-                        f'<div style="font-size:0.7em;font-weight:700;color:rgba(255,255,255,0.75);'
-                        f'text-transform:uppercase;letter-spacing:0.08em;">likelihood</div>'
-                        f'</div>'
-                        f'<div>'
-                        f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">'
-                        f'🚀 Advancing to Next Round</div>'
-                        f'<div style="font-size:1.15em;font-weight:800;color:#fff;">{_adv_label}</div>'
-                        + (f'<div style="font-size:0.82em;color:rgba(255,255,255,0.8);margin-top:4px;">'
-                           f'{_adv_reason}</div>' if _adv_reason else '')
-                        + f'</div></div>'
-                    )
-                else:
-                    _adv_banner = ""
-
-                iv_html = (
-                    f'<div style="padding:4px 0;">'
-                    + _adv_banner
-                    # ── Score hero card ──────────────────────────────────────
-                    + f'<div style="background:{_score_bg};border-radius:16px;'
-                    f'padding:20px 24px;margin-bottom:20px;'
-                    f'display:flex;align-items:center;gap:20px;">'
-                    # Big score number
-                    f'<div style="background:rgba(255,255,255,0.15);border-radius:12px;'
-                    f'padding:10px 18px;text-align:center;min-width:80px;">'
-                    f'<div style="font-size:2.6em;font-weight:900;color:#fff;line-height:1;">'
-                    f'{_score_val}</div>'
-                    f'<div style="font-size:0.75em;font-weight:700;color:rgba(255,255,255,0.75);'
-                    f'letter-spacing:0.08em;text-transform:uppercase;">out of 10</div>'
-                    f'</div>'
-                    # Verdict text
-                    f'<div>'
-                    f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                    f'letter-spacing:0.1em;color:rgba(255,255,255,0.7);margin-bottom:4px;">'
-                    f'🎯 Overall Score</div>'
-                    f'<div style="font-size:1.3em;font-weight:800;color:#fff;">{_verdict}</div>'
-                    f'</div>'
-                    f'</div>'
-                )
-                _DEFLECT_STYLE = {
-                    "partial": ("⚠️ Deflected", "#f59e0b", "#fffbeb", "#fde68a"),
-                    "full":    ("🚫 Did Not Answer", "#ef4444", "#fef2f2", "#fecaca"),
-                }
-                for q in qs:
-                    sc  = q.get("score","")
-                    col = _SCORE_COLOR.get(sc, "#6b7280")
-                    # Support both old field names and new
-                    answer_said  = q.get("answer_said") or q.get("answer_summary","")
-                    model_answer = q.get("model_answer") or q.get("ideal_answer","")
-                    coaching_tip = q.get("coaching_tip","")
-                    deflection   = (q.get("deflection") or "none").lower().strip()
-                    defl_note    = q.get("deflection_note","")
-
-                    # Build deflection badge HTML
-                    defl_html = ""
-                    if deflection in _DEFLECT_STYLE:
-                        dlbl, dcol, dbg, dbdr = _DEFLECT_STYLE[deflection]
-                        defl_html = (
-                            f'<div style="background:{dbg};border:1px solid {dbdr};border-radius:8px;'
-                            f'padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">'
-                            f'<span style="font-size:0.78em;font-weight:700;color:{dcol};white-space:nowrap;">{dlbl}</span>'
-                            + (f'<span style="font-size:0.78em;color:#374151;">{defl_note}</span>' if defl_note else '')
-                            + f'</div>'
-                        )
-
-                    iv_html += (
-                        f'<div style="border:2px solid {col};border-radius:14px;'
-                        f'padding:16px 18px;margin-bottom:20px;background:#fff;">'
-                        # Q number chip + question text
-                        f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
-                        f'<span style="background:{col};color:#fff;font-size:0.78em;font-weight:800;'
-                        f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">'
-                        f'Q{q.get("id","")}</span>'
-                        f'<div style="font-weight:700;font-size:1em;color:#0f172a;line-height:1.5;">'
-                        f'{q.get("question","")}</div>'
-                        f'</div>'
-                        # Score badge + reason on same row
-                        f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
-                        f'<span style="background:{col};color:#fff;font-size:0.8em;font-weight:800;'
-                        f'padding:4px 14px;border-radius:20px;">{sc}</span>'
-                        f'<span style="font-size:0.85em;color:#334155;font-weight:500;">'
-                        f'{q.get("score_reason","")}</span>'
-                        f'</div>'
-                        + defl_html
-                        # What they said
-                        + f'<div style="background:#f1f5f9;border-left:4px solid #94a3b8;border-radius:0 8px 8px 0;'
-                        f'padding:12px 14px;margin-bottom:10px;">'
-                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-                        f'letter-spacing:0.08em;color:#475569;margin-bottom:6px;">📝 What they said</div>'
-                        f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#1e293b;">{answer_said}</p>'
-                        f'</div>'
-                        # What you could have said
-                        f'<div style="background:#f0fdf4;border-left:4px solid #22c55e;border-radius:0 8px 8px 0;'
-                        f'padding:12px 14px;margin-bottom:10px;">'
-                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-                        f'letter-spacing:0.08em;color:#15803d;margin-bottom:6px;">💬 What you could have said</div>'
-                        f'<p style="font-size:0.88em;line-height:1.7;margin:0;color:#14532d;font-style:italic;">'
-                        f'{model_answer}</p>'
-                        f'</div>'
-                        # Coaching tip
-                        + (f'<div style="background:#faf5ff;border-left:4px solid #a855f7;border-radius:0 8px 8px 0;'
-                        f'padding:12px 14px;">'
-                        f'<div style="font-size:0.75em;font-weight:800;text-transform:uppercase;'
-                        f'letter-spacing:0.08em;color:#7c3aed;margin-bottom:6px;">🏋️ Coaching Tip</div>'
-                        f'<p style="font-size:0.88em;margin:0;color:#3b0764;">{coaching_tip}</p></div>'
-                        if coaching_tip else '')
-                        + f'</div>'
-                    )
-                # Deep mode extras
-                if ia.get("advance_likelihood"):
-                    iv_html += (
-                        f'<div style="margin-top:12px;padding:12px 16px;background:#eff6ff;'
-                        f'border:1px solid #bfdbfe;border-radius:12px;">'
-                        f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
-                        f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
-                        f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'
-                        f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
-                        f'{ia.get("advance_reasoning","")}</div>'
-                        f'</div>'
-                    )
-                iv_html += '</div>'
-            elif ia and ia.get("parse_error"):
-                iv_html = f'<pre style="font-size:0.8em;overflow:auto;">{ia.get("raw","")}</pre>'
-            else:
-                iv_html = '<p style="color:#94a3b8;">No interview analysis available for this file type.</p>'
+            iv_html = _build_interview_html(result.interview_analysis)
 
             # ── Update cache with lang + segments now that we have them ────────
             if _raw_stt_text:
@@ -5160,6 +5140,29 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             with gr.Accordion("🎤 Interview Mode", open=False):
                 interview_toggle = gr.Checkbox(label="Enable Interview Mode — score every question and generate a coaching guide", value=False, elem_id="ta-interview-toggle")
                 interview_deep   = gr.Checkbox(label="Deep Analysis (deflection rate, advancement likelihood)", value=False, elem_id="ta-interview-deep")
+                gr.HTML("""
+<div style="margin-top:10px;padding:10px 12px;background:var(--ta-card-bg,#f8fafc);
+     border:1px solid var(--ta-card-border,#e2e8f0);border-radius:10px;">
+  <div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:4px;">
+    💼 Candidate Profile <span style="font-weight:400;color:var(--ta-card-sub,#64748b);">(optional)</span>
+  </div>
+  <div style="font-size:0.72em;color:var(--ta-card-sub,#64748b);line-height:1.5;">
+    Upload a resume or bio for personalised "what you could have said" answers that reference
+    your actual experience, projects, and background.
+  </div>
+</div>""")
+                profile_upload = gr.File(
+                    label="Resume / Profile (PDF, DOCX, or TXT)",
+                    file_types=[".pdf", ".docx", ".doc", ".txt", ".md"],
+                    file_count="single",
+                    type="filepath",
+                )
+                profile_text_state = gr.State(value="")
+                reanalyze_btn = gr.Button(
+                    "🔄  Re-analyze with Profile",
+                    variant="secondary", size="sm", visible=False,
+                    elem_id="ta-reanalyze-btn",
+                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -5534,7 +5537,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             file_input, path_input,
             panel_toggle, speakers_input, whisper_input,
             stt_engine_input, stt_key_input, stt_model_input,
-            interview_toggle, interview_deep,
+            interview_toggle, interview_deep, profile_text_state,
             language_input, language_variant,
             transcript_output_lang,
             report_style,
@@ -5560,6 +5563,56 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)
+
+    # ── Profile upload — parse file → store text, show re-analyze button ─────
+    def _parse_profile(file_path):
+        if not file_path:
+            return "", gr.update(visible=False)
+        try:
+            text = extract_profile_text(file_path)
+            if text and text.strip():
+                return text, gr.update(visible=True)
+        except Exception:
+            pass
+        return "", gr.update(visible=False)
+
+    profile_upload.change(
+        fn=_parse_profile,
+        inputs=[profile_upload],
+        outputs=[profile_text_state, reanalyze_btn],
+        queue=False,
+    )
+
+    # ── Re-analyze with Profile — skips STT, re-runs coaching on cached transcript
+    def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name):
+        if not result or not getattr(result, "clean_transcript", ""):
+            yield '<p style="color:#ef4444;padding:12px;">Run Analyze first to load a transcript.</p>'
+            return
+        api_key = (api_key or "").strip()
+        if not api_key and provider_name != "Ollama (Local)":
+            yield f'<p style="color:#ef4444;padding:12px;">Please enter your {provider_name} API key.</p>'
+            return
+        provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
+        client = LLMClient(
+            provider=provider_cfg["type"], api_key=api_key,
+            model=model_name, base_url=provider_cfg["base_url"],
+        )
+        yield ('<div style="padding:14px;color:#94a3b8;font-style:italic;">'
+               '⏳ Re-analyzing with your profile — this takes about 30 seconds…</div>')
+        ia = run_interview_analysis(
+            result.clean_transcript, client,
+            deep_mode=bool(deep),
+            candidate_profile=profile_text or "",
+        )
+        result.interview_analysis = ia
+        yield _build_interview_html(ia)
+
+    reanalyze_btn.click(
+        fn=reanalyze_with_profile,
+        inputs=[result_state, profile_text_state, interview_deep,
+                user_api_key, provider_dropdown, model_dropdown],
+        outputs=[interview_out],
+    )
 
     pdf_regen_btn.click(
         fn=generate_pdf_in_language,

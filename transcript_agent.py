@@ -176,6 +176,29 @@ except ImportError:
     PDF_AVAILABLE = False
 
 
+def extract_profile_text(file_path: str) -> str:
+    """Extract plain text from a candidate resume/profile (PDF, DOCX, or TXT)."""
+    p = Path(file_path)
+    ext = p.suffix.lower()
+    if ext == ".pdf":
+        if not PDF_AVAILABLE:
+            return ""
+        parts = []
+        with pdfplumber.open(file_path) as pdf:
+            for page in pdf.pages:
+                t = page.extract_text()
+                if t:
+                    parts.append(t)
+        return "\n".join(parts)
+    elif ext in (".docx", ".doc"):
+        if not DOCX_AVAILABLE:
+            return ""
+        doc = DocxDocument(file_path)
+        return "\n".join(para.text for para in doc.paragraphs if para.text.strip())
+    else:
+        return p.read_text(encoding="utf-8", errors="replace")
+
+
 # ── format constants ──────────────────────────────────────────────────────────
 
 AUDIO_EXTS = {
@@ -1338,10 +1361,13 @@ _INTERVIEW_SYSTEM = """\
 You are an expert interview coach and communication analyst.
 Analyse the provided interview transcript and return a structured JSON object.
 Be specific, honest, and actionable. Use the exact keys shown below.
+When a candidate profile/resume is provided, every model_answer MUST be personalised to that
+specific person — draw on their real job titles, projects, companies, skills, and experiences.
+The suggested answer should sound exactly like THAT candidate speaking naturally, not a generic template.
 """
 
 _INTERVIEW_PROMPT = """\
-Analyse this interview transcript carefully. Return ONLY valid JSON — no markdown fences.
+{profile_section}Analyse this interview transcript carefully. Return ONLY valid JSON — no markdown fences.
 
 CRITICAL: Include EVERY question asked by the interviewer in the "questions" array — do not skip, merge, or omit any. If a follow-up or clarifying question was asked, include it as its own entry.
 
@@ -1358,9 +1384,10 @@ Rules for deflection:
 
 Rules for model_answer:
 - Write as if YOU are the candidate speaking right now — first-person, present tense.
-- Natural, confident, conversational voice. Sound human, not like a template.
-- No bullet points, no headers, no "I would say...". Just speak the answer directly.
-- 3-5 sentences. Include concrete detail or a brief story where appropriate.
+- If a candidate profile was provided above, use their REAL background: name actual companies, projects, technologies, and experiences from their profile. Make it sound like them specifically.
+- If no profile was provided, write a confident, believable answer that feels natural for this role.
+- Natural, conversational voice — no bullets, no headers, no "I would say…". Just speak the answer.
+- 3–5 sentences. Confident but not robotic. Sound like a real person, not an AI template.
 
 {{
   "questions": [
@@ -1405,13 +1432,19 @@ def run_interview_analysis(
     client: "LLMClient",
     deep_mode: bool = False,
     on_log=None,
+    candidate_profile: str = "",
 ) -> dict:
     def _log(m):
         _safe_print(f"  [Interview] {m}")
         if on_log: on_log(m)
 
     _log("Running interview analysis…")
+    profile_section = (
+        "CANDIDATE PROFILE — use this to personalise every model_answer to this specific person:\n"
+        "---\n" + candidate_profile.strip()[:8000] + "\n---\n\n"
+    ) if candidate_profile and candidate_profile.strip() else ""
     prompt = _INTERVIEW_PROMPT.format(
+        profile_section=profile_section,
         transcript=transcript[:80_000],
         deep_mode="YES" if deep_mode else "NO",
     )
@@ -1578,6 +1611,7 @@ def run(
     speaker_names: str = None,
     interview_mode: bool = False,
     interview_deep: bool = False,
+    candidate_profile: str = "",
     history_path: "Path | None" = None,
     on_whisper_progress=None,
     on_raw_transcript=None,
@@ -1700,7 +1734,8 @@ def run(
         _log("Running Interview Mode analysis…")
         if on_stage_change: on_stage_change("interview")
         result.interview_analysis = run_interview_analysis(
-            raw_text, client, deep_mode=interview_deep, on_log=on_log
+            raw_text, client, deep_mode=interview_deep, on_log=on_log,
+            candidate_profile=candidate_profile,
         )
 
     paths = save_results(result, config, output_dir, Path(file_path).stem)

@@ -2034,7 +2034,6 @@ def process_file(
     path_input,
     panel_mode,
     num_speakers,
-    whisper_model,
     stt_engine,
     stt_api_key,
     stt_model,
@@ -2056,6 +2055,13 @@ def process_file(
     model_name,
     transcription_only=False,
 ):
+    # Route unified model dropdown to the correct STT parameter
+    if stt_engine == "whisper_local":
+        _whisper_model = stt_model or "base"
+        stt_model = None
+    else:
+        _whisper_model = "base"
+
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
@@ -2297,7 +2303,7 @@ def process_file(
             result = run(
                 file_path=uploaded_file,
                 output_dir=str(job_dir),
-                whisper_model=whisper_model,
+                whisper_model=_whisper_model,
                 stt_engine=stt_engine,
                 stt_api_key=(stt_api_key or "").strip() or None,
                 stt_model=(stt_model or "").strip() or None,
@@ -2451,8 +2457,8 @@ def process_file(
                            eta=_eta_panel_html("extracting", elapsed=elapsed), log=log)
             elif stage == "whisper":
                 log = _add_header("🎤  TRANSCRIBING AUDIO  (Step 1 of 2)")
-                log = _add_log(f"Whisper {whisper_model} loaded — transcription in progress…", "info")
-                yield _out(status=_status_compact("🎤", f"Transcribing audio…  [{whisper_model}]", elapsed),
+                log = _add_log(f"Whisper {_whisper_model} loaded — transcription in progress…", "info")
+                yield _out(status=_status_compact("🎤", f"Transcribing audio…  [{_whisper_model}]", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
             elif stage == "claude":
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
@@ -2639,7 +2645,7 @@ def toggle_speakers(is_panel):
 
 
 _STT_MODELS = {
-    "whisper_local":  [],   # handled by whisper_input dropdown
+    "whisper_local":  [],   # handled via _WHISPER_SIZES in toggle_stt_engine
     "openai_whisper": ["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe"],
     "groq_whisper":   ["whisper-large-v3-turbo", "whisper-large-v3", "distil-whisper-large-v3-en"],
     "deepgram":       ["nova-3", "nova-2", "nova", "enhanced", "base"],
@@ -2662,21 +2668,22 @@ _WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "tu
 
 def toggle_stt_engine(engine, main_api_key=""):
     is_local = engine == "whisper_local"
-    models   = _STT_MODELS.get(engine, [])
+    models   = _WHISPER_SIZES if is_local else _STT_MODELS.get(engine, [])
 
-    # Build a single update for stt_key_input (visibility + optional auto-fill value)
     key_kw = {"visible": not is_local}
     if engine in _STT_AUTOFILL_PREFIX:
         prefix, _ = _STT_AUTOFILL_PREFIX[engine]
         if (main_api_key or "").startswith(prefix):
             key_kw["value"] = main_api_key
 
-    # whisper_input visibility is handled by JS (ta-whisper-size) to avoid
-    # a Gradio 6.15.x bug where dropdown visible updates corrupt the value.
+    label   = "Whisper model size" if is_local else "STT Model"
+    info    = "tiny = fastest · turbo ≈ large speed  |  large-v3 = most accurate" if is_local else ""
+    default = "base" if is_local else (models[0] if models else None)
+
     return (
         gr.update(**key_kw),                                                # stt_key_input
-        gr.update(visible=not is_local and bool(models),                    # stt_model_input
-                  choices=models, value=models[0] if models else None),
+        gr.update(choices=models, value=default, label=label, info=info,   # stt_model_input
+                  visible=bool(models)),
     )
 
 
@@ -2918,41 +2925,12 @@ window.taDoUpdate = function(url, btn, platform) {
       );
       document.documentElement.appendChild(w);
     }
-    /* Floating ▶ button — uses position:absolute + scroll-tracking because
-       the <html> element is Gradio's scroll container, which breaks position:fixed. */
-
-    /* One-time scroll/resize listener — installed globally so it survives re-injects */
-    if (!window.__taPinInstalled) {
-      window.__taPinInstalled = true;
-      var _taTick = false;
-      window._taPinFloat = function() {
-        if (_taTick) return;
-        _taTick = true;
-        requestAnimationFrame(function() {
-          var el = document.getElementById('ta-float-wrap');
-          if (el) {
-            var st = document.documentElement.scrollTop || document.body.scrollTop || window.pageYOffset || 0;
-            var sl = document.documentElement.scrollLeft || document.body.scrollLeft || window.pageXOffset || 0;
-            var vw = window.innerWidth  || 1280;
-            var vh = window.innerHeight || 800;
-            var bh = window.__taFH || 90;
-            var bw = window.__taFW || 70;
-            el.style.top  = (st + Math.round((vh - bh) / 2)) + 'px';
-            el.style.left = (sl + vw - bw - 18) + 'px';
-          }
-          _taTick = false;
-        });
-      };
-      /* capture:true catches scroll on <html> (Gradio's actual scroller) */
-      document.addEventListener('scroll', window._taPinFloat, {passive: true, capture: true});
-      window.addEventListener('resize',   window._taPinFloat, {passive: true});
-    }
-
     function _buildFloat() {
       var fw = document.createElement('div');
       fw.id = 'ta-float-wrap';
       fw.style.cssText = (
-        'position:absolute;top:0;left:0;z-index:2147483647;'
+        'position:fixed;top:50%;right:18px;z-index:2147483647;'
+        + 'transform:translateY(-50%);'
         + 'display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;'
       );
       var flabel = document.createElement('div');
@@ -2996,14 +2974,7 @@ window.taDoUpdate = function(url, btn, platform) {
 
     function _ensureFloat() {
       if (!document.body || document.getElementById('ta-float-wrap')) return;
-      var fw = _buildFloat();
-      document.body.appendChild(fw);
-      /* Measure real dimensions after layout, cache globally for the pin fn */
-      requestAnimationFrame(function() {
-        window.__taFH = fw.offsetHeight || 90;
-        window.__taFW = fw.offsetWidth  || 70;
-        window._taPinFloat && window._taPinFloat();
-      });
+      document.body.appendChild(_buildFloat());
     }
 
     _ensureFloat();
@@ -3833,7 +3804,7 @@ window.taDoUpdate = function(url, btn, platform) {
     /* id → { type: 'dropdown'|'checkbox'|'number', key: localStorage key } */
     var FIELDS = {
       'ta-stt-engine':       { type:'dropdown', key:'ta-stt-engine' },
-      'ta-whisper-size':     { type:'dropdown', key:'ta-whisper-size' },
+      'ta-stt-model':        { type:'dropdown', key:'ta-stt-model' },
       'ta-language':         { type:'dropdown', key:'ta-language' },
       'ta-report-style':     { type:'dropdown', key:'ta-report-style' },
       'ta-interview-toggle': { type:'checkbox', key:'ta-interview' },
@@ -3991,7 +3962,7 @@ window.taDoUpdate = function(url, btn, platform) {
       restoreCheckbox('ta-interview-toggle', localStorage.getItem('ta-interview'));
       restoreCheckbox('ta-interview-deep',   localStorage.getItem('ta-interview-deep'));
       restoreNumber('ta-speakers',           localStorage.getItem('ta-speakers'));
-      restoreDropdown('ta-whisper-size',     localStorage.getItem('ta-whisper-size'));
+      restoreDropdown('ta-stt-model',        localStorage.getItem('ta-stt-model'));
 
       /* ── Language accordion ── */
       var langSaved  = localStorage.getItem('ta-language');
@@ -4183,61 +4154,6 @@ window.taDoUpdate = function(url, btn, platform) {
   })();
 
 
-  /* ── STT Engine → show/hide Whisper model size (JS bypass for Gradio bug) ─── */
-  (function() {
-    var _lastState = null;
-    function syncWhisperSize() {
-      var whisperEl = document.getElementById('ta-whisper-size');
-      if (!whisperEl) return;
-      var whisperBlock = whisperEl.closest('.block') || whisperEl.parentElement;
-      if (!whisperBlock) return;
-
-      /* In Gradio 6.x, all dropdown selected values live in input.border-none elements.
-         Find the one adjacent to the "STT Engine" label. */
-      var inputs = Array.from(document.querySelectorAll('input.border-none'));
-      var sttInput = null;
-      for (var i = 0; i < inputs.length; i++) {
-        /* Walk up to find the block, then check if the block's label says "STT Engine" */
-        var block = inputs[i].closest('.block');
-        if (block && block.textContent.indexOf('STT Engine') >= 0) {
-          sttInput = inputs[i];
-          break;
-        }
-      }
-
-      /* Fall back: look for input whose value looks like an STT engine name */
-      if (!sttInput) {
-        for (var j = 0; j < inputs.length; j++) {
-          var v = (inputs[j].value || '').toLowerCase();
-          if (v.indexOf('whisper') >= 0 || v.indexOf('deepgram') >= 0 ||
-              v.indexOf('assemblyai') >= 0 || v.indexOf('elevenlabs') >= 0 ||
-              v.indexOf('groq') >= 0 || v.indexOf('openai whisper') >= 0) {
-            sttInput = inputs[j];
-            break;
-          }
-        }
-      }
-
-      var isLocal = true;
-      if (sttInput) {
-        var val = (sttInput.value || '').toLowerCase();
-        /* Hide Whisper size for any cloud STT engine */
-        var isCloud = val.indexOf('deepgram') >= 0 || val.indexOf('assemblyai') >= 0 ||
-                      val.indexOf('openai') >= 0 || val.indexOf('groq') >= 0 ||
-                      val.indexOf('elevenlabs') >= 0 || val.indexOf('google') >= 0 ||
-                      val.indexOf('azure') >= 0 || val.indexOf('rev.ai') >= 0 ||
-                      val.indexOf('gladia') >= 0;
-        isLocal = !isCloud && (val === '' || val.indexOf('local') >= 0 || val.indexOf('offline') >= 0);
-      }
-
-      if (isLocal === _lastState) return;
-      _lastState = isLocal;
-      whisperBlock.style.display = isLocal ? '' : 'none';
-    }
-
-    setInterval(syncWhisperSize, 300);
-    setTimeout(syncWhisperSize, 2000);
-  })();
 
   /* ── 🌐 Live Network Speed Monitor ──────────────────────────────────────────
      Tracks upload AND download bytes separately.
@@ -4908,7 +4824,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.41"
+APP_VERSION = "1.1.42"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5143,20 +5059,14 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     value="whisper_local",
                     elem_id="ta-stt-engine",
                 )
-                whisper_input = gr.Dropdown(
+                stt_model_input = gr.Dropdown(
                     label="Whisper model size",
                     choices=_WHISPER_SIZES,
                     value="base",
-                    info="tiny = fastest · turbo = large speed  |  large-v3 = most accurate",
+                    info="tiny = fastest · turbo ≈ large speed  |  large-v3 = most accurate",
                     visible=True,
-                    elem_id="ta-whisper-size",
-                )
-                stt_model_input = gr.Dropdown(
-                    label="STT Model",
-                    choices=[],
-                    value=None,
-                    visible=False,
                     allow_custom_value=True,
+                    elem_id="ta-stt-model",
                 )
                 stt_key_input = gr.Textbox(
                     label="STT API Key",
@@ -5565,7 +5475,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         fn=process_file,
         inputs=[
             file_input, path_input,
-            panel_toggle, speakers_input, whisper_input,
+            panel_toggle, speakers_input,
             stt_engine_input, stt_key_input, stt_model_input,
             interview_toggle, interview_deep, profile_text_state,
             language_input, language_variant,
@@ -5652,7 +5562,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
     _id = lambda v: v
-    whisper_input.change(   fn=_id, inputs=whisper_input,    outputs=bsw_whisper,  queue=False)
+    stt_model_input.change( fn=_id, inputs=stt_model_input,  outputs=bsw_whisper,  queue=False)
     language_input.change(  fn=_id, inputs=language_input,   outputs=bsw_language, queue=False)
     report_style.change(    fn=_id, inputs=report_style,     outputs=bsw_style,    queue=False)
     interview_toggle.change(fn=_id, inputs=interview_toggle, outputs=bsw_interview,queue=False)
@@ -5693,7 +5603,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         fn=_restore_settings,
         inputs=[bsr_whisper, bsr_language, bsr_style, bsr_interview, bsr_deep,
                 bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers],
-        outputs=[whisper_input, language_input, report_style, interview_toggle, interview_deep,
+        outputs=[stt_model_input, language_input, report_style, interview_toggle, interview_deep,
                  inc_summary, inc_key_points, inc_action, inc_transcript, inc_profiles, inc_analytics,
                  speakers_input],
         queue=False,

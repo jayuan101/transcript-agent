@@ -1,3 +1,4 @@
 # Always use LF for shell scripts so they run correctly in Linux containers
 *.sh text eol=lf
 dist/*.zip filter=lfs diff=lfs merge=lfs -text
+dist/*.exe filter=lfs diff=lfs merge=lfs -text

@@ -4678,6 +4678,13 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.32",
+        "date": "2026-06-01",
+        "notes": [
+            "Fix: floating ▶ button now truly follows scroll — position:absolute + scroll-event tracking replaces broken position:fixed (Gradio uses html as scroll container)",
+        ],
+    },
+    {
         "version": "1.1.31",
         "date": "2026-06-01",
         "notes": [
@@ -4870,7 +4877,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.31"
+APP_VERSION = "1.1.32"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -759,11 +759,12 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
     effective_model = model or "nova-2"
     if on_log:
         on_log(f"Deepgram model: {effective_model}", "info")
+    lang_kw = {"language": language} if language else {"detect_language": True}
     opts = PrerecordedOptions(
         model=effective_model,
         punctuate=True, diarize=True, utterances=True,
-        language=language or "en", smart_format=True,
-        numerals=True,
+        smart_format=True, numerals=True,
+        **lang_kw,
     )
     import mimetypes as _mt
     mime = _mt.guess_type(path)[0] or "audio/mpeg"
@@ -772,11 +773,12 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
             {"buffer": f, "mimetype": mime}, opts,
         )
     result = resp.results.channels[0].alternatives[0]
+    detected_lang = getattr(resp.results.channels[0], "detected_language", None) or language or "en"
     segs, lines = [], []
     for utt in (resp.results.utterances or []):
         segs.append({"start": utt.start, "end": utt.end, "text": utt.transcript})
         lines.append(f"[{_fmt_ts(utt.start)}] {utt.transcript}")
-    return "\n".join(lines) or result.transcript, language or "en", segs
+    return "\n".join(lines) or result.transcript, detected_lang, segs
 
 
 def _stt_assemblyai(path: str, api_key: str, language: str = None, on_log=None,

@@ -1921,7 +1921,8 @@ def process_file(
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
-    if not api_key and provider_name != "Ollama (Local)":
+    # API key not needed when transcription only — no AI call is made
+    if not api_key and provider_name != "Ollama (Local)" and not transcription_only:
         yield _err(f"Please enter your {provider_name} API key at the top of the page.")
         return
     provider_type = provider_cfg["type"]
@@ -2989,35 +2990,24 @@ window.taDoUpdate = function(url, btn, platform) {
       document.documentElement.appendChild(fw);
     }
 
-    /* Scroll/resize guard — runs once per page load.
-       If window-level scroll fires it means html/body is the scroll container,
-       which means CSS position:fixed may be offset by any ancestor transform.
-       In that case switch to absolute positioning updated per scroll frame. */
-    if (!window.__taScrollGuard) {
-      window.__taScrollGuard = true;
-      function _taRepin() {
+    /* rAF pin-loop — re-pins the button to the viewport bottom-right every frame.
+       Works regardless of whether scrolling is via window or an inner Gradio container,
+       and survives any CSS position:fixed breakage caused by ancestor transforms. */
+    if (!window.__taPinLoop) {
+      window.__taPinLoop = true;
+      (function _taPin() {
         var el = document.getElementById('ta-float-wrap');
-        if (!el) return;
-        var st = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        var sl = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
-        if (st > 0 || sl > 0) {
-          /* page itself scrolls — switch to absolute so the button stays viewport-pinned */
-          el.style.position = 'absolute';
+        if (el && el.offsetHeight) {
+          var vw = window.innerWidth  || document.documentElement.clientWidth  || 1280;
+          var vh = window.innerHeight || document.documentElement.clientHeight || 800;
+          el.style.position = 'fixed';
+          el.style.top      = (vh - el.offsetHeight - 28) + 'px';
+          el.style.left     = (vw - el.offsetWidth  - 28) + 'px';
           el.style.bottom   = 'auto';
           el.style.right    = 'auto';
-          el.style.top      = (st + window.innerHeight - 96) + 'px';
-          el.style.left     = (sl + window.innerWidth  - 96) + 'px';
-        } else {
-          /* Gradio inner-scroll or no scroll — position:fixed is correct */
-          el.style.position = 'fixed';
-          el.style.top  = 'auto';
-          el.style.left = 'auto';
-          el.style.bottom = '28px';
-          el.style.right  = '28px';
         }
-      }
-      window.addEventListener('scroll', _taRepin, {passive: true});
-      window.addEventListener('resize', _taRepin, {passive: true});
+        requestAnimationFrame(_taPin);
+      })();
     }
   }
   /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */

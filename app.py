@@ -27,6 +27,7 @@ import queue as Q
 import time
 import re
 import urllib.parse
+import html
 import mimetypes
 import tempfile
 from pathlib import Path
@@ -1446,6 +1447,17 @@ def generate_pdf_in_language(result_state, target_lang: str, api_key: str,
     return str(pdf_path)
 
 
+_PULSE_CSS = (
+    '<style>'
+    '@keyframes ta-pulse-ring{'
+    '0%{box-shadow:0 0 0 0 rgba(37,99,235,0.45)}'
+    '70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}'
+    '100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}'
+    '}'
+    '</style>'
+)
+
+
 def _step_tracker_html(stage: str, done: bool = False) -> str:
     # ── Map stage → which sub-steps are done/active/waiting ──────────────────
     # Phases: p1 = Transcription, p2 = AI Analysis, p3 = Complete
@@ -1454,34 +1466,20 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     #   p2: Analyze (🤖)
     #   p3: Done (✅)
 
-    # pulse keyframes injected once
-    _PULSE_CSS = (
-        '<style>'
-        '@keyframes ta-pulse-ring{'
-        '0%{box-shadow:0 0 0 0 rgba(37,99,235,0.45)}'
-        '70%{box-shadow:0 0 0 8px rgba(37,99,235,0)}'
-        '100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}'
-        '}'
-        '</style>'
-    )
-
-    def _node(icon, state, is_last_in_group=False):
+    def _node(icon, state):
         if state == "done":
             bg   = "var(--ta-step-done-bg)"
             bdr  = "var(--ta-step-done-bdr)"
-            clr  = "var(--ta-step-done-clr)"
             anim = ""
             inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
         elif state == "active":
             bg   = "var(--ta-step-act-bg)"
             bdr  = "var(--ta-step-act-bdr)"
-            clr  = "var(--ta-step-act-clr)"
             anim = "animation:ta-pulse-ring 1.6s ease-out infinite;"
             inner = f'<span style="font-size:1.05em;line-height:1;">{icon}</span>'
         else:
             bg   = "var(--ta-step-wait-bg)"
             bdr  = "var(--ta-step-wait-bdr)"
-            clr  = "var(--ta-step-wait-clr)"
             anim = ""
             inner = f'<span style="font-size:0.85em;line-height:1;opacity:0.5;">{icon}</span>'
 
@@ -1498,7 +1496,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     def _hline(color, width="28px"):
         return (
             f'<div style="width:{width};height:2px;background:{color};border-radius:2px;'
-            f'flex-shrink:0;margin-bottom:22px;transition:background 0.4s;align-self:center;"></div>'
+            f'flex-shrink:0;transition:background 0.4s;align-self:center;"></div>'
         )
 
     if done:
@@ -1541,14 +1539,13 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         clr = _phase_color(state)
         hint_html = (
             f'<div style="font-size:0.64em;font-weight:600;color:{clr};'
-            f'text-align:center;margin-top:4px;min-height:14px;letter-spacing:0.01em;">{hint}</div>'
+            f'text-align:center;margin-top:4px;min-height:14px;letter-spacing:0.01em;">{html.escape(hint)}</div>'
         ) if hint else '<div style="min-height:14px;"></div>'
-        label_clr = clr
         return (
             f'<div style="display:flex;flex-direction:column;align-items:center;'
-            f'padding:10px 8px 8px;">'
+            f'justify-content:center;padding:10px 8px 8px;">'
             f'<div style="font-size:0.6em;font-weight:800;text-transform:uppercase;'
-            f'letter-spacing:0.1em;color:{label_clr};margin-bottom:8px;white-space:nowrap;">{label}</div>'
+            f'letter-spacing:0.1em;color:{clr};margin-bottom:8px;white-space:nowrap;">{label}</div>'
             f'<div style="display:flex;align-items:center;gap:0;">{nodes_html}</div>'
             f'{hint_html}'
             f'</div>'
@@ -1560,7 +1557,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     for i, (ic, st) in enumerate(p1_icons):
         p1_nodes += _node(ic, st)
         if i < len(p1_icons) - 1:
-            lc = "var(--ta-conn-line-done)" if p1_steps[i] == "done" else "var(--ta-conn-line-wait)"
+            lc = "var(--ta-conn-line-done)" if p1_steps[i] == "done" and p1_steps[i + 1] == "done" else "var(--ta-conn-line-wait)"
             p1_nodes += _hline(lc, "20px")
 
     p1_col = _phase_col("Step 1 · Transcription", p1_nodes, p1_hint, p1_state)
@@ -1582,7 +1579,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
     def _big_connector(color):
         return (
             f'<div style="width:18px;height:2px;background:{color};border-radius:2px;'
-            f'flex-shrink:0;align-self:center;margin-bottom:10px;transition:background 0.4s;"></div>'
+            f'flex-shrink:0;align-self:center;transition:background 0.4s;"></div>'
         )
 
     return (

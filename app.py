@@ -4658,6 +4658,15 @@ _SECTION = lambda label: f"""
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.36",
+        "date": "2026-06-01",
+        "notes": [
+            "Feat: Interview coaching profile upload — resume/bio personalises 'what you could have said' answers",
+            "Feat: Re-analyze with Profile button skips re-transcription, re-runs coaching only",
+            "Feat: Float ▶ button tracks viewport center-right as user scrolls",
+        ],
+    },
+    {
         "version": "1.1.35",
         "date": "2026-06-01",
         "notes": [
@@ -4878,7 +4887,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.1.35"
+APP_VERSION = "1.1.36"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Docker entrypoint — REST API + Gradio UI served together on port 7860.
-# (HuggingFace Spaces only exposes 7860, so both share the same port.)
+# Docker entrypoint — Gradio UI + REST API on port 7860.
+# REST routes (/health, /api/*) are grafted onto Gradio's FastAPI app at startup.
 
-echo "[entrypoint] Starting Transcript Agent on port 7860..."
+echo "[entrypoint] Starting Transcript Agent..."
 exec python /app/app.py

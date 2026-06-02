@@ -2938,15 +2938,42 @@ window.taDoUpdate = function(url, btn, platform) {
       );
       document.documentElement.appendChild(w);
     }
-    /* Floating ▶ button — lives in <body>, MutationObserver re-injects it
-       the moment Gradio removes it so it is never gone for more than one paint. */
+    /* Floating ▶ button — uses position:absolute + scroll-tracking because
+       the <html> element is Gradio's scroll container, which breaks position:fixed. */
+
+    /* One-time scroll/resize listener — installed globally so it survives re-injects */
+    if (!window.__taPinInstalled) {
+      window.__taPinInstalled = true;
+      var _taTick = false;
+      window._taPinFloat = function() {
+        if (_taTick) return;
+        _taTick = true;
+        requestAnimationFrame(function() {
+          var el = document.getElementById('ta-float-wrap');
+          if (el) {
+            var st = document.documentElement.scrollTop || document.body.scrollTop || window.pageYOffset || 0;
+            var sl = document.documentElement.scrollLeft || document.body.scrollLeft || window.pageXOffset || 0;
+            var vw = window.innerWidth  || 1280;
+            var vh = window.innerHeight || 800;
+            var bh = window.__taFH || 90;
+            var bw = window.__taFW || 70;
+            el.style.top  = (st + vh - bh - 28) + 'px';
+            el.style.left = (sl + vw - bw - 28) + 'px';
+          }
+          _taTick = false;
+        });
+      };
+      /* capture:true catches scroll on <html> (Gradio's actual scroller) */
+      document.addEventListener('scroll', window._taPinFloat, {passive: true, capture: true});
+      window.addEventListener('resize',   window._taPinFloat, {passive: true});
+    }
+
     function _buildFloat() {
       var fw = document.createElement('div');
       fw.id = 'ta-float-wrap';
       fw.style.cssText = (
-        'position:fixed;bottom:28px;right:28px;z-index:2147483647;'
-        + 'display:flex;flex-direction:column;align-items:center;gap:8px;'
-        + 'pointer-events:none;'
+        'position:absolute;top:0;left:0;z-index:2147483647;'
+        + 'display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;'
       );
       var flabel = document.createElement('div');
       flabel.id = 'ta-float-label';
@@ -2986,13 +3013,20 @@ window.taDoUpdate = function(url, btn, platform) {
       fw.appendChild(fbtn);
       return fw;
     }
+
     function _ensureFloat() {
-      if (!document.getElementById('ta-float-wrap') && document.body) {
-        document.body.appendChild(_buildFloat());
-      }
+      if (!document.body || document.getElementById('ta-float-wrap')) return;
+      var fw = _buildFloat();
+      document.body.appendChild(fw);
+      /* Measure real dimensions after layout, cache globally for the pin fn */
+      requestAnimationFrame(function() {
+        window.__taFH = fw.offsetHeight || 90;
+        window.__taFW = fw.offsetWidth  || 70;
+        window._taPinFloat && window._taPinFloat();
+      });
     }
+
     _ensureFloat();
-    /* MutationObserver: re-inject within the same paint cycle if Gradio removes it */
     if (!window.__taFloatObs) {
       window.__taFloatObs = true;
       new MutationObserver(_ensureFloat).observe(document.body, { childList: true });

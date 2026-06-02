@@ -497,308 +497,248 @@ FORMATS_MD = """
 """
 
 CSS = """
-/* Hide Gradio footer, version badge, and "Built with Gradio" link */
-footer,
-.gradio-footer,
-.built-with,
-[data-testid="footer"],
-.svelte-footer,
-a[href*="gradio.app"],
-a[href*="huggingface.co/spaces"]:not([id]) { display: none !important; }
+/* ── Hide Gradio chrome ── */
+footer, .gradio-footer, .built-with, [data-testid="footer"],
+a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
+  display: none !important;
+}
 
-/* page */
-body { background: #f4f6fb !important; }
+/* ── Design tokens ── */
+:root {
+  --ta-bg:            #f0f4fb;
+  --ta-surface:       #ffffff;
+  --ta-border:        #dde3ef;
+  --ta-text:          #0d1b2e;
+  --ta-sub:           #5a6a83;
+  --ta-accent:        #2563eb;
+  --ta-accent-h:      #1d4ed8;
+  --ta-accent-lt:     #dbeafe;
+  --ta-green:         #16a34a;
+  --ta-green-lt:      #dcfce7;
+  --ta-amber:         #d97706;
+  --ta-amber-lt:      #fef3c7;
+  --ta-radius:        12px;
+  /* legacy aliases used throughout */
+  --ta-card-bg:       #ffffff;
+  --ta-card-border:   #dde3ef;
+  --ta-card-text:     #0d1b2e;
+  --ta-card-sub:      #5a6a83;
+  --ta-card-val:      #0d1b2e;
+  --ta-step-done-bg:  #dcfce7;
+  --ta-step-done-bdr: #22c55e;
+  --ta-step-done-clr: #166534;
+  --ta-step-act-bg:   #dbeafe;
+  --ta-step-act-bdr:  #2563eb;
+  --ta-step-act-clr:  #1d4ed8;
+  --ta-step-wait-bg:  #f1f5f9;
+  --ta-step-wait-bdr: #dde3ef;
+  --ta-step-wait-clr: #94a3b8;
+  --ta-conn-line-done:#22c55e;
+  --ta-conn-line-wait:#dde3ef;
+  --ta-stat-bg:       rgba(255,255,255,0.8);
+  --ta-stat-label:    #1e40af;
+  --ta-stat-val:      #1d4ed8;
+}
+html.dark {
+  --ta-bg:            #080f1c;
+  --ta-surface:       #111827;
+  --ta-border:        #1e2d45;
+  --ta-text:          #e2e8f0;
+  --ta-sub:           #7a8fa6;
+  --ta-accent:        #3b82f6;
+  --ta-accent-h:      #60a5fa;
+  --ta-accent-lt:     #1e3a5f;
+  --ta-green:         #4ade80;
+  --ta-green-lt:      #14532d;
+  --ta-amber:         #fbbf24;
+  --ta-amber-lt:      #78350f;
+  --ta-card-bg:       #111827;
+  --ta-card-border:   #1e2d45;
+  --ta-card-text:     #e2e8f0;
+  --ta-card-sub:      #7a8fa6;
+  --ta-card-val:      #f1f5f9;
+  --ta-step-done-bg:  #14532d;
+  --ta-step-done-bdr: #4ade80;
+  --ta-step-done-clr: #4ade80;
+  --ta-step-act-bg:   #1e3a5f;
+  --ta-step-act-bdr:  #60a5fa;
+  --ta-step-act-clr:  #93c5fd;
+  --ta-step-wait-bg:  #080f1c;
+  --ta-step-wait-bdr: #1e2d45;
+  --ta-step-wait-clr: #475569;
+  --ta-conn-line-done:#4ade80;
+  --ta-conn-line-wait:#1e2d45;
+  --ta-stat-bg:       rgba(8,15,28,0.7);
+  --ta-stat-label:    #93c5fd;
+  --ta-stat-val:      #e2e8f0;
+}
 
-/* ── Checkbox — fully custom so both checked and unchecked are visible ── */
+/* ── Base ── */
+body { background: var(--ta-bg) !important; }
+html.dark { color-scheme: dark; }
+html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
+  background: var(--ta-bg) !important; color: var(--ta-text) !important;
+}
+html.dark .block, html.dark .form, html.dark .panel-full-width,
+html.dark .compact, html.dark .wrap, html.dark .upload-container {
+  background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
+}
+html.dark input, html.dark textarea, html.dark select {
+  background: var(--ta-bg) !important; color: var(--ta-text) !important; border-color: var(--ta-border) !important;
+}
+html.dark span, html.dark p, html.dark div, html.dark h1, html.dark h2,
+html.dark h3, html.dark h4, html.dark li, html.dark td { color: var(--ta-text) !important; }
+html.dark .label-wrap span, html.dark .block-label, html.dark label span,
+html.dark .info, html.dark .file-name { color: var(--ta-sub) !important; }
+html.dark .tabs > .tab-nav button {
+  color: var(--ta-sub) !important; background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
+}
+html.dark .tabs > .tab-nav button.selected {
+  color: var(--ta-text) !important; border-bottom-color: var(--ta-accent) !important; background: var(--ta-bg) !important;
+}
+html.dark .tabitem { background: var(--ta-bg) !important; }
+html.dark .prose *, html.dark .markdown * { color: var(--ta-text) !important; }
+html.dark [role="listbox"] { background: var(--ta-surface) !important; border-color: var(--ta-border) !important; }
+html.dark [role="option"] { color: var(--ta-text) !important; background: var(--ta-surface) !important; }
+html.dark [role="option"]:hover, html.dark [role="option"][aria-selected="true"] {
+  background: var(--ta-border) !important; color: #fff !important;
+}
+html.dark .accordion, html.dark details { background: var(--ta-surface) !important; border-color: var(--ta-border) !important; }
+html.dark .accordion .label-wrap, html.dark details summary { color: var(--ta-text) !important; }
+html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
+html.dark .file-preview { background: var(--ta-surface) !important; color: var(--ta-text) !important; }
+html.dark .dropdown-arrow svg { fill: var(--ta-sub) !important; }
+html.dark button { background: var(--ta-surface) !important; border-color: var(--ta-border) !important; color: var(--ta-text) !important; }
+html.dark ::-webkit-scrollbar-track { background: var(--ta-bg) !important; }
+html.dark ::-webkit-scrollbar-thumb { background: var(--ta-border) !important; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
+html.dark #ta-btn-light { background: transparent !important; color: var(--ta-sub) !important; }
+html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !important; }
+
+/* ── Top bar ── */
+.ta-topbar {
+  background: linear-gradient(135deg,#050e20 0%,#0c1f42 45%,#142e6e 100%);
+  border-radius: 16px;
+  padding: 18px 26px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 10px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+}
+.ta-topbar::after {
+  content: '';
+  position: absolute;
+  top: -60px; right: -40px;
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 65%);
+  pointer-events: none;
+}
+.ta-topbar-icon {
+  width: 42px; height: 42px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.35em; flex-shrink: 0; position: relative; z-index: 1;
+}
+.ta-topbar-body { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.ta-topbar-name {
+  font-size: 1.2em; font-weight: 800; letter-spacing: -0.02em;
+  color: #fff; display: block; line-height: 1.15;
+}
+.ta-topbar-tag {
+  font-size: 0.76em; color: rgba(148,163,184,0.9);
+  display: block; margin-top: 2px;
+}
+.ta-topbar-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; position: relative; z-index: 1; }
+.ta-pill {
+  font-size: 0.69em; font-weight: 600; padding: 3px 10px;
+  border-radius: 20px; background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.14); color: #cbd5e1; white-space: nowrap;
+}
+
+/* ── Section label ── */
+.ta-section-label {
+  font-size: 0.65em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.13em; color: var(--ta-sub);
+  padding: 14px 0 6px; display: block;
+  border-bottom: 1px solid var(--ta-border); margin-bottom: 8px;
+}
+
+/* ── Stat cells ── */
+.ta-stat-cell { display:flex;flex-direction:column;align-items:center;padding:0 16px;text-align:center;flex:1;min-width:90px; }
+.ta-stat-val  { font-size:0.87em;font-weight:700;color:var(--ta-card-text);white-space:nowrap; }
+.ta-stat-key  { font-size:0.67em;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-card-sub);margin-top:2px; }
+
+/* ── Checkboxes ── */
 input[type="checkbox"] {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    width: 18px !important;
-    height: 18px !important;
-    min-width: 18px !important;
-    border: 2px solid #2563eb !important;
-    border-radius: 4px !important;
-    background: #ffffff !important;
-    cursor: pointer !important;
-    position: relative !important;
-    vertical-align: middle !important;
-    transition: background 0.15s, border-color 0.15s !important;
-    flex-shrink: 0 !important;
+  -webkit-appearance: none !important; appearance: none !important;
+  width: 17px !important; height: 17px !important; min-width: 17px !important;
+  border: 2px solid var(--ta-accent) !important;
+  border-radius: 4px !important; background: var(--ta-surface) !important;
+  cursor: pointer !important; position: relative !important;
+  vertical-align: middle !important; flex-shrink: 0 !important;
+  transition: background 0.14s, border-color 0.14s !important;
 }
 input[type="checkbox"]:checked {
-    background: #2563eb !important;
-    border-color: #2563eb !important;
+  background: var(--ta-accent) !important; border-color: var(--ta-accent) !important;
 }
 input[type="checkbox"]:checked::after {
-    content: '' !important;
-    position: absolute !important;
-    left: 4px !important;
-    top: 1px !important;
-    width: 6px !important;
-    height: 10px !important;
-    border: 2px solid #fff !important;
-    border-top: none !important;
-    border-left: none !important;
-    transform: rotate(45deg) !important;
-    display: block !important;
+  content: '' !important; position: absolute !important;
+  left: 4px !important; top: 1px !important;
+  width: 5px !important; height: 9px !important;
+  border: 2px solid #fff !important; border-top: none !important; border-left: none !important;
+  transform: rotate(45deg) !important; display: block !important;
 }
-input[type="checkbox"]:hover { border-color: #1d4ed8 !important; }
-input[type="checkbox"]:focus { outline: 2px solid #93c5fd !important; outline-offset: 2px !important; }
-
-/* Dark mode checkboxes */
-html.dark input[type="checkbox"] {
-    background: #1e293b !important;
-    border-color: #60a5fa !important;
-}
-html.dark input[type="checkbox"]:checked {
-    background: #3b82f6 !important;
-    border-color: #3b82f6 !important;
-}
-html.dark input[type="checkbox"]:hover { border-color: #93c5fd !important; }
-
-.checkbox-wrap { align-items: center !important; gap: 8px !important; }
-.checkbox-group label, .checkbox-wrap label {
-    font-size: 0.9em !important;
-    font-weight: 500 !important;
-    cursor: pointer !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-}
-html.dark .checkbox-group label span,
-html.dark .checkbox-wrap label span { color: #e2e8f0 !important; }
-
-/* process button */
-.big-btn button {
-    background: linear-gradient(135deg,#1e40af,#3b82f6) !important;
-    color: #fff !important;
-    font-size: 1.08em !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.04em !important;
-    border: none !important;
-    border-radius: 10px !important;
-    padding: 15px !important;
-    min-height: 54px !important;
-    width: 100% !important;
-    box-shadow: 0 4px 14px rgba(29,78,216,0.40) !important;
-    transition: all 0.15s ease !important;
-}
-.big-btn button:hover {
-    background: linear-gradient(135deg,#1e3a8a,#1d4ed8) !important;
-    box-shadow: 0 6px 20px rgba(29,78,216,0.55) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* scrollable dropdowns — generic */
-[role="listbox"] {
-    max-height: 220px !important;
-    overflow-y: auto !important;
-}
-
-/* provider + model dropdowns — taller scroll area, thin scrollbar */
-#provider-sel [role="listbox"],
-#model-sel [role="listbox"] {
-    max-height: 280px !important;
-    overflow-y: auto !important;
-    scrollbar-width: thin !important;
-}
-#provider-sel [role="listbox"]::-webkit-scrollbar,
-#model-sel [role="listbox"]::-webkit-scrollbar { width: 6px !important; }
-#provider-sel [role="listbox"]::-webkit-scrollbar-thumb,
-#model-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #94a3b8 !important; border-radius: 4px !important;
-}
-html.dark #provider-sel [role="listbox"]::-webkit-scrollbar-thumb,
-html.dark #model-sel [role="listbox"]::-webkit-scrollbar-thumb {
-    background: #475569 !important;
-}
-
-/* live log dark terminal */
-#live-log textarea {
-    background: #0f172a !important;
-    color: #86efac !important;
-    font-family: 'Courier New', monospace !important;
-    font-size: 0.80em !important;
-    line-height: 1.65 !important;
-    border-color: #1e3a5f !important;
-    border-radius: 8px !important;
-}
-
-/* Fix banner text — Gradio overrides <strong> color to white */
-#api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
-#api-banner-sub { color: #92400e !important; }
-
-/* ── Stats panel ── */
-.ta-stat-cell { display:flex;flex-direction:column;align-items:center;padding:0 16px;text-align:center;flex:1;min-width:100px; }
-.ta-stat-val  { font-size:0.88em;font-weight:700;color:var(--ta-card-text);white-space:nowrap; }
-.ta-stat-key  { font-size:0.68em;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-card-sub);margin-top:2px; }
-
-/* ── Hero — guaranteed injection via Gradio CSS pipeline ── */
-.ta-hero {
-    background: linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%) !important;
-    border-radius: 22px !important;
-    padding: 36px 44px 30px !important;
-    color: #fff !important;
-    margin-bottom: 6px !important;
-    position: relative !important;
-    overflow: hidden !important;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.32), 0 2px 8px rgba(0,0,0,0.2) !important;
-}
-.ta-hero * { color: inherit; }
-.ta-hero-eyebrow { font-size: 0.67em !important; font-weight: 700 !important; letter-spacing: 0.15em !important; text-transform: uppercase !important; color: rgba(147,197,253,0.95) !important; margin-bottom: 5px !important; display: block; }
-.ta-hero-title { font-size: 2.05em !important; font-weight: 800 !important; letter-spacing: -0.04em !important; line-height: 1.05 !important; background: linear-gradient(110deg,#fff 25%,#bfdbfe 70%,#93c5fd 100%) !important; -webkit-background-clip: text !important; -webkit-text-fill-color: transparent !important; background-clip: text !important; display: block; }
-.ta-hero-sub { color: #cbd5e1 !important; font-size: 0.83em !important; margin-top: 6px !important; display: block; -webkit-text-fill-color: #cbd5e1 !important; }
-.ta-hero-stat-n { font-size: 1.3em !important; font-weight: 800 !important; color: #fff !important; display: block; }
-.ta-hero-stat-l { font-size: 0.67em !important; font-weight: 600 !important; color: #e2e8f0 !important; text-transform: uppercase !important; display: block; }
-.ta-hero-stats { background: rgba(255,255,255,0.10) !important; border: 1px solid rgba(255,255,255,0.18) !important; border-radius: 12px !important; padding: 12px 20px !important; margin-bottom: 18px !important; display: flex !important; align-items: center !important; flex-wrap: wrap !important; gap: 0 !important; }
-.ta-hero-stat { display: flex !important; flex-direction: column !important; align-items: center !important; flex: 1 !important; min-width: 60px !important; }
-.ta-hero-stat-sep { width: 1px !important; height: 32px !important; background: rgba(255,255,255,0.2) !important; flex-shrink: 0 !important; }
-.ta-hero-chips { display: flex !important; gap: 7px !important; flex-wrap: wrap !important; }
-.ta-hero-chip { border-radius: 8px !important; padding: 4px 12px !important; font-size: 0.72em !important; font-weight: 600 !important; }
-.ta-hc-blue { background: rgba(59,130,246,0.28) !important; border: 1px solid rgba(96,165,250,0.4) !important; color: #bfdbfe !important; }
-.ta-hc-purple { background: rgba(139,92,246,0.25) !important; border: 1px solid rgba(167,139,250,0.4) !important; color: #ddd6fe !important; }
-.ta-hc-indigo { background: rgba(99,102,241,0.28) !important; border: 1px solid rgba(129,140,248,0.4) !important; color: #c7d2fe !important; }
-.ta-hero-header { display: flex !important; align-items: center !important; gap: 20px !important; margin-bottom: 22px !important; }
-.ta-hero-icon-box { background: linear-gradient(135deg,rgba(255,255,255,0.13),rgba(255,255,255,0.04)) !important; border: 1px solid rgba(255,255,255,0.2) !important; border-radius: 18px !important; padding: 14px 16px !important; flex-shrink: 0 !important; }
-.ta-hero-blob-tr, .ta-hero-blob-bl, .ta-hero-grid { position: absolute !important; pointer-events: none !important; }
-.ta-hero-blob-tr { top: -70px !important; right: -50px !important; width: 320px !important; height: 320px !important; background: radial-gradient(circle,rgba(59,130,246,0.22) 0%,transparent 68%) !important; }
-.ta-hero-blob-bl { bottom: -50px !important; left: 40px !important; width: 240px !important; height: 240px !important; background: radial-gradient(circle,rgba(99,102,241,0.14) 0%,transparent 65%) !important; }
-.ta-hero-grid { inset: 0 !important; background-image: radial-gradient(rgba(255,255,255,0.055) 1px,transparent 1px) !important; background-size: 28px 28px !important; }
-.ta-hero-inner { position: relative !important; }
+html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
 
 /* ── Analyze button ── */
 .ta-analyze-btn button {
-    background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
-    color: #fff !important; font-size: 0.9em !important; font-weight: 700 !important;
-    border: none !important; border-radius: 8px !important;
-    padding: 8px 18px !important; width: 100% !important;
-    box-shadow: 0 3px 12px rgba(29,78,216,0.35) !important;
-    letter-spacing: 0.02em !important; transition: all 0.18s !important;
+  background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
+  color: #fff !important; font-size: 0.92em !important; font-weight: 700 !important;
+  border: none !important; border-radius: 9px !important;
+  padding: 10px 20px !important; width: 100% !important;
+  box-shadow: 0 3px 12px rgba(29,78,216,0.3) !important;
+  letter-spacing: 0.02em !important; transition: all 0.18s !important;
 }
-.ta-analyze-btn button:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.48) !important; }
+.ta-analyze-btn button:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
+html.dark .ta-analyze-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
 
-/* ── Stop button — tiny, flush right ── */
+/* ── Cancel button ── */
 .ta-cancel-btn { flex: 0 0 34px !important; min-width: 34px !important; max-width: 34px !important; }
 .ta-cancel-btn button { width: 34px !important; height: 34px !important; padding: 0 !important; border-radius: 7px !important; font-size: 0.82em !important; font-weight: 700 !important; line-height: 1 !important; box-shadow: none !important; }
 .ta-status-bar { flex: 1 1 auto !important; min-width: 0 !important; }
 
-/* ── Dark mode static rules (JS-injected sheet wins by cascade order) ── */
-html.dark { color-scheme: dark; color: #e2e8f0 !important; background: #0f172a !important; }
-html.dark body, html.dark .gradio-container, html.dark .main, html.dark .contain {
-    background: #0f172a !important; color: #e2e8f0 !important;
-}
-html.dark .block, html.dark .form, html.dark .panel-full-width, html.dark .compact,
-html.dark .wrap, html.dark .upload-container {
-    background: #1e293b !important; border-color: #334155 !important;
-}
-html.dark input, html.dark textarea, html.dark select {
-    background: #0f172a !important; color: #e2e8f0 !important; border-color: #475569 !important;
-}
-html.dark span, html.dark p, html.dark div, html.dark h1, html.dark h2,
-html.dark h3, html.dark h4, html.dark li, html.dark td { color: #e2e8f0 !important; }
-html.dark .label-wrap span, html.dark .block-label, html.dark label span,
-html.dark .info, html.dark .file-name { color: #94a3b8 !important; }
-html.dark .tabs > .tab-nav button {
-    color: #94a3b8 !important; background: #1e293b !important; border-color: #334155 !important;
-}
-html.dark .tabs > .tab-nav button.selected {
-    color: #e2e8f0 !important; border-bottom-color: #3b82f6 !important; background: #0f172a !important;
-}
-html.dark .tabitem { background: #0f172a !important; }
-html.dark .prose, html.dark .markdown { color: #e2e8f0 !important; }
-html.dark .prose *, html.dark .markdown * { color: #e2e8f0 !important; }
-html.dark [role="listbox"] { background: #1e293b !important; border-color: #334155 !important; }
-html.dark [role="option"] { color: #e2e8f0 !important; background: #1e293b !important; }
-html.dark [role="option"]:hover, html.dark [role="option"][aria-selected="true"] {
-    background: #334155 !important; color: #fff !important;
-}
-html.dark .accordion, html.dark details { background: #1e293b !important; border-color: #334155 !important; }
-html.dark .accordion .label-wrap, html.dark details summary { color: #e2e8f0 !important; }
-html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
-html.dark .file-preview { background: #1e293b !important; color: #e2e8f0 !important; }
-html.dark .dropdown-arrow svg { fill: #94a3b8 !important; }
-html.dark button { background: #1e293b !important; border-color: #334155 !important; color: #e2e8f0 !important; }
-html.dark .big-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; }
-html.dark #ta-btn-light { background: transparent !important; color: #94a3b8 !important; }
-html.dark #ta-btn-dark  { background: #3b82f6 !important; color: #fff !important; }
-html.dark ::-webkit-scrollbar-track { background: #0f172a !important; }
-html.dark ::-webkit-scrollbar-thumb { background: #334155 !important; }
-html.dark ::-webkit-scrollbar-thumb:hover { background: #475569 !important; }
-
-/* ── Adaptive CSS variables used by step-tracker and ETA panel ── */
-:root {
-    --ta-card-bg:          #f8fafc;
-    --ta-card-border:      #e2e8f0;
-    --ta-card-text:        #1e293b;
-    --ta-card-sub:         #64748b;
-    --ta-card-val:         #111827;
-    --ta-step-done-bg:     #dcfce7;
-    --ta-step-done-bdr:    #22c55e;
-    --ta-step-done-clr:    #166534;
-    --ta-step-act-bg:      #dbeafe;
-    --ta-step-act-bdr:     #2563eb;
-    --ta-step-act-clr:     #1d4ed8;
-    --ta-step-wait-bg:     #f1f5f9;
-    --ta-step-wait-bdr:    #e2e8f0;
-    --ta-step-wait-clr:    #94a3b8;
-    --ta-conn-line-done:   #22c55e;
-    --ta-conn-line-wait:   #e2e8f0;
-    --ta-stat-bg:          rgba(255,255,255,0.7);
-    --ta-stat-label:       #1e40af;
-    --ta-stat-val:         #1d4ed8;
-}
-html.dark {
-    --ta-card-bg:          #1e293b;
-    --ta-card-border:      #334155;
-    --ta-card-text:        #e2e8f0;
-    --ta-card-sub:         #94a3b8;
-    --ta-card-val:         #f1f5f9;
-    --ta-step-done-bg:     #14532d;
-    --ta-step-done-bdr:    #4ade80;
-    --ta-step-done-clr:    #4ade80;
-    --ta-step-act-bg:      #1e3a5f;
-    --ta-step-act-bdr:     #60a5fa;
-    --ta-step-act-clr:     #93c5fd;
-    --ta-step-wait-bg:     #0f172a;
-    --ta-step-wait-bdr:    #334155;
-    --ta-step-wait-clr:    #475569;
-    --ta-conn-line-done:   #4ade80;
-    --ta-conn-line-wait:   #334155;
-    --ta-stat-bg:          rgba(15,23,42,0.6);
-    --ta-stat-label:       #93c5fd;
-    --ta-stat-val:         #e2e8f0;
-}
-
-/* ── Hero dark mode ── */
-html.dark .ta-hero { border: 1px solid rgba(59,130,246,0.22) !important; box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4) !important; }
-html.dark .ta-hero-blob-tr { background: radial-gradient(circle,rgba(59,130,246,0.28) 0%,transparent 68%) !important; }
-html.dark .ta-hero-blob-bl { background: radial-gradient(circle,rgba(99,102,241,0.2) 0%,transparent 65%) !important; }
-html.dark .ta-hero-stats { background: rgba(255,255,255,0.04) !important; border-color: rgba(255,255,255,0.08) !important; }
-html.dark .ta-analyze-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
+/* ── Dropdowns ── */
+[role="listbox"] { max-height: 220px !important; overflow-y: auto !important; }
+#provider-sel [role="listbox"], #model-sel [role="listbox"] { max-height: 280px !important; scrollbar-width: thin !important; }
 
 /* ── Update banner ── */
 .ta-update-banner {
-    background: linear-gradient(135deg,#eff6ff,#dbeafe);
-    border: 2px solid #3b82f6;
-    border-radius: 14px;
-    padding: 16px 20px;
-    margin: 10px 0;
-    font-family: sans-serif;
+  background: linear-gradient(135deg,#eff6ff,#dbeafe);
+  border: 2px solid #3b82f6; border-radius: 12px;
+  padding: 14px 18px; margin: 8px 0; font-family: sans-serif;
 }
 html.dark .ta-update-banner {
-    background: linear-gradient(135deg,#1e3a5f,#1e40af22) !important;
-    border-color: #60a5fa !important;
+  background: linear-gradient(135deg,#1e3a5f,rgba(30,64,175,0.12)) !important;
+  border-color: #60a5fa !important;
 }
 .ta-upd-btn {
-    padding: 8px 16px; border-radius: 8px; border: none;
-    cursor: pointer; font-weight: 700; font-size: 0.85em;
-    transition: all 0.18s; white-space: nowrap;
+  padding: 7px 14px; border-radius: 8px; border: none;
+  cursor: pointer; font-weight: 700; font-size: 0.84em;
+  transition: all 0.18s; white-space: nowrap;
 }
 .ta-upd-win { background: #1d4ed8; color: #fff; }
 .ta-upd-win:hover { background: #1e40af; transform: translateY(-1px); }
-.ta-upd-mac { background: #374151; color: #fff; }
-.ta-upd-mac:hover { background: #1f2937; transform: translateY(-1px); }
+.ta-upd-mac { background: #1f2937; color: #fff; }
+.ta-upd-mac:hover { background: #111827; transform: translateY(-1px); }
 .ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+
+/* ── Banner text fix ── */
+#api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 
 """
 
@@ -2777,104 +2717,35 @@ _THEME = gr.themes.Soft(
 
 # ── HTML snippets ───────────────────────────────────────────────────────────────
 _HERO = """
-<div class="ta-hero">
-
-  <!-- ambient glow blobs -->
-  <div class="ta-hero-blob-tr"></div>
-  <div class="ta-hero-blob-bl"></div>
-
-  <!-- subtle dot-grid texture -->
-  <div class="ta-hero-grid"></div>
-
-  <div class="ta-hero-inner">
-
-    <!-- logo + title row -->
-    <div class="ta-hero-header">
-      <div class="ta-hero-icon-box">
-        <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-          <!-- mic body -->
-          <rect x="10" y="3" width="10" height="16" rx="5"
-                fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.85)" stroke-width="1.6"/>
-          <!-- mic stand arc -->
-          <path d="M5 17 Q5 25 15 25 Q25 25 25 17"
-                stroke="rgba(255,255,255,0.7)" stroke-width="1.6"
-                fill="none" stroke-linecap="round"/>
-          <!-- mic stand stem -->
-          <line x1="15" y1="25" x2="15" y2="29"
-                stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linecap="round"/>
-          <!-- base line -->
-          <line x1="10" y1="29" x2="20" y2="29"
-                stroke="rgba(255,255,255,0.7)" stroke-width="1.6" stroke-linecap="round"/>
-          <!-- waveform dots inside mic -->
-          <circle cx="15" cy="9"  r="1.2" fill="rgba(255,255,255,0.7)"/>
-          <circle cx="15" cy="13" r="1.2" fill="rgba(255,255,255,0.7)"/>
-        </svg>
-      </div>
-
-      <div class="ta-hero-title-block">
-        <div class="ta-hero-eyebrow">AI Transcription Platform</div>
-        <div class="ta-hero-title">Transcript Agent</div>
-        <div class="ta-hero-sub">
-          Whisper transcription &nbsp;&middot;&nbsp;
-          Multi-provider AI &nbsp;&middot;&nbsp;
-          Speaker diarization
-        </div>
-      </div>
-    </div>
-
-    <!-- stats strip -->
-    <div class="ta-hero-stats">
-      <div class="ta-hero-stat">
-        <span class="ta-hero-stat-n">8</span>
-        <span class="ta-hero-stat-l">AI Providers</span>
-      </div>
-      <div class="ta-hero-stat-sep"></div>
-      <div class="ta-hero-stat">
-        <span class="ta-hero-stat-n">37+</span>
-        <span class="ta-hero-stat-l">Languages</span>
-      </div>
-      <div class="ta-hero-stat-sep"></div>
-      <div class="ta-hero-stat">
-        <span class="ta-hero-stat-n">12</span>
-        <span class="ta-hero-stat-l">File Formats</span>
-      </div>
-      <div class="ta-hero-stat-sep"></div>
-      <div class="ta-hero-stat">
-        <span class="ta-hero-stat-n">100%</span>
-        <span class="ta-hero-stat-l">Private</span>
-      </div>
-    </div>
-
-    <!-- feature chips -->
-    <div class="ta-hero-chips">
-      <span class="ta-hero-chip ta-hc-blue">🎵 Audio &amp; Video</span>
-      <span class="ta-hero-chip ta-hc-blue">📄 Documents</span>
-      <span class="ta-hero-chip ta-hc-purple">🗣️ Speaker Diarization</span>
-      <span class="ta-hero-chip ta-hc-blue">📊 Speech Analytics</span>
-      <span class="ta-hero-chip ta-hc-indigo">🌐 37+ Languages</span>
-    </div>
-
+<div class="ta-topbar">
+  <div class="ta-topbar-icon">🎙</div>
+  <div class="ta-topbar-body">
+    <span class="ta-topbar-name">Transcript Agent</span>
+    <span class="ta-topbar-tag">Whisper transcription &nbsp;·&nbsp; Multi-provider AI &nbsp;·&nbsp; Speaker diarization</span>
+  </div>
+  <div class="ta-topbar-pills">
+    <span class="ta-pill">🤖 8 AI Providers</span>
+    <span class="ta-pill">🌐 37+ Languages</span>
+    <span class="ta-pill">🔒 100% Private</span>
+    <span class="ta-pill">🎵 Audio · Video · Docs</span>
   </div>
 </div>
 """
 
 _API_BANNER = """
-<div id="api-banner" style="background:#fffcf0;border:1px solid #fde68a;
-     border-radius:14px;padding:13px 18px;display:flex;align-items:center;gap:13px;
-     transition:all 0.3s ease;margin-top:4px;box-shadow:0 1px 4px rgba(245,158,11,0.08);">
-  <div id="api-banner-icon" style="font-size:1.3em;flex-shrink:0;transition:all 0.25s;">🔑</div>
+<div id="api-banner" style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;
+     padding:10px 16px;display:flex;align-items:center;gap:10px;margin-top:6px;font-family:sans-serif;
+     transition:all 0.25s;">
+  <span id="api-banner-icon" style="font-size:1.1em;flex-shrink:0;transition:all 0.25s;">🔑</span>
   <div style="flex:1;min-width:0;">
-    <div id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.85em;
-         transition:color 0.25s;letter-spacing:0.01em;">API Key Required</div>
-    <div id="api-banner-sub" style="color:#a16207;font-size:0.77em;margin-top:1px;transition:color 0.25s;">
-      Enter your provider API key below — billed directly to your account, never stored on this server.
-    </div>
+    <span id="api-banner-title" style="font-weight:700;color:#92400e;font-size:0.84em;">API Key Required</span>
+    <span id="api-banner-sub" style="color:#a16207;font-size:0.76em;margin-left:6px;">
+      Enter your provider key — billed to your account, never stored here.
+    </span>
   </div>
-  <div id="api-banner-badge" style="display:none;background:linear-gradient(135deg,#22c55e,#16a34a);
-       color:#fff;font-size:0.68em;font-weight:700;padding:4px 11px;border-radius:20px;
-       letter-spacing:0.06em;flex-shrink:0;box-shadow:0 2px 8px rgba(34,197,94,0.3);">
-    APPROVED ✓
-  </div>
+  <div id="api-banner-badge" style="display:none;background:#16a34a;color:#fff;
+       font-size:0.68em;font-weight:700;padding:3px 10px;border-radius:20px;
+       letter-spacing:0.06em;flex-shrink:0;">KEY SET ✓</div>
 </div>
 """
 
@@ -4452,14 +4323,11 @@ window.taDoUpdate = function(url, btn, platform) {
 
 _IDLE_STATUS = """
 <div style="background:var(--ta-card-bg);border:1.5px dashed var(--ta-card-border);
-     border-radius:16px;padding:32px 24px;text-align:center;
-     transition:border-color 0.3s,background 0.3s;">
-  <div style="font-size:2.2em;margin-bottom:10px;opacity:0.45;line-height:1;">📂</div>
-  <div style="color:var(--ta-card-text);font-size:0.97em;font-weight:700;
-       letter-spacing:-0.01em;margin-bottom:5px;">Ready to process</div>
-  <div style="color:var(--ta-card-sub);font-size:0.82em;line-height:1.5;">
-    Upload a file on the left, then click<br>
-    <strong style="color:var(--ta-step-act-clr);font-weight:700;">Analyze File</strong> to begin
+     border-radius:12px;padding:28px 20px;text-align:center;">
+  <div style="font-size:2em;margin-bottom:8px;opacity:0.35;">🎙</div>
+  <div style="color:var(--ta-card-text);font-size:0.95em;font-weight:700;margin-bottom:4px;">Ready to process</div>
+  <div style="color:var(--ta-card-sub);font-size:0.8em;line-height:1.5;">
+    Upload a file, then click <strong style="color:var(--ta-step-act-clr);">Analyze</strong>
   </div>
 </div>
 """
@@ -4562,14 +4430,7 @@ _CAPABILITIES = (
     + '</div></div>'
 )
 
-_SECTION = lambda label: f"""
-<div style="display:flex;align-items:center;gap:10px;margin:18px 0 8px;">
-  <div style="height:1px;background:var(--ta-card-border);flex:1;opacity:0.7;"></div>
-  <div style="font-size:0.67em;font-weight:700;text-transform:uppercase;letter-spacing:0.13em;
-       color:var(--ta-card-sub);white-space:nowrap;padding:0 2px;">{label}</div>
-  <div style="height:1px;background:var(--ta-card-border);flex:1;opacity:0.7;"></div>
-</div>
-"""
+_SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'
 
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
@@ -5648,18 +5509,19 @@ if __name__ == "__main__":
         _launch_kw["show_api"] = False
 
     if _docker:
-        # HF Spaces / Docker: launch Gradio normally, then graft the REST API
-        # routes onto Gradio's underlying FastAPI app so both share port 7860.
-        # (HF Spaces only exposes port 7860 — running api.py on 8000 separately
-        # is unreachable from outside.)
+        # HF Spaces / Docker: launch Gradio on port 7860, then graft REST API
+        # routes onto the same app. HF only exposes 7860; port 8000 is blocked.
         _launch_kw["prevent_thread_lock"] = True
         demo.launch(**_launch_kw)
-        # demo.server.app is the live FastAPI app — attach the REST routes
-        from api import app as _api_app
-        for _route in _api_app.routes:
-            _path = getattr(_route, "path", "")
-            if _path.startswith("/api/") or _path == "/health":
-                demo.server.app.routes.append(_route)
+        try:
+            from api import app as _api_app
+            _gradio_app = demo.server.app
+            for _route in _api_app.routes:
+                _path = getattr(_route, "path", "")
+                if _path.startswith("/api/") or _path == "/health":
+                    _gradio_app.routes.append(_route)
+        except Exception as _e:
+            print(f"[warn] REST API graft skipped: {_e}")
         demo.block_thread()
     else:
         demo.launch(**_launch_kw)

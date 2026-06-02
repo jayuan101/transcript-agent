@@ -1569,31 +1569,31 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
             state = sub_states[j] if j < len(sub_states) else "waiting"
             bg, bdr, clr, dot = _ss(state)
             dots_html += (
-                f'<div style="display:flex;flex-direction:column;align-items:center;gap:3px;">'
+                f'<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
                 f'<div style="background:{bg};border:1.5px solid {bdr};border-radius:50%;'
-                f'width:28px;height:28px;display:flex;align-items:center;justify-content:center;'
-                f'font-size:0.85em;font-weight:800;color:{clr};transition:all 0.35s;">{dot}</div>'
-                f'<div style="font-size:0.6em;font-weight:600;color:{clr};text-align:center;'
+                f'width:20px;height:20px;display:flex;align-items:center;justify-content:center;'
+                f'font-size:0.7em;font-weight:800;color:{clr};transition:all 0.35s;">{dot}</div>'
+                f'<div style="font-size:0.52em;font-weight:600;color:{clr};text-align:center;'
                 f'white-space:nowrap;">{icon}</div>'
                 f'</div>'
             )
             if j < len(sub_labels) - 1:
                 ac = "var(--ta-conn-line-done)" if sub_states[j] == "done" else "var(--ta-conn-line-wait)"
                 dots_html += (
-                    f'<div style="height:1.5px;width:14px;background:{ac};'
-                    f'margin-top:14px;flex-shrink:0;transition:background 0.35s;"></div>'
+                    f'<div style="height:1.5px;width:10px;background:{ac};'
+                    f'margin-top:10px;flex-shrink:0;transition:background 0.35s;"></div>'
                 )
 
         hint_html = (
-            f'<div style="font-size:0.66em;color:{bt};margin-top:5px;font-weight:500;'
-            f'letter-spacing:0.01em;min-height:10px;">{hint}</div>'
-        ) if hint else '<div style="min-height:10px;"></div>'
+            f'<div style="font-size:0.58em;color:{bt};margin-top:3px;font-weight:500;'
+            f'letter-spacing:0.01em;min-height:8px;">{hint}</div>'
+        ) if hint else '<div style="min-height:8px;"></div>'
 
         return (
-            f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:10px;'
-            f'padding:8px 10px;min-width:0;transition:all 0.35s;">'
-            f'<div style="font-size:0.63em;font-weight:800;text-transform:uppercase;'
-            f'letter-spacing:0.1em;color:{bt};margin-bottom:7px;">{phase_label}</div>'
+            f'<div style="flex:1;background:{bb};border:1.5px solid {bd};border-radius:8px;'
+            f'padding:5px 7px;min-width:0;transition:all 0.35s;">'
+            f'<div style="font-size:0.56em;font-weight:800;text-transform:uppercase;'
+            f'letter-spacing:0.08em;color:{bt};margin-bottom:4px;">{phase_label}</div>'
             f'<div style="display:flex;align-items:center;gap:0;">{dots_html}</div>'
             f'{hint_html}'
             f'</div>'
@@ -1617,8 +1617,8 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 
     def _connector(color):
         return (
-            f'<div style="width:18px;height:2px;background:{color};flex-shrink:0;'
-            f'margin-top:28px;border-radius:2px;transition:background 0.4s;"></div>'
+            f'<div style="width:10px;height:1.5px;background:{color};flex-shrink:0;'
+            f'margin-top:20px;border-radius:2px;transition:background 0.4s;"></div>'
         )
 
     return (
@@ -2957,8 +2957,8 @@ window.taDoUpdate = function(url, btn, platform) {
             var vh = window.innerHeight || 800;
             var bh = window.__taFH || 90;
             var bw = window.__taFW || 70;
-            el.style.top  = (st + vh - bh - 28) + 'px';
-            el.style.left = (sl + vw - bw - 28) + 'px';
+            el.style.top  = (st + 18) + 'px';
+            el.style.left = (sl + vw - bw - 18) + 'px';
           }
           _taTick = false;
         });
@@ -2994,7 +2994,7 @@ window.taDoUpdate = function(url, btn, platform) {
       );
       fbtn.textContent = '▶';
       fbtn.addEventListener('click', function() {
-        var b = document.querySelector('.ta-analyze-btn');
+        var b = document.querySelector('.ta-analyze-btn button, #ta-analyze-btn button');
         if (b && !b.disabled) {
           b.click();
           var t = document.getElementById('ta-eta-panel');
@@ -4163,7 +4163,7 @@ window.taDoUpdate = function(url, btn, platform) {
      delegation is unreliable. Wire each button directly instead.              */
   (function(){
     function doAnalyze() {
-      var btn = document.querySelector('.ta-analyze-btn');
+      var btn = document.querySelector('.ta-analyze-btn button, #ta-analyze-btn button');
       if (!btn || btn.disabled) return;
       btn.click();
       var t = document.getElementById('ta-status-bar');

@@ -1691,12 +1691,42 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     # ── Idle (before any job starts) ─────────────────────────────────────────
     if stage == "idle":
+        def _row(icon, label, items):
+            badges = "".join(
+                f'<span style="background:var(--ta-step-act-bg);color:var(--ta-step-act-clr);'
+                f'font-size:0.72em;font-weight:600;padding:2px 8px;border-radius:5px;'
+                f'white-space:nowrap;">{i}</span>' for i in items
+            )
+            return (
+                f'<div style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;'
+                f'border-bottom:1px solid var(--ta-card-border);">'
+                f'<span style="font-size:1.1em;min-width:22px;">{icon}</span>'
+                f'<div>'
+                f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:0.07em;color:var(--ta-card-sub);margin-bottom:4px;">{label}</div>'
+                f'<div style="display:flex;gap:5px;flex-wrap:wrap;">{badges}</div>'
+                f'</div></div>'
+            )
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-card-border);'
-            'border-radius:16px;padding:20px 24px;font-family:sans-serif;text-align:center;">'
-            '<div style="color:var(--ta-card-sub);font-size:0.9em;">'
-            'Upload a file or paste a URL above to start processing</div>'
-            '</div>'
+            'border-radius:16px;padding:20px 24px;font-family:sans-serif;">'
+            '<div style="font-size:0.8em;font-weight:800;text-transform:uppercase;'
+            'letter-spacing:0.1em;color:var(--ta-card-text);margin-bottom:14px;">'
+            '⚡ What we support</div>'
+            + _row("🎵", "Audio formats", ["mp3","wav","m4a","flac","ogg","aac","opus","wma","amr","aiff","+ more"])
+            + _row("🎬", "Video formats", ["mp4","mov","avi","mkv","webm","flv","wmv","ts","mpg","vob","+ more"])
+            + _row("📄", "Documents", ["pdf","docx","txt","md","srt","vtt"])
+            + _row("🎤", "STT engines", ["Whisper (local)","Deepgram","AssemblyAI","OpenAI","Groq","ElevenLabs","+ more"])
+            + _row("🤖", "AI providers", ["Claude","OpenAI","Gemini","Groq","Mistral","Together","Perplexity","Ollama"])
+            + _row("📤", "Outputs", ["Summary","Transcript","Speaker dialogue","PDF","DOCX","SRT","VTT","JSON"])
+            + '<div style="display:flex;gap:5px;flex-wrap:wrap;padding-top:10px;">'
+            + "".join(
+                f'<span style="background:var(--ta-step-wait-bg);border:1px solid var(--ta-card-border);'
+                f'color:var(--ta-card-sub);font-size:0.7em;padding:2px 8px;border-radius:5px;">{f}</span>'
+                for f in ["Speaker detection","Multi-language","Interview coaching",
+                          "Live ETA","Transcription-only mode","URL import","Dark mode"]
+            )
+            + '</div></div>'
         )
 
     if done:

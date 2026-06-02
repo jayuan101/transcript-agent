@@ -752,10 +752,11 @@ def _stt_groq(path: str, api_key: str, language: str = None, on_log=None,
 def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
                   model: str = "nova-2") -> tuple:
     try:
-        from deepgram import DeepgramClient, DeepgramClientOptions, PrerecordedOptions
+        import httpx as _httpx
+        from deepgram import DeepgramClient, PrerecordedOptions
     except ImportError:
         raise ImportError("deepgram-sdk required: pip install deepgram-sdk")
-    dg = DeepgramClient(api_key, DeepgramClientOptions(options={"timeout": 300}))
+    dg = DeepgramClient(api_key)
     effective_model = model or "nova-2"
     if on_log:
         on_log(f"Deepgram model: {effective_model}", "info")
@@ -771,6 +772,7 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
     with open(path, "rb") as f:
         resp = dg.listen.rest.v("1").transcribe_file(
             {"buffer": f, "mimetype": mime}, opts,
+            timeout=_httpx.Timeout(300.0, connect=15.0),
         )
     result = resp.results.channels[0].alternatives[0]
     detected_lang = getattr(resp.results.channels[0], "detected_language", None) or language or "en"
@@ -1731,7 +1733,8 @@ def run(
             _detected_lang = raw_whisperx.get("language", "")
             fmt = "panel audio/video (diarized)"
         else:
-            _log(f"STT engine: {STT_ENGINES.get(stt_engine, stt_engine)}  |  Whisper model: {whisper_model}")
+            _model_note = f"  |  Whisper model: {whisper_model}" if stt_engine == "whisper_local" else (f"  |  Model: {stt_model}" if stt_model else "")
+            _log(f"STT engine: {STT_ENGINES.get(stt_engine, stt_engine)}{_model_note}")
             raw_text, _detected_lang, _segments, _stt_secs = stt_transcribe(
                 file_path, stt_engine,
                 api_key=stt_api_key,

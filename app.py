@@ -4539,6 +4539,135 @@ _SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "1.1.73",
+        "date": "2026-06-03",
+        "notes": [
+            "Windows/Mac installers: Microsoft Store stub detection, 32-bit warning, proxy/path guidance",
+            "All version numbers synced across app, installers, and both remotes",
+            "requirements.txt: added python-dotenv, tqdm, tiktoken, regex, requests; gradio>=6.0.0",
+        ],
+    },
+    {
+        "version": "1.1.72",
+        "date": "2026-06-03",
+        "notes": [
+            "Complete Windows/Mac installer overhaul with correct dependencies",
+        ],
+    },
+    {
+        "version": "1.1.71",
+        "date": "2026-06-03",
+        "notes": [
+            "Exclude post-interview debrief from scoring — only live interview questions counted",
+            "Hide server file path from output log",
+        ],
+    },
+    {
+        "version": "1.1.70",
+        "date": "2026-06-03",
+        "notes": [
+            "Dark mode: fix Deflected/Did-Not-Answer badge readability",
+            "Dark mode: fix STT API key banner readability",
+        ],
+    },
+    {
+        "version": "1.1.69",
+        "date": "2026-06-03",
+        "notes": [
+            "Timestamps now show local computer time (not UTC)",
+            "Clicking Analyze or float Play button scrolls to Summary section",
+        ],
+    },
+    {
+        "version": "1.1.68",
+        "date": "2026-06-03",
+        "notes": [
+            "Dark mode: fix STT API key required banner colors",
+        ],
+    },
+    {
+        "version": "1.1.67",
+        "date": "2026-06-03",
+        "notes": [
+            "Disable extended thinking for transcript analysis — was consuming full token budget leaving no room for JSON output",
+        ],
+    },
+    {
+        "version": "1.1.65",
+        "date": "2026-06-03",
+        "notes": [
+            "Speaker profiles now work with Deepgram — standard prompt asks Claude for speaker_map and speaker_profiles",
+            "Deepgram/AssemblyAI transcripts include Speaker N: labels so Claude can identify and profile each person",
+        ],
+    },
+    {
+        "version": "1.1.64",
+        "date": "2026-06-03",
+        "notes": [
+            "PDF + DOCX language button: now generates both formats, renamed dropdown to 'Output language (PDF & DOCX)'",
+            "result_state stores summary/key_points/action_items so DOCX can be rebuilt on re-generation",
+        ],
+    },
+    {
+        "version": "1.1.63",
+        "date": "2026-06-03",
+        "notes": [
+            "Dark mode: All Done panel, question cards, Total Time, Coaching Tip, Deep Analysis sections",
+        ],
+    },
+    {
+        "version": "1.1.62",
+        "date": "2026-06-02",
+        "notes": [
+            "UTC timestamps in log, Deepgram ETA stage indicators, better AI analysis progress transparency",
+            "LAN IP shown on startup for network access",
+        ],
+    },
+    {
+        "version": "1.1.61",
+        "date": "2026-06-02",
+        "notes": [
+            "Yield immediately on Analyze click — clears loading indicator instantly",
+        ],
+    },
+    {
+        "version": "1.1.60",
+        "date": "2026-06-02",
+        "notes": [
+            "Eliminate queued delay on Analyze click — dedicated concurrency slot",
+        ],
+    },
+    {
+        "version": "1.1.59",
+        "date": "2026-06-02",
+        "notes": [
+            "Fix cloud STT model bleeding from Whisper stored value — separate BrowserState per engine",
+        ],
+    },
+    {
+        "version": "1.1.58",
+        "date": "2026-06-02",
+        "notes": [
+            "Deepgram: extract audio with ffmpeg before upload — fixes timeout on 3-hour videos",
+            "No read timeout — Deepgram processes at ~5x real-time so allow however long it needs",
+        ],
+    },
+    {
+        "version": "1.1.55",
+        "date": "2026-06-02",
+        "notes": [
+            "Deepgram: use detect_language=True when no language selected (was hardcoding 'en')",
+            "Return actual detected language from Deepgram response",
+        ],
+    },
+    {
+        "version": "1.1.54",
+        "date": "2026-06-02",
+        "notes": [
+            "Fix STT API key field not appearing for cloud engines — Gradio DOM visibility fix",
+        ],
+    },
+    {
         "version": "1.1.39",
         "date": "2026-06-02",
         "notes": [

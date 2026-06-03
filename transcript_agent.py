@@ -1247,6 +1247,11 @@ def build_standard_prompt(content, fmt, style, overall_stats, language=None, lan
     elif language and language != "auto":
         lang_note = f"\nTranscript language: {language}. Tailor accent analysis accordingly."
 
+    has_speakers = bool(re.search(r"Speaker \d+:", content))
+    speaker_fields = """
+  "speaker_map": {"Speaker 0": "resolved name or role", "Speaker 1": "resolved name or role"},
+  "speaker_profiles": {"Resolved Name": "2-3 sentence profile of their contributions and communication style"},""" if has_speakers else ""
+
     return f"""\
 Format: {fmt}
 Style: {style_note}
@@ -1257,13 +1262,13 @@ Style: {style_note}
 </transcript>
 
 Return JSON with exactly these keys (in this order — analysis fields first, transcript last):
-{{
+{{{speaker_fields}
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
   "action_items": [],
   "speaker_stats": [
     {{
-      "name": "Single Speaker or identified name",
+      "name": "resolved speaker name or role",
       "words_per_minute": 0,
       "pace_label": "Normal",
       "speaking_percentage": 100,
@@ -1271,8 +1276,8 @@ Return JSON with exactly these keys (in this order — analysis fields first, tr
       "accent_confidence": "medium"
     }}
   ],
-  "clean_transcript": "Full cleaned transcript with timestamps preserved",
-  "speaker_dialogue": "Same content with speaker labels"
+  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps",
+  "speaker_dialogue": "Readable dialogue with resolved speaker labels"
 }}"""
 
 

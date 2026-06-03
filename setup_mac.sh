@@ -11,7 +11,7 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="1.0"
+CURRENT_VERSION="1.1.71"
 APP_URL="http://localhost:7860"
 
 # ── Colour helpers ─────────────────────────────────────────
@@ -27,7 +27,7 @@ header()  { echo -e "\n${BOLD}  $*${RESET}\n"; }
 clear
 echo ""
 echo -e "${BOLD}  ============================================================"
-echo -e "    Transcript Agent  |  Mac Installer  |  v${CURRENT_VERSION}"
+echo -e "    Transcript Agent v${CURRENT_VERSION}  |  Mac Installer"
 echo -e "  ============================================================${RESET}"
 echo ""
 

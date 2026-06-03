@@ -1,6 +1,6 @@
 # Core
 anthropic>=0.52.0
-gradio>=4.0.0
+gradio>=6.0.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9

@@ -539,6 +539,9 @@ a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
   --ta-stat-bg:       rgba(255,255,255,0.8);
   --ta-stat-label:    #1e40af;
   --ta-stat-val:      #1d4ed8;
+  --ta-log-bg:        #f8fafc;
+  --ta-log-border:    #cbd5e1;
+  --ta-log-text:      #475569;
 }
 html.dark {
   --ta-bg:            #080f1c;
@@ -572,6 +575,9 @@ html.dark {
   --ta-stat-bg:       rgba(8,15,28,0.7);
   --ta-stat-label:    #93c5fd;
   --ta-stat-val:      #e2e8f0;
+  --ta-log-bg:        #0a0f1e;
+  --ta-log-border:    #1e3a5f;
+  --ta-log-text:      #475569;
 }
 
 /* ── Deflection badge ── */
@@ -2129,9 +2135,9 @@ def process_file(
             weight = 'font-weight:700;' if bold else ''
             if kind == 'header':
                 parts.append(
-                    f'<div style="background:#1e3a5f;color:#e2e8f0;font-weight:700;'
+                    f'<div style="background:var(--ta-accent-lt,#dbeafe);color:var(--ta-text,#0d1b2e);font-weight:700;'
                     f'margin:10px -16px 6px;padding:5px 16px;letter-spacing:0.07em;'
-                    f'font-size:0.85em;border-left:3px solid #3b82f6;">{text}</div>'
+                    f'font-size:0.85em;border-left:3px solid var(--ta-accent,#2563eb);">{text}</div>'
                 )
             elif kind == 'progress':
                 # text-only line in log — the ETA panel owns the visual bar
@@ -2147,7 +2153,7 @@ def process_file(
         scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
         inner = "".join(parts) + scroll if parts else '<span style="color:#64748b;">Starting…</span>'
         return (
-            '<div id="ta-log-wrap" style="background:#0f172a;border:1px solid #1e3a5f;'
+            '<div id="ta-log-wrap" style="background:var(--ta-log-bg,#f8fafc);border:1px solid var(--ta-log-border,#cbd5e1);'
             'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'
             'overflow-y:auto;font-family:\'Courier New\',monospace;font-size:0.80em;line-height:1.7;">'
             + inner + '</div>'
@@ -3053,7 +3059,7 @@ window.taDoUpdate = function(url, btn, platform) {
       /* ── Network monitor panel ── */
       '#ta-net-monitor{transition:all 0.3s}',
       'html.dark #ta-net-monitor .ta-net-card{background:#1e293b!important;border-color:rgba(59,130,246,0.25)!important}',
-      '#live-log,#live-log>*{background:#0f172a!important;border-color:#1e3a5f!important}',
+      '#live-log,#live-log>*{background:var(--ta-log-bg)!important;border-color:var(--ta-log-border)!important}',
       /* ── Download section ── */
       '.ta-dl-wrap{padding:4px 2px}',
       '.ta-dl-desc{font-size:0.82em;color:var(--ta-card-sub);margin:0 0 12px}',
@@ -5328,11 +5334,11 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 )
             log_out     = gr.HTML(
                 value='<div id="ta-log-wrap" style="'
-                      'background:#0a0f1e;border:1px solid #1e3a5f;border-radius:10px;'
+                      'background:var(--ta-log-bg,#f8fafc);border:1px solid var(--ta-log-border,#cbd5e1);border-radius:10px;'
                       'padding:14px 18px;min-height:160px;max-height:320px;'
                       'overflow-y:auto;font-family:\'JetBrains Mono\',\'Courier New\',monospace;'
                       'font-size:0.81em;line-height:1.75;">'
-                      '<span style="color:#475569;">Progress and logs appear here…</span>'
+                      '<span style="color:var(--ta-log-text,#475569);">Progress and logs appear here…</span>'
                       '</div>',
                 elem_id="live-log",
                 label="Live Processing Log",

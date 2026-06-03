@@ -37,6 +37,19 @@ if exist "!VPYTHON!" (
 :: -- Fresh install -------------------------------------------------------------
 :fresh_install
 
+:: Path length check ? warn if install path is too deep (Windows 260-char limit)
+set "PATHLEN=0"
+for /f %%i in ('echo !APPDIR!^| find /v /c ""') do set "PATHLEN=%%i"
+if "!APPDIR:~80,1!" neq "" (
+    echo.
+    echo  WARNING: Install path is long: !APPDIR!
+    echo  Deep paths cause failures on Windows ^(260-char limit^).
+    echo  Recommended: move the folder to a short path such as C:\TranscriptAgent\
+    echo.
+    set /p "CONT= Continue anyway? [Y/n]: "
+    if /i "!CONT!"=="n" goto :end
+)
+
 :: Step 1 - Detect Python (skip Windows Store stubs in WindowsApps)
 echo  [1/5] Checking for Python 3.10+...
 
@@ -104,7 +117,7 @@ echo.
 echo  [3/5] Installing dependencies (first run: ~15 min, ~2 GB)...
 echo.
 
-"!PIP!" install --upgrade pip --quiet
+"!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
 
 echo   Installing PyTorch (CPU only - smaller download)...
 "!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
@@ -191,7 +204,7 @@ if %errorlevel%==0 (
 
 echo.
 echo  Updating Python packages...
-"!PIP!" install --upgrade pip --quiet
+"!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
 "!PIP!" install -r "!APPDIR!requirements.txt" --upgrade --quiet
 "!PIP!" install imageio-ffmpeg --upgrade --quiet
 echo  All packages up to date.

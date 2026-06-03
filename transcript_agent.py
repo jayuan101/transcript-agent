@@ -1438,7 +1438,7 @@ def process_transcript(
             system=sys_prompt,
             user=prompt,
             max_tokens=32000,
-            thinking=(client.provider == "anthropic"),
+            thinking=False,
             on_usage=_on_usage,
         )
         results.append(_parse_json(raw))

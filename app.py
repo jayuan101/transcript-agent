@@ -758,7 +758,7 @@ input[type="checkbox"]:checked::after {
 html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
 
 /* ── Analyze button ── */
-.ta-analyze-btn button {
+button.ta-analyze-btn, #ta-analyze-btn {
   background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
   color: #fff !important; font-size: 0.92em !important; font-weight: 700 !important;
   border: none !important; border-radius: 9px !important;
@@ -766,8 +766,8 @@ html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
   box-shadow: 0 3px 12px rgba(29,78,216,0.3) !important;
   letter-spacing: 0.02em !important; transition: all 0.18s !important;
 }
-.ta-analyze-btn button:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
-html.dark .ta-analyze-btn button { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
+button.ta-analyze-btn:hover, #ta-analyze-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
+html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
 
 /* ── Cancel button ── */
 .ta-cancel-btn { flex: 0 0 34px !important; min-width: 34px !important; max-width: 34px !important; }
@@ -2925,14 +2925,6 @@ window.taDoUpdate = function(url, btn, platform) {
         + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
       );
       fbtn.textContent = '▶';
-      fbtn.addEventListener('click', function() {
-        var b = document.querySelector('.ta-analyze-btn button, #ta-analyze-btn button');
-        if (b && !b.disabled) {
-          b.click();
-          var t = document.getElementById('ta-eta-panel');
-          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
       fbtn.addEventListener('mouseenter', function() {
         this.style.transform = 'scale(1.1)';
         flabel.style.opacity = '1';
@@ -3010,8 +3002,8 @@ window.taDoUpdate = function(url, btn, platform) {
       /* ── Accordions ── */
       '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
       /* ── Analyze button — compact, pill style ── */
-      '.ta-analyze-btn button{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
-      '.ta-analyze-btn button:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
+      'button.ta-analyze-btn,#ta-analyze-btn{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
+      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
       /* ── Cancel / stop button — tiny square ── */
       'button[aria-label="Stop / Cancel"],button.stop-btn{background:#fff!important;color:#dc2626!important;border:1.5px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;padding:6px 10px!important;transition:all 0.15s!important;width:100%!important;margin-top:4px!important}',
       'button[aria-label="Stop / Cancel"]:hover,button.stop-btn:hover{background:#fef2f2!important;border-color:#ef4444!important}',
@@ -3147,7 +3139,7 @@ window.taDoUpdate = function(url, btn, platform) {
     /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
-    'html.dark .ta-analyze-btn button{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 3px 12px rgba(29,78,216,0.5)!important}',
+    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 3px 12px rgba(29,78,216,0.5)!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
@@ -4092,9 +4084,9 @@ window.taDoUpdate = function(url, btn, platform) {
       if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
     function doAnalyze() {
-      var btn = document.querySelector('.ta-analyze-btn button, #ta-analyze-btn button');
-      if (!btn || btn.disabled) return;
-      btn.click();
+      var btn = document.querySelector('#ta-analyze-btn, button.ta-analyze-btn');
+      if (!btn) return;
+      btn.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
       setTimeout(scrollToResults, 300);
     }
 
@@ -4117,7 +4109,7 @@ window.taDoUpdate = function(url, btn, platform) {
     function wireAll() {
       document.querySelectorAll('#ta-float-analyze').forEach(wireFloatBtn);
       /* Also wire the main Analyze button so clicking it scrolls to results */
-      document.querySelectorAll('#ta-analyze-btn button, .ta-analyze-btn button').forEach(function(mb) {
+      document.querySelectorAll('#ta-analyze-btn, button.ta-analyze-btn').forEach(function(mb) {
         if (mb.dataset.taScrollWired) return;
         mb.dataset.taScrollWired = '1';
         mb.addEventListener('click', function() {
@@ -5290,8 +5282,15 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 dl_transcript = gr.File(label="Transcript (.txt)")
                 dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
                 dl_report     = gr.File(label="Report (.md)")
-                dl_pdf        = gr.File(label="Report (.pdf)")
-                dl_docx       = gr.File(label="Report (.docx)")
+                report_format_radio = gr.Radio(
+                    choices=["PDF", "DOCX"],
+                    value="PDF",
+                    label="Report export format",
+                    info="Switch between PDF and DOCX — both are generated automatically",
+                    interactive=True,
+                )
+                dl_pdf        = gr.File(label="Report (.pdf)", visible=True)
+                dl_docx       = gr.File(label="Report (.docx)", visible=False)
                 dl_combined   = gr.File(label="Combined Report (.txt)")
                 dl_json       = gr.File(label="Raw Data (.json)")
                 dl_srt        = gr.File(label="Subtitles (.srt)")
@@ -5304,7 +5303,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         value="Same as source",
                         scale=3,
                     )
-                    pdf_regen_btn = gr.Button("Generate PDF + DOCX", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("Regenerate PDF & DOCX", scale=1, size="sm")
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -5658,6 +5657,16 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         fn=generate_pdf_in_language,
         inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
         outputs=[dl_pdf, dl_docx],
+    )
+
+    def _toggle_report_format(choice):
+        return gr.update(visible=(choice == "PDF")), gr.update(visible=(choice == "DOCX"))
+
+    report_format_radio.change(
+        fn=_toggle_report_format,
+        inputs=[report_format_radio],
+        outputs=[dl_pdf, dl_docx],
+        queue=False,
     )
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────

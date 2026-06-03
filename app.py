@@ -574,6 +574,18 @@ html.dark {
   --ta-stat-val:      #e2e8f0;
 }
 
+/* ── Deflection badge ── */
+.ta-defl-partial { background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px; }
+html.dark .ta-defl-partial { background:#451a03 !important;border-color:#92400e !important; }
+.ta-defl-full { background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px; }
+html.dark .ta-defl-full { background:#450a0a !important;border-color:#991b1b !important; }
+.ta-defl-label-partial { font-size:0.78em;font-weight:700;color:#f59e0b;white-space:nowrap; }
+html.dark .ta-defl-label-partial { color:#fbbf24 !important; }
+.ta-defl-label-full { font-size:0.78em;font-weight:700;color:#ef4444;white-space:nowrap; }
+html.dark .ta-defl-label-full { color:#f87171 !important; }
+.ta-defl-note { font-size:0.78em;color:#374151; }
+html.dark .ta-defl-note { color:#cbd5e1 !important; }
+
 /* ── STT API key banner ── */
 .ta-stt-banner { background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;font-family:sans-serif; }
 html.dark .ta-stt-banner { background:linear-gradient(135deg,#451a03,#78350f) !important;border-color:#d97706 !important; }
@@ -1984,12 +1996,12 @@ def _build_interview_html(ia: dict) -> str:
 
         defl_html = ""
         if deflection in _DEFLECT_STYLE:
-            dlbl, dcol, dbg, dbdr = _DEFLECT_STYLE[deflection]
+            dlbl, _dcol, _dbg, _dbdr = _DEFLECT_STYLE[deflection]
+            cls = "partial" if deflection == "partial" else "full"
             defl_html = (
-                f'<div style="background:{dbg};border:1px solid {dbdr};border-radius:8px;'
-                f'padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px;">'
-                f'<span style="font-size:0.78em;font-weight:700;color:{dcol};white-space:nowrap;">{dlbl}</span>'
-                + (f'<span style="font-size:0.78em;color:#374151;">{defl_note}</span>' if defl_note else '')
+                f'<div class="ta-defl-{cls}">'
+                f'<span class="ta-defl-label-{cls}">{dlbl}</span>'
+                + (f'<span class="ta-defl-note">{defl_note}</span>' if defl_note else '')
                 + '</div>'
             )
 

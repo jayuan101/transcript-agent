@@ -1,36 +1,40 @@
-# Core
+# ── Core web framework ────────────────────────────────────────────────────────
 anthropic>=0.52.0
 gradio>=6.0.0
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
-# Multi-provider LLM + STT (OpenAI SDK covers Groq STT too)
+# ── Environment / utilities ───────────────────────────────────────────────────
+python-dotenv>=1.0.0
+requests>=2.31.0
+tqdm>=4.65.0
+
+# ── Multi-provider LLM ────────────────────────────────────────────────────────
 openai>=1.0.0
 groq>=0.9.0
 
-# Cloud STT engines (all optional — guarded by try/except in transcript_agent.py)
+# ── Cloud STT engines (all optional — guarded by try/except) ─────────────────
 deepgram-sdk>=3.2.0,<4.0.0
 assemblyai>=0.17.0
 elevenlabs>=1.0.0
 rev_ai>=2.17.0
-# google-cloud-speech>=2.20.0      # uncomment if using Google Cloud STT
-# azure-cognitiveservices-speech>=1.35.0  # uncomment if using Azure Speech
+# google-cloud-speech>=2.20.0          # uncomment for Google Cloud STT
+# azure-cognitiveservices-speech>=1.35.0  # uncomment for Azure Speech
 
-# Document formats
+# ── Document generation ───────────────────────────────────────────────────────
 python-docx>=1.1.0
-pdfplumber>=0.11.0
 fpdf2>=2.7.0
+pdfplumber>=0.11.0
 
-# Audio / video transcription
+# ── Local Whisper STT ─────────────────────────────────────────────────────────
 openai-whisper>=20231117
+tiktoken>=0.5.0
+regex>=2023.0.0
 
-# Panel mode (speaker diarization) — optional
-# whisperx          # pip install whisperx
-# torch             # installed automatically with whisperx
-
-# ffmpeg binary is also required for audio/video:
-#   macOS:   brew install ffmpeg
-#   Ubuntu:  sudo apt install ffmpeg
-#   Windows: bundled via imageio-ffmpeg (installed automatically)
+# ── Audio / video ─────────────────────────────────────────────────────────────
+# imageio-ffmpeg bundles ffmpeg on Windows — no system install needed
 imageio-ffmpeg>=0.4.9
+
+# ── PyTorch (CPU) — installed separately in setup scripts for size reasons ───
+# torch  — handled by setup_windows.bat / setup_mac.sh

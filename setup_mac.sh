@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent  |  Mac Installer  |  v1.0
-#   Installs into a local Python venv — no Docker required.
+#   Transcript Agent v1.1.71  |  macOS Installer
+#   Run once to install, then double-click the Desktop launcher.
 #   Run again at any time to update or repair.
 # ============================================================
 
@@ -14,7 +14,7 @@ PIP="$VENV/bin/pip"
 CURRENT_VERSION="1.1.71"
 APP_URL="http://localhost:7860"
 
-# ── Colour helpers ─────────────────────────────────────────
+# ── Colour helpers ─────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; RESET='\033[0m'
 
@@ -27,13 +27,13 @@ header()  { echo -e "\n${BOLD}  $*${RESET}\n"; }
 clear
 echo ""
 echo -e "${BOLD}  ============================================================"
-echo -e "    Transcript Agent v${CURRENT_VERSION}  |  Mac Installer"
+echo -e "    Transcript Agent v${CURRENT_VERSION}  |  macOS Installer"
 echo -e "  ============================================================${RESET}"
 echo ""
 
-# ── Already installed? Show menu ─────────────────────────────────────────────
+# ── Already installed? Show menu ──────────────────────────────────────────────
 if [ -f "$VPYTHON" ]; then
-    info "Existing installation found (v$CURRENT_VERSION)."
+    info "Existing installation found (v${CURRENT_VERSION})."
     echo ""
     echo "    [1]  Launch app"
     echo "    [2]  Check for updates"
@@ -52,7 +52,7 @@ else
     ACTION=install
 fi
 
-# ── Update ─────────────────────────────────────────────────────────────────────
+# ── Update ────────────────────────────────────────────────────────────────────
 if [ "$ACTION" = update ]; then
     header "Checking for updates…"
 
@@ -60,13 +60,12 @@ if [ "$ACTION" = update ]; then
         info "Pulling latest code via git…"
         GIT_OUT=$(git -C "$APPDIR" pull 2>&1)
         if echo "$GIT_OUT" | grep -q "Already up to date"; then
-            success "Already up to date — v$CURRENT_VERSION"
+            success "Already up to date — v${CURRENT_VERSION}"
         else
-            success "Code updated!"
-            echo "  $GIT_OUT"
+            success "Updated!"; echo "  $GIT_OUT"
         fi
     else
-        warn "git not found — skipping code update, updating packages only."
+        warn "git not found — updating packages only."
     fi
 
     info "Upgrading Python packages…"
@@ -84,19 +83,19 @@ fi
 # ── Fresh install ─────────────────────────────────────────────────────────────
 if [ "$ACTION" = install ]; then
 
-    # 1 — Python ----------------------------------------------------------------
-    header "[1/6] Checking for Python 3.9+…"
+    # 1 — Python ---------------------------------------------------------------
+    header "[1/6] Checking for Python 3.10+…"
     PY=""
-    for cmd in python3.13 python3.12 python3.11 python3.10 python3.9 python3 python; do
+    for cmd in python3.13 python3.12 python3.11 python3.10 python3 python; do
         if command -v "$cmd" &>/dev/null; then
-            if "$cmd" -c "import sys; sys.exit(0 if sys.version_info>=(3,9) else 1)" 2>/dev/null; then
+            if "$cmd" -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" 2>/dev/null; then
                 PY="$cmd"; break
             fi
         fi
     done
 
     if [ -z "$PY" ]; then
-        err "Python 3.9+ not found."
+        err "Python 3.10+ not found."
         echo ""
         echo "  Install options:"
         echo "    • Official:  https://www.python.org/downloads/"
@@ -108,55 +107,52 @@ if [ "$ACTION" = install ]; then
     fi
     success "Found: $("$PY" --version 2>&1)"
 
-    # 2 — Venv ------------------------------------------------------------------
+    # 2 — Venv -----------------------------------------------------------------
     header "[2/6] Setting up virtual environment…"
     if [ -f "$VENV/bin/activate" ]; then
         success "Already exists — skipping."
     else
         "$PY" -m venv "$VENV"
-        success "Created: $VENV"
+        success "Created."
     fi
-
-    # Upgrade pip first
     "$PIP" install --upgrade pip --quiet
 
-    # 3 — PyTorch ---------------------------------------------------------------
+    # 3 — PyTorch --------------------------------------------------------------
     header "[3/6] Installing PyTorch (CPU)…"
-    info "This may take 5–10 minutes on first install."
+    info "This may take 5–10 minutes on first install (~700 MB)."
     if "$PIP" install torch --index-url https://download.pytorch.org/whl/cpu --quiet 2>/dev/null; then
-        success "PyTorch installed."
+        success "PyTorch installed (CPU build)."
     else
         warn "Index install failed — retrying with default index…"
         "$PIP" install torch --quiet
-        success "PyTorch installed (default index)."
+        success "PyTorch installed."
     fi
 
-    # 4 — App requirements ------------------------------------------------------
+    # 4 — App requirements -----------------------------------------------------
     header "[4/6] Installing app requirements…"
     "$PIP" install -r "$APPDIR/requirements.txt" --quiet
     "$PIP" install imageio-ffmpeg --quiet
     success "All Python packages installed."
 
-    # Optional system ffmpeg (better codec support for videos)
     if ! command -v ffmpeg &>/dev/null; then
         if command -v brew &>/dev/null; then
             echo ""
-            read -r -p "  Install ffmpeg via Homebrew for better video support? [Y/n]: " BF
+            read -r -p "  Install system ffmpeg via Homebrew (better video support)? [Y/n]: " BF
             if [[ ! "${BF:-y}" =~ ^[Nn]$ ]]; then
-                brew install ffmpeg --quiet && success "ffmpeg installed via Homebrew."
+                brew install ffmpeg --quiet && success "ffmpeg installed."
             fi
         fi
     else
         success "ffmpeg already available."
     fi
 
-    # 5 — API key ---------------------------------------------------------------
+    # 5 — API key --------------------------------------------------------------
     header "[5/6] API key setup…"
     if [ -f "$APPDIR/.env" ]; then
         success "Found existing .env — skipping."
     else
-        echo "  You can enter your API key here or inside the app later."
-        echo "  Get a free key at: https://console.anthropic.com"
+        echo "  You need an AI provider API key to use this app."
+        echo "  Get a Claude key free at: https://console.anthropic.com"
         echo ""
         read -r -p "  Paste your Anthropic API key (or Enter to skip): " AKEY
         if [ -n "$AKEY" ]; then
@@ -167,29 +163,32 @@ if [ "$ACTION" = install ]; then
         fi
     fi
 
-    # 6 — Desktop launcher ------------------------------------------------------
+    # 6 — Desktop launcher -----------------------------------------------------
     header "[6/6] Creating desktop launcher…"
     LAUNCHER="$HOME/Desktop/Transcript Agent.command"
+    # Use single-quoted heredoc so variables are literal in the output file,
+    # except APPDIR and VPYTHON which we expand now to bake in absolute paths.
+    BAKED_APPDIR="$APPDIR"
+    BAKED_VPYTHON="$VPYTHON"
     cat > "$LAUNCHER" << CMDEOF
 #!/usr/bin/env bash
-# Transcript Agent — desktop launcher
-cd "$(dirname "$0")"
-APPDIR="${APPDIR}"
-VPYTHON="${VPYTHON}"
+# Transcript Agent v${CURRENT_VERSION} — desktop launcher
+APPDIR="${BAKED_APPDIR}"
+VPYTHON="${BAKED_VPYTHON}"
 
 echo ""
 echo "  Starting Transcript Agent v${CURRENT_VERSION}…"
+echo "  Browser will open at http://localhost:7860"
 echo "  Press Ctrl+C to stop."
 echo ""
 
 "\$VPYTHON" "\$APPDIR/app.py" &
 APP_PID=\$!
 
-# Poll until server responds, then open browser (max 60 s)
 for i in \$(seq 1 60); do
     sleep 1
     if curl -s --max-time 1 http://127.0.0.1:7860/ >/dev/null 2>&1; then
-        open "${APP_URL}" 2>/dev/null || true
+        open "http://localhost:7860" 2>/dev/null || true
         break
     fi
 done
@@ -197,7 +196,7 @@ done
 wait \$APP_PID
 CMDEOF
     chmod +x "$LAUNCHER"
-    success "Launcher: ~/Desktop/Transcript Agent.command"
+    success "Launcher created: ~/Desktop/Transcript Agent.command"
     info "Double-click it in Finder to start the app any time."
 
     echo ""
@@ -205,7 +204,7 @@ CMDEOF
     echo -e "    Setup complete!  v${CURRENT_VERSION}"
     echo ""
     echo -e "    • Double-click 'Transcript Agent' on your Desktop to start"
-    echo -e "    • Or run:  bash ${APPDIR}/setup_mac.sh  to update"
+    echo -e "    • Or run:  bash \"${APPDIR}/setup_mac.sh\"  to update"
     echo -e "  ============================================================${RESET}"
     echo ""
     read -r -p "  Launch Transcript Agent now? [Y/n]: " L
@@ -213,7 +212,7 @@ CMDEOF
     ACTION=launch
 fi
 
-# ── Launch ─────────────────────────────────────────────────────────────────────
+# ── Launch ────────────────────────────────────────────────────────────────────
 if [ "$ACTION" = launch ]; then
     echo ""
     info "Starting Transcript Agent v${CURRENT_VERSION}…"
@@ -224,7 +223,6 @@ if [ "$ACTION" = launch ]; then
     "$VPYTHON" "$APPDIR/app.py" &
     APP_PID=$!
 
-    # Poll until server is up, then open browser
     for i in $(seq 1 60); do
         sleep 1
         if curl -s --max-time 1 http://127.0.0.1:7860/ >/dev/null 2>&1; then

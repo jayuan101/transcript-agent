@@ -12,7 +12,7 @@ set "CURRENT_VERSION=1.1.71"
 cls
 echo.
 echo  ============================================================
-echo    Transcript Agent  ^|  Windows Installer
+echo    Transcript Agent v%CURRENT_VERSION%  ^|  Windows Installer
 echo  ============================================================
 echo.
 
@@ -38,7 +38,7 @@ if exist "!VPYTHON!" (
 :fresh_install
 
 :: Step 1 - Detect Python
-echo  [1/5] Checking for Python 3.9+...
+echo  [1/5] Checking for Python 3.10+...
 
 set "PY="
 where python >nul 2>&1 && set "PY=python"
@@ -57,9 +57,9 @@ if "!PY!"=="" (
     if /i "!OPN!" neq "n" start "" "https://www.python.org/downloads/"
     goto :fail
 )
-"!PY!" -c "import sys; sys.exit(0 if sys.version_info>=(3,9) else 1)" >nul 2>&1
+"!PY!" -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  ERROR: Python 3.9+ required. Update from https://www.python.org/downloads/
+    echo  ERROR: Python 3.10+ required. Update from https://www.python.org/downloads/
     goto :fail
 )
 for /f "tokens=*" %%v in ('"!PY!" --version 2^>^&1') do echo  Found: %%v
@@ -72,20 +72,18 @@ if exist "!VPYTHON!" (
 ) else (
     "!PY!" -m venv "!VENV!"
     if %errorlevel% neq 0 ( echo  ERROR: Could not create venv. & goto :fail )
-    echo  Created: !VENV!
+    echo  Created.
 )
 
 :: Step 3 - Install dependencies
 echo.
-echo  [3/5] Installing dependencies...
-echo  First run downloads about 2 GB and takes 5-15 minutes.
+echo  [3/5] Installing dependencies (first run: ~15 min, ~2 GB)...
 echo.
 
 "!PIP!" install --upgrade pip --quiet
 
-echo   Installing PyTorch (CPU)...
-"!PIP!" install torch torchvision torchaudio ^
-    --index-url https://download.pytorch.org/whl/cpu --quiet
+echo   Installing PyTorch (CPU only — smaller download)...
+"!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 if %errorlevel% neq 0 (
     echo   Retrying with default index...
     "!PIP!" install torch --quiet
@@ -95,10 +93,10 @@ echo   Installing app requirements...
 "!PIP!" install -r "!APPDIR!requirements.txt" --quiet
 if %errorlevel% neq 0 ( echo  ERROR: pip install failed. & goto :fail )
 
-echo   Installing bundled ffmpeg...
+echo   Installing bundled ffmpeg (no system install needed)...
 "!PIP!" install imageio-ffmpeg --quiet
 
-echo  All dependencies installed.
+echo   All dependencies installed.
 
 :: Step 4 - API key
 echo.
@@ -106,15 +104,15 @@ echo  [4/5] API key setup...
 if exist "!APPDIR!.env" (
     echo  Found existing .env file. Skipping.
 ) else (
-    echo  You need an API key to use this app.
-    echo  Get one free at: https://console.anthropic.com
+    echo  You need an AI provider API key to use this app.
+    echo  Get a Claude key free at: https://console.anthropic.com
     echo.
     set /p "AKEY= Paste your Anthropic API key (or Enter to skip): "
     if "!AKEY!" neq "" (
         echo ANTHROPIC_API_KEY=!AKEY!>"!APPDIR!.env"
         echo  Saved to .env
     ) else (
-        echo  Skipped. You can enter your key inside the app.
+        echo  Skipped. Enter your key inside the app.
     )
 )
 
@@ -123,16 +121,16 @@ echo.
 echo  [5/5] Creating desktop shortcut...
 call :make_shortcut
 if %errorlevel%==0 (
-    echo  Shortcut created: "Transcript Agent" on Desktop
+    echo  Shortcut created on Desktop.
 ) else (
-    echo  Note: Could not create shortcut. Use run.bat to launch instead.
+    echo  Note: Could not create shortcut. Use run.bat to launch.
 )
 
 echo.
 echo  ============================================================
-echo    Setup complete! v!CURRENT_VERSION!
+echo    Setup complete!  v%CURRENT_VERSION%
 echo.
-echo    Launch anytime: double-click "Transcript Agent" on Desktop
+echo    Start anytime:  double-click "Transcript Agent" on Desktop
 echo                    or run run.bat in this folder.
 echo  ============================================================
 echo.
@@ -145,42 +143,23 @@ goto :end
 echo  Checking for updates...
 echo.
 
-:: Try git pull first
 set "UPDATED=0"
 where git >nul 2>&1
 if %errorlevel%==0 (
     echo  Pulling latest code via git...
     git -C "!APPDIR!" pull 2>&1
-    if !errorlevel!==0 (
-        for /f "tokens=*" %%l in ('git -C "!APPDIR!" log -1 --format^="%%s"') do (
-            if "%%l"=="Already up to date." (
-                echo.
-                echo  Already up to date. v!CURRENT_VERSION! is the latest version.
-            ) else (
-                echo.
-                echo  Updated! Latest changes pulled.
-                set "UPDATED=1"
-            )
-        )
-    ) else (
-        echo  git pull failed. Updating pip packages instead.
-    )
+    if !errorlevel!==0 set "UPDATED=1"
 ) else (
-    echo  git not found. Updating pip packages only.
+    echo  git not found — updating packages only.
 )
 
 echo.
 echo  Updating Python packages...
+"!PIP!" install --upgrade pip --quiet
 "!PIP!" install -r "!APPDIR!requirements.txt" --upgrade --quiet
 "!PIP!" install imageio-ffmpeg --upgrade --quiet
-echo  Packages up to date.
+echo  All packages up to date.
 
-echo.
-if "!UPDATED!"=="1" (
-    echo  Update applied successfully. Ready to launch.
-) else (
-    echo  Everything is up to date. v!CURRENT_VERSION! is the latest.
-)
 echo.
 set /p "LAUNCH= Launch app now? [Y/n]: "
 if /i "!LAUNCH!" neq "n" goto :launch
@@ -189,17 +168,15 @@ goto :end
 :: -- Launch --------------------------------------------------------------------
 :launch
 echo.
-echo  Starting Transcript Agent v!CURRENT_VERSION!...
+echo  Starting Transcript Agent v%CURRENT_VERSION%...
 echo  Browser will open automatically when ready.
 echo  Press Ctrl+C to stop.
 echo.
 
-:: Background PowerShell poller - opens browser once server responds (max 60 s)
 start /b "" powershell -NoProfile -WindowStyle Hidden -Command ^
   "for($i=0;$i-lt60;$i++){Start-Sleep 1;try{$null=Invoke-WebRequest http://127.0.0.1:7860 -UseBasicParsing -TimeoutSec 1;Start-Process 'http://localhost:7860';break}catch{}}"
 
-:: Run app in this window so Ctrl+C stops it cleanly
-"!VPYTHON!" "!APPDIR!app.py"
+"%VPYTHON%" "%APPDIR%app.py"
 goto :end
 
 :: -- Shortcut helper -----------------------------------------------------------

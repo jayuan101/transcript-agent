@@ -1502,6 +1502,10 @@ The suggested answer should sound exactly like THAT candidate speaking naturally
 _INTERVIEW_PROMPT = """\
 {profile_section}Analyse this interview transcript carefully. Return ONLY valid JSON — no markdown fences.
 
+SCOPE — INTERVIEW ONLY:
+Only analyse the live interview between the interviewer and the candidate.
+Exclude entirely any post-interview debrief, internal team discussion, coaching call, or conversation that happens after the candidate leaves. These sections typically involve only the interviewers/recruiters talking among themselves (e.g. "great candidate", "let's move forward"). Do NOT include questions or statements from those sections, and do NOT let them influence the overall_score or advance_likelihood.
+
 CRITICAL: Include EVERY question asked by the interviewer in the "questions" array — do not skip, merge, or omit any. If a follow-up or clarifying question was asked, include it as its own entry.
 
 Rules for answer_said:

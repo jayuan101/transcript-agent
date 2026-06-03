@@ -319,7 +319,7 @@ def _allow_sleep():
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,
-    AUDIO_EXTS, VIDEO_EXTS, STT_ENGINES,
+    AUDIO_EXTS, VIDEO_EXTS, IMAGE_EXTS, STT_ENGINES,
     load_history, save_history_entry,
     run_interview_analysis, extract_profile_text,
 )
@@ -2073,6 +2073,7 @@ def process_file(
     provider_name,
     model_name,
     transcription_only=False,
+    image_files=None,
 ):
     yield _NOCHANGE   # immediate tick — clears the loading indicator right away
     # Route unified model dropdown to the correct STT parameter
@@ -2349,6 +2350,7 @@ def process_file(
                 cancel_event=_cancel_ev,
                 pre_transcribed=_pre_transcribed,
                 transcription_only=bool(transcription_only),
+                image_paths=image_files if isinstance(image_files, list) else ([image_files] if image_files else []),
             )
             q.put(("done", result))
         except ImportError as e:
@@ -5144,6 +5146,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Or paste a file path or URL (large files / no upload wait)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
+            image_input = gr.File(
+                label="Supporting images — optional (slides, whiteboard, docs)",
+                file_types=list(IMAGE_EXTS),
+                file_count="multiple",
+                type="filepath",
+                elem_id="ta-image-input",
+            )
             with gr.Accordion("⚡ What we support", open=False):
                 gr.HTML(_CAPABILITIES)
 
@@ -5590,6 +5599,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             user_api_key,
             provider_dropdown, model_dropdown,
             transcription_only_toggle,
+            image_input,
         ],
         concurrency_id="analyze",
         concurrency_limit=1,

@@ -112,6 +112,48 @@ class LLMClient:
                     )
                 raise
 
+    def describe_images(self, image_paths: list, on_log=None) -> str:
+        """Send images to the vision API and return combined textual descriptions."""
+        import base64 as _b64
+        import mimetypes as _mt
+        _PROMPT = (
+            "Describe this image in detail for transcription context. "
+            "Extract all visible text, slide content, whiteboard notes, diagrams, "
+            "code, and any speaker or agenda information."
+        )
+        descriptions = []
+        for path in image_paths:
+            name = Path(path).name
+            mime = _mt.guess_type(path)[0] or "image/png"
+            with open(path, "rb") as _f:
+                b64 = _b64.b64encode(_f.read()).decode()
+            if on_log:
+                on_log(f"Analyzing image: {name}…")
+            if self.provider == "anthropic":
+                resp = self._client.messages.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    messages=[{"role": "user", "content": [
+                        {"type": "image", "source": {"type": "base64", "media_type": mime, "data": b64}},
+                        {"type": "text", "text": _PROMPT},
+                    ]}],
+                )
+                desc = next((b.text for b in resp.content if b.type == "text"), "")
+            else:
+                resp = self._client.chat.completions.create(
+                    model=self.model,
+                    max_tokens=1024,
+                    messages=[{"role": "user", "content": [
+                        {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
+                        {"type": "text", "text": _PROMPT},
+                    ]}],
+                )
+                desc = resp.choices[0].message.content or ""
+            descriptions.append(f"[Image: {name}]\n{desc}")
+            if on_log:
+                on_log(f"✅ Image analyzed: {name}")
+        return "\n\n".join(descriptions)
+
 
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──
 import subprocess as _sp
@@ -213,6 +255,8 @@ def extract_profile_text(file_path: str) -> str:
 
 
 # ── format constants ──────────────────────────────────────────────────────────
+
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 AUDIO_EXTS = {
     ".mp3", ".wav", ".m4a", ".flac", ".ogg", ".aac", ".opus", ".wma", ".amr",
@@ -1387,6 +1431,7 @@ def process_transcript(
     speaker_names: str = None,
     on_log=None,
     on_token_usage=None,   # callable(total_input, total_output)
+    image_context: str = "",  # visual descriptions from uploaded images
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1424,6 +1469,12 @@ def process_transcript(
         else:
             sys_prompt = STANDARD_SYSTEM_PROMPT
             prompt = build_standard_prompt(chunk, fmt, config.style, overall_text_stats, language, language_variant)
+
+        if image_context:
+            prompt = (
+                f"=== Visual Context (from uploaded images) ===\n{image_context}\n\n"
+                f"=== Audio/Text Content ===\n\n"
+            ) + prompt
 
         if speaker_names:
             prompt = (
@@ -1759,6 +1810,7 @@ def run(
     cancel_event=None,              # threading.Event — set to abort before LLM analysis starts
     pre_transcribed=None,           # (raw_text, lang, segments) — skip STT when provided
     transcription_only: bool = False,  # skip AI analysis — return raw transcript immediately
+    image_paths: list = None,       # optional images (slides, whiteboard) for visual context
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1838,6 +1890,15 @@ def run(
     _model = model or ("claude-opus-4-8" if provider == "anthropic" else "gpt-4o")
     client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
 
+    image_context = ""
+    if image_paths:
+        valid_images = [p for p in image_paths if p and Path(p).exists()]
+        if valid_images:
+            _log(f"Analyzing {len(valid_images)} image(s) for visual context…")
+            if on_stage_change: on_stage_change("images")
+            image_context = client.describe_images(valid_images, on_log=on_log)
+            _log(f"✅ Visual context ready ({len(valid_images)} image(s))")
+
     if speaker_names:
         _log(f"Speaker count provided: {speaker_names}")
 
@@ -1860,6 +1921,7 @@ def run(
         speaker_names=speaker_names,
         on_log=on_log,
         on_token_usage=_token_usage_wrapper,
+        image_context=image_context,
     )
 
     result.detected_language = language_variant or language or _detected_lang or "Auto-detected"
@@ -1929,7 +1991,10 @@ if __name__ == "__main__":
     parser.add_argument("--speakers", type=int, default=None)
     parser.add_argument("--style", default="formal",
                         choices=["formal", "casual", "executive", "bullet"])
+    parser.add_argument("--images", nargs="+", metavar="IMAGE",
+                        help="Supporting images (slides, whiteboard, docs) for visual context")
     args = parser.parse_args()
 
     run(args.file, args.output, args.whisper, args.panel, args.speakers,
-        ReportConfig(style=args.style))
+        ReportConfig(style=args.style),
+        image_paths=args.images or [])

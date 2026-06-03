@@ -7,7 +7,7 @@ set "APPDIR=%~dp0"
 set "VENV=%APPDIR%venv"
 set "VPYTHON=%VENV%\Scripts\python.exe"
 set "PIP=%VENV%\Scripts\pip.exe"
-set "CURRENT_VERSION=1.1.71"
+set "CURRENT_VERSION=1.1.73"
 
 cls
 echo.

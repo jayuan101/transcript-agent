@@ -835,7 +835,7 @@ def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
 
     eta_html = ""
     if eta_secs is not None and eta_secs > 0:
-        finish_str = (_dt.datetime.utcnow() + _dt.timedelta(seconds=eta_secs)).strftime("%H:%M UTC")
+        finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
         eta_html = (
             f'<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">'
             f'<span style="background:#dbeafe;border-radius:6px;padding:4px 12px;'
@@ -1766,7 +1766,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         eta_str    = _fmt_eta(eta_secs) if (eta_secs and eta_secs > 0) else "—"
         finish_str = ""
         if eta_secs and eta_secs > 0:
-            finish_str = (_dt.datetime.utcnow() + _dt.timedelta(seconds=eta_secs)).strftime("%H:%M UTC")
+            finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
 
         return tracker + (
             '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-step-act-bdr);'
@@ -2092,7 +2092,7 @@ def process_file(
 
     def _ts():
         import datetime as _dt
-        return _dt.datetime.utcnow().strftime("%H:%M UTC")
+        return _dt.datetime.now().strftime("%I:%M %p").lstrip("0")
 
     def _elapsed():
         secs = int(time.time() - start_time)
@@ -4075,12 +4075,15 @@ window.taDoUpdate = function(url, btn, platform) {
      Svelte blocks event bubbling from inside gr.HTML components, so document
      delegation is unreliable. Wire each button directly instead.              */
   (function(){
+    function scrollToResults() {
+      var t = document.getElementById('ta-results-tabs') || document.getElementById('ta-eta-panel');
+      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
     function doAnalyze() {
       var btn = document.querySelector('.ta-analyze-btn button, #ta-analyze-btn button');
       if (!btn || btn.disabled) return;
       btn.click();
-      var t = document.getElementById('ta-status-bar');
-      if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setTimeout(scrollToResults, 300);
     }
 
     function wireFloatBtn(fb) {
@@ -4106,8 +4109,7 @@ window.taDoUpdate = function(url, btn, platform) {
         if (mb.dataset.taScrollWired) return;
         mb.dataset.taScrollWired = '1';
         mb.addEventListener('click', function() {
-          var t = document.getElementById('ta-eta-panel');
-          if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setTimeout(scrollToResults, 300);
         });
       });
     }
@@ -5218,7 +5220,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 elem_id="ta-net-monitor",
             )
 
-            with gr.Tabs():
+            with gr.Tabs(elem_id="ta-results-tabs"):
                 with gr.TabItem("Summary"):
                     summary_out = gr.Markdown(value="")
 

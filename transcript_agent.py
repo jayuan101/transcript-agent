@@ -1893,7 +1893,7 @@ def run(
         }
         save_history_entry(entry, Path(history_path))
 
-    _log(f"Outputs saved to: {output_dir}/")
+    _log(f"✅ Analysis complete — outputs ready for download")
     _safe_print(f"\n✓ Done! Outputs: {output_dir}/")
     return result
 

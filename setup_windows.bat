@@ -37,17 +37,37 @@ if exist "!VPYTHON!" (
 :: -- Fresh install -------------------------------------------------------------
 :fresh_install
 
-:: Step 1 - Detect Python
+:: Step 1 - Detect Python (skip Windows Store stubs in WindowsApps)
 echo  [1/5] Checking for Python 3.10+...
 
 set "PY="
-where python >nul 2>&1 && set "PY=python"
-if "!PY!"=="" where py >nul 2>&1 && set "PY=py"
+
+:: Check 'py' launcher first (most reliable on Windows)
+where py >nul 2>&1
+if %errorlevel%==0 (
+    py -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
+    if !errorlevel!==0 set "PY=py"
+)
+
+:: Check 'python' but skip Microsoft Store stubs (they live in WindowsApps)
+if "!PY!"=="" (
+    for /f "tokens=*" %%p in ('where python 2^>nul') do (
+        if "!PY!"=="" (
+            echo %%p | findstr /i "WindowsApps" >nul 2>&1
+            if !errorlevel! neq 0 (
+                "%%p" -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
+                if !errorlevel!==0 set "PY=%%p"
+            )
+        )
+    )
+)
+
 if "!PY!"=="" (
     echo.
-    echo  ERROR: Python is not installed or not in PATH.
+    echo  ERROR: Python 3.10+ not found.
     echo.
-    echo  Install Python 3.10+ from:
+    echo  If you have Python from the Microsoft Store, it may be a stub.
+    echo  Install Python 3.10+ from the official site:
     echo    https://www.python.org/downloads/
     echo.
     echo  IMPORTANT: Tick "Add Python to PATH" during installation,
@@ -57,12 +77,16 @@ if "!PY!"=="" (
     if /i "!OPN!" neq "n" start "" "https://www.python.org/downloads/"
     goto :fail
 )
-"!PY!" -c "import sys; sys.exit(0 if sys.version_info>=(3,10) else 1)" >nul 2>&1
+for /f "tokens=*" %%v in ('"!PY!" --version 2^>^&1') do echo  Found: %%v
+
+:: Warn if 32-bit Python on 64-bit OS (PyTorch may fail)
+"!PY!" -c "import sys,struct; sys.exit(0 if struct.calcsize('P')==8 else 1)" >nul 2>&1
 if %errorlevel% neq 0 (
-    echo  ERROR: Python 3.10+ required. Update from https://www.python.org/downloads/
+    echo.
+    echo  WARNING: 32-bit Python detected. PyTorch requires 64-bit Python.
+    echo  Install 64-bit Python 3.10+ from https://www.python.org/downloads/
     goto :fail
 )
-for /f "tokens=*" %%v in ('"!PY!" --version 2^>^&1') do echo  Found: %%v
 
 :: Step 2 - Virtual environment
 echo.
@@ -82,7 +106,7 @@ echo.
 
 "!PIP!" install --upgrade pip --quiet
 
-echo   Installing PyTorch (CPU only — smaller download)...
+echo   Installing PyTorch (CPU only - smaller download)...
 "!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 if %errorlevel% neq 0 (
     echo   Retrying with default index...
@@ -91,7 +115,19 @@ if %errorlevel% neq 0 (
 
 echo   Installing app requirements...
 "!PIP!" install -r "!APPDIR!requirements.txt" --quiet
-if %errorlevel% neq 0 ( echo  ERROR: pip install failed. & goto :fail )
+if %errorlevel% neq 0 (
+    echo.
+    echo  ERROR: pip install failed.
+    echo.
+    echo  Common fixes:
+    echo    - Corporate network / proxy: set HTTPS_PROXY=http://proxy:port
+    echo      then run this setup again.
+    echo    - Antivirus blocking: temporarily disable, then re-run.
+    echo    - Long path limit: enable via Group Policy ^(gpedit.msc^) or:
+    echo      reg add HKLM\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /t REG_DWORD /d 1 /f
+    echo.
+    goto :fail
+)
 
 echo   Installing bundled ffmpeg (no system install needed)...
 "!PIP!" install imageio-ffmpeg --quiet
@@ -150,7 +186,7 @@ if %errorlevel%==0 (
     git -C "!APPDIR!" pull 2>&1
     if !errorlevel!==0 set "UPDATED=1"
 ) else (
-    echo  git not found — updating packages only.
+    echo  git not found - updating packages only.
 )
 
 echo.

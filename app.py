@@ -574,6 +574,14 @@ html.dark {
   --ta-stat-val:      #e2e8f0;
 }
 
+/* ── STT API key banner ── */
+.ta-stt-banner { background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:8px;padding:8px 14px;display:flex;align-items:center;gap:8px;font-family:sans-serif; }
+html.dark .ta-stt-banner { background:linear-gradient(135deg,#451a03,#78350f) !important;border-color:#d97706 !important; }
+.ta-stt-banner-title { font-weight:700;color:#92400e;font-size:0.88em; }
+html.dark .ta-stt-banner-title { color:#fde68a !important; }
+.ta-stt-banner-body { color:#78350f;font-size:0.82em;margin-left:6px; }
+html.dark .ta-stt-banner-body { color:#fcd34d !important; }
+
 /* ── Done panel ── */
 .ta-done-panel { background:linear-gradient(135deg,#d1fae5,#a7f3d0);border:2px solid #10b981;border-radius:16px;padding:28px 32px;text-align:center;font-family:sans-serif; }
 html.dark .ta-done-panel { background:linear-gradient(135deg,#064e3b,#065f46) !important;border-color:#10b981 !important; }
@@ -2672,12 +2680,11 @@ _WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "tu
 
 
 _STT_KEY_BANNER = (
-    '<div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:8px;'
-    'padding:8px 14px;display:flex;align-items:center;gap:8px;font-family:sans-serif;">'
+    '<div class="ta-stt-banner">'
     '<span style="font-size:1.1em;flex-shrink:0;">🔑</span>'
     '<div style="flex:1;min-width:0;">'
-    '<span style="font-weight:700;color:#92400e;font-size:0.88em;">API Key Required</span>'
-    '<span style="color:#78350f;font-size:0.82em;margin-left:6px;">'
+    '<span class="ta-stt-banner-title">API Key Required</span>'
+    '<span class="ta-stt-banner-body">'
     'Enter your API key below. Billed to your account — nothing stored here.'
     '</span></div></div>'
 )

@@ -90,27 +90,51 @@ class LLMClient:
                     _time.sleep(3)
             return ""
         else:
-            try:
-                resp = self._client.chat.completions.create(
-                    model=self.model,
-                    max_tokens=max_tokens,
-                    messages=[
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user},
-                    ],
-                )
-                if on_usage and resp.usage:
-                    on_usage(resp.usage.prompt_tokens, resp.usage.completion_tokens)
-                return resp.choices[0].message.content or ""
-            except Exception as e:
-                err = str(e)
-                if "authentication" in err.lower() or "api_key" in err.lower() or "credentials" in err.lower() or "401" in err:
-                    raise ValueError(
-                        f"API key rejected by {self.provider} ({self.model}). "
-                        "Check that you pasted the correct key for the selected provider. "
-                        f"Original error: {err}"
+            import re as _re2, time as _t2
+            for _attempt in range(4):
+                try:
+                    resp = self._client.chat.completions.create(
+                        model=self.model,
+                        max_tokens=max_tokens,
+                        messages=[
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": user},
+                        ],
                     )
-                raise
+                    if on_usage and resp.usage:
+                        on_usage(resp.usage.prompt_tokens, resp.usage.completion_tokens)
+                    return resp.choices[0].message.content or ""
+                except Exception as e:
+                    err = str(e)
+
+                    if "authentication" in err.lower() or "api_key" in err.lower() or "credentials" in err.lower() or "401" in err:
+                        raise ValueError(
+                            f"API key rejected by {self.provider} ({self.model}). "
+                            "Check that you pasted the correct key for the selected provider."
+                        )
+
+                    if "429" in err or "RESOURCE_EXHAUSTED" in err or "quota" in err.lower() or "rate" in err.lower():
+                        # Daily quota — cannot recover by waiting
+                        if "PerDay" in err or ("limit: 0" in err and "PerDay" in err):
+                            alt = " Try switching to a different model (e.g. gemini-2.5-flash)." if "gemini" in self.model else ""
+                            raise ValueError(
+                                f"Daily quota exhausted for {self.model}. "
+                                f"Your free-tier daily limit is used up.{alt}"
+                            )
+                        # Per-minute limit — parse retry delay and wait
+                        delay_m = _re2.search(r"retry in (\d+(?:\.\d+)?)s", err, _re2.IGNORECASE)
+                        wait = float(delay_m.group(1)) + 2 if delay_m else (15 * (2 ** _attempt))
+                        if wait > 120 or _attempt == 3:
+                            raise ValueError(
+                                f"Rate limit exceeded for {self.model}. "
+                                + (f"Retry in {wait:.0f}s, or switch to a less busy model." if wait <= 120
+                                   else "Too many retries — switch to a different model.")
+                            )
+                        _t2.sleep(wait)
+                        continue
+
+                    raise
+            return ""
 
 
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──
@@ -1298,8 +1322,20 @@ Return JSON with exactly these keys (in this order — analysis fields first, tr
 
 def _parse_json(raw: str) -> dict:
     """Parse JSON from an AI response, recovering from truncated/malformed output."""
-    s = re.sub(r"^```(?:json)?\s*", "", raw.strip())
-    s = re.sub(r"\s*```$", "", s)
+    if not raw or not raw.strip():
+        raise json.JSONDecodeError("Empty response from AI — model returned no content", "", 0)
+
+    s = raw.strip()
+
+    # Gemini and some models wrap JSON in text + fences: "Here is the result:\n```json\n{...}\n```"
+    # Extract the first fenced block if one exists anywhere in the response
+    fence = re.search(r"```(?:json)?\s*\n?([\s\S]*?)```", s)
+    if fence:
+        s = fence.group(1).strip()
+    else:
+        # No fenced block — strip leading/trailing fences only
+        s = re.sub(r"^```(?:json)?\s*", "", s)
+        s = re.sub(r"\s*```$", "", s)
 
     # Fast path: well-formed JSON
     try:
@@ -1307,7 +1343,7 @@ def _parse_json(raw: str) -> dict:
     except json.JSONDecodeError:
         pass
 
-    # Find the outermost { ... } block
+    # Find the outermost { ... } block (handles text before the JSON)
     start = s.find('{')
     if start == -1:
         raise json.JSONDecodeError("No JSON object found in AI response", s, 0)

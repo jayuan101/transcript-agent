@@ -52,12 +52,12 @@ def open_stt_dropdown(page, engine_name):
     return False
 
 PROVIDER_CHECKS = {
-    "Claude (Anthropic)": ("claude-opus-4-8",   6,  "sk-ant"),
-    "OpenAI":             ("gpt-4.1",           10, "sk-"),
-    "Google Gemini":      ("gemini-2.5-pro",     7, "AIzaSy"),
-    "Groq":               ("llama-3.3-70b-versatile", 6, "gsk_"),
-    "Mistral":            ("mistral-large-latest", 5, None),
-    "Together AI":        ("meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo", 6, None),
+    "Claude (Anthropic)": ("claude-opus-4-8",   5,  "sk-ant"),
+    "OpenAI":             ("gpt-4.1",            8, "sk-"),
+    "Google Gemini":      ("gemini-2.5-pro",     4, "AIzaSy"),
+    "Groq":               ("llama-3.3-70b-versatile", 5, "gsk_"),
+    "Mistral":            ("mistral-large-latest", 4, None),
+    "Together AI":        ("meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo", 5, None),
     "Perplexity":         ("sonar-pro",          5, "pplx-"),
     "Ollama (Local)":     ("llama3.3",           8, None),
 }

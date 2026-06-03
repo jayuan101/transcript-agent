@@ -336,7 +336,6 @@ _PROVIDERS = {
             "claude-haiku-4-5-20251001",
             "claude-3-5-sonnet-20241022",
             "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229",
         ],
         "base_url": None,
     },
@@ -352,9 +351,7 @@ _PROVIDERS = {
             "gpt-4o-mini",
             "o3",
             "o3-mini",
-            "o1",
-            "o1-mini",
-            "gpt-4-turbo",
+            "o4-mini",
         ],
         "base_url": None,
     },
@@ -366,10 +363,7 @@ _PROVIDERS = {
             "gemini-2.5-pro",
             "gemini-2.5-flash",
             "gemini-2.0-flash",
-            "gemini-2.0-flash-thinking-exp",
-            "gemini-1.5-pro",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
+            "gemini-2.0-flash-lite",
         ],
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
     },
@@ -379,11 +373,10 @@ _PROVIDERS = {
         "info": "console.groq.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
             "llama-3.3-70b-versatile",
-            "llama-3.1-70b-versatile",
             "llama-3.1-8b-instant",
             "deepseek-r1-distill-llama-70b",
+            "qwen-qwq-32b",
             "gemma2-9b-it",
-            "mixtral-8x7b-32768",
         ],
         "base_url": "https://api.groq.com/openai/v1",
     },
@@ -394,9 +387,8 @@ _PROVIDERS = {
         "models": [
             "mistral-large-latest",
             "mistral-small-latest",
+            "mistral-nemo-latest",
             "codestral-latest",
-            "open-mixtral-8x22b",
-            "open-mistral-nemo",
         ],
         "base_url": "https://api.mistral.ai/v1",
     },
@@ -407,10 +399,9 @@ _PROVIDERS = {
         "models": [
             "meta-llama/Meta-Llama-3.3-70B-Instruct-Turbo",
             "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo",
-            "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo",
             "Qwen/Qwen2.5-72B-Instruct-Turbo",
-            "mistralai/Mixtral-8x22B-Instruct-v0.1",
-            "google/gemma-2-27b-it",
+            "Qwen/QwQ-32B",
+            "google/gemma-3-27b-it",
         ],
         "base_url": "https://api.together.xyz/v1",
     },
@@ -1358,27 +1349,20 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "claude-haiku-4-5-20251001":    ( 0.80,  4.00),
     "claude-3-5-sonnet-20241022":   ( 3.00, 15.00),
     "claude-3-5-haiku-20241022":    ( 0.80,  4.00),
-    "claude-3-opus-20240229":       (15.00, 75.00),
     # OpenAI
     "gpt-4.1":                      ( 2.00,  8.00),
     "gpt-4.1-mini":                 ( 0.40,  1.60),
     "gpt-4.1-nano":                 ( 0.10,  0.40),
     "gpt-4o":                       ( 2.50, 10.00),
     "gpt-4o-mini":                  ( 0.15,  0.60),
-    "gpt-4-turbo":                  (10.00, 30.00),
-    "o1":                           (15.00, 60.00),
-    "o1-mini":                      ( 3.00, 12.00),
     "o3":                           (10.00, 40.00),
     "o3-mini":                      ( 1.10,  4.40),
+    "o4-mini":                      ( 1.10,  4.40),
     # Gemini
     "gemini-2.5-pro":               ( 1.25, 10.00),
     "gemini-2.5-flash":             ( 0.15,  0.60),
     "gemini-2.0-flash":             ( 0.075, 0.30),
-    "gemini-2.5-pro-preview-05-06": ( 1.25,  5.00),
-    "gemini-2.0-flash-exp":         ( 0.075, 0.30),
-    "gemini-1.5-pro":               ( 1.25,  5.00),
-    "gemini-1.5-flash":             ( 0.075, 0.30),
-    "gemini-1.5-flash-8b":          ( 0.0375,0.15),
+    "gemini-2.0-flash-lite":        ( 0.019, 0.075),
 }
 
 
@@ -1899,6 +1883,35 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         + est_time_stat
         + '</div></div>'
     )
+
+
+def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "") -> str:
+    """Convert a raw API error string into a short, human-readable message."""
+    import re as _re
+    e = err.lower()
+    # 429 / quota
+    if "429" in err or "resource_exhausted" in e or "quota" in e:
+        delay_m = _re.search(r"retry in (\d+(?:\.\d+)?)s", err, _re.IGNORECASE)
+        retry = f" Retry in {float(delay_m.group(1)):.0f}s." if delay_m else ""
+        if "perday" in err or ("limit: 0" in err):
+            alt = " Switch to a different model (e.g. gemini-2.5-flash)." if "gemini" in model_name else " Try a different model or provider."
+            return f"Daily quota exhausted for {model_name or 'this model'}.{alt}"
+        return f"Rate limit hit for {model_name or 'this model'}.{retry} Wait a moment and try again."
+    # 401 / auth
+    if "401" in err or "authentication" in e or "api_key" in e or "credentials" in e:
+        return f"API key rejected by {provider_name or 'the provider'}. Check that you pasted the correct key."
+    # 404 / model not found
+    if "404" in err or "not found" in e:
+        return f"Model '{model_name}' not found or no longer available. Try a different model."
+    # context length
+    if "context" in e and ("length" in e or "window" in e or "limit" in e):
+        return f"Input too long for {model_name or 'this model'}. Try a shorter recording or a model with a larger context window."
+    # raw error is short enough — show as-is; otherwise truncate
+    if len(err) <= 200:
+        return err
+    # For long raw errors (like full JSON blobs), show just the first sentence
+    first = _re.split(r"[.\n]", err)[0].strip()
+    return first[:200] if first else err[:200]
 
 
 def _err(msg: str) -> tuple:
@@ -2424,11 +2437,11 @@ def process_file(
                 yield _out(log=log)
             elif stage == "claude" and quiet == 120 and stall_key not in stall_warned:
                 stall_warned.add(stall_key)
-                log = _add_log("⚠️  AI analysis taking 2+ min. Long transcript or slow API — still waiting.", "warn")
+                log = _add_log(f"⚠️  {model_name} taking 2+ min. Long transcript or slow API — still waiting.", "warn")
                 yield _out(log=log)
             elif stage == "claude" and quiet == 600 and stall_key not in stall_warned:
                 stall_warned.add(stall_key)
-                log = _add_log("🚨  10 min waiting for AI response. Check your API key quota or try a faster model.", "error")
+                log = _add_log(f"🚨  10 min waiting for {provider_name} ({model_name}). Check your API key quota or try a faster model.", "error")
                 yield _out(log=log)
             elif stage == "claude" and quiet > 0 and quiet % 30 == 0:
                 yield _out(eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count))
@@ -2481,8 +2494,8 @@ def process_file(
                            eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
             elif stage == "claude":
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
-                log = _add_log("Sending transcript to AI for analysis…", "ai")
-                yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
+                log = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
+                yield _out(status=_status_compact("🤖", f"Analyzing with {model_name}…", elapsed),
                            eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count), log=log)
 
         elif kind == "pct":
@@ -2511,9 +2524,9 @@ def process_file(
             _save_stt_cache(uploaded_file, _raw_stt_text, "", [])
             log_text  = _add_log("✅ Transcription complete!", "done")
             log_text  = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
-            log_text  = _add_log("Sending transcript to AI for analysis…", "ai")
+            log_text  = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
             yield _out(
-                status=_status_compact("🤖", "Analyzing with AI…", elapsed),
+                status=_status_compact("🤖", f"Analyzing with {model_name}…", elapsed),
                 eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count),
                 transcript=msg[1],
                 log=log_text,
@@ -2656,9 +2669,10 @@ def process_file(
                     log=log_text,
                 )
             else:
-                log_text = _add_log(f"🚨 {err_msg}", "error")
+                display_msg = _friendly_api_error(err_msg, provider_name, model_name)
+                log_text = _add_log(f"🚨 {display_msg}", "error")
                 yield _out(log=log_text)
-                yield _err(f"Processing failed: {err_msg}")
+                yield _err(f"Processing failed: {display_msg}")
             break
     finally:
         _cancel_ev.set()   # always signal the background thread to stop

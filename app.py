@@ -784,9 +784,28 @@ button.ta-analyze-btn, #ta-analyze-btn {
 button.ta-analyze-btn:hover, #ta-analyze-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
 html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
 
-/* ── Cancel button ── */
-.ta-cancel-btn { flex: 0 0 34px !important; min-width: 34px !important; max-width: 34px !important; }
-.ta-cancel-btn button { width: 34px !important; height: 34px !important; padding: 0 !important; border-radius: 7px !important; font-size: 0.82em !important; font-weight: 700 !important; line-height: 1 !important; box-shadow: none !important; }
+/* ── Stop / Cancel button ── */
+.ta-cancel-btn { flex: 0 0 auto !important; min-width: 80px !important; }
+.ta-cancel-btn button {
+  background: linear-gradient(135deg,#dc2626,#ef4444) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 8px !important;
+  font-size: 0.85em !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.03em !important;
+  padding: 7px 14px !important;
+  box-shadow: 0 2px 8px rgba(220,38,38,0.35) !important;
+  transition: all 0.15s !important;
+  width: 100% !important;
+}
+.ta-cancel-btn button:hover {
+  background: linear-gradient(135deg,#b91c1c,#dc2626) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(220,38,38,0.5) !important;
+}
+.ta-cancel-btn button:active { transform: translateY(0) !important; }
+html.dark .ta-cancel-btn button { box-shadow: 0 2px 10px rgba(239,68,68,0.4) !important; }
 .ta-status-bar { flex: 1 1 auto !important; min-width: 0 !important; }
 
 /* ── Dropdowns ── */
@@ -3042,9 +3061,9 @@ window.taDoUpdate = function(url, btn, platform) {
       /* ── Analyze button — compact, pill style ── */
       'button.ta-analyze-btn,#ta-analyze-btn{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
       'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
-      /* ── Cancel / stop button — tiny square ── */
-      'button[aria-label="Stop / Cancel"],button.stop-btn{background:#fff!important;color:#dc2626!important;border:1.5px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;padding:6px 10px!important;transition:all 0.15s!important;width:100%!important;margin-top:4px!important}',
-      'button[aria-label="Stop / Cancel"]:hover,button.stop-btn:hover{background:#fef2f2!important;border-color:#ef4444!important}',
+      /* ── Stop / Cancel button ── */
+      '#ta-cancel-btn button,.ta-cancel-btn button{background:linear-gradient(135deg,#dc2626,#ef4444)!important;color:#fff!important;border:none!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 2px 8px rgba(220,38,38,0.35)!important;transition:all 0.15s!important;width:100%!important}',
+      '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:linear-gradient(135deg,#b91c1c,#dc2626)!important;transform:translateY(-1px)!important;box-shadow:0 4px 14px rgba(220,38,38,0.5)!important}',
       /* ── Scrollable dropdowns ── */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -3075,9 +3094,8 @@ window.taDoUpdate = function(url, btn, platform) {
       '.ta-hc-blue{background:rgba(59,130,246,0.28);border:1px solid rgba(96,165,250,0.4);color:#bfdbfe!important}',
       '.ta-hc-purple{background:rgba(139,92,246,0.25);border:1px solid rgba(167,139,250,0.4);color:#ddd6fe!important}',
       '.ta-hc-indigo{background:rgba(99,102,241,0.28);border:1px solid rgba(129,140,248,0.4);color:#c7d2fe!important}',
-      /* ── Cancel button — tiny square in results panel ── */
-      '.ta-cancel-btn{flex:0 0 34px!important;min-width:34px!important;max-width:34px!important}',
-      '.ta-cancel-btn button{width:34px!important;height:34px!important;padding:0!important;border-radius:7px!important;font-size:0.82em!important;font-weight:700!important;line-height:1!important;box-shadow:none!important;flex-shrink:0!important}',
+      /* ── Stop button wrapper ── */
+      '.ta-cancel-btn{flex:0 0 auto!important;min-width:80px!important}',
       /* Status bar fills remaining width */
       '.ta-status-bar{flex:1 1 auto!important;min-width:0!important}',
       /* ── Network monitor panel ── */
@@ -5363,10 +5381,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     elem_id="ta-status-bar",
                 )
                 cancel_btn = gr.Button(
-                    "■",
+                    "⏹  Stop",
                     variant="stop",
                     size="sm",
-                    min_width=36,
+                    min_width=80,
                     elem_classes=["ta-cancel-btn"],
                     elem_id="ta-cancel-btn",
                 )

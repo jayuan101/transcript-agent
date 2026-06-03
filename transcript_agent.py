@@ -1521,14 +1521,28 @@ def process_transcript(
         if n > 1:
             prompt = f"[Part {i} of {n}]\n\n" + prompt
 
-        raw = client.chat(
-            system=sys_prompt,
-            user=prompt,
-            max_tokens=32000,
-            thinking=False,
-            on_usage=_on_usage,
-        )
-        results.append(_parse_json(raw))
+        _parse_ok = False
+        for _parse_attempt in range(2):
+            _sys = sys_prompt if _parse_attempt == 0 else (
+                "IMPORTANT: Respond with ONLY a raw JSON object. "
+                "No markdown, no code fences, no explanation — just the JSON.\n\n" + sys_prompt
+            )
+            raw = client.chat(
+                system=_sys,
+                user=prompt,
+                max_tokens=16000 if _parse_attempt == 0 else 8000,
+                thinking=False,
+                on_usage=_on_usage,
+            )
+            try:
+                results.append(_parse_json(raw))
+                _parse_ok = True
+                break
+            except json.JSONDecodeError:
+                if _parse_attempt == 0:
+                    _log("⚠️ JSON parse failed — retrying with stricter JSON-only prompt…", "warn")
+                else:
+                    raise
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")
 
     r = results[0] if n == 1 else None

@@ -533,6 +533,11 @@ a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
   --ta-log-bg:        #f8fafc;
   --ta-log-border:    #cbd5e1;
   --ta-log-text:      #475569;
+  --ta-log-ts:        #94a3b8;
+  --ta-err-bg:        linear-gradient(135deg,#fef2f2,#fee2e2);
+  --ta-err-border:    #ef4444;
+  --ta-err-title:     #991b1b;
+  --ta-err-text:      #b91c1c;
 }
 html.dark {
   --ta-bg:            #080f1c;
@@ -568,8 +573,21 @@ html.dark {
   --ta-stat-val:      #e2e8f0;
   --ta-log-bg:        #0a0f1e;
   --ta-log-border:    #1e3a5f;
-  --ta-log-text:      #475569;
+  --ta-log-text:      #94a3b8;
+  --ta-log-ts:        #64748b;
+  --ta-err-bg:        #1a0505;
+  --ta-err-border:    #7f1d1d;
+  --ta-err-title:     #fca5a5;
+  --ta-err-text:      #fecaca;
 }
+
+/* ── Error card ── */
+.ta-err-card { background:linear-gradient(135deg,#fef2f2,#fee2e2);border:2px solid #ef4444;border-radius:12px;padding:18px 22px;display:flex;align-items:flex-start;gap:14px;font-family:sans-serif; }
+html.dark .ta-err-card { background:#1a0505 !important;border-color:#7f1d1d !important; }
+.ta-err-title { color:#991b1b;font-weight:700;font-size:1em; }
+html.dark .ta-err-title { color:#fca5a5 !important; }
+.ta-err-text { color:#b91c1c;font-size:0.88em;margin-top:5px; }
+html.dark .ta-err-text { color:#fecaca !important; }
 
 /* ── Deflection badge ── */
 .ta-defl-partial { background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:7px 12px;margin-bottom:10px;display:flex;align-items:flex-start;gap:8px; }
@@ -1923,13 +1941,11 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
 def _err(msg: str) -> tuple:
     """Yield this tuple to display an inline error card instead of a popup."""
     html = (
-        '<div style="background:linear-gradient(135deg,#fef2f2,#fee2e2);'
-        'border:2px solid #ef4444;border-radius:12px;padding:18px 22px;'
-        'display:flex;align-items:flex-start;gap:14px;font-family:sans-serif;">'
+        '<div class="ta-err-card">'
         '<div style="font-size:1.8em;line-height:1;flex-shrink:0;">❌</div>'
         '<div>'
-        '<div style="color:#991b1b;font-weight:700;font-size:1em;">Something went wrong</div>'
-        f'<div style="color:#b91c1c;font-size:0.88em;margin-top:5px;">{msg}</div>'
+        '<div class="ta-err-title">Something went wrong</div>'
+        f'<div class="ta-err-text">{msg}</div>'
         '</div>'
         '</div>'
     )
@@ -2156,16 +2172,16 @@ def process_file(
             elif kind == 'progress':
                 # text-only line in log — the ETA panel owns the visual bar
                 parts.append(
-                    f'<div><span style="color:#64748b;">[{ts}]</span> '
+                    f'<div><span style="color:var(--ta-log-ts,#94a3b8);">[{ts}]</span> '
                     f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
             else:
                 parts.append(
-                    f'<div><span style="color:#64748b;">[{ts}]</span> '
+                    f'<div><span style="color:var(--ta-log-ts,#94a3b8);">[{ts}]</span> '
                     f'<span style="color:{color};{weight}">{text}</span></div>'
                 )
         scroll = '<div id="ta-log-end"></div><script>document.getElementById("ta-log-end")?.scrollIntoView();</script>'
-        inner = "".join(parts) + scroll if parts else '<span style="color:#64748b;">Starting…</span>'
+        inner = "".join(parts) + scroll if parts else '<span style="color:var(--ta-log-ts,#94a3b8);">Starting…</span>'
         return (
             '<div id="ta-log-wrap" style="background:var(--ta-log-bg,#f8fafc);border:1px solid var(--ta-log-border,#cbd5e1);'
             'border-radius:10px;padding:12px 16px;min-height:120px;max-height:260px;'

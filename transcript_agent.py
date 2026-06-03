@@ -65,17 +65,30 @@ class LLMClient:
             kw = {}
             if thinking:
                 kw["thinking"] = {"type": "adaptive"}
-            with self._client.messages.stream(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=system,
-                messages=[{"role": "user", "content": user}],
-                **kw,
-            ) as stream:
-                resp = stream.get_final_message()
-            if on_usage and hasattr(resp, "usage"):
-                on_usage(resp.usage.input_tokens, resp.usage.output_tokens)
-            return next((b.text for b in resp.content if b.type == "text"), "")
+            for _attempt in range(3):
+                try:
+                    with self._client.messages.stream(
+                        model=self.model,
+                        max_tokens=max_tokens,
+                        system=system,
+                        messages=[{"role": "user", "content": user}],
+                        **kw,
+                    ) as stream:
+                        resp = stream.get_final_message()
+                    if on_usage and hasattr(resp, "usage"):
+                        on_usage(resp.usage.input_tokens, resp.usage.output_tokens)
+                    result = next((b.text for b in resp.content if b.type == "text"), "")
+                    if result:
+                        return result
+                    # empty text — retry without thinking on second attempt
+                    if _attempt == 1:
+                        kw.pop("thinking", None)
+                except Exception as _e:
+                    if _attempt == 2:
+                        raise
+                    import time as _time
+                    _time.sleep(3)
+            return ""
         else:
             try:
                 resp = self._client.chat.completions.create(

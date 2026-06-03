@@ -1497,7 +1497,7 @@ def process_transcript(
     results = []
     for i, chunk in enumerate(chunks, 1):
         label = f"chunk {i}/{n}" if n > 1 else "transcript"
-        _log(f"Sending {label} to Claude for analysis… (summary, key points, accent detection)")
+        _log(f"Sending {label} to AI for analysis… (summary, key points, accent detection)")
 
         if panel_mode:
             sys_prompt = PANEL_SYSTEM_PROMPT
@@ -1530,7 +1530,7 @@ def process_transcript(
             raw = client.chat(
                 system=_sys,
                 user=prompt,
-                max_tokens=16000 if _parse_attempt == 0 else 8000,
+                max_tokens=8000 if _parse_attempt == 0 else 4000,
                 thinking=False,
                 on_usage=_on_usage,
             )

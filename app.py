@@ -2516,7 +2516,7 @@ def process_file(
                 log = _add_log(f"Whisper {_whisper_model} loaded — transcription in progress…", "info")
                 yield _out(status=_status_compact("🎤", f"Transcribing audio…  [{_whisper_model}]", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
-            elif stage == "claude":
+            elif stage == "claude" and not claude_started:
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
                 yield _out(status=_status_compact("🤖", f"Analyzing with {model_name}…", elapsed),

@@ -1,0 +1,157 @@
+DOCUMENT INFO
+----------------------------------------
+  Language : en
+
+============================================================
+SUMMARY
+============================================================
+This recording captures a technical interview conducted by Angelique on behalf of a data engineering hiring team, followed by a brief post-interview debrief. The candidate, Raja Rajeshwari (referred to informally as 'Renee'), is a lead data engineer with over 11 years of experience. The interview assessed her expertise in Azure cloud services — specifically Databricks, ADLS Gen 2, Unity Catalog, Delta Lake, Delta Sharing, service principal security, and SCD Type 2 pipeline design. The candidate demonstrated solid conceptual and practical knowledge across these domains. A live coding exercise was conducted in which she outlined a PySpark-based SCD Type 2 merge function using Delta Lake. The interview concluded with a discussion of AI/ML initiatives on the interviewer's team, including RAG pipelines, Neo4j digital twins, and an MCP server. The candidate was informed that a managerial/behavioral interview round would follow. In the post-interview debrief, the coaching team expressed optimism about the candidate's performance and anticipated positive feedback early the following week.
+
+KEY POINTS
+----------------------------------------
+  • The candidate, Raja Rajeshwari ('Renee'), has 11+ years of experience as a lead data engineer across finance, pharma, and retail industries.
+  • Her current role at Delphi Financial involves designing trade and risk data platforms on AWS using S3, Glue, Spark, Kinesis, and Snowflake.
+  • Her prior role at Nomaday's involved migrating legacy Teradata workloads to Azure using Databricks, ADLS Gen 2, Synapse, and Azure Data Factory, with a Delta Lake medallion architecture.
+  • Azure services she has worked with include: Databricks, ADLS Gen 2, Synapse Analytics, Azure Data Factory, Azure Event Hubs, Azure Key Vault, Azure Functions, Azure Logic Apps, and Microsoft Purview.
+  • She has experience provisioning Azure infrastructure using both ARM templates and Terraform.
+  • The candidate explained connection mechanisms between Databricks and ADLS Gen 2 using ABFSS driver, service principals, managed identities, and Azure Active Directory.
+  • She described secret rotation practices using Azure Key Vault integrated with Databricks secret scopes, with no need for manual mount point recreation.
+  • She demonstrated knowledge of Unity Catalog-based Delta Sharing, including open protocol access for non-Databricks recipients via token-based credential files.
+  • A live coding exercise tested her ability to design an SCD Type 2 pipeline in PySpark using Delta Lake merge operations, including setting effective dates and is_current flags.
+  • The candidate has partial experience with RAG pipelines, having contributed to vector embedding storage from Snowflake data using Amazon Bedrock LLMs.
+  • The interviewer's team is leveraging cutting-edge AI technologies including Neo4j digital twins, an MCP server, Amazon Kiro for test automation, and chatbot development over Delta Lake data.
+  • The interview process includes one additional managerial/behavioral round; a client interview may be required depending on which of the two open positions the candidate is matched to.
+  • The post-interview coaching team assessed the session positively and anticipated good news early the following week.
+
+ACTION ITEMS
+----------------------------------------
+  ☐  {'owner': 'Angelique (Interviewer)', 'action': 'Submit technical interview feedback to the hiring manager to facilitate project placement decision.'}
+  ☐  {'owner': 'HR Team', 'action': 'Communicate next steps to the candidate (Raja Rajeshwari) regarding the managerial/behavioral interview round.'}
+  ☐  {'owner': 'Candidate (Raja Rajeshwari)', 'action': 'Await HR communication regarding next interview round (managerial/behavioral, and potentially a client interview depending on position).'}
+  ☐  {'owner': 'Hiring Manager', 'action': 'Review interviewer feedback and determine which of the two open positions the candidate is best suited for.'}
+
+SPEECH ANALYTICS
+----------------------------------------
+  Moderator / Interview Coordinator
+    Speech rate : 1.9 WPM — Slow (low word count / sparse participation)  4% of conversation
+    Accent      : Neutral, likely South Asian or North American English based on phrasing and intonation patterns. Confidence: low.
+  Angelique (Interviewer)
+    Speech rate : 1.9 WPM — Normal  30% of conversation
+    Accent      : North American English; neutral accent with standard professional vocabulary. Confidence: medium.
+  Candidate (Raja Rajeshwari / Renee)
+    Speech rate : 1.9 WPM — Normal  52% of conversation
+    Accent      : South Asian English accent, likely Indian origin, based on sentence structure, occasional grammatical inversions, and technical vocabulary usage patterns. Confidence: high.
+  Ivan (Post-Interview Coach)
+    Speech rate : 1.9 WPM — Normal  8% of conversation
+    Accent      : North American English; conversational and informal register. Confidence: medium.
+  Kisly (Post-Interview Observer)
+    Speech rate : 1.9 WPM — Normal  6% of conversation
+    Accent      : North American English; brief contributions limit accent inference. Confidence: low.
+
+SPEAKER PROFILES
+----------------------------------------
+  Moderator / Interview Coordinator
+  Handles administrative and logistics coordination at the start of the call, including ID verification and session management. Communicates briefly and practically, ensuring the interview proceeds without friction.
+
+  Angelique (Interviewer)
+  A technically proficient interviewer representing the hiring team, with deep knowledge of Azure data engineering, Databricks, Unity Catalog, and AI/ML pipelines. Asks structured, progressively deeper technical questions and maintains a professional yet cordial demeanor throughout.
+
+  Candidate (Raja Rajeshwari / Renee)
+  A lead data engineer with 11+ years of experience across finance, pharma, and retail industries. Demonstrates broad knowledge of cloud data platforms on both AWS and Azure, including Databricks, Delta Lake, ADLS Gen 2, and RAG pipelines. Communicates confidently with occasional hesitation on very specific technical details.
+
+  Ivan (Post-Interview Coach)
+  A post-interview support coach who debrief the candidate after the session. Offers encouragement and assessment of how the interview went, maintaining a positive and motivating communication style.
+
+  Kisly (Post-Interview Observer)
+  A secondary observer in the post-interview debrief. Offers brief, affirming commentary and context about the hiring process, noting multiple open positions.
+
+============================================================
+FULL TRANSCRIPT
+============================================================
+[00:00] Moderator: Yeah. Actually, I couldn't — I haven't received any notification or something. I'm just having some error with my Teams, I guess.
+[00:06] Moderator: No worries. No worries. So I think this — you think? Yeah.
+[00:13] Angelique: Interview for Raja Rajeshwari?
+[00:17] Moderator: Yeah. Yes. Yes.
+[00:20] Angelique: Yes. Yes. I have one question. My bad. Your name popped in as Renee. My bad. Yeah.
+[00:29] Moderator: Yeah. I think I was also a bit confused last time, but I saw her face last time, so I remember her.
+[00:35] Renee: Yeah. Thank you. Yeah.
+[00:40] Moderator: My apologies. I think we can continue with the call, I guess. Yeah. That's fine.
+[00:46] Moderator: Alright. So ID verification is done, right? We can proceed? Oh, I think that has been done in the initial. So yeah. Okay. We are good for now.
+[00:58] Angelique: Thanks for joining in, Renee. I hope I pronounced your name right. Yeah, it was correct. Okay. So to get us started, tell me a little bit about yourself. Focus on your previous project, and what were your roles and responsibilities on that project?
+[01:19] Renee: Yeah. Sure. So I'm a lead data engineer with around 11 plus years of experience working on large-scale data platforms across multiple industries like finance, pharma, and retail. Currently, I'm working at Delphi Financial where I design and develop trade and risk data platforms on AWS. So there, we are using S3 as a data lake, Glue and Spark for our transformations, and Snowflake as our analytical warehouse. And I have also worked on real-time pipelines as well. We have worked with Kinesis and Spark Structured Streaming for intraday trade events and regulatory reporting. Before that, I worked at Nomaday's where I was a part of the modernization — like, migrating legacy Teradata workloads into Azure using Databricks, ADLS, Synapse, and Azure Data Factory. And I worked on building scalable data pipelines, implementing Delta Lake-based solutions, and supporting analytics and reporting requirements for clinical and regulatory teams. And I also work closely with cross-functional teams in order to define the KPIs with risk, finance, and compliance teams in order to ensure the platform is reliable, scalable, and secure, and also cost-efficient. And that's all about me.
+[02:52] Angelique: What sort of KPIs did you help track?
+[03:00] Renee: I have built different KPIs. Like, we have different teams — finance, risk, and compliance. So for the finance team, we have calculated profit and loss, FX rates, market updates, balance sheet calculations. And for risk, we have risk monitoring dashboards. And those kind of KPIs — like risk factors. If we are having a particular instrument in trade, what is the risk factor? Those kinds of KPIs we have.
+[03:38] Angelique: That business logic was given to you as a requirement, or you came up with those?
+[03:44] Renee: That was given as a requirement.
+[03:47] Angelique: That was given as a requirement. Okay. Okay. So I'm going to focus more on Azure because on this particular project that you'll be interviewing for, the primary cloud platform that we are using is Azure. So what Azure components have you used? You mentioned Databricks.
+[04:08] Renee: Databricks, ADLS Gen 2, Event Hubs, Synapse, Azure Data Factory. On the governance side, we have used Purview and security services like Azure Key Vault. And yeah, we have used many — like Azure Functions, Azure Logic Apps, and Purview, I have mentioned.
+[04:46] Angelique: Those are the services. Okay. Were you involved in setting up any of the infrastructure for these on Azure?
+[04:53] Renee: Yeah. I have been involved — like, setting up the environment, automating the Azure infrastructure for our data platform. For that, we used ARM templates to provision the resources like Azure storage, Databricks workspaces, Synapse Analytics, Key Vault — pretty much.
+[05:17] Angelique: So you've used ARM templates. Have you used Terraform by any chance?
+[05:21] Renee: Yeah. In our recent project, we are using Terraform currently.
+[05:25] Angelique: Terraform. Okay. Okay. So on my project, as a developer, you'll be asked to set up some infrastructure as well as contribute towards ETL pipelines. That's why I wanted to gauge how comfortable you are setting up infrastructure. My team owns the platform, all the infrastructure, and we are building data ingestion pipelines on that too. So you'll be pulled into infrastructure side work as well as on data engineering. Okay. So you are comfortable with setting up — yeah, that's obviously fine.
+[06:07] Angelique: Okay. With respect to your data ingestion pipelines — what sort of transformations did they use, or how was your typical data ingestion pipeline? What was the source?
+[06:21] Renee: Focus on the one which is related to Azure? Oh, sure. Yeah. So our source systems are somewhere from databases — clinical trial platforms — because we are migrating from Teradata to Azure-based lakehouse. And clinical trial management systems and telemetry data. External research partners also send data. Like, we ingested that data to ADLS Gen 2 using Azure Data Factory. In parallel, we selected the real-time pipeline as well for feeds such as lab events and clinical status updates, which were ingested through Azure Event Hubs. And we used Azure Databricks — that was our primary processing platform — where we used PySpark and Delta Lake to perform schema validation, data quality checks, reconciliation, cleaning, and transformations. And we also implemented the medallion architecture, basically — bronze, silver, and gold layers — and built curated data on top of that for downstream analytics and reporting. Synapse was primarily used for SQL-based analytics and external table access, while Power BI supported reporting and visualization for the research and compliance team. For governance, we used Azure Purview for lineage, cataloging, and data discovery, along with Azure AD and RBAC for secure access control. And the entire workflow was orchestrated through Logic Apps and Airflow workflows with SLAs, monitoring, and alerts.
+[08:37] Angelique: Gotcha. So you mentioned you had external tables on the Delta Lake. The external tables were on ADLS Gen 2 storage account. Yes. And what was the connection mechanism that you used to connect Databricks with your storage accounts?
+[08:54] Renee: So we have used Azure Active Directory-based authentication depending on the use case. For most of the production workloads, we use service principals with RBAC roles. We connected Databricks with ADLS Gen 2 via the ABFSS driver. And we managed authentication using Azure Active Directory service principals and also managed identities.
+[09:45] Angelique: Okay. So did you have any policies on the service principal?
+[09:51] Renee: We have — like, network-level policies — several policies in order to ensure security, compliance, and cost control. So we enforced network-level restrictions and also least-privileged access, which assigns only the required RBAC roles. For example, for specific users, you need to give permission to access the data. So RBAC rules and least-privilege access when configuring service principals — secret rotation, like storing credentials in Azure Key Vault.
+[10:35] Angelique: And so let me stop you right there. So for your service principal secret rotation — once the secrets are rotated, did you have to do anything to make sure your connections were still in place?
+[10:56] Renee: We have to do it — either manually or via automated secret rotation process using Azure Key Vault integration with Databricks secret scopes.
+[11:01] Angelique: Okay. But once your secret is rotated, did you have to create mount points?
+[11:09] Renee: Once the secret — I think, no. We didn't have to create mount points manually, since the Databricks mounts, which were referenced by the secret store, were dynamically stored via Key Vault. So we don't have to create the mounts.
+[11:34] Angelique: Okay. Basically, you are using external locations in that case to manage identity. Right?
+[11:40] Renee: Yes. Exactly.
+[11:44] Angelique: Okay. And are you well-versed in Unity Catalog? Have you used Delta Sharing?
+[11:53] Renee: Yes. Yeah. We have used Delta Sharing for securely sharing curated datasets across teams and external partners without duplicating the data. We configured Unity Catalog-based Delta Sharing, which allowed us to define share objects and recipients directly within the metastore.
+[12:23] Angelique: Was it at the same region or different regions?
+[12:27] Renee: It was in the same region. We kept both recipient workspaces in the same Azure region.
+[12:32] Angelique: What would you do to set it up for a different region?
+[12:40] Renee: For a different region, we have to first ensure that the data provider's Unity Catalog is properly configured with external locations and shares referencing the Delta tables in the source region. Then we'll create a share object and define the recipients.
+[13:07] Angelique: What if your recipient doesn't have Databricks?
+[13:13] Renee: If the recipient doesn't have Databricks, they would still be able to use Delta Sharing because it supports open protocol access. I can create a token-based share from Unity Catalog and provide the recipient with a secure share link and also credential files.
+[13:36] Angelique: Okay. So what are the things you need to ensure? I know you mentioned token-based, but how would you rotate tokens? Like, what mechanisms would you have to put in place for that?
+[13:53] Renee: We can manage it directly through Unity Catalog and automate the process using the Databricks REST API, or even with ARM templates or Terraform. And the share token has an expiration date. So each Delta Sharing recipient is associated with a share token that has an expiration date. If it expires, I would generate a new token using Unity Catalog.
+[14:33] Angelique: Okay. Okay. So could we jump to a coding question? Are you comfortable sharing your screen? We can open up a notepad or something.
+[14:43] Renee: Sure. Definitely. Just give me a second.
+[15:06] Renee: Can you see my screen?
+[15:08] Angelique: Not yet.
+[15:13] Renee: Can you see my screen now?
+[15:15] Angelique: Yes. I can see the Teams window. Okay. So I'll give you an example. I'm looking through your thought process. I'm not particularly interested in the syntax, but if you can write some pseudo code for it, that'll be really good. So let's assume you have an employee table which has 3 columns — ID, name, and salary. And let's assume you are getting an incremental file with this data, and you are trying to store it in the Delta Lake in an SCD Type 2 table. You understand SCD Type 2, right?
+[16:21] Renee: Yes. It stores historical data.
+[16:24] Angelique: Correct. Correct. So as you are getting this file daily, I want you to build an SCD Type 2 pipeline. And now for the sake of time, let's assume you already have the incremental data in a dataframe, and you have a Delta table on your Unity Catalog. So if you could just write the function, that'll be more than enough.
+[16:49] Renee: Okay. Let me think of it. Should I write it in PySpark?
+[17:37] Angelique: Yeah. PySpark is fine. Okay. You can ignore all the imports and stuff — assume you already have all the necessary imports. So just the function, and you can write pseudo code also. I'm not looking for syntax.
+[17:52] Renee: Okay. That's fine then. So we are having — I'll define a function for that — like, process_employee. We'll first load the data, I'll write the target table then. I'm just loading the data, and then I'll access the Delta table. The target table is the Spark Delta table. So you said we are getting the data incrementally. So we have to have current records — and the SCD Type 2, we have to filter based upon is_current equals to true. And, you know, capturing the changed records for changed today. Yeah. Just capturing the source file and then joining this template. Just starting filtering with the name — calling of src_name which is not equal to target_name — and we also do it for name and salary as well. And after that, we have to use merge. We're setting effective_end_date and then execute it. So if we want to merge — like, if the target ID equals to source ID — then, which is current is_current equals to true, then when matched update, then we have to update — like, set effective_end_date equals to current date and is_current equals to false because it was the previous one. And just execute. Now for inserting new rows — in the new rows, we have to set column effective_start_date then we have to use current date, with column effective_end_date and then cast the date.
+[31:03] Angelique: Yep. Yep. Right. I get that. Okay. I wanted to move along with the next question. Have you used AI in any of your projects so far?
+[31:09] Renee: Yeah. We have used AI in our current project. We are building a RAG pipeline where our data is sitting in Snowflake. So we are building on top of that data — building a RAG pipeline with Amazon Bedrock, using LLMs in Bedrock, and then a vector database for storing the vector embeddings. And then using that LLM, the user will query that data, and it takes data from Snowflake and gives the output without hallucination by leveraging the Snowflake data. And also for ML-ready use cases, we are creating curated, governed, and high-quality datasets for downstream data science teams as well.
+[32:15] Angelique: What was your role in that? Like, did you create the RAG pipelines? Or how were you involved?
+[32:23] Renee: I was a part of that. So the team is building it, and I was a part of it. I participated in building components that would be considered part of the RAG pipeline. I was building till vector embeddings — I was responsible for our data till vector embeddings. From there, the team took it ahead.
+[32:49] Angelique: Okay. So you weren't involved in the actual embedding?
+[32:54] Renee: I was involved. From storing to the vector embeddings, I was involved. Okay. Till there — after the Snowflake data is stored in the vector embeddings — then the analytics team took it ahead.
+[33:11] Angelique: Okay. Okay. So I know we are at the top of the hour. I wanted to give some time back to you for any questions that you might have. I can help answer those.
+[33:28] Renee: So I will be part of your team if I'm getting hired?
+[33:33] Angelique: There are multiple projects going on. You'll be considered for both of them. One position is within my team, and there's another project which is under another person. So based on the feedback that I provide, the hiring manager will basically decide where you'll be a better fit.
+[34:02] Renee: After this round, how many rounds can I expect?
+[34:06] Angelique: After this, there'll be an MR round where there'll be behavioral interview questions with the hiring manager himself. So that'll be just one more interview to go. And if it's for the other position, there could be a client interview as well. So you will be interacting with the client directly. If it's for my team, then we won't have the client interview round.
+[34:37] Renee: Okay. That's fine. And what does the company culture look like?
+[34:44] Angelique: I mean, we have a very large team here. Within my team itself, there are 32 people. And out of that, 22 are DCS folks. But we have a very open culture, and we share ideas. We have regular lunch-and-learn sessions, and we share ideas amongst our teammates. We have show-and-tells with the clients. So it's a fun environment to work in. There's a lot of new cutting-edge technology that we are leveraging. We have Amazon Kiro. We're building chatbots.
+[35:24] Renee: Oh, nice. So what kind of AI are you using? Like, what kind of chatbot are you building?
+[35:32] Angelique: Oh, so I can't dive too much into detail, but basically the data that we have on our Delta Lake — we are leveraging that — and we've also ingested some of this data into Neo4j. We're leveraging their digital twin to basically help our chatbot get some more context. We built an MCP server, and we are leveraging that to answer some of the business questions.
+[35:56] Renee: Oh, that's nice. That's good, actually.
+[36:08] Angelique: And well, there's a lot of new technology being leveraged. Even Amazon Kiro — they're leveraging that to build some test cases, automation. There are validations that AI is helping us with. So a lot of new things going on in my project. Yeah. I hope that answers your question. Yeah, yeah. If you are looking for something specific.
+[36:35] Renee: That was so interesting, and I have no more questions. I'm done with my questions.
+[36:42] Angelique: Okay. So what I'm going to do now is I'll send in my feedback. You'll hear back from HR on the next steps. Okay?
+[36:50] Renee: Yeah. Yeah. Sure. Definitely. Thank you so much for your time.
+[36:55] Angelique: Yeah. Thanks. It was nice talking with you. And sorry — yeah, like, I got confused with the names.
+[37:00] Renee: No issues. No issues. People used to call me Renee because my name is so hard to pronounce. So—
+[37:11] Angelique: Gotcha. No, the interview actually got set up with another name, and I just got confused with that. Anyways — it was nice talking with you.
+[37:23] Renee: Stay tuned on the next steps. Yeah. Thank you so much, Angelique.
+[37:28] Angelique: Thank you. Bye. Thanks. Bye bye.
+[37:54] Ivan: Alright. How do you think it went?
+[37:57] Renee: It was good.
+[38:00] Ivan: Yeah. I think that actually went very smoothly. You know? He was very cordial with you at the end. He said it was nice talking to you. Unfortunately, he wasn't specific about this being the final, but I think we all expect it to be. So yeah, I am definitely in high spirits and expecting good news early next week.
+[38:25] Renee: Hope so. Thanks, Ivan.
+[38:30] Ivan: Absolutely. Kisly, you have anything?
+[38:33] Kisly: No. Let's stay tuned for the next steps. I think it's one of the better interviews and final rounds. And I'm sure you followed and dialed in too, Joe. They have multiple openings as they said, so all of you can end up being here. Awesome sauce.
+[38:52] Ivan: Awesome sauce indeed. Alright. Well, yeah, that's a great way to finish out the week. So everyone have a great weekend, and I'll see you on Monday. Alright? Thank you. Bye. Bye, Jim. Bye bye. Bye. Thank you.

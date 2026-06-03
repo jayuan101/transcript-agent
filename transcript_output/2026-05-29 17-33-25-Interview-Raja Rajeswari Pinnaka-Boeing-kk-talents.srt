@@ -1,0 +1,1983 @@
+1
+00:00:00,000 --> 00:00:06,160
+Yeah. Actually, I couldn't haven't received any notification or something. I'm just having some error with my teams, I guess.
+
+2
+00:00:06,559 --> 00:00:07,440
+No
+
+3
+00:00:08,480 --> 00:00:12,240
+worries. No worries. So I think this you think. Yeah.
+
+4
+00:00:13,439 --> 00:00:15,919
+Interview for
+
+5
+00:00:15,035 --> 00:00:16,554
+Raja Rajeshwari?
+
+6
+00:00:17,195 --> 00:00:17,914
+Yeah.
+
+7
+00:00:18,714 --> 00:00:20,154
+Yes. Yes. You?
+
+8
+00:00:20,875 --> 00:00:23,994
+Yes. Yes. I have 1 question. My bad.
+
+9
+00:00:24,394 --> 00:00:26,875
+Your name popped in as Renee.
+
+10
+00:00:27,515 --> 00:00:28,714
+My bad. Yeah.
+
+11
+00:00:29,460 --> 00:00:35,379
+Yeah. I think I was also a bit confused last time, but I I saw her face last time. So I remember her.
+
+12
+00:00:35,859 --> 00:00:38,100
+Yeah. Thank you. Yeah.
+
+13
+00:00:40,659 --> 00:00:44,339
+My apologies. I think we can continue with the call, I guess. Yeah.
+
+14
+00:00:44,820 --> 00:00:45,379
+That's fine.
+
+15
+00:00:46,795 --> 00:00:52,715
+Alright. So ID verification is done. Right? We can proceed? Oh, I think that has been done in the initial.
+
+16
+00:00:53,034 --> 00:00:55,435
+So yeah. Okay. We are good for now.
+
+17
+00:00:58,640 --> 00:01:00,079
+Thanks for joining in,
+
+18
+00:01:00,320 --> 00:01:05,040
+Renee. I hope I pronounced your name right. Yeah. It was correct.
+
+19
+00:01:05,680 --> 00:01:07,359
+Okay. Okay. So
+
+20
+00:01:07,920 --> 00:01:10,959
+to get us started, tell me a little bit about yourself.
+
+21
+00:01:11,200 --> 00:01:14,864
+Focus on your previous project, and
+
+22
+00:01:15,024 --> 00:01:17,584
+what were your roles and responsibilities
+
+23
+00:01:18,305 --> 00:01:19,344
+on that project?
+
+24
+00:01:19,504 --> 00:01:20,465
+Yeah. Yeah. Sure.
+
+25
+00:01:20,864 --> 00:01:31,609
+So I'm a lead data engineer with around 11 plus years of experience working on large scale data platforms across multiple industries like finance, pharma, and retail.
+
+26
+00:01:32,170 --> 00:01:34,649
+Currently, I'm working at Delphi Financial
+
+27
+00:01:34,810 --> 00:01:35,609
+where
+
+28
+00:01:36,729 --> 00:01:40,890
+I design and develop trade and risk data platforms on AWS.
+
+29
+00:01:41,655 --> 00:01:46,215
+So there, we are using SDS as a data lake, Glue and Spark
+
+30
+00:01:46,295 --> 00:01:47,974
+for our transformations,
+
+31
+00:01:47,974 --> 00:01:50,295
+and Snowflake has our analytical warehouse.
+
+32
+00:01:50,775 --> 00:01:51,334
+And
+
+33
+00:01:51,655 --> 00:01:58,620
+I have also worked on real time pipeline as well. We have worked with Kinesis and Spark structured streaming for
+
+34
+00:01:58,939 --> 00:02:00,780
+intraday trade events and
+
+35
+00:02:01,340 --> 00:02:02,540
+regulatory reporting.
+
+36
+00:02:02,780 --> 00:02:07,420
+Before that, I worked at Nomaday's where I was a part of the modernization,
+
+37
+00:02:07,740 --> 00:02:12,060
+like, migrating legacy Teradata workloads into Azure
+
+38
+00:02:12,104 --> 00:02:13,384
+using Databricks,
+
+39
+00:02:13,384 --> 00:02:14,264
+ADLS,
+
+40
+00:02:14,264 --> 00:02:15,064
+Synapse,
+
+41
+00:02:15,305 --> 00:02:17,305
+and Azure Data Factory.
+
+42
+00:02:17,705 --> 00:02:21,064
+And I worked on building scalable data pipelines,
+
+43
+00:02:21,064 --> 00:02:22,665
+implementing Delta Lake
+
+44
+00:02:23,305 --> 00:02:24,585
+based solutions,
+
+45
+00:02:25,144 --> 00:02:26,905
+and supporting analytics,
+
+46
+00:02:26,985 --> 00:02:28,264
+and also
+
+47
+00:02:29,439 --> 00:02:33,120
+reporting requirements for clinical and regulatory teams.
+
+48
+00:02:33,759 --> 00:02:39,200
+And I also work closely with cross functional teams in order to define the KPIs
+
+49
+00:02:40,080 --> 00:02:42,764
+with risk finance and compliance teams
+
+50
+00:02:42,844 --> 00:02:45,805
+in order to ensure the platform is reliable,
+
+51
+00:02:45,805 --> 00:02:47,324
+scalable, and secure,
+
+52
+00:02:47,405 --> 00:02:49,165
+and also cost efficient.
+
+53
+00:02:49,724 --> 00:02:52,044
+And that's all about me.
+
+54
+00:02:52,284 --> 00:02:53,405
+If you want anything,
+
+55
+00:02:53,644 --> 00:02:56,819
+I guess. Yeah. What sort of KPIs did you
+
+56
+00:02:57,459 --> 00:02:58,259
+help
+
+57
+00:02:58,579 --> 00:02:59,379
+track?
+
+58
+00:03:00,180 --> 00:03:02,819
+I have built a different KPIs.
+
+59
+00:03:02,819 --> 00:03:05,060
+Like, we have different teams, finance,
+
+60
+00:03:05,379 --> 00:03:06,419
+risk, and compliance.
+
+61
+00:03:06,784 --> 00:03:10,064
+So for finance team, we have calculated, like, profit
+
+62
+00:03:10,544 --> 00:03:12,784
+and loss, FX rates,
+
+63
+00:03:13,104 --> 00:03:14,784
+like, market updates,
+
+64
+00:03:14,865 --> 00:03:16,545
+balance sheet calculations.
+
+65
+00:03:16,944 --> 00:03:17,425
+And
+
+66
+00:03:18,145 --> 00:03:19,025
+risk,
+
+67
+00:03:19,104 --> 00:03:19,665
+we have,
+
+68
+00:03:20,730 --> 00:03:22,890
+like, risk monitoring dashboards
+
+69
+00:03:23,770 --> 00:03:24,810
+for risk.
+
+70
+00:03:25,129 --> 00:03:26,330
+And those
+
+71
+00:03:26,330 --> 00:03:27,610
+kind of KPIs,
+
+72
+00:03:27,610 --> 00:03:28,010
+like
+
+73
+00:03:28,490 --> 00:03:29,690
+risk factors.
+
+74
+00:03:30,409 --> 00:03:37,665
+If we are having this particular instrument in trade, what is the risk factor? So the those kind of KPIs we have.
+
+75
+00:03:38,145 --> 00:03:43,985
+That business logic was given to you as a requirement, or you came up with those?
+
+76
+00:03:44,145 --> 00:03:46,145
+That was given as a requirement.
+
+77
+00:03:47,025 --> 00:03:49,185
+That was given as a requirement. Okay. Okay.
+
+78
+00:03:50,409 --> 00:03:53,689
+So I'm gonna focus more on Azure because
+
+79
+00:03:53,849 --> 00:03:59,210
+on this particular project that you'll be you're interviewing for Mhmm. The
+
+80
+00:03:59,289 --> 00:04:00,169
+primary
+
+81
+00:04:01,049 --> 00:04:07,185
+cloud platform that we are using is Azure. So what are Azure components have you used? You mentioned
+
+82
+00:04:07,344 --> 00:04:08,305
+Databricks.
+
+83
+00:04:08,305 --> 00:04:09,504
+Databricks,
+
+84
+00:04:09,504 --> 00:04:12,224
+ADLH Gen 2, Event Hubs,
+
+85
+00:04:13,824 --> 00:04:14,705
+Synapse,
+
+86
+00:04:15,344 --> 00:04:16,464
+Azure Data Factory,
+
+87
+00:04:17,830 --> 00:04:21,270
+Mac Okay. Governance side, we have used the overview and
+
+88
+00:04:24,790 --> 00:04:26,389
+accessing services
+
+89
+00:04:26,629 --> 00:04:27,430
+like
+
+90
+00:04:27,910 --> 00:04:28,870
+Azure Key Vault.
+
+91
+00:04:31,395 --> 00:04:32,514
+And Okay.
+
+92
+00:04:32,754 --> 00:04:33,555
+Yeah.
+
+93
+00:04:33,875 --> 00:04:35,634
+We have used many,
+
+94
+00:04:35,714 --> 00:04:38,754
+like, Azure functions, Azure Logic Apps,
+
+95
+00:04:40,915 --> 00:04:41,395
+and
+
+96
+00:04:41,795 --> 00:04:43,074
+Purview, I have mentioned.
+
+97
+00:04:45,379 --> 00:04:45,939
+Yeah.
+
+98
+00:04:46,259 --> 00:04:53,300
+Those are the services. Okay. Okay. So were you involved in setting up any of the infrastructure for these Yeah. On Azure?
+
+99
+00:04:53,540 --> 00:04:54,420
+Yeah. We have
+
+100
+00:04:55,060 --> 00:04:56,420
+I have involved,
+
+101
+00:04:56,500 --> 00:04:57,060
+like,
+
+102
+00:04:57,300 --> 00:05:01,705
+setting up the environment, of automating the Azure infrastructure for our
+
+103
+00:05:02,425 --> 00:05:05,785
+data platform. So the for that, we use RAM templates
+
+104
+00:05:06,185 --> 00:05:08,345
+to provision the resources like
+
+105
+00:05:08,904 --> 00:05:10,504
+Azure data, like storage,
+
+106
+00:05:10,585 --> 00:05:12,264
+data bridge workspaces,
+
+107
+00:05:12,264 --> 00:05:13,225
+synapse analytics,
+
+108
+00:05:14,029 --> 00:05:14,910
+keyword,
+
+109
+00:05:15,790 --> 00:05:29,069
+pretty much. So you've used ARM templates. Have you used Terraform by any chance? Yeah. We in our recent project, I we are using Terraform, right, currently. Terraform. Okay. Okay. So you'll so there isn't being, like, on my project. Mhmm.
+
+110
+00:05:30,644 --> 00:05:32,084
+As a developer,
+
+111
+00:05:32,164 --> 00:05:32,884
+like,
+
+112
+00:05:32,964 --> 00:05:35,444
+you'll be asked to set up some infrastructure
+
+113
+00:05:35,444 --> 00:05:38,964
+as well as contribute towards ETL pipelines. Mhmm.
+
+114
+00:05:39,284 --> 00:05:43,444
+That's why I wanted to gauge how comfortable you are setting up infrastructure.
+
+115
+00:05:44,089 --> 00:05:46,410
+So my team owns the platform,
+
+116
+00:05:46,569 --> 00:05:47,930
+all the infrastructure,
+
+117
+00:05:48,009 --> 00:05:53,610
+and we are building data ingestion pipelines on on that too. Mhmm. So you'll you'll be pulled into,
+
+118
+00:05:54,250 --> 00:05:59,689
+I mean, infrastructure side work as well as on data engineering. Mhmm.
+
+119
+00:06:00,944 --> 00:06:06,865
+Okay. So you are comfortable you are comfortable with setting up. Yeah. That's obviously fine.
+
+120
+00:06:07,664 --> 00:06:08,305
+Okay.
+
+121
+00:06:10,625 --> 00:06:15,824
+With respect to your data ingestion pipelines Mhmm. What sort of transformations
+
+122
+00:06:15,959 --> 00:06:21,000
+did they use, or what how was your typical data ingestion pipeline? What was the source?
+
+123
+00:06:21,240 --> 00:06:24,680
+Where were you placing that data? In LPL or right now it is?
+
+124
+00:06:26,039 --> 00:06:33,574
+Focus on the 1 which is related to Azure. Azure? Oh, sure. Yeah. So our source systems are, like,
+
+125
+00:06:34,454 --> 00:06:40,375
+somewhere from data based clinical trial platform because we are migrating from data data to
+
+126
+00:06:40,694 --> 00:06:43,050
+Azure based lake house. And
+
+127
+00:06:43,610 --> 00:06:46,330
+clinical trial management system and
+
+128
+00:06:47,209 --> 00:06:48,490
+telemetry data.
+
+129
+00:06:49,689 --> 00:06:53,209
+External research partners also sends the data. Like, we
+
+130
+00:06:53,769 --> 00:06:58,035
+ingested those data to a d l s gen 2 using Azure Data Factory.
+
+131
+00:06:58,435 --> 00:06:59,475
+In parallel,
+
+132
+00:07:00,035 --> 00:07:00,835
+we
+
+133
+00:07:01,314 --> 00:07:07,555
+selected the real time pipeline as well for feeds such as the lab events, clinical
+
+134
+00:07:07,955 --> 00:07:09,314
+status updates,
+
+135
+00:07:09,314 --> 00:07:11,714
+which were ingested through Azure
+
+136
+00:07:11,714 --> 00:07:12,435
+Event Hubs.
+
+137
+00:07:13,019 --> 00:07:14,379
+And we
+
+138
+00:07:14,379 --> 00:07:15,740
+used Azure
+
+139
+00:07:15,899 --> 00:07:17,019
+Databricks.
+
+140
+00:07:17,419 --> 00:07:20,220
+That was our primary processing platform,
+
+141
+00:07:20,300 --> 00:07:21,100
+also,
+
+142
+00:07:21,259 --> 00:07:23,660
+where we used PySpark and
+
+143
+00:07:24,860 --> 00:07:26,060
+Delta Lake
+
+144
+00:07:26,025 --> 00:07:28,025
+to perform schema validation,
+
+145
+00:07:28,105 --> 00:07:29,625
+data quality checks,
+
+146
+00:07:29,944 --> 00:07:30,985
+reconciliation,
+
+147
+00:07:30,985 --> 00:07:32,105
+cleaning, and
+
+148
+00:07:32,985 --> 00:07:33,785
+transformations.
+
+149
+00:07:34,105 --> 00:07:36,264
+And we all mix the platform with
+
+150
+00:07:36,585 --> 00:07:43,280
+bronze, silver medallion architecture, architecture, basically, like bronze, silver, and gold layers and build curated on top of the
+
+151
+00:07:43,600 --> 00:07:47,600
+those data for downstream analytics and the and the reporting.
+
+152
+00:07:48,720 --> 00:07:50,000
+Synapse was
+
+153
+00:07:50,160 --> 00:07:53,439
+primarily used for SQL based analytics and
+
+154
+00:07:54,685 --> 00:07:56,605
+external table access as well,
+
+155
+00:07:57,004 --> 00:07:57,564
+while
+
+156
+00:07:58,845 --> 00:08:02,444
+Power BI was supported reporting and visualization
+
+157
+00:08:02,444 --> 00:08:04,365
+for research and compliance team.
+
+158
+00:08:04,764 --> 00:08:07,964
+For the governance, we have used Azure
+
+159
+00:08:07,964 --> 00:08:10,569
+pub pub view for lineage,
+
+160
+00:08:10,569 --> 00:08:11,449
+cataloging,
+
+161
+00:08:11,449 --> 00:08:12,649
+and also for
+
+162
+00:08:14,490 --> 00:08:15,689
+data discovery.
+
+163
+00:08:16,089 --> 00:08:18,490
+And along with Azure
+
+164
+00:08:19,610 --> 00:08:20,810
+AD and
+
+165
+00:08:20,889 --> 00:08:23,849
+RBAC for secure access control.
+
+166
+00:08:24,865 --> 00:08:26,865
+And the entire
+
+167
+00:08:28,305 --> 00:08:30,145
+thing was orchestrated through
+
+168
+00:08:30,625 --> 00:08:33,424
+logic apps and the Airflow workflows with
+
+169
+00:08:33,985 --> 00:08:34,865
+SLAs
+
+170
+00:08:34,865 --> 00:08:36,304
+monitoring alerts. Okay.
+
+171
+00:08:37,889 --> 00:08:42,210
+Gotcha. So you mentioned you had external tables on the Delta Lake. Mhmm.
+
+172
+00:08:43,090 --> 00:08:53,330
+The external tables were on ADLS gen 2, I believe Mhmm. Storage account. Yes. And what was the connection mechanism that you used to connect Databricks with your storage accounts?
+
+173
+00:08:54,184 --> 00:08:54,825
+So
+
+174
+00:08:55,384 --> 00:08:56,825
+we have used
+
+175
+00:08:58,105 --> 00:09:00,024
+Azure Active Directory,
+
+176
+00:09:00,264 --> 00:09:00,745
+which,
+
+177
+00:09:01,544 --> 00:09:03,384
+like, based authentication
+
+178
+00:09:03,384 --> 00:09:05,065
+depending on the use case.
+
+179
+00:09:06,600 --> 00:09:11,960
+For most of the production workloads, we use service principles with our back rules and
+
+180
+00:09:12,360 --> 00:09:13,080
+tool.
+
+181
+00:09:13,960 --> 00:09:16,200
+We connected Databricks with
+
+182
+00:09:16,600 --> 00:09:17,320
+Azure
+
+183
+00:09:17,960 --> 00:09:19,160
+ADL agent to buy.
+
+184
+00:09:21,195 --> 00:09:22,794
+I was not getting the point.
+
+185
+00:09:23,195 --> 00:09:25,674
+Managed entity. Am I sorry.
+
+186
+00:09:26,955 --> 00:09:29,995
+As an entities? ABFSS
+
+187
+00:09:30,075 --> 00:09:30,955
+ABFSS
+
+188
+00:09:30,955 --> 00:09:31,274
+driver.
+
+189
+00:09:32,600 --> 00:09:33,960
+Okay. Okay.
+
+190
+00:09:33,960 --> 00:09:35,320
+And we
+
+191
+00:09:35,320 --> 00:09:37,000
+have managed, like,
+
+192
+00:09:37,800 --> 00:09:39,399
+authenticated using
+
+193
+00:09:39,639 --> 00:09:42,120
+Azure Active Directory service principle
+
+194
+00:09:42,200 --> 00:09:44,200
+and also managed identities.
+
+195
+00:09:45,414 --> 00:09:46,615
+Okay. So
+
+196
+00:09:47,014 --> 00:09:49,894
+did you have any policies on the service principle?
+
+197
+00:09:51,334 --> 00:09:53,414
+We have, like, a network
+
+198
+00:09:54,615 --> 00:09:55,894
+level policies
+
+199
+00:09:56,375 --> 00:09:57,654
+several policies, like,
+
+200
+00:09:59,550 --> 00:10:01,550
+in order to ensure security,
+
+201
+00:10:02,350 --> 00:10:08,110
+compliance, and cost control. So we enforce that network level restrictions,
+
+202
+00:10:08,750 --> 00:10:11,790
+like, and also least privileged access,
+
+203
+00:10:12,225 --> 00:10:16,705
+which will assign only required the RBAC rules. Like, for example,
+
+204
+00:10:17,184 --> 00:10:22,544
+for specific users, you need to give permission to access the data. So RBAC rules and
+
+205
+00:10:25,799 --> 00:10:29,559
+least privilege access when configure service principles,
+
+206
+00:10:29,799 --> 00:10:31,240
+secret rotation,
+
+207
+00:10:31,559 --> 00:10:35,000
+like store credentials in Azure Key Vault.
+
+208
+00:10:35,480 --> 00:10:41,480
+Mhmm. And So let stop you right there. So for your
+
+209
+00:10:41,884 --> 00:10:44,684
+service principal secret rotation Mhmm.
+
+210
+00:10:44,845 --> 00:10:58,110
+Once the secrets are rotated, did you have to do anything to make sure your connections were still in place? Have to do it manually via automated secret rotation process using Azure keyword integration
+
+211
+00:10:58,110 --> 00:11:00,110
+with Databrick secret codes.
+
+212
+00:11:01,230 --> 00:11:02,029
+Okay.
+
+213
+00:11:02,429 --> 00:11:02,990
+But
+
+214
+00:11:04,429 --> 00:11:07,870
+once your secret is rotated, did you have to create mount points?
+
+215
+00:11:09,465 --> 00:11:10,585
+Once the secret
+
+216
+00:11:10,985 --> 00:11:15,705
+I think, no. We didn't we didn't have to create mount points manually
+
+217
+00:11:16,024 --> 00:11:16,904
+since
+
+218
+00:11:17,865 --> 00:11:19,225
+the Databricks mounts,
+
+219
+00:11:20,669 --> 00:11:22,190
+which was re referenced
+
+220
+00:11:22,830 --> 00:11:23,629
+by,
+
+221
+00:11:24,669 --> 00:11:29,149
+you know, secret store, which were dynamically stored via keyword. So
+
+222
+00:11:30,110 --> 00:11:33,309
+we don't need to have to create the mounts.
+
+223
+00:11:34,584 --> 00:11:36,424
+Okay. Okay. Okay.
+
+224
+00:11:36,664 --> 00:11:43,625
+Basically, you are using external locations in that case Mhmm. To Yes. Manage identity. Right? Yes. Exactly.
+
+225
+00:11:44,584 --> 00:11:45,865
+Okay. Okay.
+
+226
+00:11:46,825 --> 00:11:53,110
+And you are well versed at Unity catalog. Have you used Delta sharing? Data Delta sharing?
+
+227
+00:11:53,509 --> 00:11:56,389
+Yes. Yeah. We have used Delta sharing,
+
+228
+00:11:56,709 --> 00:11:57,909
+you know, for
+
+229
+00:11:58,230 --> 00:11:59,190
+securely
+
+230
+00:11:59,350 --> 00:12:03,429
+sharing the curated dataset across teams and the external partners
+
+231
+00:12:03,804 --> 00:12:04,605
+without,
+
+232
+00:12:05,485 --> 00:12:07,004
+like, I don't put in,
+
+233
+00:12:07,804 --> 00:12:09,245
+data like, without,
+
+234
+00:12:09,884 --> 00:12:11,085
+duplicating the data.
+
+235
+00:12:11,565 --> 00:12:21,990
+So we configured the Unity catalog based delta sharing, which allowed us to, you know, define share objects and recipient directly within the deck or database.
+
+236
+00:12:23,509 --> 00:12:26,710
+Was it at the same region or different regions?
+
+237
+00:12:27,590 --> 00:12:29,350
+It was in the same region.
+
+238
+00:12:29,910 --> 00:12:31,910
+We kept both What would you do to?
+
+239
+00:12:32,454 --> 00:12:35,735
+Recept recipient workspaces in the same Azure region.
+
+240
+00:12:36,615 --> 00:12:39,735
+Okay. And what would you do to set it up for a different region?
+
+241
+00:12:40,294 --> 00:12:42,214
+For a different region,
+
+242
+00:12:42,294 --> 00:12:42,855
+we
+
+243
+00:12:44,134 --> 00:12:46,214
+have to 1st ensure that
+
+244
+00:12:47,759 --> 00:12:55,759
+data providers like Unity Catalog is properly configured with any external locations and shares that that difference
+
+245
+00:12:57,200 --> 00:13:00,240
+the tables, like, delta tables in the source region.
+
+246
+00:13:00,794 --> 00:13:03,674
+Then we'll create a share
+
+247
+00:13:03,835 --> 00:13:06,154
+object and define the recipients.
+
+248
+00:13:07,434 --> 00:13:10,794
+What if your recipient doesn't have Databricks?
+
+249
+00:13:13,355 --> 00:13:15,595
+If he's not having the Databricks,
+
+250
+00:13:16,120 --> 00:13:21,720
+he would still use the, Delta sharing because it supports open protocol access.
+
+251
+00:13:22,360 --> 00:13:23,879
+Like, I I
+
+252
+00:13:23,879 --> 00:13:24,440
+can,
+
+253
+00:13:24,840 --> 00:13:31,240
+create, like, token based share from, Unity catalog and provide the recipient with the secure share link and
+
+254
+00:13:32,195 --> 00:13:33,475
+also with the
+
+255
+00:13:34,355 --> 00:13:35,795
+credential files.
+
+256
+00:13:36,835 --> 00:13:43,795
+Okay. So what are the things you need to ensure? I I know you mentioned token based, but how would you rotate
+
+257
+00:13:44,250 --> 00:13:45,129
+tokens?
+
+258
+00:13:45,370 --> 00:13:47,210
+Like, what what all mechanisms
+
+259
+00:13:47,210 --> 00:13:48,970
+would you have to set in place
+
+260
+00:13:49,450 --> 00:13:52,169
+would for that? Manage it directly by
+
+261
+00:13:53,370 --> 00:14:00,394
+through your ready catalog and automate the process using database database rest API or even with the
+
+262
+00:14:00,875 --> 00:14:04,154
+ARM templates or the Terraform, we can use it.
+
+263
+00:14:04,554 --> 00:14:05,995
+And Okay.
+
+264
+00:14:06,554 --> 00:14:07,195
+Yeah.
+
+265
+00:14:10,154 --> 00:14:13,674
+The share token that has an
+
+266
+00:14:13,220 --> 00:14:14,420
+expiration date.
+
+267
+00:14:14,500 --> 00:14:15,060
+So
+
+268
+00:14:15,779 --> 00:14:23,700
+each Delta share recipient is who is associated with the share token that has an expiry date expiration date.
+
+269
+00:14:25,074 --> 00:14:27,554
+Okay. Okay. If it can expires,
+
+270
+00:14:27,714 --> 00:14:32,434
+I would generate the new token using Unity catalog.
+
+271
+00:14:33,875 --> 00:14:35,794
+Okay. Okay. So
+
+272
+00:14:36,514 --> 00:14:45,720
+could we jump to a coding question? Are you comfortable to maybe share your screen? We can open up a notepad or something. Yeah. Sure. Definitely. Just give me a 2nd.
+
+273
+00:15:06,269 --> 00:15:07,870
+Can you see my screen?
+
+274
+00:15:08,750 --> 00:15:10,110
+Not yet.
+
+275
+00:15:13,870 --> 00:15:15,230
+Can you see my screen?
+
+276
+00:15:15,549 --> 00:15:18,110
+Yes. I can see the Teams window.
+
+277
+00:15:18,534 --> 00:15:19,254
+Okay.
+
+278
+00:15:29,975 --> 00:15:31,735
+So I'll give an example.
+
+279
+00:15:32,879 --> 00:15:43,679
+I'm I'm looking through your thought process. Mhmm. Okay? I'm not particularly interested in the syntax, but you can if you can write some pseudo code for it Mhmm. That'll be really good.
+
+280
+00:15:45,075 --> 00:15:49,554
+So let's assume, like, you have a employee table Mhmm.
+
+281
+00:15:51,075 --> 00:15:52,195
+Which has
+
+282
+00:15:52,434 --> 00:15:53,475
+3 columns,
+
+283
+00:15:54,915 --> 00:15:55,795
+ID,
+
+284
+00:15:56,514 --> 00:15:57,955
+name, and salary.
+
+285
+00:16:08,000 --> 00:16:12,634
+And let's assume you are getting an incremental file with this data. Mhmm.
+
+286
+00:16:12,795 --> 00:16:19,835
+And you are trying to store it in the Delta Lake in an STD type 2 table. You understand STD type 2. Right? Yes.
+
+287
+00:16:21,274 --> 00:16:23,434
+Mhmm. It stores the historical data.
+
+288
+00:16:24,490 --> 00:16:32,009
+Correct. Correct. So as you may are getting this file daily Mhmm. I want you to build an STD to pipeline.
+
+289
+00:16:32,090 --> 00:16:42,365
+Mhmm. And now for the sake of time, let's assume you already have the incremental data and data frame. Mhmm. And you have a delta table on your
+
+290
+00:16:43,884 --> 00:16:49,565
+Unity catalog. Mhmm. So if you could just write the function, that'll be more than enough.
+
+291
+00:16:49,884 --> 00:16:50,445
+Okay.
+
+292
+00:16:53,580 --> 00:16:54,620
+Let me think of it.
+
+293
+00:17:31,960 --> 00:17:36,599
+Should I write it in
+
+294
+00:17:35,144 --> 00:17:36,105
+PySpark? Or
+
+295
+00:17:37,785 --> 00:17:40,424
+Yeah. PySpark is fine. Okay. You
+
+296
+00:17:40,424 --> 00:17:45,944
+can ignore all the imports and stuff. Assume you already have Okay. All the necessary.
+
+297
+00:17:46,265 --> 00:17:47,785
+So just the function
+
+298
+00:17:48,799 --> 00:17:52,639
+and you can write pseudo code also. I'm not looking for syntax again.
+
+299
+00:17:52,720 --> 00:17:53,519
+Mhmm.
+
+300
+00:17:54,640 --> 00:17:57,359
+Okay. That's fine then. So
+
+301
+00:17:58,799 --> 00:17:59,839
+we are having
+
+302
+00:18:00,799 --> 00:18:02,480
+I'll define a function for that,
+
+303
+00:18:03,515 --> 00:18:04,154
+like
+
+304
+00:18:06,315 --> 00:18:07,354
+process
+
+305
+00:18:08,315 --> 00:18:09,194
+employee.
+
+306
+00:18:16,529 --> 00:18:17,249
+So
+
+307
+00:18:22,369 --> 00:18:26,529
+we'll 1st catalog the data. So I'm I just,
+
+308
+00:18:27,089 --> 00:18:28,690
+write in target table then.
+
+309
+00:19:11,055 --> 00:19:11,775
+I'm just,
+
+310
+00:19:14,720 --> 00:19:17,119
+I'm sorry. I have to get logged the data.
+
+311
+00:19:48,839 --> 00:19:52,200
+So I'm just cataloging the data, and then
+
+312
+00:19:52,519 --> 00:19:54,200
+I'll change it to Delta table.
+
+313
+00:19:59,055 --> 00:20:00,654
+The names, the park,
+
+314
+00:20:00,974 --> 00:20:01,855
+target table.
+
+315
+00:20:06,815 --> 00:20:09,534
+So you said current,
+
+316
+00:20:09,855 --> 00:20:11,934
+we are getting the data incrementally.
+
+317
+00:20:11,934 --> 00:20:14,539
+So we have to have current
+
+318
+00:20:14,539 --> 00:20:15,900
+records.
+
+319
+00:20:43,299 --> 00:20:45,539
+And
+
+320
+00:20:50,900 --> 00:20:54,500
+the SCD type 2, we have
+
+321
+00:20:59,065 --> 00:21:00,984
+a filter based upon the
+
+322
+00:21:03,705 --> 00:21:05,224
+is current equals to true.
+
+323
+00:21:33,884 --> 00:21:37,085
+And you want only ID name and salary. Right?
+
+324
+00:21:41,319 --> 00:21:42,200
+Yes.
+
+325
+00:21:42,200 --> 00:21:43,480
+That ID,
+
+326
+00:21:43,480 --> 00:21:44,519
+name, and salary is fine.
+
+327
+00:21:55,005 --> 00:22:15,005
+And
+
+328
+00:22:09,029 --> 00:22:10,549
+change records
+
+329
+00:22:10,549 --> 00:22:12,070
+for change today.
+
+330
+00:22:26,534 --> 00:22:28,294
+Yeah. Just capturing
+
+331
+00:22:35,015 --> 00:22:37,734
+the search file and then
+
+332
+00:22:40,179 --> 00:22:41,460
+join this template.
+
+333
+00:23:36,619 --> 00:23:38,460
+Just starting filter
+
+334
+00:23:39,980 --> 00:23:42,220
+with the just the name,
+
+335
+00:23:43,259 --> 00:23:43,819
+like,
+
+336
+00:23:44,779 --> 00:23:45,660
+calling of
+
+337
+00:23:47,174 --> 00:23:48,294
+of SRC
+
+338
+00:23:50,214 --> 00:23:51,494
+SRC name,
+
+339
+00:23:56,295 --> 00:23:58,775
+which is not equal to
+
+340
+00:24:07,170 --> 00:24:09,730
+Let's say this is
+
+341
+00:24:40,919 --> 00:24:43,799
+And we also do it for
+
+342
+00:24:45,184 --> 00:24:46,704
+name and salary
+
+343
+00:24:47,265 --> 00:24:48,144
+as well.
+
+344
+00:24:48,465 --> 00:24:49,424
+So I'm just
+
+345
+00:24:50,785 --> 00:24:53,505
+No. That's fine. I think we're good. Yeah.
+
+346
+00:24:53,664 --> 00:24:55,664
+We have to do it for name
+
+347
+00:24:55,664 --> 00:24:56,704
+and salary.
+
+348
+00:24:57,025 --> 00:24:57,985
+And after that,
+
+349
+00:24:58,759 --> 00:25:01,240
+we have to use much,
+
+350
+00:25:01,320 --> 00:25:01,880
+like,
+
+351
+00:25:02,680 --> 00:25:05,720
+with the Yeah. Can you write that piece as well?
+
+352
+00:25:06,840 --> 00:25:09,000
+Should I write this too? Like
+
+353
+00:25:09,240 --> 00:25:14,039
+No. No. I assume that's already there. I I got what you're doing. Okay. Fine. Thank you.
+
+354
+00:28:41,174 --> 00:28:46,775
+We're setting effective end of date and
+
+355
+00:29:47,840 --> 00:29:49,440
+And then execute it.
+
+356
+00:29:56,080 --> 00:29:57,599
+So if the
+
+357
+00:29:59,035 --> 00:30:02,075
+if we want to merge, like, change TF,
+
+358
+00:30:02,954 --> 00:30:04,154
+if the target
+
+359
+00:30:04,394 --> 00:30:07,034
+ID is equals to source ID,
+
+360
+00:30:07,115 --> 00:30:07,755
+then
+
+361
+00:30:08,875 --> 00:30:14,394
+which is current is current equals to true, then when matched update, then we have to
+
+362
+00:30:15,730 --> 00:30:23,089
+update like, set effective end date equals to current date and is current equals to false because it was previous 1.
+
+363
+00:30:23,410 --> 00:30:23,889
+And
+
+364
+00:30:26,929 --> 00:30:27,809
+and just execute.
+
+365
+00:30:28,615 --> 00:30:31,014
+Now for inserting new rows
+
+366
+00:30:35,494 --> 00:30:36,694
+I get it.
+
+367
+00:30:37,095 --> 00:30:41,014
+We'll do a dot, but not much. Okay. Mhmm.
+
+368
+00:30:41,494 --> 00:30:45,149
+So on. In the new rows, we have to
+
+369
+00:30:47,230 --> 00:30:51,149
+with column effect to start date, then we have to use current
+
+370
+00:30:52,589 --> 00:30:53,309
+date
+
+371
+00:30:53,470 --> 00:30:57,149
+with column effect to end date and then cast the date.
+
+372
+00:30:59,255 --> 00:31:02,534
+Yep. Yep. Right. I I get that. Save as a table.
+
+373
+00:31:03,255 --> 00:31:03,974
+Mhmm.
+
+374
+00:31:04,934 --> 00:31:08,054
+So I wanted to move along with the next question.
+
+375
+00:31:09,015 --> 00:31:17,740
+Have you used AI in any of your projects so far? Yeah. We have used in our current project, we are using AI. Like, we are
+
+376
+00:31:18,220 --> 00:31:19,019
+building
+
+377
+00:31:20,059 --> 00:31:20,940
+pipeline,
+
+378
+00:31:20,940 --> 00:31:22,460
+like, a RAD pipeline
+
+379
+00:31:23,180 --> 00:31:23,900
+where
+
+380
+00:31:26,125 --> 00:31:29,644
+like, our data is sitting in Snowflake. So we are building
+
+381
+00:31:30,605 --> 00:31:34,845
+on top of that data, like building RAD pipeline with Amazon Bedrock
+
+382
+00:31:35,085 --> 00:31:37,085
+using LLMs in the Bedrock,
+
+383
+00:31:37,325 --> 00:31:42,329
+and then a vector database for storing the vector and readings. And then
+
+384
+00:31:42,809 --> 00:31:46,569
+using that LLM user will, you know, query that data,
+
+385
+00:31:47,849 --> 00:31:50,409
+and it takes data from Snowflake.
+
+386
+00:31:50,490 --> 00:31:51,210
+Then
+
+387
+00:31:52,454 --> 00:31:53,335
+it gives
+
+388
+00:31:53,734 --> 00:31:59,974
+the data with a hallucination without hallucination output by taking the Snowflake data. And,
+
+389
+00:32:00,214 --> 00:32:01,174
+also, for
+
+390
+00:32:01,815 --> 00:32:03,654
+AML ready use cases,
+
+391
+00:32:04,535 --> 00:32:05,575
+we are using data
+
+392
+00:32:06,089 --> 00:32:13,849
+ALM ready data platforms by, you know, creating curated, governed, and high quality dataset for downstream data science
+
+393
+00:32:14,089 --> 00:32:15,210
+teams as well.
+
+394
+00:32:15,690 --> 00:32:20,890
+And What was your role in that? Like, did you create the rack pipelines?
+
+395
+00:32:20,890 --> 00:32:22,884
+Or how how are you
+
+396
+00:32:23,205 --> 00:32:24,884
+I was a part of that.
+
+397
+00:32:26,644 --> 00:32:35,845
+So the team is building. The I was a part of it. So I was participated in building components that would be considered as rack pipeline
+
+398
+00:32:35,940 --> 00:32:36,339
+from
+
+399
+00:32:37,139 --> 00:32:38,179
+I was building
+
+400
+00:32:38,740 --> 00:32:44,099
+till vector embeddings. I was storing our data till vector embeddings.
+
+401
+00:32:44,899 --> 00:32:46,819
+From there, the team
+
+402
+00:32:47,619 --> 00:32:48,740
+took ahead from there.
+
+403
+00:32:49,865 --> 00:32:51,304
+Okay. So
+
+404
+00:32:51,625 --> 00:32:54,424
+you weren't involved in the actual embedding?
+
+405
+00:32:54,984 --> 00:32:56,345
+I was involved.
+
+406
+00:32:57,065 --> 00:33:01,224
+From storing to the vector of meetings, I will I was involved.
+
+407
+00:33:02,105 --> 00:33:09,099
+Okay. Yeah. Till there, after the Snowflake data is stored in the Vector of meetings, then analytics
+
+408
+00:33:09,099 --> 00:33:10,859
+team took ahead.
+
+409
+00:33:11,740 --> 00:33:12,700
+Okay. Okay.
+
+410
+00:33:15,805 --> 00:33:23,164
+So I I know we are at the top of the hour. I wanted to give some time back to you Mhmm. For any questions that you might have.
+
+411
+00:33:24,285 --> 00:33:25,005
+Uh-huh.
+
+412
+00:33:25,884 --> 00:33:27,325
+I can help answer those.
+
+413
+00:33:28,079 --> 00:33:32,399
+So I will be part of your team if I'm I'm getting hired?
+
+414
+00:33:33,519 --> 00:33:37,039
+But there's there's multiple projects going on. Projects going on.
+
+415
+00:33:37,519 --> 00:33:40,159
+You'll be considered for both of them. Mhmm.
+
+416
+00:33:41,835 --> 00:33:50,794
+1 1 position is within my team. Mhmm. And there's another project, which is under another person. Mhmm. So
+
+417
+00:33:52,154 --> 00:33:58,609
+based on the feedback that I provide, like, the hiring manager will basically decide where where
+
+418
+00:33:59,410 --> 00:34:01,410
+you'll be a better fit. Sure.
+
+419
+00:34:02,690 --> 00:34:05,650
+After this round, how many rounds I can expect?
+
+420
+00:34:06,450 --> 00:34:11,010
+After this, there'll be a MR round where there'll be behavioral
+
+421
+00:34:11,010 --> 00:34:15,065
+interview questions with the hiring manager himself. Mhmm.
+
+422
+00:34:15,864 --> 00:34:18,505
+So that'll be just 1 more interview to go.
+
+423
+00:34:18,905 --> 00:34:21,065
+Okay. And if it's
+
+424
+00:34:22,184 --> 00:34:24,265
+if it's for the other position,
+
+425
+00:34:24,425 --> 00:34:27,369
+there could be a client interview as well. So
+
+426
+00:34:28,250 --> 00:34:30,969
+you will be interacting with the client directly.
+
+427
+00:34:31,050 --> 00:34:32,650
+If it's for my team,
+
+428
+00:34:33,849 --> 00:34:36,489
+then we won't have the client interview round.
+
+429
+00:34:36,889 --> 00:34:37,530
+Mhmm.
+
+430
+00:34:37,690 --> 00:34:39,929
+Okay. That's fine. And
+
+431
+00:34:40,090 --> 00:34:42,010
+what's the company culture looks like?
+
+432
+00:34:44,224 --> 00:34:47,425
+I mean, we have a very large team here.
+
+433
+00:34:48,065 --> 00:34:51,585
+Within my team itself, there's 32 people. Oh, nice.
+
+434
+00:34:51,825 --> 00:34:53,664
+Mhmm. And out of that,
+
+435
+00:34:55,089 --> 00:34:55,889
+22
+
+436
+00:34:55,889 --> 00:34:59,489
+are DCS folks. Mhmm. But we have a very open culture,
+
+437
+00:35:00,690 --> 00:35:05,489
+and we share ideas. We have regular lunch and done sessions, and
+
+438
+00:35:07,724 --> 00:35:10,364
+we share ideas amongst our teammates.
+
+439
+00:35:10,924 --> 00:35:13,164
+We have show and tells with the clients.
+
+440
+00:35:13,244 --> 00:35:14,525
+Mhmm. So
+
+441
+00:35:14,684 --> 00:35:20,125
+it's a fun environment to work in. There's a lot of new cutting edge technology that we are leveraging.
+
+442
+00:35:20,940 --> 00:35:22,860
+We have Amazon Keto.
+
+443
+00:35:23,019 --> 00:35:24,699
+We're building chatbots.
+
+444
+00:35:24,859 --> 00:35:28,940
+Oh, nice. So what kind of AI you are using?
+
+445
+00:35:29,099 --> 00:35:31,339
+Like, what kind of chatbot you are building?
+
+446
+00:35:32,994 --> 00:35:34,035
+Oh, so
+
+447
+00:35:34,114 --> 00:35:37,394
+I can't dive too much into detail, but, basically,
+
+448
+00:35:38,034 --> 00:35:46,434
+the data that we have on our Delta Lake, we are leveraging that, and Mhmm. We've also ingested some of this data into Neo 4
+
+449
+00:35:46,860 --> 00:35:49,980
+Mhmm. We're leveraging their digital twin
+
+450
+00:35:50,140 --> 00:35:50,700
+to
+
+451
+00:35:52,059 --> 00:35:53,420
+basically help
+
+452
+00:35:54,059 --> 00:35:56,300
+our chatbot get some more context.
+
+453
+00:35:56,380 --> 00:35:58,059
+We built an MCP server,
+
+454
+00:35:59,135 --> 00:36:04,894
+and, we are leveraging that to answer some of the business questions. Oh, that's nice.
+
+455
+00:36:05,214 --> 00:36:06,735
+That was good, actually.
+
+456
+00:36:08,014 --> 00:36:13,660
+And Well, there's a lot of new technology that's that's being leveraged. Even Amazon Kiro,
+
+457
+00:36:13,660 --> 00:36:14,940
+they're leveraging
+
+458
+00:36:14,940 --> 00:36:17,340
+that to build some test cases,
+
+459
+00:36:17,420 --> 00:36:18,220
+automation.
+
+460
+00:36:19,340 --> 00:36:20,860
+Right. There's
+
+461
+00:36:21,099 --> 00:36:28,405
+validations that AI is helping us with. So a lot of new things going on in my project. Mhmm.
+
+462
+00:36:28,965 --> 00:36:29,684
+Yeah.
+
+463
+00:36:29,844 --> 00:36:34,885
+I I hope that answers your question. Yeah. Yeah. If you are looking for something specific.
+
+464
+00:36:35,125 --> 00:36:36,724
+That was so interesting, and
+
+465
+00:36:38,000 --> 00:36:41,039
+I have no questions. I I'm done with my questions.
+
+466
+00:36:42,079 --> 00:36:42,719
+Okay.
+
+467
+00:36:43,440 --> 00:36:44,159
+So
+
+468
+00:36:44,320 --> 00:36:54,934
+what I'm gonna do now is I'll send in my feedback. Mhmm. You'll hear back from the HR on the next steps. Okay? Yeah. Yeah. Sure. Definitely. Thank you so much for your time.
+
+469
+00:36:55,815 --> 00:36:58,454
+Yeah. Thanks. It was nice talking with you. And
+
+470
+00:36:58,855 --> 00:36:59,655
+sorry.
+
+471
+00:37:00,295 --> 00:37:04,135
+Yeah. Like, I got confused with the names. No issues. No issues.
+
+472
+00:37:05,190 --> 00:37:09,429
+People used to call me Rainey because my name is so hard to pronounce. So
+
+473
+00:37:11,510 --> 00:37:15,750
+Gotcha. No. The interview actually got set up with another name,
+
+474
+00:37:16,150 --> 00:37:18,550
+and I I just got confused with that.
+
+475
+00:37:19,414 --> 00:37:21,015
+Anyways No issues.
+
+476
+00:37:21,494 --> 00:37:23,414
+It was nice talking with you.
+
+477
+00:37:23,974 --> 00:37:27,974
+Stay tuned on the next steps. Yeah. Thank you so much, Angelique.
+
+478
+00:37:28,454 --> 00:37:30,934
+Thank you. Bye. Thanks. Mhmm. Bye bye.
+
+479
+00:37:54,284 --> 00:37:56,045
+Alright. How do you think it went?
+
+480
+00:37:57,644 --> 00:37:58,764
+It was good.
+
+481
+00:38:00,480 --> 00:38:06,960
+Yeah. I think that that actually went very smoothly. You know? He was very cordial with you at the end. He said,
+
+482
+00:38:07,199 --> 00:38:08,960
+it was nice talking to you.
+
+483
+00:38:09,199 --> 00:38:10,079
+Unfortunately,
+
+484
+00:38:10,079 --> 00:38:10,880
+he wasn't,
+
+485
+00:38:11,199 --> 00:38:16,715
+specific about this being the final, but I think that we all expect it to be. So
+
+486
+00:38:18,155 --> 00:38:24,235
+so, yeah, I am definitely in high spirits and expecting good news early next week.
+
+487
+00:38:25,914 --> 00:38:27,035
+Hope so.
+
+488
+00:38:28,875 --> 00:38:29,594
+Thanks, Ivan.
+
+489
+00:38:30,969 --> 00:38:33,050
+Absolutely. Kisly, you have anything?
+
+490
+00:38:33,530 --> 00:38:34,250
+No.
+
+491
+00:38:34,650 --> 00:38:39,289
+Let's stay tuned for the next steps. I think 1 of the better interviews and final rounds.
+
+492
+00:38:39,610 --> 00:38:47,664
+And, Joe, I'm sure you followed and dialed in too. They have multiple openings as they said, so all of you can end up being here.
+
+493
+00:38:48,784 --> 00:38:50,065
+Awesome sauce.
+
+494
+00:38:52,065 --> 00:38:53,905
+Awesome sauce indeed.
+
+495
+00:38:53,905 --> 00:39:01,184
+Alright. Well, yeah, that's a great way to finish out the week. So, everyone have a great weekend, and I'll see you on Monday. Alright?
+
+496
+00:39:02,039 --> 00:39:05,719
+Thank you. Bye. Bye, Jim. Bye bye. Bye. Thank you.

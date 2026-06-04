@@ -5626,12 +5626,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     elem_id="ta-reanalyze-btn",
                 )
                 gr.HTML('<hr style="border-color:var(--ta-border);margin:14px 0 10px">')
-                gr.HTML('<div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:8px;">🎥 Post-Interview Video Analysis</div>')
-                iv_video_input = gr.Video(
-                    label="Drop interview recording here or click to upload",
-                    sources=["upload"],
-                    elem_id="iv-video-input",
-                )
+                gr.HTML('<div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:6px;">🎥 Video Analysis</div>'
+                        '<div style="font-size:0.72em;color:var(--ta-sub);margin-bottom:8px;">Uses the video uploaded in Step 1 above.</div>')
                 with gr.Row(elem_id="iv-controls-row"):
                     iv_person_count = gr.Number(
                         label="People in video",
@@ -6141,7 +6137,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     iv_analyze_btn.click(
         fn=analyze_interview_tab,
-        inputs=[iv_video_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        inputs=[file_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
         outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
     )
 

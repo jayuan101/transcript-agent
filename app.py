@@ -1418,38 +1418,37 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 
     pdf = _PDF()
     pdf.set_auto_page_break(auto=True, margin=18)
+    pdf.set_margins(20, 20, 20)  # must be set BEFORE add_page
     pdf.add_page()
-    pdf.set_margins(20, 20, 20)
 
     # Title
     pdf.set_font("Helvetica", "B", 20)
-    pdf.cell(0, 12, _safe(stem), new_x="LMARGIN", new_y="NEXT", align="C")
+    effective_w = pdf.w - pdf.l_margin - pdf.r_margin
+    pdf.cell(effective_w, 12, _safe(stem), new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.set_draw_color(80, 80, 80)
     pdf.set_line_width(0.5)
-    pdf.line(20, pdf.get_y(), 190, pdf.get_y())
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
     pdf.ln(5)
     pdf.set_font("Helvetica", "", 10)
 
     for line in combined_text.splitlines():
         stripped = line.rstrip()
-        # Skip pure divider lines (===... or ---...)
         if stripped and set(stripped) <= {"=", "-", " "} and len(stripped) > 4:
             continue
         if not stripped:
             pdf.ln(2)
             continue
         inner = stripped.strip()
-        # ALL-CAPS section headers
         if (inner.isupper() and 2 < len(inner) < 60
                 and not set(inner) <= {"=", "-", " "}):
             pdf.ln(5)
             pdf.set_fill_color(235, 235, 235)
             pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(0, 7, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True)
+            pdf.cell(effective_w, 7, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True)
             pdf.ln(2)
             pdf.set_font("Helvetica", "", 10)
         else:
-            pdf.multi_cell(0, 5, _safe(stripped))
+            pdf.multi_cell(effective_w, 5, _safe(stripped))
 
     pdf.output(str(path))
     return str(path)

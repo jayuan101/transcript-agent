@@ -1060,29 +1060,25 @@ class VideoAnalyzer:
                                 f'<span style="font-weight:700;color:{c};">{v:.0f}%</span></div>'
                                 + BAR(v,c) + '</div>')
 
-        el_m = int(snap.elapsed_sec // 60); el_s = int(snap.elapsed_sec % 60)
-        bl_c = BL_HTML.get(snap.body_label, "#94a3b8")
-        emo_c= EMO_HTML.get(snap.dominant_emotion, "#94a3b8")
+        el_m  = int(snap.elapsed_sec // 60); el_s = int(snap.elapsed_sec % 60)
+        emo_c = EMO_HTML.get(snap.dominant_emotion, "#94a3b8")
 
         html = (f'<div style="font-family:system-ui,sans-serif;padding:4px 0;">'
-                # Header row
+                # Header row — emotion pill only (no body language badge in live)
                 f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">'
                 f'<span style="background:#dc2626;color:#fff;border-radius:50%;width:10px;height:10px;'
                 f'display:inline-block;animation:pulse 1s infinite;"></span>'
                 f'<span style="font-size:0.78em;font-weight:700;color:#374151;">LIVE · {el_m}:{el_s:02d}</span>'
-                f'<span style="background:{bl_c};color:#fff;border-radius:20px;padding:2px 10px;'
-                f'font-size:0.72em;font-weight:700;">{snap.body_label}</span>'
                 f'<span style="background:{emo_c};color:#fff;border-radius:20px;padding:2px 10px;'
                 f'font-size:0.72em;font-weight:700;">{snap.dominant_emotion}</span>'
                 f'</div>'
-                # Score bars
-                + MET("Confidence",   snap.confidence,   SC(snap.confidence))
-                + MET("Eye Contact",  snap.eye_contact,  SC(snap.eye_contact))
-                + MET("Engagement",   snap.engagement,   SC(snap.engagement))
-                + MET("Composure",    snap.composure,    SC(snap.composure))
-                + MET("Open Posture", snap.open_body_pct,SC(snap.open_body_pct))
+                # Score bars — face signals only (body language available in Video Analysis tab)
+                + MET("Confidence",  snap.confidence,  SC(snap.confidence))
+                + MET("Eye Contact", snap.eye_contact, SC(snap.eye_contact))
+                + MET("Engagement",  snap.engagement,  SC(snap.engagement))
+                + MET("Composure",   snap.composure,   SC(snap.composure))
                 + f'<div style="font-size:0.72em;color:#94a3b8;margin-top:4px;">'
-                f'{snap.frame_count} frames analyzed</div>')
+                f'{snap.frame_count} frames analyzed · Body language available in Video Analysis tab</div>')
 
         if snap.cultural and cultural_mode != "none":
             html += self.render_cultural_comparison_html(snap.cultural, cultural_mode)
@@ -1169,8 +1165,7 @@ class LiveAnalysisSession:
         self._frame_n     = 0   # total frames received
         self._analyzed_n  = 0   # frames actually analyzed
         self._since_score = 0   # analyzed frames since last score refresh
-        self._face_buf:   List[FaceFrame]           = []  # rolling 30-frame buffer
-        self._bl_buf:     List[BodyLanguageSummary] = []
+        self._face_buf:   List[FaceFrame] = []  # rolling 30-frame buffer
         self._last_bgr:   Optional[np.ndarray]      = None
         self._snap:       Optional[LiveScoreSnapshot] = None
         self._start_time  = time.time()
@@ -1242,11 +1237,7 @@ class LiveAnalysisSession:
         bbs     = self._va._lm_to_bboxes(fl_r, h, w)
         tracked = self._tracker.update(bbs)
 
-        # Pose
-        pose_res = self._pose_lm.detect(mpi) if self._pose_lm else None
-
         new_faces: List[FaceFrame] = []
-        new_bls:   List[BodyLanguageSummary] = []
 
         for fi, (pid, bbox) in enumerate(tracked.items()):
             x, y, fw, fh = bbox
@@ -1259,31 +1250,28 @@ class LiveAnalysisSession:
             jaw = self._va._bs_val(bs, "jawOpen") if bs else 0.0
             crop= frame_bgr[y:y+fh, x:x+fw]
             emo, eprobs = self._va._emotion(crop, bs)
-            bl  = self._va._body_language(pose_res, self._pitch_hist, roll)
 
+            # Body language NOT computed in live feed — uploaded video analysis only
             ff = FaceFrame(
                 person_id=pid, timestamp=self._frame_n / 10.0,
                 bbox=bbox, emotion=emo, emotion_probs=eprobs,
                 eye_contact=ec, yaw=yaw, pitch=pitch, roll=roll,
-                posture=bl.body_language_label.lower(), is_speaking=(jaw > 0.18),
-                body_language=bl,
+                posture="unknown", is_speaking=(jaw > 0.18),
+                body_language=None,
             )
-            new_faces.append(ff); new_bls.append(bl)
+            new_faces.append(ff)
 
-        # Update rolling buffers (keep last 30)
-        self._face_buf.extend(new_faces); self._bl_buf.extend(new_bls)
+        # Update rolling buffer (keep last 30)
+        self._face_buf.extend(new_faces)
         if len(self._face_buf) > 30:
             self._face_buf = self._face_buf[-30:]
-            self._bl_buf   = self._bl_buf[-30:]
 
         self._analyzed_n  += 1
         self._since_score += 1
 
-        # Draw annotations
+        # Draw annotations — no body language badge in live feed
         annotated = frame_bgr.copy()
         annotated = self._va._draw(annotated, new_faces, self._role_map)
-        if new_bls:
-            annotated = self._va._draw_body_language_badge(annotated, new_bls[0])
         self._last_bgr = annotated
 
         # Refresh scores
@@ -1296,30 +1284,28 @@ class LiveAnalysisSession:
         return cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB), snap
 
     def _compute_snapshot(self, cultural_mode: str) -> LiveScoreSnapshot:
-        ffs = self._face_buf; bls = self._bl_buf
-        n   = len(ffs) or 1;  nb  = len(bls) or 1
+        ffs = self._face_buf
+        n   = len(ffs) or 1
 
         ec_r   = sum(1 for f in ffs if f.eye_contact) / n
         pos_r  = sum(1 for f in ffs if f.emotion in ("happy","neutral")) / n
         nerv_r = sum(1 for f in ffs if f.emotion == "nervous") / n
-        up_r   = sum(1 for f in ffs if f.posture in ("upright","open","engaged","leaning_forward")) / n
-        open_r = sum(1 for b in bls if b.open_score >= 55) / nb
 
-        conf = min(100.0, (pos_r*0.35 + ec_r*0.30 + up_r*0.20 + open_r*0.15)*100)
+        conf = min(100.0, (pos_r*0.40 + ec_r*0.35 + (1-nerv_r)*0.25)*100)
         comp = min(100.0, max(0.0, (1-nerv_r*1.5)*100))
         ec   = ec_r * 100
-        eng  = min(100.0, (ec_r*0.35 + up_r*0.30 + open_r*0.20 + min(1,n/30)*0.15)*100)
+        eng  = min(100.0, (ec_r*0.50 + pos_r*0.35 + min(1,n/30)*0.15)*100)
 
         from collections import Counter
         dom  = Counter(f.emotion for f in ffs).most_common(1)[0][0] if ffs else "neutral"
-        bl_l = (bls[-1].body_language_label if bls else "NEUTRAL")
-        cult = self._va.score_cultural(ffs, bls) if cultural_mode != "none" and ffs else None
+        # Cultural scoring without body language (live feed only has face signals)
+        cult = self._va.score_cultural(ffs, []) if cultural_mode != "none" and ffs else None
 
         return LiveScoreSnapshot(
             confidence=round(conf,1), eye_contact=round(ec,1),
             engagement=round(eng,1),  composure=round(comp,1),
-            open_body_pct=round(open_r*100,1),
-            dominant_emotion=dom, body_label=bl_l,
+            open_body_pct=0.0,
+            dominant_emotion=dom, body_label="",
             cultural=cult, frame_count=self._analyzed_n,
             elapsed_sec=time.time()-self._start_time,
         )

@@ -43,7 +43,7 @@ def _get_deepface():
         return None
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-SAMPLE_INTERVAL_SEC = 2          # sample 1 frame every N seconds
+SAMPLE_INTERVAL_SEC = 4          # sample 1 frame every N seconds (higher = faster)
 MOUTH_OPEN_THRESHOLD = 0.04      # lip aspect ratio to consider "talking"
 EYE_GAZE_THRESHOLD = 0.35        # normalised iris deviation to consider "looking away"
 PERSON_COLORS = [

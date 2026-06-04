@@ -2856,7 +2856,7 @@ def process_file(
                             iv_html = _build_unified_interview_html(
                                 result.interview_analysis, _va_res
                             )
-                            _va_annotated_path = _va_res.annotated_video_path
+                            _va_annotated_path = None  # skip annotated video re-encode (too slow)
                         else:
                             log_text = _add_log(f"⚠️ Video analysis: {getattr(_va_res,'error','failed')}", "warn")
                             yield _out(log=log_text)
@@ -6187,14 +6187,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         timeline_html = _build_iv_timeline_html(result)
         summary_html  = _build_iv_summary_html(result)
 
-        # Annotated video
-        try:
-            annotated_path = write_annotated_video(video_path, result)
-        except Exception:
-            annotated_path = None
-
         status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Analysis complete.</p>'
-        video_upd = gr.update(value=annotated_path, visible=bool(annotated_path))
+        video_upd = gr.update(visible=False)  # skip annotated video re-encode
         return (
             gr.update(value=scores_html, visible=bool(scores_html)),
             gr.update(value=timeline_html, visible=bool(timeline_html)),

@@ -5619,39 +5619,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     variant="secondary", size="sm", visible=False,
                     elem_id="ta-reanalyze-btn",
                 )
-                gr.HTML('<hr style="border-color:var(--ta-border);margin:14px 0 10px">')
-                gr.HTML('<div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:6px;">🎥 Video Analysis</div>'
-                        '<div style="font-size:0.72em;color:var(--ta-sub);margin-bottom:8px;">Uses the video uploaded in Step 1 above.</div>')
-                with gr.Row(elem_id="iv-controls-row"):
-                    iv_person_count = gr.Number(
-                        label="People in video",
-                        value=2, minimum=1, maximum=5, step=1,
-                        elem_id="iv-person-count",
-                        scale=1,
-                    )
-                    iv_role_0 = gr.Dropdown(
-                        label="Person 1 (leftmost)",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Candidate", scale=1,
-                    )
-                    iv_role_1 = gr.Dropdown(
-                        label="Person 2",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 1", scale=1,
-                    )
-                    iv_role_2 = gr.Dropdown(
-                        label="Person 3",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 2", visible=False, scale=1,
-                    )
-                    iv_role_3 = gr.Dropdown(
-                        label="Person 4",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 3", visible=False, scale=1,
-                    )
-                iv_analyze_btn = gr.Button(
-                    "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
-                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -5873,6 +5840,52 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                 with gr.TabItem("🎥 Interview Analysis"):
+                    # ── Interview coaching (auto-populated on Analyze) ────────────
+                    interview_out = gr.HTML(
+                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see coaching results here.</p>'
+                    )
+
+                    # ── Video delivery controls ───────────────────────────────────
+                    gr.HTML(
+                        '<div style="margin:20px 0 10px;border-top:2px solid var(--ta-card-border,#e2e8f0);'
+                        'padding-top:16px;">'
+                        '<div style="font-size:0.9em;font-weight:800;color:#1e293b;margin-bottom:4px;">'
+                        '🎥 Video Delivery Analysis</div>'
+                        '<div style="font-size:0.78em;color:#64748b;">'
+                        'Uses the video uploaded above — set roles and click Analyze.</div></div>'
+                    )
+                    with gr.Row(elem_id="iv-controls-row"):
+                        iv_person_count = gr.Number(
+                            label="People in video",
+                            value=2, minimum=1, maximum=4, step=1,
+                            elem_id="iv-person-count", scale=1,
+                        )
+                        iv_role_0 = gr.Dropdown(
+                            label="Person 1 (leftmost)",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Candidate", scale=1,
+                        )
+                        iv_role_1 = gr.Dropdown(
+                            label="Person 2",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 1", scale=1,
+                        )
+                        iv_role_2 = gr.Dropdown(
+                            label="Person 3",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 2", visible=False, scale=1,
+                        )
+                        iv_role_3 = gr.Dropdown(
+                            label="Person 4",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 3", visible=False, scale=1,
+                        )
+                    iv_analyze_btn = gr.Button(
+                        "🔍  Analyze Video", variant="primary",
+                        elem_id="iv-analyze-btn", size="lg",
+                    )
+
+                    # ── Video delivery results ────────────────────────────────────
                     iv_progress     = gr.HTML(value="", elem_id="iv-progress")
                     iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
                     iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
@@ -5883,9 +5896,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         interactive=False,
                         visible=False,
                     )
-                    interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:12px;">Open <b>Interview Mode</b> in the sidebar, upload a video, and click <b>Analyze Video</b> to see results here.</p>'
-                    )
+
+                    # Unused state placeholders kept for backward compat
                     va_inline_video = gr.State(value=None)
                     va_video_in     = gr.State(value=None)
                     va_analyze_btn  = gr.State(value=None)

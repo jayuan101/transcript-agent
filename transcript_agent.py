@@ -1609,6 +1609,8 @@ Exclude entirely any post-interview debrief, internal team discussion, coaching 
 
 CRITICAL: Include EVERY question asked by the interviewer in the "questions" array — do not skip, merge, or omit any. If a follow-up or clarifying question was asked, include it as its own entry.
 
+EXCLUDE from scoring: Do NOT include any question where the interviewer is inviting the candidate to ask their own questions — e.g. "Do you have any questions for me?", "Is there anything you'd like to ask?", "Any questions from your side?", or similar closing invitations. These are not interview questions and must not appear in the "questions" array or affect the score.
+
 Rules for answer_said:
 - Quote or closely paraphrase what the candidate ACTUALLY said — 3 to 5 sentences.
 - Include the specific points, examples, numbers, stories, or projects they mentioned.

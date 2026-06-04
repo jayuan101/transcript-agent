@@ -5695,33 +5695,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     variant="secondary", size="sm", visible=False,
                     elem_id="ta-reanalyze-btn",
                 )
-                gr.HTML('<hr style="border-color:var(--ta-border);margin:12px 0 8px">')
-                with gr.Row(elem_id="iv-controls-row"):
-                    iv_person_count = gr.Number(
-                        label="People in video",
-                        value=2, minimum=1, maximum=4, step=1,
-                        elem_id="iv-person-count", scale=1,
-                    )
-                    iv_role_0 = gr.Dropdown(
-                        label="Person 1 (leftmost)",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Candidate", scale=1,
-                    )
-                    iv_role_1 = gr.Dropdown(
-                        label="Person 2",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 1", scale=1,
-                    )
-                    iv_role_2 = gr.Dropdown(
-                        label="Person 3",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 2", visible=False, scale=1,
-                    )
-                    iv_role_3 = gr.Dropdown(
-                        label="Person 4",
-                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                        value="Interviewer 3", visible=False, scale=1,
-                    )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -5943,24 +5916,67 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                 with gr.TabItem("🎥 Interview Analysis"):
+
+                    # ── Coaching results (auto-populated on ▶ Analyze) ────────────
                     interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see results here.</p>'
+                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see coaching results here.</p>'
                     )
-                    iv_analyze_btn = gr.Button(visible=False)  # stub — main Analyze btn drives this tab
 
-                    # ── Results (hidden until analysis runs) ──────────────────────
-                    iv_progress     = gr.HTML(value="", elem_id="iv-progress", visible=False)
-                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel", visible=False)
-                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline", visible=False)
-                    iv_summary      = gr.HTML(value="", elem_id="iv-summary", visible=False)
+                    # ── Video Delivery section ────────────────────────────────────
+                    gr.HTML(
+                        '<div style="margin:20px 0 10px;border-top:2px solid var(--ta-card-border,#e2e8f0);'
+                        'padding-top:16px;">'
+                        '<div style="font-size:0.9em;font-weight:800;color:#1e293b;margin-bottom:3px;">'
+                        '🎥 Video Delivery Analysis</div>'
+                        '<div style="font-size:0.76em;color:#64748b;">'
+                        'Upload a video above — faces are auto-detected. Assign roles then click Analyze.</div></div>'
+                    )
+
+                    # Face thumbnails (shown after scan)
+                    _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3","Late Joiner"]
+                    with gr.Row():
+                        with gr.Column(min_width=100, scale=0):
+                            iv_thumb_0 = gr.Image(label="Person 1", height=90, width=80,
+                                                  interactive=False, show_label=True, visible=False)
+                            iv_role_0  = gr.Dropdown(choices=_IV_ROLES, value="Candidate",
+                                                     label="Role", show_label=False, min_width=120)
+                        with gr.Column(min_width=100, scale=0):
+                            iv_thumb_1 = gr.Image(label="Person 2", height=90, width=80,
+                                                  interactive=False, show_label=True, visible=False)
+                            iv_role_1  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1",
+                                                     label="Role", show_label=False, min_width=120)
+                        with gr.Column(min_width=100, scale=0):
+                            iv_thumb_2 = gr.Image(label="Person 3", height=90, width=80,
+                                                  interactive=False, show_label=True, visible=False)
+                            iv_role_2  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2",
+                                                     label="Role", show_label=False, min_width=120,
+                                                     visible=False)
+                        with gr.Column(min_width=100, scale=0):
+                            iv_thumb_3 = gr.Image(label="Person 4", height=90, width=80,
+                                                  interactive=False, show_label=True, visible=False)
+                            iv_role_3  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 3",
+                                                     label="Role", show_label=False, min_width=120,
+                                                     visible=False)
+
+                    iv_person_count = gr.State(value=2)   # updated by face scan
+                    iv_scan_status  = gr.HTML(value="")
+
+                    iv_analyze_btn = gr.Button(
+                        "🔍  Analyze Video", variant="primary", size="lg",
+                        elem_id="iv-analyze-btn",
+                    )
+
+                    # ── Results ───────────────────────────────────────────────────
+                    iv_progress     = gr.HTML(value="", elem_id="iv-progress")
+                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
+                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
+                    iv_summary      = gr.HTML(value="", elem_id="iv-summary")
                     iv_output_video = gr.Video(
-                        label="Annotated video",
-                        elem_id="iv-output-video",
-                        interactive=False,
-                        visible=False,
+                        label="Annotated video", elem_id="iv-output-video",
+                        interactive=False, visible=False,
                     )
 
-                    # Unused state placeholders kept for backward compat
+                    # Compatibility stubs
                     va_inline_video = gr.State(value=None)
                     va_video_in     = gr.State(value=None)
                     va_analyze_btn  = gr.State(value=None)
@@ -6151,57 +6167,116 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         parts.append('</div>')
         return "".join(parts)
 
-    def _iv_person_count_change(count):
-        count = int(count)
-        return (
-            gr.update(visible=count >= 1),
-            gr.update(visible=count >= 2),
-            gr.update(visible=count >= 3),
-            gr.update(visible=count >= 4),
+    # ── Face scan on file upload → populate thumbnails + roles ──────────────────
+    def _iv_scan_on_upload(file_path):
+        """Auto-scan faces when a video is uploaded — show thumbnails + set defaults."""
+        _no_vid = (
+            gr.update(visible=False), gr.update(visible=False),
+            gr.update(visible=False), gr.update(visible=False),
+            gr.update(visible=False), gr.update(visible=False),
+            gr.update(visible=False), gr.update(visible=False),
+            2, gr.update(value=""),
         )
+        if not file_path or not _HAS_VIDEO_ANALYZER:
+            return _no_vid
+        _ext = Path(file_path).suffix.lower()
+        if _ext not in {".mp4",".mov",".avi",".mkv",".webm",".m4v",".flv",".wmv"}:
+            return _no_vid
+        try:
+            thumbs, dur = _video_analyzer.scan_faces(file_path)
+            pids  = list(thumbs.keys())
+            n     = min(len(pids), 4)
+            dur_s = f"{int(dur//60)}m {int(dur%60)}s"
+            defaults = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3"]
+            status = (
+                f'<div style="color:#475569;font-size:0.82em;padding:4px 0;">'
+                f'Detected <b>{n} face{"s" if n!=1 else ""}</b> · {dur_s} — assign roles below.</div>'
+            ) if n else (
+                '<div style="color:#94a3b8;font-size:0.82em;padding:4px 0;">'
+                'No faces detected — set roles manually and click Analyze.</div>'
+            )
+            thumb_ups = [
+                gr.update(value=thumbs.get(pids[i]) if i < n else None, visible=(i < n))
+                for i in range(4)
+            ]
+            role_ups  = [gr.update(visible=(i < n)) for i in range(4)]
+            return (*thumb_ups, *role_ups, n if n else 2, gr.update(value=status))
+        except Exception as e:
+            return (*[gr.update(visible=False)]*8, 2,
+                    gr.update(value=f'<div style="color:#f59e0b;font-size:0.82em;">'
+                                   f'Could not scan faces: {e}</div>'))
 
-    def analyze_interview_tab(video_path, person_count, role_0, role_1, role_2, role_3):
-        if not video_path:
+    file_input.change(
+        fn=_iv_scan_on_upload,
+        inputs=[file_input],
+        outputs=[
+            iv_thumb_0, iv_thumb_1, iv_thumb_2, iv_thumb_3,
+            iv_role_0,  iv_role_1,  iv_role_2,  iv_role_3,
+            iv_person_count, iv_scan_status,
+        ],
+        queue=True,
+    )
+
+    # ── Analyze Video button → run delivery analysis ──────────────────────────
+    def _iv_analyze_video(file_path, person_count, role_0, role_1, role_2, role_3):
+        """Run video delivery analysis using video_analyzer.py."""
+        if not file_path:
             err = '<p style="color:#ef4444;padding:12px;">Please upload a video first.</p>'
             return err, "", "", None, ""
-        if not _IV_OK:
-            err = '<p style="color:#ef4444;padding:12px;">interview_vision module not available. Check that opencv, mediapipe, and deepface are installed.</p>'
+        if not _HAS_VIDEO_ANALYZER:
+            err = '<p style="color:#ef4444;padding:12px;">Video analysis packages not installed. Run: pip install mediapipe opencv-python</p>'
             return err, "", "", None, ""
 
         count = int(person_count or 2)
         role_list = [role_0, role_1, role_2, role_3]
-        roles = {i: role_list[i] for i in range(min(count, 4)) if role_list[i]}
-
-        progress_msgs = []
-
-        def on_prog(pct, msg):
-            progress_msgs.append(msg)
+        role_map  = {i: role_list[i] for i in range(min(count, 4)) if role_list[i]}
 
         try:
-            result = analyze_interview_video(video_path, roles, on_progress=on_prog)
+            result = _video_analyzer.analyze_video(file_path, role_map, sample_fps=1.0)
         except Exception as exc:
             err_html = f'<p style="color:#ef4444;padding:12px;">Analysis failed: {exc}</p>'
-            return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(value=err_html, visible=True)
+            return (gr.update(visible=False), gr.update(visible=False),
+                    gr.update(visible=False), gr.update(visible=False),
+                    gr.update(value=err_html, visible=True))
 
-        scores_html   = _build_iv_scores_html(result)
-        timeline_html = _build_iv_timeline_html(result)
-        summary_html  = _build_iv_summary_html(result)
+        if result.error:
+            err_html = f'<p style="color:#ef4444;padding:12px;">{result.error[:300]}</p>'
+            return (gr.update(visible=False), gr.update(visible=False),
+                    gr.update(visible=False), gr.update(visible=False),
+                    gr.update(value=err_html, visible=True))
 
-        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Analysis complete.</p>'
-        video_upd = gr.update(visible=False)  # skip annotated video re-encode
+        scores_html = _video_analyzer.render_score_cards_html(result)
+        try:
+            fig = _video_analyzer.render_timeline_figure(result)
+            tl  = fig.to_html(full_html=False, include_plotlyjs="cdn",
+                               config={"displayModeBar": False}) if fig else ""
+        except Exception:
+            tl = ""
+
+        obs_html = ""
+        if result.observations:
+            obs_html = ('<div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;">'
+                        '<div style="font-weight:700;color:#475569;margin-bottom:8px;">Observations</div>'
+                        '<ul style="margin:0;padding-left:18px;">'
+                        + "".join(f'<li style="font-size:0.88em;color:#374151;margin-bottom:6px;">{o}</li>'
+                                  for o in result.observations)
+                        + '</ul></div>')
+
+        ann  = result.annotated_video_path
+        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Delivery analysis complete.</p>'
         return (
             gr.update(value=scores_html, visible=bool(scores_html)),
-            gr.update(value=timeline_html, visible=bool(timeline_html)),
-            gr.update(value=summary_html, visible=bool(summary_html)),
-            video_upd,
+            gr.update(value=tl,          visible=bool(tl)),
+            gr.update(value=obs_html,    visible=bool(obs_html)),
+            gr.update(value=ann,         visible=bool(ann)),
             gr.update(value=status_html, visible=True),
         )
 
-    iv_person_count.change(
-        fn=_iv_person_count_change,
-        inputs=[iv_person_count],
-        outputs=[iv_role_0, iv_role_1, iv_role_2, iv_role_3],
-        queue=False,
+    iv_analyze_btn.click(
+        fn=_iv_analyze_video,
+        inputs=[file_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
+        queue=True,
     )
 
     # ── event wiring ──────────────────────────────────────────────────────────

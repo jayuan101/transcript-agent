@@ -25,11 +25,22 @@ try:
 except ImportError:
     _MP_OK = False
 
-try:
-    from deepface import DeepFace
-    _DF_OK = True
-except ImportError:
-    _DF_OK = False
+_DF_OK = False
+_DeepFace = None
+
+def _get_deepface():
+    """Lazy import DeepFace to avoid import-time crashes."""
+    global _DF_OK, _DeepFace
+    if _DeepFace is not None:
+        return _DeepFace
+    try:
+        from deepface import DeepFace as _df
+        _DeepFace = _df
+        _DF_OK = True
+        return _DeepFace
+    except Exception:
+        _DF_OK = False
+        return None
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 SAMPLE_INTERVAL_SEC = 2          # sample 1 frame every N seconds
@@ -370,7 +381,8 @@ def _process_frame(
             y1 = max(0, f["y"])
             x2 = min(w, x1 + f["fw"])
             y2 = min(h, y1 + f["fh"])
-            if x2 > x1 and y2 > y1 and _DF_OK:
+            DeepFace = _get_deepface()
+            if x2 > x1 and y2 > y1 and DeepFace is not None:
                 crop  = frame[y1:y2, x1:x2]
                 result = DeepFace.analyze(
                     crop,

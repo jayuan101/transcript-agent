@@ -3440,7 +3440,7 @@ window.taDoUpdate = function(url, btn, platform) {
       var isLabel = el.classList.contains('block-label') ||
                     (el.parentElement && (el.parentElement.classList.contains('label-wrap') ||
                                           el.parentElement.classList.contains('info')));
-      _sp(el, 'color', dark ? (isLabel ? '#94a3b8' : '#e2e8f0') : null);
+      _sp(el, 'color', dark ? (isLabel ? '#86868B' : '#F5F5F7') : null);
     });
 
     /* Dropdowns specifically */
@@ -3459,35 +3459,36 @@ window.taDoUpdate = function(url, btn, platform) {
      Inline custom properties on documentElement beat ALL :root CSS rules,
      which is how Gradio reads them. This is the only approach that reliably
      overrides Gradio's Soft theme variables regardless of specificity. */
+  /* ── V2 Dark vars — Apple true-black + iOS blue ── */
   var DARK_VARS = {
-    '--body-background-fill':      '#0f172a',
-    '--background-fill-primary':   '#0f172a',
-    '--background-fill-secondary': '#1e293b',
-    '--block-background-fill':     '#1e293b',
-    '--input-background-fill':     '#0f172a',
-    '--panel-background-fill':     '#1e293b',
-    '--chatbot-background-fill':   '#1e293b',
-    '--body-text-color':           '#e2e8f0',
-    '--block-label-text-color':    '#94a3b8',
-    '--block-title-text-color':    '#e2e8f0',
-    '--block-info-text-color':     '#94a3b8',
-    '--block-border-color':        '#334155',
+    '--body-background-fill':      '#000000',
+    '--background-fill-primary':   '#000000',
+    '--background-fill-secondary': '#1C1C1E',
+    '--block-background-fill':     '#1C1C1E',
+    '--input-background-fill':     '#2C2C2E',
+    '--panel-background-fill':     '#1C1C1E',
+    '--chatbot-background-fill':   '#1C1C1E',
+    '--body-text-color':           '#F5F5F7',
+    '--block-label-text-color':    '#86868B',
+    '--block-title-text-color':    '#F5F5F7',
+    '--block-info-text-color':     '#86868B',
+    '--block-border-color':        'rgba(255,255,255,0.1)',
     '--block-border-width':        '1px',
-    '--input-border-color':        '#475569',
-    '--border-color-primary':      '#334155',
-    '--border-color-accent':       '#3b82f6',
-    '--neutral-100':               '#1e293b',
-    '--neutral-200':               '#334155',
-    '--neutral-300':               '#475569',
-    '--neutral-400':               '#64748b',
-    '--neutral-500':               '#94a3b8',
-    '--neutral-600':               '#cbd5e1',
-    '--neutral-700':               '#e2e8f0',
-    '--neutral-800':               '#f1f5f9',
-    '--neutral-900':               '#f8fafc',
-    '--color-accent':              '#3b82f6',
-    '--link-text-color':           '#60a5fa',
-    '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.5)',
+    '--input-border-color':        'rgba(255,255,255,0.12)',
+    '--border-color-primary':      'rgba(255,255,255,0.1)',
+    '--border-color-accent':       '#0A84FF',
+    '--neutral-100':               '#1C1C1E',
+    '--neutral-200':               '#2C2C2E',
+    '--neutral-300':               '#3A3A3C',
+    '--neutral-400':               '#48484A',
+    '--neutral-500':               '#636366',
+    '--neutral-600':               '#86868B',
+    '--neutral-700':               '#AEAEB2',
+    '--neutral-800':               '#C7C7CC',
+    '--neutral-900':               '#F5F5F7',
+    '--color-accent':              '#0A84FF',
+    '--link-text-color':           '#0A84FF',
+    '--shadow-drop':               '0 2px 8px rgba(0,0,0,0.6)',
   };
 
   function setGradioVars(dark) {
@@ -3517,42 +3518,45 @@ window.taDoUpdate = function(url, btn, platform) {
     /* 4. Patch inline styles (handles elements Gradio styles inline) */
     patchDOM(dark);
 
-    /* Direct body/html inline styles — these beat everything */
-    _sp(document.body, 'background', dark ? '#0f172a' : null);
-    _sp(document.body, 'color',      dark ? '#e2e8f0' : null);
-    _sp(document.documentElement, 'background', dark ? '#0f172a' : null);
+    /* Direct body/html inline styles — v2 palette */
+    _sp(document.body, 'background', dark ? '#000000' : null);
+    _sp(document.body, 'color',      dark ? '#F5F5F7' : null);
+    _sp(document.documentElement, 'background', dark ? '#000000' : null);
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* ── Toggle pill visuals ── */
+    /* ── V2 Toggle pill visuals ── */
     var bl = document.getElementById('ta-btn-light');
     var bd = document.getElementById('ta-btn-dark');
     var wg = document.getElementById('ta-widget');
+    var _base = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:100px;border:none;cursor:pointer;font-size:0.81em;font-weight:600;letter-spacing:-0.01em;transition:all 0.22s;font-family:-apple-system,BlinkMacSystemFont,\'SF Pro Text\',\'Inter\',system-ui,sans-serif;';
     if (bl && bd) {
-      /* Active pill: solid blue with shadow. Inactive: transparent, muted text */
-      bl.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
-        + (dark ? 'background:transparent;color:#64748b;box-shadow:none;'
-                : 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);');
-      bd.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
-        + (dark ? 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);'
-                : 'background:transparent;color:#64748b;box-shadow:none;');
+      bl.style.cssText = _base + (dark
+        ? 'background:transparent;color:#86868B;box-shadow:none;'
+        : 'background:#0071E3;color:#fff;box-shadow:0 2px 8px rgba(0,113,227,0.35);');
+      bd.style.cssText = _base + (dark
+        ? 'background:#0A84FF;color:#fff;box-shadow:0 2px 8px rgba(10,132,255,0.4);'
+        : 'background:transparent;color:#6E6E73;box-shadow:none;');
     }
     if (wg) {
-      wg.style.background  = dark ? 'rgba(15,23,42,0.96)' : 'rgba(255,255,255,0.96)';
-      wg.style.borderColor = dark ? '#334155' : '#e2e8f0';
+      wg.style.background  = dark ? 'rgba(28,28,30,0.88)' : 'rgba(255,255,255,0.88)';
+      wg.style.borderColor = dark ? 'rgba(255,255,255,0.12)' : 'rgba(60,60,67,0.13)';
+      wg.style.boxShadow   = dark
+        ? '0 4px 24px rgba(0,0,0,0.5),0 1px 4px rgba(0,0,0,0.4)'
+        : '0 4px 24px rgba(0,0,0,0.12),0 1px 4px rgba(0,0,0,0.06)';
     }
 
-    /* ── Floating ▶ button — adapts to dark/light ── */
+    /* ── V2 Floating ▶ button ── */
     var fb = document.getElementById('ta-float-analyze');
     if (fb) {
-      fb.style.background  = dark
-        ? 'linear-gradient(135deg,#1e3a8a,#2563eb)'
-        : 'linear-gradient(135deg,#1d4ed8,#3b82f6)';
-      fb.style.boxShadow   = dark
-        ? '0 4px 20px rgba(37,99,235,0.7)'
-        : '0 4px 20px rgba(29,78,216,0.5)';
+      fb.style.background = dark
+        ? 'linear-gradient(135deg,#0063CC,#0A84FF)'
+        : 'linear-gradient(135deg,#0055CC,#0071E3,#0A84FF)';
+      fb.style.boxShadow = dark
+        ? '0 6px 24px rgba(10,132,255,0.55),0 0 0 1px rgba(255,255,255,0.1) inset'
+        : '0 6px 24px rgba(0,113,227,0.5),0 0 0 1px rgba(255,255,255,0.12) inset';
     }
 
     /* API banner */

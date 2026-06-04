@@ -36,5 +36,15 @@ regex>=2023.0.0
 # imageio-ffmpeg bundles ffmpeg on Windows — no system install needed
 imageio-ffmpeg>=0.4.9
 
+# ── Video Interview Analysis ──────────────────────────────────────────────────
+# Core (required for Video Analysis tab)
+opencv-python>=4.8.0
+mediapipe>=0.10.0
+# Emotion detection backends (optional — install at least one for best accuracy)
+# deepface>=0.0.93        # most accurate; pulls in TensorFlow (~2 GB)
+# fer>=22.5.1             # lighter alternative (TF-based)
+# plotly is already a Gradio transitive dep; add explicitly for clarity
+plotly>=5.0.0
+
 # ── PyTorch (CPU) — installed separately in setup scripts for size reasons ───
 # torch  — handled by setup_windows.bat / setup_mac.sh

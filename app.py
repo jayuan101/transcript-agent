@@ -38,6 +38,13 @@ try:
 except ImportError:
     pass
 
+try:
+    from video_analyzer import VideoAnalyzer as _VideoAnalyzer
+    _video_analyzer = _VideoAnalyzer()
+    _HAS_VIDEO_ANALYZER = True
+except Exception:
+    _HAS_VIDEO_ANALYZER = False
+
 
 
 def _resolve_nextcloud_token_url(url: str):
@@ -5554,6 +5561,82 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
                     )
 
+                with gr.TabItem("🎥 Video Analysis"):
+                    if not _HAS_VIDEO_ANALYZER:
+                        gr.HTML(
+                            '<div style="padding:16px;color:#f59e0b;">'
+                            '<b>Video Analysis requires additional packages.</b><br>'
+                            'Run: <code>pip install mediapipe opencv-python</code><br>'
+                            'Optional (for better emotion detection): <code>pip install deepface</code>'
+                            '</div>'
+                        )
+                        # Still create the components so event wiring below doesn't error
+                        va_video_in   = gr.File(visible=False)
+                        va_scan_btn   = gr.Button(visible=False)
+                        va_role_state = gr.State(value={})
+                        va_faces_html = gr.HTML(visible=False)
+                        va_role_rows  = []
+                        for _i in range(4):
+                            va_role_rows.append((gr.Image(visible=False), gr.Dropdown(visible=False)))
+                        va_analyze_btn  = gr.Button(visible=False)
+                        va_status_html  = gr.HTML(visible=False)
+                        va_score_html   = gr.HTML(visible=False)
+                        va_timeline_plt = gr.Plot(visible=False)
+                        va_video_out    = gr.File(visible=False)
+                    else:
+                        with gr.Row():
+                            with gr.Column(scale=1, min_width=260):
+                                gr.HTML(
+                                    '<div style="font-size:0.82em;color:#64748b;margin-bottom:6px;">'
+                                    'Upload a recorded interview video, scan to detect faces, '
+                                    'assign roles, then click Analyze.</div>'
+                                )
+                                va_video_in = gr.File(
+                                    label="Interview Video",
+                                    file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"],
+                                    file_count="single",
+                                    type="filepath",
+                                )
+                                va_scan_btn = gr.Button("Scan Faces", variant="secondary", size="sm")
+                                va_role_state = gr.State(value={})
+
+                                va_faces_html = gr.HTML(value="", visible=False)
+
+                                # Role assignment rows (up to 4 faces)
+                                va_role_rows = []
+                                for _i in range(4):
+                                    with gr.Row(visible=False, elem_id=f"va-role-row-{_i}") as _row:
+                                        _thumb = gr.Image(
+                                            label=f"Person {_i+1}", height=100, width=80,
+                                            interactive=False, show_label=True,
+                                        )
+                                        _role = gr.Dropdown(
+                                            label="Role",
+                                            choices=[
+                                                "Candidate", "Interviewer 1", "Interviewer 2",
+                                                "Interviewer 3", "Interviewer 4", "Unknown",
+                                            ],
+                                            value="Unknown",
+                                            scale=2,
+                                        )
+                                    va_role_rows.append((_row, _thumb, _role))
+
+                                va_analyze_btn = gr.Button(
+                                    "Analyze Video", variant="primary", size="sm", visible=False
+                                )
+                                va_status_html = gr.HTML(value="")
+
+                            with gr.Column(scale=2):
+                                va_score_html   = gr.HTML(
+                                    value='<p style="color:#94a3b8;padding:12px;">'
+                                          'Upload a video and click Analyze to see results.</p>'
+                                )
+                                va_timeline_plt = gr.Plot(label="Emotion Timeline", visible=False)
+                                va_video_out    = gr.File(
+                                    label="Download Annotated Video",
+                                    visible=False, interactive=False,
+                                )
+
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
@@ -5922,6 +6005,201 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                  speakers_input],
         queue=False,
     )
+
+    # ── Video Analysis events ─────────────────────────────────────────────────
+    if _HAS_VIDEO_ANALYZER:
+        _MAX_VA_FACES = 4
+
+        # All role dropdowns flat list
+        _va_role_dropdowns = [row[2] for row in va_role_rows]
+        _va_thumb_imgs     = [row[1] for row in va_role_rows]
+        _va_rows           = [row[0] for row in va_role_rows]
+
+        def _va_scan(video_path):
+            """Scan video for faces → show role assignment rows."""
+            if not video_path:
+                return (
+                    gr.update(value="<p style='color:#f59e0b;'>Please upload a video first.</p>"),
+                    {},
+                    gr.update(visible=False),
+                    *[gr.update(visible=False) for _ in range(_MAX_VA_FACES)],
+                    *[gr.update(value=None)    for _ in range(_MAX_VA_FACES)],
+                    *[gr.update(value="Unknown", visible=False) for _ in range(_MAX_VA_FACES)],
+                )
+
+            try:
+                thumbs, duration = _video_analyzer.scan_faces(video_path)
+            except Exception as exc:
+                return (
+                    gr.update(value=f"<p style='color:#ef4444;'>Scan failed: {exc}</p>"),
+                    {},
+                    gr.update(visible=False),
+                    *[gr.update(visible=False) for _ in range(_MAX_VA_FACES)],
+                    *[gr.update(value=None)    for _ in range(_MAX_VA_FACES)],
+                    *[gr.update(value="Unknown", visible=False) for _ in range(_MAX_VA_FACES)],
+                )
+
+            n        = min(len(thumbs), _MAX_VA_FACES)
+            pid_list = list(thumbs.keys())[:_MAX_VA_FACES]
+            dur_str  = f"{int(duration//60)}m {int(duration%60)}s"
+
+            status_html = (
+                f'<div style="padding:8px 0;color:#475569;font-size:0.84em;">'
+                f'Found <b>{n} face{"s" if n!=1 else ""}</b> · Duration: {dur_str}<br>'
+                f'Assign roles below, then click <b>Analyze Video</b>.</div>'
+            )
+
+            default_roles = {
+                pid_list[0]: "Candidate",
+                **{pid_list[i]: f"Interviewer {i}" for i in range(1, n)},
+            } if pid_list else {}
+
+            row_vis   = [gr.update(visible=(i < n)) for i in range(_MAX_VA_FACES)]
+            thumb_ups = [
+                gr.update(value=thumbs.get(pid_list[i]) if i < n else None)
+                for i in range(_MAX_VA_FACES)
+            ]
+            drop_ups  = [
+                gr.update(
+                    value=default_roles.get(pid_list[i], "Unknown"),
+                    visible=(i < n),
+                )
+                if i < n else gr.update(visible=False)
+                for i in range(_MAX_VA_FACES)
+            ]
+
+            return (
+                gr.update(value=status_html, visible=True),
+                {"pids": pid_list, "thumbs": thumbs},
+                gr.update(visible=(n > 0)),
+                *row_vis,
+                *thumb_ups,
+                *drop_ups,
+            )
+
+        va_scan_btn.click(
+            fn=_va_scan,
+            inputs=[va_video_in],
+            outputs=[
+                va_status_html,
+                va_role_state,
+                va_analyze_btn,
+                *_va_rows,
+                *_va_thumb_imgs,
+                *_va_role_dropdowns,
+            ],
+            queue=True,
+        )
+
+        def _va_analyze(video_path, role_state, *roles):
+            """Run full video analysis and yield progress updates then results."""
+            if not video_path:
+                yield (
+                    gr.update(value="<p style='color:#f59e0b;'>Upload a video first.</p>"),
+                    gr.update(),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+                return
+
+            pids = (role_state or {}).get("pids", [])
+            role_map = {
+                pids[i]: roles[i]
+                for i in range(min(len(pids), _MAX_VA_FACES))
+                if i < len(roles)
+            }
+            if not role_map:
+                yield (
+                    gr.update(value="<p style='color:#f59e0b;'>Scan faces first.</p>"),
+                    gr.update(),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+                return
+
+            progress_val = [0.0]
+
+            def _pcb(v):
+                progress_val[0] = v
+
+            yield (
+                gr.update(value='<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
+                                'Analyzing video… this may take a minute.</div>'),
+                gr.update(),
+                gr.update(visible=False),
+                gr.update(visible=False),
+            )
+
+            import threading as _threading
+            result_holder = [None]
+            exc_holder    = [None]
+
+            def _worker():
+                try:
+                    result_holder[0] = _video_analyzer.analyze_video(
+                        video_path, role_map, sample_fps=1.0, progress_cb=_pcb
+                    )
+                except Exception as e:
+                    exc_holder[0] = e
+
+            t = _threading.Thread(target=_worker, daemon=True)
+            t.start()
+
+            while t.is_alive():
+                pct = int(progress_val[0] * 100)
+                yield (
+                    gr.update(value=(
+                        f'<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
+                        f'Analyzing… {pct}%'
+                        f'<div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:6px;">'
+                        f'<div style="background:#3b82f6;height:6px;border-radius:4px;width:{pct}%;"></div>'
+                        f'</div></div>'
+                    )),
+                    gr.update(),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+                time.sleep(1.5)
+
+            t.join()
+
+            if exc_holder[0]:
+                yield (
+                    gr.update(value=f'<p style="color:#ef4444;">Analysis failed: {exc_holder[0]}</p>'),
+                    gr.update(),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+                return
+
+            result = result_holder[0]
+            if result is None or result.error:
+                msg = result.error if result else "Unknown error"
+                yield (
+                    gr.update(value=f'<p style="color:#ef4444;">{msg}</p>'),
+                    gr.update(),
+                    gr.update(visible=False),
+                    gr.update(visible=False),
+                )
+                return
+
+            score_html   = _video_analyzer.render_score_cards_html(result)
+            timeline_fig = _video_analyzer.render_timeline_figure(result)
+
+            ann_path = result.annotated_video_path
+            yield (
+                gr.update(value='<div style="color:#22c55e;padding:8px 0;font-size:0.84em;">Done!</div>'),
+                gr.update(value=score_html),
+                gr.update(value=timeline_fig, visible=timeline_fig is not None),
+                gr.update(value=ann_path, visible=ann_path is not None),
+            )
+
+        va_analyze_btn.click(
+            fn=_va_analyze,
+            inputs=[va_video_in, va_role_state, *_va_role_dropdowns],
+            outputs=[va_status_html, va_score_html, va_timeline_plt, va_video_out],
+            queue=True,
+        )
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
     if not bool(os.environ.get("SPACE_ID")):

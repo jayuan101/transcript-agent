@@ -3406,8 +3406,8 @@ window.taDoUpdate = function(url, btn, platform) {
       '.info{font-size:0.74em!important;color:#6b7280!important}',
       /* ── Tabs — refined underline style ── */
       '.tabs>.tab-nav{border-bottom:2px solid #e8edf4!important;gap:2px!important}',
-      '.tabs>.tab-nav button{font-weight:600!important;font-size:0.84em!important;padding:10px 16px!important;border-radius:8px 8px 0 0!important;letter-spacing:0.01em!important;transition:all 0.15s!important}',
-      '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important}',
+      '.tabs>.tab-nav button{font-weight:600!important;font-size:0.84em!important;padding:10px 16px!important;border-radius:8px 8px 0 0!important;letter-spacing:0.01em!important;transition:all 0.15s!important;color:#475569!important;background:transparent!important}',
+      '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important;background:transparent!important}',
       /* ── Accordions ── */
       '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
       /* ── Analyze button — compact, pill style ── */

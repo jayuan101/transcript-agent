@@ -431,12 +431,13 @@ _PROVIDERS = {
         "placeholder": "none required",
         "info": "ollama.ai — run models locally, no API key needed",
         "models": [
+            # ── DEFAULT (best balance) ────────────────────────────────
+            "gemma3:27b",         # Google Gemma 3 27B — best quality/size ratio ★ default
             # ── Best quality (48 GB+ RAM) ─────────────────────────────
             "llama3.3",           # Meta Llama 3.3 70B — best instruction-following
             "qwen2.5:72b",        # Alibaba — exceptional analysis + long context
             "deepseek-r1:70b",    # Strong reasoning + analysis
             # ── Best balance (16–24 GB RAM) ───────────────────────────
-            "gemma3:27b",         # Google Gemma 3 — best quality/size ratio
             "qwen2.5:32b",        # Alibaba 32B — great for structured output
             "deepseek-r1:32b",    # Reasoning at 32B
             # ── Fast + capable (8–16 GB RAM) ─────────────────────────

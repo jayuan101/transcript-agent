@@ -3281,7 +3281,15 @@ window.taDoUpdate = function(url, btn, platform) {
       /* ── Live log terminal ── */
       '#live-log textarea{background:#0a0f1e!important;color:#86efac!important;font-family:"JetBrains Mono","Courier New",monospace!important;font-size:0.79em!important;border-color:#1e3a5f!important;border-radius:10px!important;line-height:1.7!important}',
       /* ── Interview Vision tab ── */
-      '#iv-analyze-btn{margin-top:8px!important}',
+      '.iv-tab-header{padding:8px 0 14px}',
+      '.iv-tab-title{font-size:1.05em;font-weight:700;color:var(--ta-text);margin-bottom:4px}',
+      '.iv-tab-sub{font-size:0.82em;color:var(--ta-sub);line-height:1.5}',
+      '#iv-video-input{border-radius:12px!important;margin-bottom:10px!important}',
+      '#iv-controls-row{gap:8px!important;flex-wrap:wrap!important;margin-bottom:10px!important}',
+      '#iv-analyze-btn{width:100%!important;margin-bottom:12px!important}',
+      '#iv-progress{min-height:0!important}',
+      '#iv-scores-panel,#iv-timeline,#iv-summary{margin-bottom:10px!important}',
+      '#iv-output-video{border-radius:12px!important;margin-top:4px!important}',
       '.iv-score-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px;margin-bottom:14px}',
       '.iv-score-card-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:12px}',
       '.iv-score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}',
@@ -5640,64 +5648,57 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                 with gr.TabItem("🎥 Interview Vision"):
-                    with gr.Row():
-                        with gr.Column(scale=1):
-                            iv_video_input = gr.Video(
-                                label="Upload interview recording",
-                                sources=["upload"],
-                                elem_id="iv-video-input",
-                            )
-                            iv_person_count = gr.Number(
-                                label="Number of people in video",
-                                value=2, minimum=1, maximum=5, step=1,
-                                elem_id="iv-person-count",
-                            )
-                            gr.Markdown("**Assign roles to each person (sorted left to right):**")
-                            iv_role_0 = gr.Dropdown(
-                                label="Person 1 role",
-                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                                value="Candidate",
-                            )
-                            iv_role_1 = gr.Dropdown(
-                                label="Person 2 role",
-                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                                value="Interviewer 1",
-                            )
-                            iv_role_2 = gr.Dropdown(
-                                label="Person 3 role (optional)",
-                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                                value="Interviewer 2",
-                                visible=False,
-                            )
-                            iv_role_3 = gr.Dropdown(
-                                label="Person 4 role (optional)",
-                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                                value="Interviewer 3",
-                                visible=False,
-                            )
-                            iv_analyze_btn = gr.Button(
-                                "🔍 Analyze Video", variant="primary", elem_id="iv-analyze-btn"
-                            )
-                            iv_progress = gr.HTML(value="", label="")
-
-                        with gr.Column(scale=2):
-                            iv_scores_panel = gr.HTML(
-                                value='<p style="color:#94a3b8;padding:12px;">Upload a video and click Analyze to see scores.</p>',
-                                elem_id="iv-scores-panel",
-                            )
-                            iv_timeline = gr.HTML(
-                                value="",
-                                elem_id="iv-timeline",
-                            )
-                            iv_summary = gr.HTML(
-                                value="",
-                                elem_id="iv-summary",
-                            )
-                            iv_output_video = gr.Video(
-                                label="Annotated video",
-                                elem_id="iv-output-video",
-                                interactive=False,
-                            )
+                    gr.HTML(
+                        '<div class="iv-tab-header">'
+                        '<div class="iv-tab-title">Post-Interview Video Analysis</div>'
+                        '<div class="iv-tab-sub">Upload a recorded interview — the AI reads facial expressions, body language, eye contact, and talk time to score every participant.</div>'
+                        '</div>'
+                    )
+                    iv_video_input = gr.Video(
+                        label="Drop interview recording here or click to upload",
+                        sources=["upload"],
+                        elem_id="iv-video-input",
+                    )
+                    with gr.Row(elem_id="iv-controls-row"):
+                        iv_person_count = gr.Number(
+                            label="People in video",
+                            value=2, minimum=1, maximum=5, step=1,
+                            elem_id="iv-person-count",
+                            scale=1,
+                        )
+                        iv_role_0 = gr.Dropdown(
+                            label="Person 1 (leftmost)",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Candidate", scale=1,
+                        )
+                        iv_role_1 = gr.Dropdown(
+                            label="Person 2",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 1", scale=1,
+                        )
+                        iv_role_2 = gr.Dropdown(
+                            label="Person 3",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 2", visible=False, scale=1,
+                        )
+                        iv_role_3 = gr.Dropdown(
+                            label="Person 4",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 3", visible=False, scale=1,
+                        )
+                    iv_analyze_btn = gr.Button(
+                        "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
+                    )
+                    iv_progress = gr.HTML(value="", elem_id="iv-progress")
+                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
+                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
+                    iv_summary      = gr.HTML(value="", elem_id="iv-summary")
+                    iv_output_video = gr.Video(
+                        label="Annotated video",
+                        elem_id="iv-output-video",
+                        interactive=False,
+                        visible=False,
+                    )
 
                 with gr.TabItem("📂 History"):
                     with gr.Row():
@@ -5923,8 +5924,9 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         except Exception:
             annotated_path = None
 
-        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">Analysis complete.</p>'
-        return scores_html, timeline_html, summary_html, annotated_path, status_html
+        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Analysis complete.</p>'
+        video_upd = gr.update(value=annotated_path, visible=bool(annotated_path))
+        return scores_html, timeline_html, summary_html, video_upd, status_html
 
     iv_person_count.change(
         fn=_iv_person_count_change,

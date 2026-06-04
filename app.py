@@ -431,14 +431,22 @@ _PROVIDERS = {
         "placeholder": "none required",
         "info": "ollama.ai — run models locally, no API key needed",
         "models": [
-            "llama3.3",
-            "llama3.2",
-            "llama3.1:70b",
-            "gemma3:27b",
-            "qwen2.5:72b",
-            "phi4",
-            "deepseek-r1:70b",
-            "mistral",
+            # ── Best quality (48 GB+ RAM) ─────────────────────────────
+            "llama3.3",           # Meta Llama 3.3 70B — best instruction-following
+            "qwen2.5:72b",        # Alibaba — exceptional analysis + long context
+            "deepseek-r1:70b",    # Strong reasoning + analysis
+            # ── Best balance (16–24 GB RAM) ───────────────────────────
+            "gemma3:27b",         # Google Gemma 3 — best quality/size ratio
+            "qwen2.5:32b",        # Alibaba 32B — great for structured output
+            "deepseek-r1:32b",    # Reasoning at 32B
+            # ── Fast + capable (8–16 GB RAM) ─────────────────────────
+            "phi4",               # Microsoft Phi-4 14B — punches above its weight
+            "gemma3:12b",         # Google Gemma 3 12B — solid transcript work
+            "qwen2.5:14b",        # Alibaba 14B — fast, good JSON output
+            "llama3.2",           # Meta 3B/11B — fastest option
+            # ── Alternatives ─────────────────────────────────────────
+            "mistral-small3.1",   # Mistral 22B — good multilingual
+            "mistral",            # Mistral 7B — lightweight baseline
         ],
         "base_url": "http://localhost:11434/v1",
     },

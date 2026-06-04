@@ -1,5 +1,5 @@
 #define AppName "Transcript Agent"
-#define AppVersion "1.1.43"
+#define AppVersion "1.1.82"
 #define AppPublisher "Coastline6"
 #define AppURL "https://huggingface.co/spaces/Coastline6/transcript-agent-v2"
 #define AppExeName "run.bat"

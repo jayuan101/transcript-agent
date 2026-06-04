@@ -145,6 +145,14 @@ if %errorlevel% neq 0 (
 echo   Installing bundled ffmpeg (no system install needed)...
 "!PIP!" install imageio-ffmpeg --quiet
 
+echo   Installing video analysis packages (mediapipe, opencv)...
+"!PIP!" install mediapipe opencv-python plotly --quiet
+if %errorlevel% neq 0 (
+    echo   Note: Video analysis packages failed to install.
+    echo   The app will still work for transcription and interview coaching.
+    echo   To retry later: venv\Scripts\pip install mediapipe opencv-python plotly
+)
+
 echo   All dependencies installed.
 
 :: Step 4 - API key
@@ -207,6 +215,7 @@ echo  Updating Python packages...
 "!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
 "!PIP!" install -r "!APPDIR!requirements.txt" --upgrade --quiet
 "!PIP!" install imageio-ffmpeg --upgrade --quiet
+"!PIP!" install mediapipe opencv-python plotly --upgrade --quiet
 echo  All packages up to date.
 
 echo.

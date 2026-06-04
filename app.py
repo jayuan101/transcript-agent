@@ -38,6 +38,11 @@ try:
 except ImportError:
     pass
 
+try:
+    from interview_vision import analyze_interview_video, write_annotated_video
+    _IV_OK = True
+except ImportError:
+    _IV_OK = False
 
 
 def _resolve_nextcloud_token_url(url: str):
@@ -3275,6 +3280,27 @@ window.taDoUpdate = function(url, btn, platform) {
       '::-webkit-scrollbar-thumb:hover{background:#9ca3af}',
       /* ── Live log terminal ── */
       '#live-log textarea{background:#0a0f1e!important;color:#86efac!important;font-family:"JetBrains Mono","Courier New",monospace!important;font-size:0.79em!important;border-color:#1e3a5f!important;border-radius:10px!important;line-height:1.7!important}',
+      /* ── Interview Vision tab ── */
+      '#iv-analyze-btn{margin-top:8px!important}',
+      '.iv-score-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px;margin-bottom:14px}',
+      '.iv-score-card-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:12px}',
+      '.iv-score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}',
+      '.iv-score-label{font-size:0.82em;color:var(--ta-text);flex:1}',
+      '.iv-score-bar-wrap{flex:2;background:var(--ta-step-wait-bg);border-radius:99px;height:8px;overflow:hidden}',
+      '.iv-score-bar{height:8px;border-radius:99px;transition:width 0.6s ease}',
+      '.iv-score-val{font-size:0.82em;font-weight:700;color:var(--ta-text);min-width:36px;text-align:right}',
+      '.iv-score-green{background:#22c55e}',
+      '.iv-score-amber{background:#f59e0b}',
+      '.iv-score-red{background:#ef4444}',
+      '.iv-overall-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:99px;font-weight:700;font-size:1.05em;margin-top:4px}',
+      '.iv-timeline-wrap{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px;margin-bottom:14px}',
+      '.iv-timeline-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:12px}',
+      '.iv-timeline-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}',
+      '.iv-timeline-label{font-size:0.78em;color:var(--ta-text);min-width:90px}',
+      '.iv-timeline-bar{flex:1;display:flex;height:20px;border-radius:6px;overflow:hidden}',
+      '.iv-obs-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px}',
+      '.iv-obs-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:10px}',
+      '.iv-obs-item{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:0.86em;color:var(--ta-text)}',
     ].join('');
     document.head.appendChild(ps);
   }
@@ -5613,6 +5639,66 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
                     )
 
+                with gr.TabItem("🎥 Interview Vision"):
+                    with gr.Row():
+                        with gr.Column(scale=1):
+                            iv_video_input = gr.Video(
+                                label="Upload interview recording",
+                                sources=["upload"],
+                                elem_id="iv-video-input",
+                            )
+                            iv_person_count = gr.Number(
+                                label="Number of people in video",
+                                value=2, minimum=1, maximum=5, step=1,
+                                elem_id="iv-person-count",
+                            )
+                            gr.Markdown("**Assign roles to each person (sorted left to right):**")
+                            iv_role_0 = gr.Dropdown(
+                                label="Person 1 role",
+                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                                value="Candidate",
+                            )
+                            iv_role_1 = gr.Dropdown(
+                                label="Person 2 role",
+                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                                value="Interviewer 1",
+                            )
+                            iv_role_2 = gr.Dropdown(
+                                label="Person 3 role (optional)",
+                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                                value="Interviewer 2",
+                                visible=False,
+                            )
+                            iv_role_3 = gr.Dropdown(
+                                label="Person 4 role (optional)",
+                                choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                                value="Interviewer 3",
+                                visible=False,
+                            )
+                            iv_analyze_btn = gr.Button(
+                                "🔍 Analyze Video", variant="primary", elem_id="iv-analyze-btn"
+                            )
+                            iv_progress = gr.HTML(value="", label="")
+
+                        with gr.Column(scale=2):
+                            iv_scores_panel = gr.HTML(
+                                value='<p style="color:#94a3b8;padding:12px;">Upload a video and click Analyze to see scores.</p>',
+                                elem_id="iv-scores-panel",
+                            )
+                            iv_timeline = gr.HTML(
+                                value="",
+                                elem_id="iv-timeline",
+                            )
+                            iv_summary = gr.HTML(
+                                value="",
+                                elem_id="iv-summary",
+                            )
+                            iv_output_video = gr.Video(
+                                label="Annotated video",
+                                elem_id="iv-output-video",
+                                interactive=False,
+                            )
+
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
@@ -5652,6 +5738,206 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
       {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
     </div>
     """)
+
+    # ── Interview Vision helpers ──────────────────────────────────────────────
+    def _build_iv_scores_html(result: dict) -> str:
+        persons     = result.get("persons", {})
+        interaction = result.get("interaction", {})
+
+        def _bar_class(v):
+            if v >= 70:
+                return "iv-score-green"
+            if v >= 50:
+                return "iv-score-amber"
+            return "iv-score-red"
+
+        def _score_row(label, value):
+            cls  = _bar_class(value)
+            return (
+                f'<div class="iv-score-row">'
+                f'<span class="iv-score-label">{label}</span>'
+                f'<div class="iv-score-bar-wrap">'
+                f'<div class="iv-score-bar {cls}" style="width:{value}%"></div>'
+                f'</div>'
+                f'<span class="iv-score-val">{value}</span>'
+                f'</div>'
+            )
+
+        html_parts = []
+        for pid in sorted(persons.keys()):
+            p    = persons[pid]
+            role = p.get("role", f"Person {pid}")
+            scores = p.get("scores", {})
+            talk   = p.get("talk_pct", 0)
+            dom    = p.get("dominant_emotion", "neutral")
+            html_parts.append(
+                f'<div class="iv-score-card">'
+                f'<div class="iv-score-card-title">{role}</div>'
+            )
+            for k, v in scores.items():
+                html_parts.append(_score_row(k.replace("_", " ").title(), int(v)))
+            html_parts.append(_score_row("Talk time %", int(talk)))
+            html_parts.append(
+                f'<div style="margin-top:8px;font-size:0.78em;color:var(--ta-sub);">'
+                f'Dominant emotion: <b>{dom}</b></div>'
+                f'</div>'
+            )
+
+        # Interaction card
+        rapport = interaction.get("rapport", 0)
+        tb      = interaction.get("talk_balance", 0)
+        overall = interaction.get("overall", 0)
+        cls_o   = _bar_class(overall)
+        html_parts.append(
+            f'<div class="iv-score-card">'
+            f'<div class="iv-score-card-title">Interaction</div>'
+        )
+        html_parts.append(_score_row("Rapport", rapport))
+        html_parts.append(_score_row("Talk balance", tb))
+        html_parts.append(
+            f'<div style="margin-top:10px;">'
+            f'<span class="iv-overall-badge" style="background:{"#22c55e" if overall>=70 else "#f59e0b" if overall>=50 else "#ef4444"};color:#fff;">'
+            f'Overall: {overall}</span></div></div>'
+        )
+        return "".join(html_parts)
+
+    def _build_iv_timeline_html(result: dict) -> str:
+        persons      = result.get("persons", {})
+        duration     = result.get("duration_secs", 60)
+        emo_colors   = {
+            "happy":     "#22c55e",
+            "neutral":   "#94a3b8",
+            "surprised": "#f59e0b",
+            "fear":      "#ef4444",
+            "angry":     "#ef4444",
+            "sad":       "#3b82f6",
+            "disgusted": "#a855f7",
+        }
+        total_mins  = max(1, int(duration / 60))
+
+        parts = [
+            '<div class="iv-timeline-wrap">',
+            '<div class="iv-timeline-title">Emotion Timeline</div>',
+        ]
+
+        for pid in sorted(persons.keys()):
+            p    = persons[pid]
+            role = p.get("role", f"Person {pid}")
+            tl   = p.get("emotions_timeline", [])
+
+            # Build minute-buckets
+            buckets: dict[int, list] = {}
+            for entry in tl:
+                m = int(entry["t"] / 60)
+                buckets.setdefault(m, []).append(entry["emotion"])
+
+            from collections import Counter
+            parts.append(
+                f'<div class="iv-timeline-row">'
+                f'<span class="iv-timeline-label">{role}</span>'
+                f'<div class="iv-timeline-bar">'
+            )
+            for m in range(total_mins):
+                emos   = buckets.get(m, ["neutral"])
+                dom_e  = Counter(emos).most_common(1)[0][0]
+                color  = emo_colors.get(dom_e, "#94a3b8")
+                pct    = 100.0 / total_mins
+                parts.append(
+                    f'<div title="{m}m: {dom_e}" '
+                    f'style="width:{pct:.2f}%;background:{color};"></div>'
+                )
+            parts.append('</div></div>')
+
+        # Legend
+        parts.append('<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">')
+        for emo, col in emo_colors.items():
+            parts.append(
+                f'<span style="display:flex;align-items:center;gap:4px;font-size:0.75em;color:var(--ta-text);">'
+                f'<span style="width:12px;height:12px;border-radius:3px;background:{col};display:inline-block;"></span>'
+                f'{emo}</span>'
+            )
+        parts.append('</div>')
+        # X-axis labels
+        parts.append('<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.72em;color:var(--ta-sub);">')
+        for m in range(0, total_mins + 1, max(1, total_mins // 6)):
+            parts.append(f'<span>{m}m</span>')
+        parts.append('</div>')
+        parts.append('</div>')
+        return "".join(parts)
+
+    def _build_iv_summary_html(result: dict) -> str:
+        obs = result.get("observations", [])
+        parts = [
+            '<div class="iv-obs-card">',
+            '<div class="iv-obs-title">Observations</div>',
+        ]
+        for o in obs:
+            parts.append(
+                f'<div class="iv-obs-item">'
+                f'<span style="color:var(--ta-accent);flex-shrink:0;">→</span>'
+                f'<span>{o}</span>'
+                f'</div>'
+            )
+        parts.append('</div>')
+        return "".join(parts)
+
+    def _iv_person_count_change(count):
+        count = int(count)
+        return (
+            gr.update(visible=count >= 1),
+            gr.update(visible=count >= 2),
+            gr.update(visible=count >= 3),
+            gr.update(visible=count >= 4),
+        )
+
+    def analyze_interview_tab(video_path, person_count, role_0, role_1, role_2, role_3):
+        if not video_path:
+            err = '<p style="color:#ef4444;padding:12px;">Please upload a video first.</p>'
+            return err, "", "", None, ""
+        if not _IV_OK:
+            err = '<p style="color:#ef4444;padding:12px;">interview_vision module not available. Check that opencv, mediapipe, and deepface are installed.</p>'
+            return err, "", "", None, ""
+
+        count = int(person_count or 2)
+        role_list = [role_0, role_1, role_2, role_3]
+        roles = {i: role_list[i] for i in range(min(count, 4)) if role_list[i]}
+
+        progress_msgs = []
+
+        def on_prog(pct, msg):
+            progress_msgs.append(msg)
+
+        try:
+            result = analyze_interview_video(video_path, roles, on_progress=on_prog)
+        except Exception as exc:
+            err_html = f'<p style="color:#ef4444;padding:12px;">Analysis failed: {exc}</p>'
+            return err_html, "", "", None, ""
+
+        scores_html   = _build_iv_scores_html(result)
+        timeline_html = _build_iv_timeline_html(result)
+        summary_html  = _build_iv_summary_html(result)
+
+        # Annotated video
+        try:
+            annotated_path = write_annotated_video(video_path, result)
+        except Exception:
+            annotated_path = None
+
+        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">Analysis complete.</p>'
+        return scores_html, timeline_html, summary_html, annotated_path, status_html
+
+    iv_person_count.change(
+        fn=_iv_person_count_change,
+        inputs=[iv_person_count],
+        outputs=[iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        queue=False,
+    )
+
+    iv_analyze_btn.click(
+        fn=analyze_interview_tab,
+        inputs=[iv_video_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
+    )
 
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):

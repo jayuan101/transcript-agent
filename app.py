@@ -1462,7 +1462,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 24   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1471,14 +1471,12 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), stats=gr.update(), rs=None,
-         va_video=gr.update()):
+         net=gr.update(), stats=gr.update(), rs=None):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, net, stats, rs,
-            va_video)
+            dl_acc, log, eta, net, stats, rs)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -2952,10 +2950,6 @@ def process_file(
                     "speaker_dialogue": result.speaker_dialogue or "",
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
-                va_video=gr.update(
-                    value=_va_annotated_path,
-                    visible=bool(_va_annotated_path),
-                ) if _va_annotated_path else gr.update(visible=False),
             )
             break
 
@@ -5892,13 +5886,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     interview_out = gr.HTML(
                         value='<p style="color:#94a3b8;padding:12px;">Open <b>Interview Mode</b> in the sidebar, upload a video, and click <b>Analyze Video</b> to see results here.</p>'
                     )
-                    va_inline_video = gr.File(label="Download Annotated Video", visible=False, interactive=False)
-                    va_video_in     = gr.File(visible=False)
-                    va_analyze_btn  = gr.Button(visible=False)
-                    va_status_html  = gr.HTML(visible=False)
-                    va_score_html   = gr.HTML(visible=False)
-                    va_timeline_plt = gr.Plot(visible=False)
-                    va_video_out    = gr.File(visible=False)
+                    va_inline_video = gr.State(value=None)
+                    va_video_in     = gr.State(value=None)
+                    va_analyze_btn  = gr.State(value=None)
+                    va_status_html  = gr.State(value=None)
+                    va_score_html   = gr.State(value=None)
+                    va_timeline_plt = gr.State(value=None)
+                    va_video_out    = gr.State(value=None)
 
                 with gr.TabItem("📂 History"):
                     with gr.Row():
@@ -6310,7 +6304,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             net_monitor,
             stats_panel,
             result_state,
-            va_inline_video,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)
@@ -6595,12 +6588,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 gr.update(value=ann_path, visible=ann_path is not None),
             )
 
-        va_analyze_btn.click(
-            fn=_va_analyze,
-            inputs=[va_video_in],
-            outputs=[va_status_html, va_score_html, va_timeline_plt, va_video_out],
-            queue=True,
-        )
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
     if not bool(os.environ.get("SPACE_ID")):

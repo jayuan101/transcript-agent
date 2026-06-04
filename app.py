@@ -5625,6 +5625,43 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     variant="secondary", size="sm", visible=False,
                     elem_id="ta-reanalyze-btn",
                 )
+                gr.HTML('<hr style="border-color:var(--ta-border);margin:14px 0 10px">')
+                gr.HTML('<div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:8px;">🎥 Post-Interview Video Analysis</div>')
+                iv_video_input = gr.Video(
+                    label="Drop interview recording here or click to upload",
+                    sources=["upload"],
+                    elem_id="iv-video-input",
+                )
+                with gr.Row(elem_id="iv-controls-row"):
+                    iv_person_count = gr.Number(
+                        label="People in video",
+                        value=2, minimum=1, maximum=5, step=1,
+                        elem_id="iv-person-count",
+                        scale=1,
+                    )
+                    iv_role_0 = gr.Dropdown(
+                        label="Person 1 (leftmost)",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Candidate", scale=1,
+                    )
+                    iv_role_1 = gr.Dropdown(
+                        label="Person 2",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 1", scale=1,
+                    )
+                    iv_role_2 = gr.Dropdown(
+                        label="Person 3",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 2", visible=False, scale=1,
+                    )
+                    iv_role_3 = gr.Dropdown(
+                        label="Person 4",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 3", visible=False, scale=1,
+                    )
+                iv_analyze_btn = gr.Button(
+                    "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
+                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -5846,49 +5883,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                 with gr.TabItem("🎥 Interview Analysis"):
-                    gr.HTML(
-                        '<div class="iv-tab-header">'
-                        '<div class="iv-tab-title">Post-Interview Video Analysis</div>'
-                        '<div class="iv-tab-sub">Upload a recorded interview — the AI reads facial expressions, body language, eye contact, and talk time to score every participant.</div>'
-                        '</div>'
-                    )
-                    gr.HTML('<div class="iv-form-card">')
-                    iv_video_input = gr.Video(
-                        label="Drop interview recording here or click to upload",
-                        sources=["upload"],
-                        elem_id="iv-video-input",
-                    )
-                    with gr.Row(elem_id="iv-controls-row"):
-                        iv_person_count = gr.Number(
-                            label="People in video",
-                            value=2, minimum=1, maximum=5, step=1,
-                            elem_id="iv-person-count",
-                            scale=1,
-                        )
-                        iv_role_0 = gr.Dropdown(
-                            label="Person 1 (leftmost)",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Candidate", scale=1,
-                        )
-                        iv_role_1 = gr.Dropdown(
-                            label="Person 2",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 1", scale=1,
-                        )
-                        iv_role_2 = gr.Dropdown(
-                            label="Person 3",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 2", visible=False, scale=1,
-                        )
-                        iv_role_3 = gr.Dropdown(
-                            label="Person 4",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 3", visible=False, scale=1,
-                        )
-                    iv_analyze_btn = gr.Button(
-                        "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
-                    )
-                    gr.HTML('</div>')
                     iv_progress     = gr.HTML(value="", elem_id="iv-progress")
                     iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
                     iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
@@ -5899,12 +5893,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         interactive=False,
                         visible=False,
                     )
-                    gr.HTML('<hr style="border-color:var(--ta-border);margin:18px 0 10px">')
                     interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:4px 0;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
+                        value='<p style="color:#94a3b8;padding:12px;">Open <b>Interview Mode</b> in the sidebar, upload a video, and click <b>Analyze Video</b> to see results here.</p>'
                     )
                     va_inline_video = gr.File(label="Download Annotated Video", visible=False, interactive=False)
-                    # stub widgets kept for event-handler compatibility
                     va_video_in     = gr.File(visible=False)
                     va_analyze_btn  = gr.Button(visible=False)
                     va_status_html  = gr.HTML(visible=False)

@@ -40,8 +40,21 @@ RUN pip install --no-cache-dir python-dotenv imageio-ffmpeg
 COPY app.py transcript_agent.py launch.py api.py video_analyzer.py ./
 COPY entrypoint.sh /entrypoint.sh
 
-# Pre-bake MediaPipe models so the container never needs to download them
-COPY .mediapipe_models/ /app/.mediapipe_models/
+# Download MediaPipe models at build time so they're baked into the image
+# (models are ~9 MB total; not tracked in git so COPY won't work on HF)
+RUN python3 -c "\
+import urllib.request, os; \
+os.makedirs('/app/.mediapipe_models', exist_ok=True); \
+print('Downloading face_landmarker.task...'); \
+urllib.request.urlretrieve( \
+  'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', \
+  '/app/.mediapipe_models/face_landmarker.task'); \
+print('Downloading pose_landmarker_lite.task...'); \
+urllib.request.urlretrieve( \
+  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', \
+  '/app/.mediapipe_models/pose_landmarker_lite.task'); \
+print('Models ready.')"
+
 RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Outputs directory (mount as volume so files persist across restarts)

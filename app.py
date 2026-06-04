@@ -3255,14 +3255,12 @@ window.taDoUpdate = function(url, btn, platform) {
       var _fcs = document.createElement('style');
       _fcs.id = 'ta-float-css';
       _fcs.textContent = (
-        '@keyframes ta-pulse-ring{'
-        + '0%{transform:scale(1);opacity:0.7}'
-        + '70%{transform:scale(1.55);opacity:0}'
-        + '100%{transform:scale(1.55);opacity:0}}'
-        + '@keyframes ta-spin{to{transform:rotate(360deg)}}'
+        '@keyframes ta-spin{to{transform:rotate(360deg)}}'
         + '#ta-float-analyze{transition:background 0.3s,box-shadow 0.3s,transform 0.15s!important}'
-        + '#ta-float-ring{position:absolute;width:56px;height:56px;border-radius:50%;'
-        + 'border:3px solid #ef4444;pointer-events:none;animation:ta-pulse-ring 1.4s ease-out infinite;display:none}'
+        + '#ta-float-ring{position:absolute;width:62px;height:62px;border-radius:50%;'
+        + 'border:3px solid transparent;border-top-color:#ef4444;border-right-color:#ef4444;'
+        + 'pointer-events:none;animation:ta-spin 0.9s linear infinite;display:none;'
+        + 'top:-3px;left:-3px;}'
       );
       document.head.appendChild(_fcs);
     }
@@ -3289,13 +3287,17 @@ window.taDoUpdate = function(url, btn, platform) {
       );
       flabel.textContent = 'Analyze';
 
+      var fwrap = document.createElement('div');
+      fwrap.style.cssText = 'position:relative;width:56px;height:56px;pointer-events:all;';
+
       var fbtn = document.createElement('button');
       fbtn.id = 'ta-float-analyze';
       fbtn.style.cssText = (
-        'position:relative;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
+        'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
         + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
-        + 'font-size:1.4em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 20px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
+        + 'font-size:1.5em;display:flex;align-items:center;justify-content:center;'
+        + 'box-shadow:0 4px 24px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
+        + 'position:relative;z-index:1;'
       );
       fbtn.textContent = '▶';
 
@@ -3308,9 +3310,15 @@ window.taDoUpdate = function(url, btn, platform) {
         flabel.style.opacity = '0';
       });
 
-      fw.appendChild(fring);
+      fring.style.position = 'absolute';
+      fring.style.top = '-3px';
+      fring.style.left = '-3px';
+      fring.style.zIndex = '0';
+
+      fwrap.appendChild(fring);
+      fwrap.appendChild(fbtn);
       fw.appendChild(flabel);
-      fw.appendChild(fbtn);
+      fw.appendChild(fwrap);
       return fw;
     }
 
@@ -3359,6 +3367,7 @@ window.taDoUpdate = function(url, btn, platform) {
     }
 
     _ensureFloat();
+    _setFloatMode('analyze');  // always start in analyze mode
     if (!window.__taFloatObs) {
       window.__taFloatObs = true;
       new MutationObserver(_ensureFloat).observe(document.body, { childList: true });

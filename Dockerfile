@@ -17,10 +17,12 @@ LABEL org.opencontainers.image.title="Transcript Agent" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
-# System packages — ffmpeg for audio/video processing
+# System packages — ffmpeg for audio/video, libgl1/libglib2.0-0 for OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -35,8 +37,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir python-dotenv imageio-ffmpeg
 
 # Copy application source
-COPY app.py transcript_agent.py launch.py api.py ./
+COPY app.py transcript_agent.py launch.py api.py video_analyzer.py ./
 COPY entrypoint.sh /entrypoint.sh
+
+# Pre-bake MediaPipe models so the container never needs to download them
+COPY .mediapipe_models/ /app/.mediapipe_models/
 RUN sed -i 's/\r//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Outputs directory (mount as volume so files persist across restarts)

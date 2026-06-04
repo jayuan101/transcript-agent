@@ -2936,6 +2936,25 @@ window.taDoUpdate = function(url, btn, platform) {
   /* ── Inject toggle widget directly into <body> so Gradio can never remove it ─
      We do NOT use gr.HTML() for the buttons — Gradio 6 re-renders those
      components and strips IDs/styles. Injecting via JS is permanent.           */
+  /* Sync button visuals to current _dark state — called after every inject */
+  function _syncToggleUI() {
+    var bl = document.getElementById('ta-btn-light');
+    var bd = document.getElementById('ta-btn-dark');
+    var wg = document.getElementById('ta-widget');
+    if (!bl || !bd) return;
+    var _base = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;';
+    bl.style.cssText = _base + (_dark
+      ? 'background:transparent;color:#64748b;box-shadow:none;'
+      : 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);');
+    bd.style.cssText = _base + (_dark
+      ? 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);'
+      : 'background:transparent;color:#64748b;box-shadow:none;');
+    if (wg) {
+      wg.style.background  = _dark ? 'rgba(15,23,42,0.96)' : 'rgba(255,255,255,0.96)';
+      wg.style.borderColor = _dark ? '#334155' : '#e2e8f0';
+    }
+  }
+
   function _injectToggle() {
     if (!document.getElementById('ta-widget')) {
       var w = document.createElement('div');
@@ -2946,16 +2965,17 @@ window.taDoUpdate = function(url, btn, platform) {
         + 'border:1px solid #e2e8f0;border-radius:30px;padding:4px;'
         + 'box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;'
       );
+      /* Both buttons start neutral — _syncToggleUI() will set correct active state */
       w.innerHTML = (
         '<button id="ta-btn-light" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
-        + 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);">☀️ Light</button>'
+        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;">☀️ Light</button>'
         + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;'
-        + 'background:transparent;color:#64748b;">🌙 Dark</button>'
+        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;">🌙 Dark</button>'
       );
       document.documentElement.appendChild(w);
     }
+    /* Always sync after inject — fixes re-injection resetting wrong button active */
+    _syncToggleUI();
     /* Inject pulse-ring keyframe once */
     if (!document.getElementById('ta-float-css')) {
       var _fcs = document.createElement('style');
@@ -3450,23 +3470,8 @@ window.taDoUpdate = function(url, btn, platform) {
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
     localStorage.setItem('gradio-theme', dark ? 'dark'  : 'light');
 
-    /* ── Toggle pill visuals ── */
-    var bl = document.getElementById('ta-btn-light');
-    var bd = document.getElementById('ta-btn-dark');
-    var wg = document.getElementById('ta-widget');
-    if (bl && bd) {
-      /* Active pill: solid blue with shadow. Inactive: transparent, muted text */
-      bl.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
-        + (dark ? 'background:transparent;color:#64748b;box-shadow:none;'
-                : 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);');
-      bd.style.cssText = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;'
-        + (dark ? 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);'
-                : 'background:transparent;color:#64748b;box-shadow:none;');
-    }
-    if (wg) {
-      wg.style.background  = dark ? 'rgba(15,23,42,0.96)' : 'rgba(255,255,255,0.96)';
-      wg.style.borderColor = dark ? '#334155' : '#e2e8f0';
-    }
+    /* ── Toggle pill visuals — synced via shared helper ── */
+    _syncToggleUI();
 
     /* ── Floating ▶ button — adapts to dark/light ── */
     var fb = document.getElementById('ta-float-analyze');

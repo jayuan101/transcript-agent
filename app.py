@@ -4467,7 +4467,7 @@ window.taDoUpdate = function(url, btn, platform) {
       } catch(ex) {}
     }
 
-    /* ── Fetch intercept: SSE/streaming responses (download) ── */
+    /* ── Fetch intercept: track upload body size only (no stream clone) ── */
     var _origFetch = window.fetch;
     window.fetch = function(url, opts) {
       /* track request body size as upload */
@@ -4477,24 +4477,9 @@ window.taDoUpdate = function(url, btn, platform) {
         else if (opts.body && opts.body.byteLength) bSz = opts.body.byteLength;
         if (bSz > 0) _pushTx(bSz);
       }
-      var result = _origFetch.apply(this, arguments);
-      result.then(function(resp) {
-        if (!resp || !resp.body) return;
-        try {
-          /* Clone so the original body stream is not consumed — Gradio calls
-             response.json() on the original and would fail if we read it first */
-          var clone = resp.clone();
-          var reader = clone.body.getReader();
-          (function pump(){
-            reader.read().then(function(chunk){
-              if (chunk.done) return;
-              if (chunk.value) _pushRx(chunk.value.byteLength);
-              pump();
-            }).catch(function(){});
-          })();
-        } catch(ex) {}
-      }).catch(function(){});
-      return result;
+      /* Do NOT clone or read the response body — cloning SSE streams causes
+         BodyStreamBuffer aborted errors when Gradio reads the same stream */
+      return _origFetch.apply(this, arguments);
     };
 
     /* ── XHR intercept: upload progress + download bytes ── */
@@ -5965,7 +5950,7 @@ if __name__ == "__main__":
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
-    demo.queue(max_size=5, default_concurrency_limit=4)
+    demo.queue(max_size=5, default_concurrency_limit=4, default_timeout=900)
     import inspect as _inspect
     _launch_kw = dict(
         server_name=_host,

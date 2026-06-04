@@ -2869,6 +2869,61 @@ def process_file(
                 log_text = _add_log("🎥 Video delivery analysis complete.", "done")
                 yield _out(log=log_text)
 
+                # ── Claude interprets the video analysis results ──────────────
+                if _va_res and not getattr(_va_res, "error", True):
+                    try:
+                        log_text = _add_log("🤖 Claude is reviewing video analysis results…", "ai")
+                        yield _out(
+                            status=_status_compact("🤖", "Claude reviewing video results…", _elapsed()),
+                            log=log_text,
+                        )
+                        _persons = getattr(_va_res, "persons", {})
+                        _scores_summary = "\n".join(
+                            f"- {role}: confidence={p.get('scores',{}).get('confidence',0):.0%}, "
+                            f"composure={p.get('scores',{}).get('composure',0):.0%}, "
+                            f"eye_contact={p.get('scores',{}).get('eye_contact',0):.0%}, "
+                            f"engagement={p.get('scores',{}).get('engagement',0):.0%}, "
+                            f"dominant_emotion={p.get('dominant_emotion','neutral')}, "
+                            f"talk_pct={p.get('talk_pct',0):.0%}"
+                            for role, p in _persons.items()
+                        )
+                        _transcript_snippet = (result.clean_transcript or "")[:2000]
+                        _va_claude_prompt = (
+                            "You are an expert interview coach. Based on the following video delivery "
+                            "analysis data and transcript excerpt, write a concise, actionable assessment "
+                            "(3-5 short paragraphs) covering: overall impression, key strengths, areas to "
+                            "improve, and one specific tip for each participant.\n\n"
+                            f"PARTICIPANTS:\n{_scores_summary}\n\n"
+                            f"TRANSCRIPT EXCERPT:\n{_transcript_snippet}\n\n"
+                            "Write in a supportive, professional tone. Be specific and actionable."
+                        )
+                        _llm = LLMClient(
+                            provider=provider_name,
+                            model=model_name,
+                            api_key=user_api_key or "",
+                        )
+                        _va_claude_text = _llm.chat(
+                            system="You are an expert interview coach providing concise, actionable feedback.",
+                            user=_va_claude_prompt,
+                            max_tokens=800,
+                        )
+                        _va_claude_html = (
+                            '<div style="margin-top:16px;padding:16px 18px;'
+                            'background:linear-gradient(135deg,rgba(29,78,216,0.08),rgba(59,130,246,0.05));'
+                            'border:1.5px solid rgba(59,130,246,0.25);border-radius:14px;">'
+                            '<div style="font-size:0.82em;font-weight:700;color:#3b82f6;margin-bottom:8px;">'
+                            '🤖 Claude\'s Interview Assessment</div>'
+                            '<div style="font-size:0.84em;line-height:1.7;color:var(--ta-text);">'
+                            + _va_claude_text.replace("\n\n", "</p><p>").replace("\n", "<br>")
+                            .replace("<p>", '<p style="margin:0 0 10px">') + '</div></div>'
+                        )
+                        iv_html = iv_html + _va_claude_html
+                        log_text = _add_log("🤖 Claude interview assessment complete.", "done")
+                        yield _out(log=log_text, interview=iv_html)
+                    except Exception as _ce:
+                        log_text = _add_log(f"⚠️ Claude video assessment skipped: {_ce}", "warn")
+                        yield _out(log=log_text)
+
             # ── Update cache with lang + segments now that we have them ────────
             if _raw_stt_text:
                 _save_stt_cache(uploaded_file,

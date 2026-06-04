@@ -1413,10 +1413,10 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   4  profiles_out     5  analytics_out    6  combined_out
 #   7  dl_transcript    8  dl_speakers      9  dl_report
 #   10 dl_combined      11 dl_json          12 dl_pdf
-#   13 download_accordion  14 log_out       15 eta_panel  16 result_state
+#   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 24   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1425,12 +1425,13 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), stats=gr.update(), rs=None):
+         net=gr.update(), stats=gr.update(), rs=None,
+         dl_active=gr.update()):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, net, stats, rs)
+            dl_acc, log, eta, net, stats, rs, dl_active)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -2735,6 +2736,7 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                dl_active=gr.update(value=f_p, visible=bool(f_p), label="Report — PDF"),
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
                                         _total_dl_mb, _peak_dl_speed, done=True,
                                         model_name=model_name, provider_type=provider_type),
@@ -3238,6 +3240,17 @@ window.taDoUpdate = function(url, btn, platform) {
       '.ta-dl-update-label{font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px}',
       '.ta-dl-code{font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border)}',
       '.ta-dl-footer{font-size:0.74em;color:var(--ta-card-sub);margin:12px 0 0}',
+      /* ── Download panel ── */
+      '#ta-dl-accordion{border-radius:14px!important;border:1.5px solid var(--ta-border)!important;margin-top:12px!important}',
+      '.ta-dl-panel-header{display:flex;flex-direction:column;gap:3px;padding:4px 0 10px}',
+      '.ta-dl-panel-title{font-size:0.92em;font-weight:700;color:var(--ta-text)}',
+      '.ta-dl-panel-sub{font-size:0.76em;color:var(--ta-sub)}',
+      '#ta-dl-format-sel{border-radius:10px!important}',
+      '#ta-dl-active{border-radius:12px!important;border:2px solid var(--ta-accent)!important;background:var(--ta-accent-lt)!important;margin-top:10px!important}',
+      '#ta-dl-active .download-link{background:var(--ta-accent)!important;color:#fff!important;border-radius:8px!important;font-weight:600!important}',
+      '.ta-dl-divider{height:1px;background:var(--ta-border);margin:14px 0 10px}',
+      '#ta-dl-regen-row{align-items:flex-end!important;gap:8px!important}',
+      '#ta-pdf-regen-btn{border-radius:8px!important;font-size:0.82em!important}',
       /* ── Changelog ── */
       '.ta-cl-wrap{max-height:360px;overflow-y:auto;padding:2px 4px 4px}',
       '.ta-cl-status{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:14px}',
@@ -3363,6 +3376,10 @@ window.taDoUpdate = function(url, btn, platform) {
     'html.dark .ta-dl-win{box-shadow:0 4px 20px rgba(29,78,216,0.55)!important}',
     'html.dark .ta-dl-mac{box-shadow:0 4px 20px rgba(22,163,74,0.50)!important}',
     'html.dark .ta-dl-code{background:#0f172a!important;color:#cbd5e1!important;border-color:#334155!important}',
+    'html.dark #ta-dl-accordion{border-color:var(--ta-border)!important}',
+    'html.dark .ta-dl-panel-title{color:var(--ta-text)!important}',
+    'html.dark .ta-dl-panel-sub{color:var(--ta-sub)!important}',
+    'html.dark #ta-dl-active{border-color:var(--ta-accent)!important;background:var(--ta-accent-lt)!important}',
     /* ── Pace reference chips ── */
     'html.dark .ta-pace-ref{background:#1e293b!important;border-color:#334155!important}',
     'html.dark .ta-pace-label{color:#94a3b8!important}',
@@ -5455,33 +5472,60 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("Download Outputs", open=False)
+            download_accordion = gr.Accordion("⬇  Download Outputs", open=False, elem_id="ta-dl-accordion")
             with download_accordion:
-                dl_transcript = gr.File(label="Transcript (.txt)")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
-                dl_report     = gr.File(label="Report (.md)")
-                report_format_radio = gr.Radio(
-                    choices=["PDF", "DOCX"],
-                    value="PDF",
-                    label="Report export format",
-                    info="Switch between PDF and DOCX — both are generated automatically",
-                    interactive=True,
+                gr.HTML(
+                    '<div class="ta-dl-panel-header">'
+                    '<span class="ta-dl-panel-title">Choose a file to download</span>'
+                    '<span class="ta-dl-panel-sub">All outputs are generated automatically after analysis</span>'
+                    '</div>'
                 )
-                dl_pdf        = gr.File(label="Report (.pdf)", visible=True)
-                dl_docx       = gr.File(label="Report (.docx)", visible=False)
-                dl_combined   = gr.File(label="Combined Report (.txt)")
-                dl_json       = gr.File(label="Raw Data (.json)")
-                dl_srt        = gr.File(label="Subtitles (.srt)")
-                dl_vtt        = gr.File(label="Subtitles (.vtt)")
-                gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
-                with gr.Row():
+                dl_format_dropdown = gr.Dropdown(
+                    label="Select output file",
+                    choices=[
+                        "📄  Clean Transcript (.txt)",
+                        "🎙  Speaker Dialogue (.txt)",
+                        "📋  Full Report (.md)",
+                        "📦  Combined Report (.txt)",
+                        "🗂  Raw Data (.json)",
+                        "📑  Report — PDF",
+                        "📝  Report — DOCX",
+                        "🎬  Subtitles (.srt)",
+                        "🎬  Subtitles (.vtt)",
+                    ],
+                    value="📑  Report — PDF",
+                    interactive=True,
+                    elem_id="ta-dl-format-sel",
+                )
+                # Hidden file components (populated by backend, triggered by dropdown)
+                dl_transcript = gr.File(label="Transcript (.txt)",       visible=False, elem_id="ta-dl-transcript")
+                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)", visible=False, elem_id="ta-dl-speakers")
+                dl_report     = gr.File(label="Report (.md)",            visible=False, elem_id="ta-dl-report")
+                dl_pdf        = gr.File(label="Report (.pdf)",           visible=False, elem_id="ta-dl-pdf")
+                dl_docx       = gr.File(label="Report (.docx)",          visible=False, elem_id="ta-dl-docx")
+                dl_combined   = gr.File(label="Combined Report (.txt)",  visible=False, elem_id="ta-dl-combined")
+                dl_json       = gr.File(label="Raw Data (.json)",        visible=False, elem_id="ta-dl-json")
+                dl_srt        = gr.File(label="Subtitles (.srt)",        visible=False, elem_id="ta-dl-srt")
+                dl_vtt        = gr.File(label="Subtitles (.vtt)",        visible=False, elem_id="ta-dl-vtt")
+                # Visible download area — shows selected file
+                dl_active = gr.File(label="Download", visible=False, elem_id="ta-dl-active")
+                gr.HTML('<div class="ta-dl-divider"></div>')
+                with gr.Row(elem_id="ta-dl-regen-row"):
                     pdf_lang_input = gr.Dropdown(
                         label="Output language (PDF & DOCX)",
                         choices=_PDF_LANGUAGES,
                         value="Same as source",
                         scale=3,
+                        elem_id="ta-dl-lang-sel",
                     )
-                    pdf_regen_btn = gr.Button("Regenerate PDF & DOCX", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("↺  Regenerate PDF & DOCX", scale=1, size="sm", elem_id="ta-pdf-regen-btn")
+                report_format_radio = gr.Radio(
+                    choices=["PDF", "DOCX"],
+                    value="PDF",
+                    label="Report format",
+                    interactive=True,
+                    visible=False,  # kept for backend compat, hidden from UI
+                )
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -5778,6 +5822,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             net_monitor,
             stats_panel,
             result_state,
+            dl_active,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)
@@ -5845,6 +5890,45 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         fn=_toggle_report_format,
         inputs=[report_format_radio],
         outputs=[dl_pdf, dl_docx],
+        queue=False,
+    )
+
+    _DL_MAP = {
+        "📄  Clean Transcript (.txt)":  "transcript",
+        "🎙  Speaker Dialogue (.txt)":  "speakers",
+        "📋  Full Report (.md)":        "report",
+        "📦  Combined Report (.txt)":   "combined",
+        "🗂  Raw Data (.json)":         "json",
+        "📑  Report — PDF":             "pdf",
+        "📝  Report — DOCX":            "docx",
+        "🎬  Subtitles (.srt)":         "srt",
+        "🎬  Subtitles (.vtt)":         "vtt",
+    }
+    _DL_COMPS = {
+        "transcript": dl_transcript,
+        "speakers":   dl_speakers,
+        "report":     dl_report,
+        "combined":   dl_combined,
+        "json":       dl_json,
+        "pdf":        dl_pdf,
+        "docx":       dl_docx,
+        "srt":        dl_srt,
+        "vtt":        dl_vtt,
+    }
+
+    def _show_selected_download(choice, *file_values):
+        key = _DL_MAP.get(choice, "pdf")
+        idx = list(_DL_COMPS.keys()).index(key)
+        file_val = file_values[idx] if idx < len(file_values) else None
+        if file_val:
+            return gr.update(value=file_val, visible=True, label=choice.split("  ", 1)[-1])
+        return gr.update(visible=False)
+
+    dl_format_dropdown.change(
+        fn=_show_selected_download,
+        inputs=[dl_format_dropdown, dl_transcript, dl_speakers, dl_report,
+                dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt],
+        outputs=[dl_active],
         queue=False,
     )
 

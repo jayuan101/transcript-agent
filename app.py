@@ -3506,9 +3506,11 @@ window.taDoUpdate = function(url, btn, platform) {
       '.iv-tab-header{padding:8px 0 14px}',
       '.iv-tab-title{font-size:1.05em;font-weight:700;color:var(--ta-text);margin-bottom:4px}',
       '.iv-tab-sub{font-size:0.82em;color:var(--ta-sub);line-height:1.5}',
-      '#iv-video-input{border-radius:12px!important;margin-bottom:10px!important}',
-      '#iv-controls-row{gap:8px!important;flex-wrap:wrap!important;margin-bottom:10px!important}',
-      '#iv-analyze-btn{width:100%!important;margin-bottom:12px!important}',
+      '.iv-form-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;margin-bottom:14px}',
+      '.iv-form-card #iv-video-input{border-radius:10px!important;margin:0!important}',
+      '#iv-video-input{border-radius:12px!important;margin-bottom:0!important}',
+      '#iv-controls-row{gap:8px!important;flex-wrap:wrap!important;margin:0!important}',
+      '#iv-analyze-btn{width:100%!important;margin:0!important}',
       '#iv-progress{min-height:0!important}',
       '#iv-scores-panel,#iv-timeline,#iv-summary{margin-bottom:10px!important}',
       '#iv-output-video{border-radius:12px!important;margin-top:4px!important}',
@@ -5905,6 +5907,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         '<div class="iv-tab-sub">Upload a recorded interview — the AI reads facial expressions, body language, eye contact, and talk time to score every participant.</div>'
                         '</div>'
                     )
+                    gr.HTML('<div class="iv-form-card">')
                     iv_video_input = gr.Video(
                         label="Drop interview recording here or click to upload",
                         sources=["upload"],
@@ -5940,6 +5943,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     iv_analyze_btn = gr.Button(
                         "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
                     )
+                    gr.HTML('</div>')
                     iv_progress = gr.HTML(value="", elem_id="iv-progress")
                     iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
                     iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")

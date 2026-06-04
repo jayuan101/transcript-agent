@@ -882,6 +882,55 @@ html.dark .ta-update-banner {
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 
+/* ── Responsive / Mobile ── */
+@media (max-width: 768px) {
+  /* Stack the two main columns vertically */
+  .gradio-container .gr-row { flex-direction: column !important; }
+  .gradio-container .gr-column { min-width: 0 !important; width: 100% !important; flex: 1 1 100% !important; }
+
+  /* Top bar: stack provider + model dropdowns */
+  #provider-sel, #model-sel { min-width: 0 !important; width: 100% !important; }
+
+  /* Header topbar: wrap pills and shrink font */
+  .ta-topbar { padding: 12px 14px !important; }
+  .ta-topbar-pills { flex-wrap: wrap !important; gap: 4px !important; }
+  .ta-topbar-pills .ta-pill { font-size: 0.62em !important; padding: 2px 7px !important; }
+
+  /* Stats bar: wrap cells */
+  .ta-stat-row { flex-wrap: wrap !important; gap: 8px !important; }
+  .ta-stat-cell { min-width: 70px !important; padding: 0 8px !important; }
+
+  /* Log box: reduce height on mobile */
+  #ta-log-wrap { max-height: 200px !important; }
+
+  /* Download buttons: stack */
+  .ta-dl-wrap .ta-dl-btn { width: 100% !important; box-sizing: border-box !important; }
+
+  /* Prevent images/panels overflowing */
+  img, .ta-done-panel, .ta-q-card { max-width: 100% !important; box-sizing: border-box !important; }
+
+  /* Tabs: allow scrolling */
+  .tab-nav { overflow-x: auto !important; white-space: nowrap !important; }
+
+  /* Buttons: full width on mobile */
+  #ta-analyze-btn button, #ta-cancel-btn button {
+    font-size: 0.88em !important;
+  }
+
+  /* Section headers */
+  .ta-section-head { font-size: 0.72em !important; }
+}
+
+@media (max-width: 480px) {
+  /* Extra small phones */
+  .ta-topbar { padding: 10px 10px !important; }
+  .ta-topbar-icon { font-size: 1.1em !important; }
+  .ta-topbar-title { font-size: 0.92em !important; }
+  .ta-stat-cell { min-width: 60px !important; font-size: 0.78em !important; }
+  #ta-log-wrap { font-size: 0.72em !important; max-height: 160px !important; }
+  .ta-q-card { padding: 10px 12px !important; }
+}
+
 """
 
 _SB = (
@@ -1410,7 +1459,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   4  profiles_out     5  analytics_out    6  combined_out
 #   7  dl_transcript    8  dl_speakers      9  dl_report
 #   10 dl_combined      11 dl_json          12 dl_pdf
-#   13 download_accordion  14 log_out       15 eta_panel  16 result_state
+#   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
 _NOCHANGE = (gr.update(),) * 24   # yield this to keep connection alive without changes
@@ -2006,6 +2055,9 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
         return f"API key rejected by {provider_name or 'the provider'}. Check that you pasted the correct key."
     # 404 / model not found
     if "404" in err or "not found" in e:
+        if "ollama" in provider_name.lower() or "local" in provider_name.lower():
+            return (f"Model '{model_name}' is not downloaded yet. "
+                    f"Run this in your terminal first:  ollama pull {model_name}")
         return f"Model '{model_name}' not found or no longer available. Try a different model."
     # context length
     if "context" in e and ("length" in e or "window" in e or "limit" in e):
@@ -2247,6 +2299,28 @@ def process_file(
         return
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
+
+    # ── Auto-pull Ollama model if not already downloaded ─────────────────────
+    if provider_name == "Ollama (Local)" and model_name:
+        import subprocess as _sp, urllib.request as _ur, json as _json
+        def _ollama_has_model(m):
+            try:
+                r = _ur.urlopen("http://localhost:11434/api/tags", timeout=3)
+                tags = _json.loads(r.read())
+                return any(t.get("name","").split(":")[0] == m.split(":")[0]
+                           for t in tags.get("models", []))
+            except Exception:
+                return False
+        if not _ollama_has_model(model_name):
+            yield _out(log=_add_log(f"⬇️ Downloading {model_name} via Ollama — this may take a few minutes…", "info"),
+                       status=_status_compact("⬇️", f"Pulling {model_name}…"))
+            try:
+                _sp.run(["ollama", "pull", model_name], check=True, timeout=1800)
+                yield _out(log=_add_log(f"✅ {model_name} downloaded successfully", "done"))
+            except Exception as _pe:
+                yield _err(f"Failed to download {model_name}: {_pe}\nMake sure Ollama is running: ollama serve")
+                return
+
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop
@@ -2865,6 +2939,7 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                dl_active=gr.update(value=f_p, visible=bool(f_p), label="Report — PDF"),
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
                                         _total_dl_mb, _peak_dl_speed, done=True,
                                         model_name=model_name, provider_type=provider_type),
@@ -3097,6 +3172,16 @@ _THEME_TOGGLE = ""  # buttons injected via _THEME_JS into <body> — not gr.HTML
 # ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
 # path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
 _THEME_JS = """
+/* ── Viewport meta tag for mobile responsiveness ── */
+(function(){
+  if (!document.querySelector('meta[name="viewport"]')) {
+    var m = document.createElement('meta');
+    m.name = 'viewport';
+    m.content = 'width=device-width, initial-scale=1.0';
+    document.head.appendChild(m);
+  }
+})();
+
 /* ── OTA update button handler ── */
 window.taDoUpdate = function(url, btn, platform) {
   if (!url) return;
@@ -3382,6 +3467,17 @@ window.taDoUpdate = function(url, btn, platform) {
       '.ta-dl-update-label{font-size:0.78em;font-weight:600;color:var(--ta-card-text);margin:0 0 6px}',
       '.ta-dl-code{font-size:0.74em;background:var(--ta-step-wait-bg);color:var(--ta-card-text);padding:5px 10px;border-radius:7px;border:1px solid var(--ta-card-border)}',
       '.ta-dl-footer{font-size:0.74em;color:var(--ta-card-sub);margin:12px 0 0}',
+      /* ── Download panel ── */
+      '#ta-dl-accordion{border-radius:14px!important;border:1.5px solid var(--ta-border)!important;margin-top:12px!important}',
+      '.ta-dl-panel-header{display:flex;flex-direction:column;gap:3px;padding:4px 0 10px}',
+      '.ta-dl-panel-title{font-size:0.92em;font-weight:700;color:var(--ta-text)}',
+      '.ta-dl-panel-sub{font-size:0.76em;color:var(--ta-sub)}',
+      '#ta-dl-format-sel{border-radius:10px!important}',
+      '#ta-dl-active{border-radius:12px!important;border:2px solid var(--ta-accent)!important;background:var(--ta-accent-lt)!important;margin-top:10px!important}',
+      '#ta-dl-active .download-link{background:var(--ta-accent)!important;color:#fff!important;border-radius:8px!important;font-weight:600!important}',
+      '.ta-dl-divider{height:1px;background:var(--ta-border);margin:14px 0 10px}',
+      '#ta-dl-regen-row{align-items:flex-end!important;gap:8px!important}',
+      '#ta-pdf-regen-btn{border-radius:8px!important;font-size:0.82em!important}',
       /* ── Changelog ── */
       '.ta-cl-wrap{max-height:360px;overflow-y:auto;padding:2px 4px 4px}',
       '.ta-cl-status{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;margin-bottom:14px}',
@@ -3406,6 +3502,35 @@ window.taDoUpdate = function(url, btn, platform) {
       '::-webkit-scrollbar-thumb:hover{background:#9ca3af}',
       /* ── Live log terminal ── */
       '#live-log textarea{background:#0a0f1e!important;color:#86efac!important;font-family:"JetBrains Mono","Courier New",monospace!important;font-size:0.79em!important;border-color:#1e3a5f!important;border-radius:10px!important;line-height:1.7!important}',
+      /* ── Interview Vision tab ── */
+      '.iv-tab-header{padding:8px 0 14px}',
+      '.iv-tab-title{font-size:1.05em;font-weight:700;color:var(--ta-text);margin-bottom:4px}',
+      '.iv-tab-sub{font-size:0.82em;color:var(--ta-sub);line-height:1.5}',
+      '#iv-video-input{border-radius:12px!important;margin-bottom:10px!important}',
+      '#iv-controls-row{gap:8px!important;flex-wrap:wrap!important;margin-bottom:10px!important}',
+      '#iv-analyze-btn{width:100%!important;margin-bottom:12px!important}',
+      '#iv-progress{min-height:0!important}',
+      '#iv-scores-panel,#iv-timeline,#iv-summary{margin-bottom:10px!important}',
+      '#iv-output-video{border-radius:12px!important;margin-top:4px!important}',
+      '.iv-score-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px;margin-bottom:14px}',
+      '.iv-score-card-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:12px}',
+      '.iv-score-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}',
+      '.iv-score-label{font-size:0.82em;color:var(--ta-text);flex:1}',
+      '.iv-score-bar-wrap{flex:2;background:var(--ta-step-wait-bg);border-radius:99px;height:8px;overflow:hidden}',
+      '.iv-score-bar{height:8px;border-radius:99px;transition:width 0.6s ease}',
+      '.iv-score-val{font-size:0.82em;font-weight:700;color:var(--ta-text);min-width:36px;text-align:right}',
+      '.iv-score-green{background:#22c55e}',
+      '.iv-score-amber{background:#f59e0b}',
+      '.iv-score-red{background:#ef4444}',
+      '.iv-overall-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:99px;font-weight:700;font-size:1.05em;margin-top:4px}',
+      '.iv-timeline-wrap{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px;margin-bottom:14px}',
+      '.iv-timeline-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:12px}',
+      '.iv-timeline-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}',
+      '.iv-timeline-label{font-size:0.78em;color:var(--ta-text);min-width:90px}',
+      '.iv-timeline-bar{flex:1;display:flex;height:20px;border-radius:6px;overflow:hidden}',
+      '.iv-obs-card{background:var(--ta-surface);border:1.5px solid var(--ta-border);border-radius:14px;padding:16px 18px}',
+      '.iv-obs-title{font-size:0.78em;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:var(--ta-sub);margin-bottom:10px}',
+      '.iv-obs-item{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;font-size:0.86em;color:var(--ta-text)}',
     ].join('');
     document.head.appendChild(ps);
   }
@@ -3507,6 +3632,10 @@ window.taDoUpdate = function(url, btn, platform) {
     'html.dark .ta-dl-win{box-shadow:0 4px 20px rgba(29,78,216,0.55)!important}',
     'html.dark .ta-dl-mac{box-shadow:0 4px 20px rgba(22,163,74,0.50)!important}',
     'html.dark .ta-dl-code{background:#0f172a!important;color:#cbd5e1!important;border-color:#334155!important}',
+    'html.dark #ta-dl-accordion{border-color:var(--ta-border)!important}',
+    'html.dark .ta-dl-panel-title{color:var(--ta-text)!important}',
+    'html.dark .ta-dl-panel-sub{color:var(--ta-sub)!important}',
+    'html.dark #ta-dl-active{border-color:var(--ta-accent)!important;background:var(--ta-accent-lt)!important}',
     /* ── Pace reference chips ── */
     'html.dark .ta-pace-ref{background:#1e293b!important;border-color:#334155!important}',
     'html.dark .ta-pace-label{color:#94a3b8!important}',
@@ -4596,7 +4725,7 @@ window.taDoUpdate = function(url, btn, platform) {
       } catch(ex) {}
     }
 
-    /* ── Fetch intercept: SSE/streaming responses (download) ── */
+    /* ── Fetch intercept: track upload body size only (no stream clone) ── */
     var _origFetch = window.fetch;
     window.fetch = function(url, opts) {
       /* track request body size as upload */
@@ -4606,24 +4735,9 @@ window.taDoUpdate = function(url, btn, platform) {
         else if (opts.body && opts.body.byteLength) bSz = opts.body.byteLength;
         if (bSz > 0) _pushTx(bSz);
       }
-      var result = _origFetch.apply(this, arguments);
-      result.then(function(resp) {
-        if (!resp || !resp.body) return;
-        try {
-          /* Clone so the original body stream is not consumed — Gradio calls
-             response.json() on the original and would fail if we read it first */
-          var clone = resp.clone();
-          var reader = clone.body.getReader();
-          (function pump(){
-            reader.read().then(function(chunk){
-              if (chunk.done) return;
-              if (chunk.value) _pushRx(chunk.value.byteLength);
-              pump();
-            }).catch(function(){});
-          })();
-        } catch(ex) {}
-      }).catch(function(){});
-      return result;
+      /* Do NOT clone or read the response body — cloning SSE streams causes
+         BodyStreamBuffer aborted errors when Gradio reads the same stream */
+      return _origFetch.apply(this, arguments);
     };
 
     /* ── XHR intercept: upload progress + download bytes ── */
@@ -5332,7 +5446,7 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
 """
 
 # ── Desktop download section ──────────────────────────────────────────────────
-_HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main"
+_HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent-v2/resolve/main"
 
 _DOWNLOAD_SECTION = f"""
 <div class="ta-dl-wrap">
@@ -5433,7 +5547,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     with gr.Row(equal_height=False):
 
         # ── left sidebar ──────────────────────────────────────────────────────
-        with gr.Column(scale=1, min_width=320):
+        with gr.Column(scale=1, min_width=0):
 
             gr.HTML(_SECTION("Step 1 — Upload"))
             file_input = gr.File(
@@ -5445,13 +5559,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Or paste a file path or URL (large files / no upload wait)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
-            image_input = gr.File(
-                label="Supporting images — optional (slides, whiteboard, docs)",
-                file_types=list(IMAGE_EXTS),
-                file_count="multiple",
-                type="filepath",
-                elem_id="ta-image-input",
-            )
+            image_input = gr.File(visible=False, type="filepath", elem_id="ta-image-input")
             with gr.Accordion("⚡ What we support", open=False):
                 gr.HTML(_CAPABILITIES)
 
@@ -5599,33 +5707,60 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("Download Outputs", open=False)
+            download_accordion = gr.Accordion("⬇  Download Outputs", open=False, elem_id="ta-dl-accordion")
             with download_accordion:
-                dl_transcript = gr.File(label="Transcript (.txt)")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)")
-                dl_report     = gr.File(label="Report (.md)")
-                report_format_radio = gr.Radio(
-                    choices=["PDF", "DOCX"],
-                    value="PDF",
-                    label="Report export format",
-                    info="Switch between PDF and DOCX — both are generated automatically",
-                    interactive=True,
+                gr.HTML(
+                    '<div class="ta-dl-panel-header">'
+                    '<span class="ta-dl-panel-title">Choose a file to download</span>'
+                    '<span class="ta-dl-panel-sub">All outputs are generated automatically after analysis</span>'
+                    '</div>'
                 )
-                dl_pdf        = gr.File(label="Report (.pdf)", visible=True)
-                dl_docx       = gr.File(label="Report (.docx)", visible=False)
-                dl_combined   = gr.File(label="Combined Report (.txt)")
-                dl_json       = gr.File(label="Raw Data (.json)")
-                dl_srt        = gr.File(label="Subtitles (.srt)")
-                dl_vtt        = gr.File(label="Subtitles (.vtt)")
-                gr.HTML("<hr style='margin:8px 0;opacity:0.3'>")
-                with gr.Row():
+                dl_format_dropdown = gr.Dropdown(
+                    label="Select output file",
+                    choices=[
+                        "📄  Clean Transcript (.txt)",
+                        "🎙  Speaker Dialogue (.txt)",
+                        "📋  Full Report (.md)",
+                        "📦  Combined Report (.txt)",
+                        "🗂  Raw Data (.json)",
+                        "📑  Report — PDF",
+                        "📝  Report — DOCX",
+                        "🎬  Subtitles (.srt)",
+                        "🎬  Subtitles (.vtt)",
+                    ],
+                    value="📑  Report — PDF",
+                    interactive=True,
+                    elem_id="ta-dl-format-sel",
+                )
+                # Hidden file components (populated by backend, triggered by dropdown)
+                dl_transcript = gr.File(label="Transcript (.txt)",       visible=False, elem_id="ta-dl-transcript")
+                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)", visible=False, elem_id="ta-dl-speakers")
+                dl_report     = gr.File(label="Report (.md)",            visible=False, elem_id="ta-dl-report")
+                dl_pdf        = gr.File(label="Report (.pdf)",           visible=False, elem_id="ta-dl-pdf")
+                dl_docx       = gr.File(label="Report (.docx)",          visible=False, elem_id="ta-dl-docx")
+                dl_combined   = gr.File(label="Combined Report (.txt)",  visible=False, elem_id="ta-dl-combined")
+                dl_json       = gr.File(label="Raw Data (.json)",        visible=False, elem_id="ta-dl-json")
+                dl_srt        = gr.File(label="Subtitles (.srt)",        visible=False, elem_id="ta-dl-srt")
+                dl_vtt        = gr.File(label="Subtitles (.vtt)",        visible=False, elem_id="ta-dl-vtt")
+                # Visible download area — shows selected file
+                dl_active = gr.File(label="Download", visible=False, elem_id="ta-dl-active")
+                gr.HTML('<div class="ta-dl-divider"></div>')
+                with gr.Row(elem_id="ta-dl-regen-row"):
                     pdf_lang_input = gr.Dropdown(
                         label="Output language (PDF & DOCX)",
                         choices=_PDF_LANGUAGES,
                         value="Same as source",
                         scale=3,
+                        elem_id="ta-dl-lang-sel",
                     )
-                    pdf_regen_btn = gr.Button("Regenerate PDF & DOCX", scale=1, size="sm")
+                    pdf_regen_btn = gr.Button("↺  Regenerate PDF & DOCX", scale=1, size="sm", elem_id="ta-pdf-regen-btn")
+                report_format_radio = gr.Radio(
+                    choices=["PDF", "DOCX"],
+                    value="PDF",
+                    label="Report format",
+                    interactive=True,
+                    visible=False,  # kept for backend compat, hidden from UI
+                )
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -5763,6 +5898,59 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                                     visible=False, interactive=False,
                                 )
 
+                with gr.TabItem("🎥 Interview Vision"):
+                    gr.HTML(
+                        '<div class="iv-tab-header">'
+                        '<div class="iv-tab-title">Post-Interview Video Analysis</div>'
+                        '<div class="iv-tab-sub">Upload a recorded interview — the AI reads facial expressions, body language, eye contact, and talk time to score every participant.</div>'
+                        '</div>'
+                    )
+                    iv_video_input = gr.Video(
+                        label="Drop interview recording here or click to upload",
+                        sources=["upload"],
+                        elem_id="iv-video-input",
+                    )
+                    with gr.Row(elem_id="iv-controls-row"):
+                        iv_person_count = gr.Number(
+                            label="People in video",
+                            value=2, minimum=1, maximum=5, step=1,
+                            elem_id="iv-person-count",
+                            scale=1,
+                        )
+                        iv_role_0 = gr.Dropdown(
+                            label="Person 1 (leftmost)",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Candidate", scale=1,
+                        )
+                        iv_role_1 = gr.Dropdown(
+                            label="Person 2",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 1", scale=1,
+                        )
+                        iv_role_2 = gr.Dropdown(
+                            label="Person 3",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 2", visible=False, scale=1,
+                        )
+                        iv_role_3 = gr.Dropdown(
+                            label="Person 4",
+                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                            value="Interviewer 3", visible=False, scale=1,
+                        )
+                    iv_analyze_btn = gr.Button(
+                        "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
+                    )
+                    iv_progress = gr.HTML(value="", elem_id="iv-progress")
+                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
+                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
+                    iv_summary      = gr.HTML(value="", elem_id="iv-summary")
+                    iv_output_video = gr.Video(
+                        label="Annotated video",
+                        elem_id="iv-output-video",
+                        interactive=False,
+                        visible=False,
+                    )
+
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
@@ -5802,6 +5990,207 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
       {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
     </div>
     """)
+
+    # ── Interview Vision helpers ──────────────────────────────────────────────
+    def _build_iv_scores_html(result: dict) -> str:
+        persons     = result.get("persons", {})
+        interaction = result.get("interaction", {})
+
+        def _bar_class(v):
+            if v >= 70:
+                return "iv-score-green"
+            if v >= 50:
+                return "iv-score-amber"
+            return "iv-score-red"
+
+        def _score_row(label, value):
+            cls  = _bar_class(value)
+            return (
+                f'<div class="iv-score-row">'
+                f'<span class="iv-score-label">{label}</span>'
+                f'<div class="iv-score-bar-wrap">'
+                f'<div class="iv-score-bar {cls}" style="width:{value}%"></div>'
+                f'</div>'
+                f'<span class="iv-score-val">{value}</span>'
+                f'</div>'
+            )
+
+        html_parts = []
+        for pid in sorted(persons.keys()):
+            p    = persons[pid]
+            role = p.get("role", f"Person {pid}")
+            scores = p.get("scores", {})
+            talk   = p.get("talk_pct", 0)
+            dom    = p.get("dominant_emotion", "neutral")
+            html_parts.append(
+                f'<div class="iv-score-card">'
+                f'<div class="iv-score-card-title">{role}</div>'
+            )
+            for k, v in scores.items():
+                html_parts.append(_score_row(k.replace("_", " ").title(), int(v)))
+            html_parts.append(_score_row("Talk time %", int(talk)))
+            html_parts.append(
+                f'<div style="margin-top:8px;font-size:0.78em;color:var(--ta-sub);">'
+                f'Dominant emotion: <b>{dom}</b></div>'
+                f'</div>'
+            )
+
+        # Interaction card
+        rapport = interaction.get("rapport", 0)
+        tb      = interaction.get("talk_balance", 0)
+        overall = interaction.get("overall", 0)
+        cls_o   = _bar_class(overall)
+        html_parts.append(
+            f'<div class="iv-score-card">'
+            f'<div class="iv-score-card-title">Interaction</div>'
+        )
+        html_parts.append(_score_row("Rapport", rapport))
+        html_parts.append(_score_row("Talk balance", tb))
+        html_parts.append(
+            f'<div style="margin-top:10px;">'
+            f'<span class="iv-overall-badge" style="background:{"#22c55e" if overall>=70 else "#f59e0b" if overall>=50 else "#ef4444"};color:#fff;">'
+            f'Overall: {overall}</span></div></div>'
+        )
+        return "".join(html_parts)
+
+    def _build_iv_timeline_html(result: dict) -> str:
+        persons      = result.get("persons", {})
+        duration     = result.get("duration_secs", 60)
+        emo_colors   = {
+            "happy":     "#22c55e",
+            "neutral":   "#94a3b8",
+            "surprised": "#f59e0b",
+            "fear":      "#ef4444",
+            "angry":     "#ef4444",
+            "sad":       "#3b82f6",
+            "disgusted": "#a855f7",
+        }
+        total_mins  = max(1, int(duration / 60))
+
+        parts = [
+            '<div class="iv-timeline-wrap">',
+            '<div class="iv-timeline-title">Emotion Timeline</div>',
+        ]
+
+        for pid in sorted(persons.keys()):
+            p    = persons[pid]
+            role = p.get("role", f"Person {pid}")
+            tl   = p.get("emotions_timeline", [])
+
+            # Build minute-buckets
+            buckets: dict[int, list] = {}
+            for entry in tl:
+                m = int(entry["t"] / 60)
+                buckets.setdefault(m, []).append(entry["emotion"])
+
+            from collections import Counter
+            parts.append(
+                f'<div class="iv-timeline-row">'
+                f'<span class="iv-timeline-label">{role}</span>'
+                f'<div class="iv-timeline-bar">'
+            )
+            for m in range(total_mins):
+                emos   = buckets.get(m, ["neutral"])
+                dom_e  = Counter(emos).most_common(1)[0][0]
+                color  = emo_colors.get(dom_e, "#94a3b8")
+                pct    = 100.0 / total_mins
+                parts.append(
+                    f'<div title="{m}m: {dom_e}" '
+                    f'style="width:{pct:.2f}%;background:{color};"></div>'
+                )
+            parts.append('</div></div>')
+
+        # Legend
+        parts.append('<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;">')
+        for emo, col in emo_colors.items():
+            parts.append(
+                f'<span style="display:flex;align-items:center;gap:4px;font-size:0.75em;color:var(--ta-text);">'
+                f'<span style="width:12px;height:12px;border-radius:3px;background:{col};display:inline-block;"></span>'
+                f'{emo}</span>'
+            )
+        parts.append('</div>')
+        # X-axis labels
+        parts.append('<div style="display:flex;justify-content:space-between;margin-top:4px;font-size:0.72em;color:var(--ta-sub);">')
+        for m in range(0, total_mins + 1, max(1, total_mins // 6)):
+            parts.append(f'<span>{m}m</span>')
+        parts.append('</div>')
+        parts.append('</div>')
+        return "".join(parts)
+
+    def _build_iv_summary_html(result: dict) -> str:
+        obs = result.get("observations", [])
+        parts = [
+            '<div class="iv-obs-card">',
+            '<div class="iv-obs-title">Observations</div>',
+        ]
+        for o in obs:
+            parts.append(
+                f'<div class="iv-obs-item">'
+                f'<span style="color:var(--ta-accent);flex-shrink:0;">→</span>'
+                f'<span>{o}</span>'
+                f'</div>'
+            )
+        parts.append('</div>')
+        return "".join(parts)
+
+    def _iv_person_count_change(count):
+        count = int(count)
+        return (
+            gr.update(visible=count >= 1),
+            gr.update(visible=count >= 2),
+            gr.update(visible=count >= 3),
+            gr.update(visible=count >= 4),
+        )
+
+    def analyze_interview_tab(video_path, person_count, role_0, role_1, role_2, role_3):
+        if not video_path:
+            err = '<p style="color:#ef4444;padding:12px;">Please upload a video first.</p>'
+            return err, "", "", None, ""
+        if not _IV_OK:
+            err = '<p style="color:#ef4444;padding:12px;">interview_vision module not available. Check that opencv, mediapipe, and deepface are installed.</p>'
+            return err, "", "", None, ""
+
+        count = int(person_count or 2)
+        role_list = [role_0, role_1, role_2, role_3]
+        roles = {i: role_list[i] for i in range(min(count, 4)) if role_list[i]}
+
+        progress_msgs = []
+
+        def on_prog(pct, msg):
+            progress_msgs.append(msg)
+
+        try:
+            result = analyze_interview_video(video_path, roles, on_progress=on_prog)
+        except Exception as exc:
+            err_html = f'<p style="color:#ef4444;padding:12px;">Analysis failed: {exc}</p>'
+            return err_html, "", "", None, ""
+
+        scores_html   = _build_iv_scores_html(result)
+        timeline_html = _build_iv_timeline_html(result)
+        summary_html  = _build_iv_summary_html(result)
+
+        # Annotated video
+        try:
+            annotated_path = write_annotated_video(video_path, result)
+        except Exception:
+            annotated_path = None
+
+        status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Analysis complete.</p>'
+        video_upd = gr.update(value=annotated_path, visible=bool(annotated_path))
+        return scores_html, timeline_html, summary_html, video_upd, status_html
+
+    iv_person_count.change(
+        fn=_iv_person_count_change,
+        inputs=[iv_person_count],
+        outputs=[iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        queue=False,
+    )
+
+    iv_analyze_btn.click(
+        fn=analyze_interview_tab,
+        inputs=[iv_video_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
+        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
+    )
 
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):
@@ -6043,6 +6432,45 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         queue=False,
     )
 
+    _DL_MAP = {
+        "📄  Clean Transcript (.txt)":  "transcript",
+        "🎙  Speaker Dialogue (.txt)":  "speakers",
+        "📋  Full Report (.md)":        "report",
+        "📦  Combined Report (.txt)":   "combined",
+        "🗂  Raw Data (.json)":         "json",
+        "📑  Report — PDF":             "pdf",
+        "📝  Report — DOCX":            "docx",
+        "🎬  Subtitles (.srt)":         "srt",
+        "🎬  Subtitles (.vtt)":         "vtt",
+    }
+    _DL_COMPS = {
+        "transcript": dl_transcript,
+        "speakers":   dl_speakers,
+        "report":     dl_report,
+        "combined":   dl_combined,
+        "json":       dl_json,
+        "pdf":        dl_pdf,
+        "docx":       dl_docx,
+        "srt":        dl_srt,
+        "vtt":        dl_vtt,
+    }
+
+    def _show_selected_download(choice, *file_values):
+        key = _DL_MAP.get(choice, "pdf")
+        idx = list(_DL_COMPS.keys()).index(key)
+        file_val = file_values[idx] if idx < len(file_values) else None
+        if file_val:
+            return gr.update(value=file_val, visible=True, label=choice.split("  ", 1)[-1])
+        return gr.update(visible=False)
+
+    dl_format_dropdown.change(
+        fn=_show_selected_download,
+        inputs=[dl_format_dropdown, dl_transcript, dl_speakers, dl_report,
+                dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt],
+        outputs=[dl_active],
+        queue=False,
+    )
+
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
     _id = lambda v: v
     # Route model saves to the correct state: Whisper models → bsw_whisper,
@@ -6239,6 +6667,7 @@ if __name__ == "__main__":
     _docker = _host == "0.0.0.0"
     demo.queue(max_size=5, default_concurrency_limit=4)
     import inspect as _inspect
+    _launch_sig = _inspect.signature(demo.launch).parameters
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
@@ -6246,14 +6675,15 @@ if __name__ == "__main__":
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
-        max_file_size="4gb",
         inbrowser=not _docker,
         show_error=True,
         share=not _docker,
-        strict_cors=not _docker,
     )
-    # show_api was added in Gradio 4.15 — skip on older builds
-    if "show_api" in _inspect.signature(demo.launch).parameters:
+    if "max_file_size" in _launch_sig:
+        _launch_kw["max_file_size"] = "4gb"
+    if "strict_cors" in _launch_sig:
+        _launch_kw["strict_cors"] = not _docker
+    if "show_api" in _launch_sig:
         _launch_kw["show_api"] = False
 
     import socket as _socket

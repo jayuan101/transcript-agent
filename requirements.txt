@@ -35,6 +35,10 @@ regex>=2023.0.0
 # ── Audio / video ─────────────────────────────────────────────────────────────
 # imageio-ffmpeg bundles ffmpeg on Windows — no system install needed
 imageio-ffmpeg>=0.4.9
+opencv-contrib-python-headless>=4.9.0
+mediapipe>=0.10.0
+deepface>=0.0.93
+matplotlib>=3.8.0
 
 # ── Video Interview Analysis ──────────────────────────────────────────────────
 # Core (required for Video Analysis tab)

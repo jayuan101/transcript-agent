@@ -39,11 +39,12 @@ except ImportError:
     pass
 
 try:
-    from video_analyzer import VideoAnalyzer as _VideoAnalyzer
+    from video_analyzer import VideoAnalyzer as _VideoAnalyzer, LiveAnalysisSession as _LiveAnalysisSession
     _video_analyzer = _VideoAnalyzer()
     _HAS_VIDEO_ANALYZER = True
 except Exception:
     _HAS_VIDEO_ANALYZER = False
+    _LiveAnalysisSession = None
 
 
 
@@ -5637,6 +5638,70 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                                     visible=False, interactive=False,
                                 )
 
+                with gr.TabItem("🔴 Live Interview"):
+                    if not _HAS_VIDEO_ANALYZER:
+                        gr.HTML('<div style="padding:16px;color:#f59e0b;"><b>Live Interview requires:</b> '
+                                '<code>pip install mediapipe opencv-python</code></div>')
+                        live_session_st   = gr.State(value=None)
+                        live_webcam_in    = gr.Image(visible=False)
+                        live_video_out    = gr.Image(visible=False)
+                        live_score_html   = gr.HTML(visible=False)
+                        live_culture_sel  = gr.Dropdown(visible=False)
+                        live_start_btn    = gr.Button(visible=False)
+                        live_stop_btn     = gr.Button(visible=False)
+                        live_p1_role      = gr.Dropdown(visible=False)
+                        live_p2_role      = gr.Dropdown(visible=False)
+                    else:
+                        live_session_st = gr.State(value=None)
+                        _ROLE_CHOICES = ["Candidate","Interviewer 1","Interviewer 2",
+                                         "Interviewer 3","Interviewer 4","Unknown"]
+                        with gr.Row():
+                            with gr.Column(scale=1, min_width=260):
+                                gr.HTML(
+                                    '<div style="font-size:0.82em;color:#64748b;margin-bottom:8px;">'
+                                    'Real-time webcam interview analysis.<br>'
+                                    'Assign roles below, click <b>▶ Start</b>, then allow camera access.</div>'
+                                )
+                                live_culture_sel = gr.Dropdown(
+                                    label="Cultural Context",
+                                    choices=["American Standard",
+                                             "Indian → American Adaptation",
+                                             "Both (American + Indian)"],
+                                    value="Both (American + Indian)",
+                                    elem_id="live-culture-sel",
+                                )
+                                with gr.Row():
+                                    live_p1_role = gr.Dropdown(
+                                        label="Person 1",
+                                        choices=_ROLE_CHOICES, value="Candidate", scale=1,
+                                    )
+                                    live_p2_role = gr.Dropdown(
+                                        label="Person 2",
+                                        choices=_ROLE_CHOICES, value="Interviewer 1", scale=1,
+                                    )
+                                with gr.Row():
+                                    live_start_btn = gr.Button("▶ Start", variant="primary", size="sm")
+                                    live_stop_btn  = gr.Button("⏹ Stop",  variant="stop",    size="sm")
+                                live_score_html = gr.HTML(
+                                    value='<p style="color:#94a3b8;padding:12px 0;font-size:0.84em;">'
+                                          'Click Start to begin live analysis.</p>'
+                                )
+
+                            with gr.Column(scale=2):
+                                live_webcam_in = gr.Image(
+                                    sources=["webcam"],
+                                    streaming=True,
+                                    type="numpy",
+                                    label="Camera Feed",
+                                    elem_id="live-webcam-in",
+                                )
+                                live_video_out = gr.Image(
+                                    type="numpy",
+                                    label="Live Analysis",
+                                    interactive=False,
+                                    elem_id="live-video-out",
+                                )
+
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
@@ -6199,6 +6264,73 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             inputs=[va_video_in, va_role_state, *_va_role_dropdowns],
             outputs=[va_status_html, va_score_html, va_timeline_plt, va_video_out],
             queue=True,
+        )
+
+        # ── Live Interview event handlers ─────────────────────────────────────
+
+        _CULTURE_MAP = {
+            "American Standard":            "american",
+            "Indian → American Adaptation": "indian_to_american",
+            "Both (American + Indian)":     "both",
+        }
+
+        def _live_start(session, p1_role, p2_role):
+            """Create a fresh LiveAnalysisSession, set roles, return it."""
+            if session is not None:
+                try: session.close()
+                except Exception: pass
+            new_sess = _video_analyzer.create_live_session()
+            new_sess.set_roles({0: p1_role, 1: p2_role})
+            status = ('<div style="display:flex;align-items:center;gap:8px;padding:8px 0;">'
+                      '<span style="background:#dc2626;border-radius:50%;width:10px;height:10px;'
+                      'display:inline-block;"></span>'
+                      '<span style="font-size:0.84em;font-weight:700;color:#374151;">Recording…</span></div>')
+            return new_sess, gr.update(value=status)
+
+        live_start_btn.click(
+            fn=_live_start,
+            inputs=[live_session_st, live_p1_role, live_p2_role],
+            outputs=[live_session_st, live_score_html],
+            queue=False,
+        )
+
+        def _live_stop(session):
+            """Stop the session and clear state."""
+            if session is not None:
+                try: session.close()
+                except Exception: pass
+            stopped_html = ('<p style="color:#94a3b8;padding:8px 0;font-size:0.84em;">'
+                            'Session stopped. Click Start to begin a new session.</p>')
+            return None, gr.update(value=stopped_html)
+
+        live_stop_btn.click(
+            fn=_live_stop,
+            inputs=[live_session_st],
+            outputs=[live_session_st, live_score_html],
+            queue=False,
+        )
+
+        def _live_process_frame(frame_rgb, session, culture_sel):
+            """Called by .stream() — analyze frame, refresh scores periodically."""
+            if session is None or frame_rgb is None:
+                return frame_rgb, gr.update()
+            cultural_mode = _CULTURE_MAP.get(culture_sel, "both")
+            try:
+                annotated_rgb, snap = session.process_frame(frame_rgb, cultural_mode)
+            except Exception as e:
+                print(f"[Live] frame error: {e}")
+                return frame_rgb, gr.update()
+            if snap is not None:
+                score_html = _video_analyzer.render_live_score_html(snap, cultural_mode)
+                return annotated_rgb, gr.update(value=score_html)
+            return annotated_rgb, gr.update()
+
+        live_webcam_in.stream(
+            fn=_live_process_frame,
+            inputs=[live_webcam_in, live_session_st, live_culture_sel],
+            outputs=[live_video_out, live_score_html],
+            stream_every=0.1,
+            time_limit=None,
         )
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)

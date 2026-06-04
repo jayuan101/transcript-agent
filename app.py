@@ -430,7 +430,7 @@ _PROVIDERS = {
         "models": [
             "qwen2.5:72b",
             "llama3.3:70b",
-            "deepseek-r1:70b",
+            "deepseek-r1:8b",
             "llama4:scout",
             "gemma3:27b",
             "mistral-small3.1",
@@ -1999,6 +1999,9 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
         return f"API key rejected by {provider_name or 'the provider'}. Check that you pasted the correct key."
     # 404 / model not found
     if "404" in err or "not found" in e:
+        if "ollama" in provider_name.lower() or "local" in provider_name.lower():
+            return (f"Model '{model_name}' is not downloaded yet. "
+                    f"Run this in your terminal first:  ollama pull {model_name}")
         return f"Model '{model_name}' not found or no longer available. Try a different model."
     # context length
     if "context" in e and ("length" in e or "window" in e or "limit" in e):

@@ -836,6 +836,55 @@ html.dark .ta-update-banner {
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 
+/* ── Responsive / Mobile ── */
+@media (max-width: 768px) {
+  /* Stack the two main columns vertically */
+  .gradio-container .gr-row { flex-direction: column !important; }
+  .gradio-container .gr-column { min-width: 0 !important; width: 100% !important; flex: 1 1 100% !important; }
+
+  /* Top bar: stack provider + model dropdowns */
+  #provider-sel, #model-sel { min-width: 0 !important; width: 100% !important; }
+
+  /* Header topbar: wrap pills and shrink font */
+  .ta-topbar { padding: 12px 14px !important; }
+  .ta-topbar-pills { flex-wrap: wrap !important; gap: 4px !important; }
+  .ta-topbar-pills .ta-pill { font-size: 0.62em !important; padding: 2px 7px !important; }
+
+  /* Stats bar: wrap cells */
+  .ta-stat-row { flex-wrap: wrap !important; gap: 8px !important; }
+  .ta-stat-cell { min-width: 70px !important; padding: 0 8px !important; }
+
+  /* Log box: reduce height on mobile */
+  #ta-log-wrap { max-height: 200px !important; }
+
+  /* Download buttons: stack */
+  .ta-dl-wrap .ta-dl-btn { width: 100% !important; box-sizing: border-box !important; }
+
+  /* Prevent images/panels overflowing */
+  img, .ta-done-panel, .ta-q-card { max-width: 100% !important; box-sizing: border-box !important; }
+
+  /* Tabs: allow scrolling */
+  .tab-nav { overflow-x: auto !important; white-space: nowrap !important; }
+
+  /* Buttons: full width on mobile */
+  #ta-analyze-btn button, #ta-cancel-btn button {
+    font-size: 0.88em !important;
+  }
+
+  /* Section headers */
+  .ta-section-head { font-size: 0.72em !important; }
+}
+
+@media (max-width: 480px) {
+  /* Extra small phones */
+  .ta-topbar { padding: 10px 10px !important; }
+  .ta-topbar-icon { font-size: 1.1em !important; }
+  .ta-topbar-title { font-size: 0.92em !important; }
+  .ta-stat-cell { min-width: 60px !important; font-size: 0.78em !important; }
+  #ta-log-wrap { font-size: 0.72em !important; max-height: 160px !important; }
+  .ta-q-card { padding: 10px 12px !important; }
+}
+
 """
 
 _SB = (
@@ -2914,6 +2963,16 @@ _THEME_TOGGLE = ""  # buttons injected via _THEME_JS into <body> — not gr.HTML
 # ── Theme JS — injected via gr.Blocks(js=...) which is the guaranteed execution
 # path. gr.HTML uses Svelte {#html} which deliberately does NOT run <script> tags.
 _THEME_JS = """
+/* ── Viewport meta tag for mobile responsiveness ── */
+(function(){
+  if (!document.querySelector('meta[name="viewport"]')) {
+    var m = document.createElement('meta');
+    m.name = 'viewport';
+    m.content = 'width=device-width, initial-scale=1.0';
+    document.head.appendChild(m);
+  }
+})();
+
 /* ── OTA update button handler ── */
 window.taDoUpdate = function(url, btn, platform) {
   if (!url) return;
@@ -5245,7 +5304,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     with gr.Row(equal_height=False):
 
         # ── left sidebar ──────────────────────────────────────────────────────
-        with gr.Column(scale=1, min_width=320):
+        with gr.Column(scale=1, min_width=0):
 
             gr.HTML(_SECTION("Step 1 — Upload"))
             file_input = gr.File(

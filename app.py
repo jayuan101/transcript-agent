@@ -2197,6 +2197,28 @@ def process_file(
         return
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
+
+    # ── Auto-pull Ollama model if not already downloaded ─────────────────────
+    if provider_name == "Ollama (Local)" and model_name:
+        import subprocess as _sp, urllib.request as _ur, json as _json
+        def _ollama_has_model(m):
+            try:
+                r = _ur.urlopen("http://localhost:11434/api/tags", timeout=3)
+                tags = _json.loads(r.read())
+                return any(t.get("name","").split(":")[0] == m.split(":")[0]
+                           for t in tags.get("models", []))
+            except Exception:
+                return False
+        if not _ollama_has_model(model_name):
+            yield _out(log=_add_log(f"⬇️ Downloading {model_name} via Ollama — this may take a few minutes…", "info"),
+                       status=_status_compact("⬇️", f"Pulling {model_name}…"))
+            try:
+                _sp.run(["ollama", "pull", model_name], check=True, timeout=1800)
+                yield _out(log=_add_log(f"✅ {model_name} downloaded successfully", "done"))
+            except Exception as _pe:
+                yield _err(f"Failed to download {model_name}: {_pe}\nMake sure Ollama is running: ollama serve")
+                return
+
     _prevent_sleep()
 
     # prefer pasted path/URL (no upload wait) over drag-and-drop

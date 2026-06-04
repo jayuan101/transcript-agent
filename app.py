@@ -694,6 +694,7 @@ html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !
 
 /* ── Top bar ── */
 .ta-topbar {
+  /* dark mode default — deep navy */
   background: linear-gradient(135deg,#050e20 0%,#0c1f42 45%,#142e6e 100%);
   border-radius: 16px;
   padding: 18px 26px;
@@ -704,6 +705,28 @@ html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,0.2);
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+/* ── Light mode topbar — vibrant royal blue ── */
+html:not(.dark) .ta-topbar {
+  background: linear-gradient(135deg, #1e40af 0%, #2563eb 45%, #4f46e5 100%);
+  box-shadow: 0 4px 24px rgba(37,99,235,0.3), 0 1px 6px rgba(37,99,235,0.15);
+}
+html:not(.dark) .ta-topbar::after {
+  background: radial-gradient(circle, rgba(165,180,252,0.3) 0%, transparent 65%);
+}
+html:not(.dark) .ta-topbar-tag {
+  color: rgba(219,234,254,0.92) !important;
+}
+html:not(.dark) .ta-pill {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.28);
+  color: #fff;
+}
+html:not(.dark) .ta-topbar-icon {
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.28);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
 }
 .ta-topbar::after {
   content: '';

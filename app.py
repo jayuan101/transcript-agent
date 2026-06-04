@@ -1413,7 +1413,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 24   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1422,12 +1422,14 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), stats=gr.update(), rs=None):
+         net=gr.update(), stats=gr.update(), rs=None,
+         va_video=gr.update()):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, net, stats, rs)
+            dl_acc, log, eta, net, stats, rs,
+            va_video)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -2155,6 +2157,52 @@ def _build_interview_html(ia: dict) -> str:
     return html
 
 
+def _build_unified_interview_html(ia: dict, va_result) -> str:
+    """Merge interview coaching HTML with video delivery analysis HTML."""
+    coaching = _build_interview_html(ia)
+
+    if not _HAS_VIDEO_ANALYZER or not va_result or va_result.error or not va_result.persons:
+        return coaching
+
+    # ── Delivery section header ───────────────────────────────────────────────
+    delivery = (
+        '<div style="margin:32px 0 20px;border-top:3px solid #e2e8f0;padding-top:24px;">'
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">'
+        '<span style="font-size:1.2em;">🎥</span>'
+        '<span style="font-size:1.1em;font-weight:800;color:#1e293b;">Delivery Analysis</span>'
+        '<span style="font-size:0.75em;color:#94a3b8;margin-left:4px;">'
+        f'· {int(va_result.duration_seconds//60)}m {int(va_result.duration_seconds%60)}s · '
+        f'{va_result.person_count} participant{"s" if va_result.person_count!=1 else ""}'
+        '</span></div>'
+    )
+
+    # ── Score cards ───────────────────────────────────────────────────────────
+    delivery += _video_analyzer.render_score_cards_html(va_result)
+
+    # ── Emotion timeline (inline Plotly) ──────────────────────────────────────
+    try:
+        fig = _video_analyzer.render_timeline_figure(va_result)
+        if fig:
+            tl_html = fig.to_html(
+                full_html=False,
+                include_plotlyjs="cdn",
+                config={"displayModeBar": False},
+            )
+            delivery += (
+                '<div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:14px;'
+                'padding:16px;background:var(--ta-card-bg,#f8fafc);">'
+                '<div style="font-weight:800;color:#475569;margin-bottom:8px;font-size:0.9em;">'
+                'Emotion Timeline</div>'
+                + tl_html
+                + '</div>'
+            )
+    except Exception:
+        pass
+
+    delivery += '</div>'  # close delivery section
+    return coaching + delivery
+
+
 def process_file(
     uploaded_file,
     path_input,
@@ -2675,8 +2723,72 @@ def process_file(
             analytics_md  = stats_to_markdown(result.speaker_stats)
             combined_text = build_combined_report(result, config)
 
-            # ── Build Interview coaching tab ──────────────────────────────────
+            # ── Build Interview Analysis tab (coaching + optional video delivery) ──
             iv_html = _build_interview_html(result.interview_analysis)
+            _va_annotated_path = None
+
+            _is_video_file = Path(uploaded_file).suffix.lower() in {
+                ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
+                ".flv", ".wmv", ".ts", ".mts", ".vob", ".ogv",
+            }
+            if (interview_mode and _is_video_file and _HAS_VIDEO_ANALYZER
+                    and not transcription_only and not _cancel_ev.is_set()):
+                log_text = _add_log("🎥 Running video delivery analysis…", "ai")
+                yield _out(
+                    status=_status_compact("🎥", "Analysing video delivery…", _elapsed()),
+                    log=log_text,
+                    interview=(
+                        iv_html
+                        + '<div style="padding:14px 0 4px;color:#3b82f6;font-size:0.84em;">'
+                        '🎥 Running video delivery analysis — this may take a minute…</div>'
+                    ),
+                )
+                _va_q: Q.Queue = Q.Queue()
+
+                def _va_worker():
+                    try:
+                        thumbs, _ = _video_analyzer.scan_faces(uploaded_file)
+                        pids = list(thumbs.keys())
+                        _rm = {}
+                        if pids:
+                            _rm[pids[0]] = "Candidate"
+                            for _i, _p in enumerate(pids[1:], 1):
+                                _rm[_p] = f"Interviewer {_i}"
+                        def _pcb(v): _va_q.put(("pct", v))
+                        res = _video_analyzer.analyze_video(
+                            uploaded_file, _rm, sample_fps=1.0, progress_cb=_pcb
+                        )
+                        _va_q.put(("done", res))
+                    except Exception as _e:
+                        _va_q.put(("err", str(_e)))
+
+                _va_t = threading.Thread(target=_va_worker, daemon=True)
+                _va_t.start()
+
+                while _va_t.is_alive() or not _va_q.empty():
+                    try: _va_msg = _va_q.get(timeout=2.0)
+                    except Q.Empty: continue
+                    if _va_msg[0] == "pct":
+                        _pct = int(_va_msg[1] * 100)
+                        yield _out(status=_status_compact("🎥", f"Video analysis {_pct}%…", _elapsed()))
+                    elif _va_msg[0] == "done":
+                        _va_res = _va_msg[1]
+                        if _va_res and not _va_res.error:
+                            iv_html = _build_unified_interview_html(
+                                result.interview_analysis, _va_res
+                            )
+                            _va_annotated_path = _va_res.annotated_video_path
+                        else:
+                            log_text = _add_log(f"⚠️ Video analysis: {getattr(_va_res,'error','failed')}", "warn")
+                            yield _out(log=log_text)
+                        break
+                    elif _va_msg[0] == "err":
+                        log_text = _add_log(f"⚠️ Video delivery analysis failed: {_va_msg[1]}", "warn")
+                        yield _out(log=log_text)
+                        break
+
+                log_text = _add_log("🎥 Video delivery analysis complete.", "done")
+                yield _out(log=log_text)
 
             # ── Update cache with lang + segments now that we have them ────────
             if _raw_stt_text:
@@ -2765,6 +2877,10 @@ def process_file(
                     "speaker_dialogue": result.speaker_dialogue or "",
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
+                va_video=gr.update(
+                    value=_va_annotated_path,
+                    visible=bool(_va_annotated_path),
+                ) if _va_annotated_path else gr.update(visible=False),
             )
             break
 
@@ -5592,9 +5708,14 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         value="_Speech rate and accent analysis will appear here after processing._"
                     )
 
-                with gr.TabItem("🎤 Interview Coaching"):
+                with gr.TabItem("🎯 Interview Analysis"):
                     interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
+                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a video recording to see question-by-question coaching <b>and</b> delivery analysis here.</p>'
+                    )
+                    va_inline_video = gr.File(
+                        label="Download Annotated Video",
+                        visible=False,
+                        interactive=False,
                     )
 
                 with gr.TabItem("🎥 Video Analysis"):
@@ -5882,6 +6003,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             net_monitor,
             stats_panel,
             result_state,
+            va_inline_video,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)

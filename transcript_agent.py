@@ -1681,9 +1681,13 @@ def run_interview_analysis(
         "CANDIDATE PROFILE — use this to personalise every model_answer to this specific person:\n"
         "---\n" + candidate_profile.strip()[:8000] + "\n---\n\n"
     ) if candidate_profile and candidate_profile.strip() else ""
+    # Character budget: Claude 200K context = ~800K chars; GPT-4o 128K = ~512K chars.
+    # 400K chars (~100K tokens) covers a 4-hour interview on any major provider safely
+    # and leaves plenty of room for the 16K output + prompt overhead.
+    _TRANSCRIPT_CHAR_LIMIT = 400_000
     prompt = _INTERVIEW_PROMPT.format(
         profile_section=profile_section,
-        transcript=transcript[:80_000],
+        transcript=transcript[:_TRANSCRIPT_CHAR_LIMIT],
         deep_mode="YES" if deep_mode else "NO",
     )
     raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=16000)

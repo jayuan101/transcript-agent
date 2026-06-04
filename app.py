@@ -5352,13 +5352,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Or paste a file path or URL (large files / no upload wait)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
-            image_input = gr.File(
-                label="Supporting images — optional (slides, whiteboard, docs)",
-                file_types=list(IMAGE_EXTS),
-                file_count="multiple",
-                type="filepath",
-                elem_id="ta-image-input",
-            )
+            image_input = gr.File(visible=False, type="filepath")
             with gr.Accordion("⚡ What we support", open=False):
                 gr.HTML(_CAPABILITIES)
 

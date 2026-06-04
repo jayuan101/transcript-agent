@@ -158,19 +158,6 @@ class PersonScore:
     cultural:             Optional[CulturalStyleScore] = None
 
 
-@dataclass
-class LiveScoreSnapshot:
-    confidence:      float = 0.0
-    eye_contact:     float = 0.0
-    engagement:      float = 0.0
-    composure:       float = 0.0
-    open_body_pct:   float = 0.0
-    dominant_emotion: str  = "neutral"
-    body_label:      str   = "NEUTRAL"
-    cultural:        Optional[CulturalStyleScore] = None
-    frame_count:     int   = 0
-    elapsed_sec:     float = 0.0
-
 
 @dataclass
 class VideoAnalysisResult:
@@ -354,11 +341,6 @@ class VideoAnalyzer:
         result.annotated_video_path = self._make_annotated_video(video_path, all_frames, role_map, fps)
         if progress_cb: progress_cb(1.0)
         return result
-
-    # ── Live session factory ──────────────────────────────────────────────────
-
-    def create_live_session(self) -> "LiveAnalysisSession":
-        return LiveAnalysisSession(self)
 
     # ── Frame processing helpers ──────────────────────────────────────────────
 
@@ -1050,42 +1032,6 @@ class VideoAnalyzer:
         html += '</div></div>'
         return html
 
-    def render_live_score_html(self, snap: LiveScoreSnapshot, cultural_mode: str = "both") -> str:
-        SC  = lambda v: "#166534" if v>=80 else "#1d4ed8" if v>=65 else "#92400e" if v>=50 else "#991b1b"
-        BAR = lambda v,c: (f'<div style="background:#e2e8f0;border-radius:4px;height:5px;margin-top:3px;">'
-                           f'<div style="background:{c};height:5px;border-radius:4px;width:{v:.0f}%;"></div></div>')
-        MET = lambda lbl,v,c: (f'<div style="margin-bottom:8px;">'
-                                f'<div style="display:flex;justify-content:space-between;font-size:0.78em;">'
-                                f'<span style="color:#64748b;">{lbl}</span>'
-                                f'<span style="font-weight:700;color:{c};">{v:.0f}%</span></div>'
-                                + BAR(v,c) + '</div>')
-
-        el_m  = int(snap.elapsed_sec // 60); el_s = int(snap.elapsed_sec % 60)
-        emo_c = EMO_HTML.get(snap.dominant_emotion, "#94a3b8")
-
-        html = (f'<div style="font-family:system-ui,sans-serif;padding:4px 0;">'
-                # Header row — emotion pill only (no body language badge in live)
-                f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap;">'
-                f'<span style="background:#dc2626;color:#fff;border-radius:50%;width:10px;height:10px;'
-                f'display:inline-block;animation:pulse 1s infinite;"></span>'
-                f'<span style="font-size:0.78em;font-weight:700;color:#374151;">LIVE · {el_m}:{el_s:02d}</span>'
-                f'<span style="background:{emo_c};color:#fff;border-radius:20px;padding:2px 10px;'
-                f'font-size:0.72em;font-weight:700;">{snap.dominant_emotion}</span>'
-                f'</div>'
-                # Score bars — face signals only (body language available in Video Analysis tab)
-                + MET("Confidence",  snap.confidence,  SC(snap.confidence))
-                + MET("Eye Contact", snap.eye_contact, SC(snap.eye_contact))
-                + MET("Engagement",  snap.engagement,  SC(snap.engagement))
-                + MET("Composure",   snap.composure,   SC(snap.composure))
-                + f'<div style="font-size:0.72em;color:#94a3b8;margin-top:4px;">'
-                f'{snap.frame_count} frames analyzed · Body language available in Video Analysis tab</div>')
-
-        if snap.cultural and cultural_mode != "none":
-            html += self.render_cultural_comparison_html(snap.cultural, cultural_mode)
-
-        html += '</div>'
-        return html
-
     def render_timeline_figure(self, result: VideoAnalysisResult):
         try: import plotly.graph_objects as go
         except ImportError: return None
@@ -1141,178 +1087,4 @@ class VideoAnalyzer:
             legend=dict(orientation="h",yanchor="bottom",y=1.02),
         )
         return fig
-
-
-# ── Live Analysis Session ─────────────────────────────────────────────────────
-
-class LiveAnalysisSession:
-    """
-    Holds per-user MediaPipe models + state for a live webcam session.
-    Stored in gr.State — one instance per Gradio browser session.
-    Models are lazy-initialized on the first analysis frame.
-    """
-
-    ANALYZE_EVERY = 3     # process every 3rd webcam frame
-    SCORE_REFRESH = 15    # refresh score panel every 15 analyzed frames (~5s at 3fps)
-
-    def __init__(self, analyzer: VideoAnalyzer):
-        self._va          = analyzer
-        self._face_lm     = None
-        self._pose_lm     = None
-        self._tracker     = None
-        self._pitch_hist  = None
-        self._initialized = False
-        self._frame_n     = 0   # total frames received
-        self._analyzed_n  = 0   # frames actually analyzed
-        self._since_score = 0   # analyzed frames since last score refresh
-        self._face_buf:   List[FaceFrame] = []  # rolling 30-frame buffer
-        self._last_bgr:   Optional[np.ndarray]      = None
-        self._snap:       Optional[LiveScoreSnapshot] = None
-        self._start_time  = time.time()
-        self._role_map:   Dict[int, str] = {}
-
-    def set_roles(self, role_map: Dict[int, str]):
-        self._role_map = role_map
-
-    def _init_models(self) -> bool:
-        if self._initialized: return True
-        try:
-            fl = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
-            fl_opts = _mp_vision.FaceLandmarkerOptions(
-                base_options=_mp_tasks.BaseOptions(model_asset_path=fl),
-                num_faces=2,    # allow 2 for side-by-side panels
-                output_face_blendshapes=True,
-                output_facial_transformation_matrixes=True,
-                min_face_detection_confidence=0.4,
-                min_face_presence_confidence=0.4,
-                min_tracking_confidence=0.4,
-            )
-            self._face_lm = _mp_vision.FaceLandmarker.create_from_options(fl_opts)
-
-            try:
-                pl = _ensure_model(_POSE_LANDMARKER_URL, "pose_landmarker_lite.task")
-                pl_opts = _mp_vision.PoseLandmarkerOptions(
-                    base_options=_mp_tasks.BaseOptions(model_asset_path=pl),
-                    num_poses=2,
-                    min_pose_detection_confidence=0.4,
-                    min_pose_presence_confidence=0.4,
-                    min_tracking_confidence=0.4,
-                )
-                self._pose_lm = _mp_vision.PoseLandmarker.create_from_options(pl_opts)
-            except Exception as e:
-                print(f"[Live] pose model unavailable: {e}")
-
-            self._tracker    = _CentroidTracker(max_gone=30, max_dist=160)
-            self._pitch_hist = deque(maxlen=8)
-            self._initialized = True
-            return True
-        except Exception as e:
-            print(f"[Live] model init failed: {e}")
-            return False
-
-    def process_frame(
-        self, frame_rgb: np.ndarray, cultural_mode: str = "both"
-    ) -> Tuple[np.ndarray, Optional[LiveScoreSnapshot]]:
-        """
-        Called by Gradio .stream() for every incoming webcam frame (RGB).
-        Returns (annotated_rgb, snapshot_or_None).
-        snapshot is only set every SCORE_REFRESH analyzed frames.
-        """
-        self._frame_n += 1
-        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-
-        # Non-analysis frame — return last annotated
-        if self._frame_n % self.ANALYZE_EVERY != 0:
-            out = self._last_bgr if self._last_bgr is not None else frame_bgr
-            return cv2.cvtColor(out, cv2.COLOR_BGR2RGB), None
-
-        if not _HAS_MP or not self._init_models():
-            return frame_rgb, None
-
-        h, w = frame_bgr.shape[:2]
-        mpi  = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame_rgb)
-
-        # Face landmarks
-        fl_r    = self._face_lm.detect(mpi)
-        bbs     = self._va._lm_to_bboxes(fl_r, h, w)
-        tracked = self._tracker.update(bbs)
-
-        new_faces: List[FaceFrame] = []
-
-        for fi, (pid, bbox) in enumerate(tracked.items()):
-            x, y, fw, fh = bbox
-            bs = fl_r.face_blendshapes[fi] if (fl_r and fl_r.face_blendshapes and fi < len(fl_r.face_blendshapes)) else None
-            tm = fl_r.facial_transformation_matrixes[fi] if (fl_r and fl_r.facial_transformation_matrixes and fi < len(fl_r.facial_transformation_matrixes)) else None
-
-            yaw, pitch, roll = self._va._head_pose_angles(tm) if tm else (0.0, 0.0, 0.0)
-            self._pitch_hist.append(pitch)
-            ec  = abs(yaw) < 20 and abs(pitch) < 20
-            jaw = self._va._bs_val(bs, "jawOpen") if bs else 0.0
-            crop= frame_bgr[y:y+fh, x:x+fw]
-            emo, eprobs = self._va._emotion(crop, bs)
-
-            # Body language NOT computed in live feed — uploaded video analysis only
-            ff = FaceFrame(
-                person_id=pid, timestamp=self._frame_n / 10.0,
-                bbox=bbox, emotion=emo, emotion_probs=eprobs,
-                eye_contact=ec, yaw=yaw, pitch=pitch, roll=roll,
-                posture="unknown", is_speaking=(jaw > 0.18),
-                body_language=None,
-            )
-            new_faces.append(ff)
-
-        # Update rolling buffer (keep last 30)
-        self._face_buf.extend(new_faces)
-        if len(self._face_buf) > 30:
-            self._face_buf = self._face_buf[-30:]
-
-        self._analyzed_n  += 1
-        self._since_score += 1
-
-        # Draw annotations — no body language badge in live feed
-        annotated = frame_bgr.copy()
-        annotated = self._va._draw(annotated, new_faces, self._role_map)
-        self._last_bgr = annotated
-
-        # Refresh scores
-        snap = None
-        if self._since_score >= self.SCORE_REFRESH and self._face_buf:
-            self._since_score = 0
-            snap = self._compute_snapshot(cultural_mode)
-            self._snap = snap
-
-        return cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB), snap
-
-    def _compute_snapshot(self, cultural_mode: str) -> LiveScoreSnapshot:
-        ffs = self._face_buf
-        n   = len(ffs) or 1
-
-        ec_r   = sum(1 for f in ffs if f.eye_contact) / n
-        pos_r  = sum(1 for f in ffs if f.emotion in ("happy","neutral")) / n
-        nerv_r = sum(1 for f in ffs if f.emotion == "nervous") / n
-
-        conf = min(100.0, (pos_r*0.40 + ec_r*0.35 + (1-nerv_r)*0.25)*100)
-        comp = min(100.0, max(0.0, (1-nerv_r*1.5)*100))
-        ec   = ec_r * 100
-        eng  = min(100.0, (ec_r*0.50 + pos_r*0.35 + min(1,n/30)*0.15)*100)
-
-        from collections import Counter
-        dom  = Counter(f.emotion for f in ffs).most_common(1)[0][0] if ffs else "neutral"
-        # Cultural scoring without body language (live feed only has face signals)
-        cult = self._va.score_cultural(ffs, []) if cultural_mode != "none" and ffs else None
-
-        return LiveScoreSnapshot(
-            confidence=round(conf,1), eye_contact=round(ec,1),
-            engagement=round(eng,1),  composure=round(comp,1),
-            open_body_pct=0.0,
-            dominant_emotion=dom, body_label="",
-            cultural=cult, frame_count=self._analyzed_n,
-            elapsed_sec=time.time()-self._start_time,
-        )
-
-    def close(self):
-        try:
-            if self._face_lm: self._face_lm.close()
-            if self._pose_lm: self._pose_lm.close()
-        except Exception: pass
         self._initialized = False

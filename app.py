@@ -449,7 +449,13 @@ _PROVIDERS = {
             "mistral-small3.1",   # Mistral 22B — good multilingual
             "mistral",            # Mistral 7B — lightweight baseline
         ],
-        "base_url": "http://localhost:11434/v1",
+        # In Docker (GRADIO_SERVER_NAME=0.0.0.0) localhost refers to the
+        # container — use host.docker.internal to reach Ollama on the host machine.
+        "base_url": (
+            "http://host.docker.internal:11434/v1"
+            if os.environ.get("GRADIO_SERVER_NAME") == "0.0.0.0"
+            else "http://localhost:11434/v1"
+        ),
     },
 }
 
@@ -1973,6 +1979,19 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
     """Convert a raw API error string into a short, human-readable message."""
     import re as _re
     e = err.lower()
+    # connection refused / unreachable
+    if ("connection error" in e or "connection refused" in e or "connect call failed" in e
+            or "econnrefused" in e or "name or service not known" in e
+            or ("connection" in e and "error" in e)):
+        if provider_name == "Ollama (Local)":
+            return (
+                "Cannot reach Ollama. Fix: open a terminal and run  ollama serve  "
+                "— keep that window open while using the app."
+            )
+        return (
+            f"Cannot connect to {provider_name or 'the API'}. "
+            "Check your internet connection, firewall, or VPN, then try again."
+        )
     # 429 / quota
     if "429" in err or "resource_exhausted" in e or "quota" in e:
         delay_m = _re.search(r"retry in (\d+(?:\.\d+)?)s", err, _re.IGNORECASE)
@@ -2454,9 +2473,17 @@ def process_file(
             )))
         except Exception as e:
             msg = str(e)
-            if "write operation timed out" in msg.lower():
+            _ml = msg.lower()
+            if "write operation timed out" in _ml:
                 msg = ("Connection timed out while sending data. "
                        "If you are on a slow network, try a smaller Whisper model or a shorter file.")
+            elif ("connection error" in _ml or "connection refused" in _ml
+                  or "econnrefused" in _ml or not msg.strip()
+                  or type(e).__name__ in ("ConnectError", "APIConnectionError",
+                                         "ServiceUnavailableError")):
+                # Raw connection errors often stringify as just "Connection error."
+                # Re-raise as a friendlier string so _friendly_api_error can match it.
+                msg = f"Connection error. Could not reach the API. ({type(e).__name__}: {msg})"
             q.put(("error", msg))
 
     t = threading.Thread(target=background, daemon=True)

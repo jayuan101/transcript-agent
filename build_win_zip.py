@@ -16,7 +16,7 @@ files = {
 }
 
 readme = (
-    "Transcript Agent v1.1.82 - Windows Package\n"
+    "Transcript Agent v1.1.87 - Windows Package\n"
     "==========================================\n\n"
     "QUICK START\n"
     "-----------\n"

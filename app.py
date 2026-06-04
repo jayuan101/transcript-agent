@@ -724,9 +724,10 @@ html:not(.dark) .ta-pill {
   color: #fff;
 }
 html:not(.dark) .ta-topbar-icon {
-  background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.28);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.28);
+  border-color: rgba(255,255,255,0.5);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
+  font-size: 1.5em;
 }
 .ta-topbar::after {
   content: '';
@@ -2901,7 +2902,7 @@ _THEME = gr.themes.Soft(
 # ── HTML snippets ───────────────────────────────────────────────────────────────
 _HERO = """
 <div class="ta-topbar">
-  <div class="ta-topbar-icon">🎙</div>
+  <div class="ta-topbar-icon">🎤</div>
   <div class="ta-topbar-body">
     <span class="ta-topbar-name">Transcript Agent</span>
     <span class="ta-topbar-tag">Whisper transcription &nbsp;·&nbsp; Multi-provider AI &nbsp;·&nbsp; Speaker diarization</span>

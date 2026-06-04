@@ -5886,10 +5886,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                     # ── Video delivery results ────────────────────────────────────
-                    iv_progress     = gr.HTML(value="", elem_id="iv-progress")
-                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
-                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
-                    iv_summary      = gr.HTML(value="", elem_id="iv-summary")
+                    iv_progress     = gr.HTML(value="", elem_id="iv-progress", visible=False)
+                    iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel", visible=False)
+                    iv_timeline     = gr.HTML(value="", elem_id="iv-timeline", visible=False)
+                    iv_summary      = gr.HTML(value="", elem_id="iv-summary", visible=False)
                     iv_output_video = gr.Video(
                         label="Annotated video",
                         elem_id="iv-output-video",
@@ -6118,7 +6118,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             result = analyze_interview_video(video_path, roles, on_progress=on_prog)
         except Exception as exc:
             err_html = f'<p style="color:#ef4444;padding:12px;">Analysis failed: {exc}</p>'
-            return err_html, "", "", None, ""
+            return gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(visible=False), gr.update(value=err_html, visible=True)
 
         scores_html   = _build_iv_scores_html(result)
         timeline_html = _build_iv_timeline_html(result)
@@ -6132,7 +6132,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
         status_html = '<p style="color:#22c55e;font-size:0.84em;padding:4px 0;">✅ Analysis complete.</p>'
         video_upd = gr.update(value=annotated_path, visible=bool(annotated_path))
-        return scores_html, timeline_html, summary_html, video_upd, status_html
+        return (
+            gr.update(value=scores_html, visible=bool(scores_html)),
+            gr.update(value=timeline_html, visible=bool(timeline_html)),
+            gr.update(value=summary_html, visible=bool(summary_html)),
+            video_upd,
+            gr.update(value=status_html, visible=True),
+        )
 
     iv_person_count.change(
         fn=_iv_person_count_change,

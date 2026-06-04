@@ -1,0 +1,24 @@
+name: Sync to HuggingFace Space
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Push to HuggingFace Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config user.email "noreply@anthropic.com"
+          git config user.name "Claude"
+          git remote add hf https://Coastline6:${HF_TOKEN}@huggingface.co/spaces/Coastline6/transcript-agent-v2
+          git push hf main --force

@@ -5845,62 +5845,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         value="_Speech rate and accent analysis will appear here after processing._"
                     )
 
-                with gr.TabItem("🎯 Interview Analysis"):
-                    interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar, then analyze a video recording to see question-by-question coaching <b>and</b> delivery analysis here.</p>'
-                    )
-                    va_inline_video = gr.File(
-                        label="Download Annotated Video",
-                        visible=False,
-                        interactive=False,
-                    )
-
-                with gr.TabItem("🎥 Video Analysis"):
-                    if not _HAS_VIDEO_ANALYZER:
-                        gr.HTML(
-                            '<div style="padding:16px;color:#f59e0b;">'
-                            '<b>Video Analysis requires additional packages.</b><br>'
-                            'Run: <code>pip install mediapipe opencv-python</code><br>'
-                            'Optional (for better emotion detection): <code>pip install deepface</code>'
-                            '</div>'
-                        )
-                        va_video_in     = gr.File(visible=False)
-                        va_analyze_btn  = gr.Button(visible=False)
-                        va_status_html  = gr.HTML(visible=False)
-                        va_score_html   = gr.HTML(visible=False)
-                        va_timeline_plt = gr.Plot(visible=False)
-                        va_video_out    = gr.File(visible=False)
-                    else:
-                        with gr.Row():
-                            with gr.Column(scale=1, min_width=260):
-                                gr.HTML(
-                                    '<div style="font-size:0.82em;color:#64748b;margin-bottom:6px;">'
-                                    'Upload a recorded interview video and click <b>Analyze Video</b>.<br>'
-                                    'Roles are auto-detected — Candidate is the most prominent face.</div>'
-                                )
-                                va_video_in = gr.File(
-                                    label="Interview Video",
-                                    file_types=[".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v"],
-                                    file_count="single",
-                                    type="filepath",
-                                )
-                                va_analyze_btn = gr.Button(
-                                    "Analyze Video", variant="primary", size="sm"
-                                )
-                                va_status_html = gr.HTML(value="")
-
-                            with gr.Column(scale=2):
-                                va_score_html   = gr.HTML(
-                                    value='<p style="color:#94a3b8;padding:12px;">'
-                                          'Upload a video and click Analyze to see results.</p>'
-                                )
-                                va_timeline_plt = gr.Plot(label="Emotion Timeline", visible=False)
-                                va_video_out    = gr.File(
-                                    label="Download Annotated Video",
-                                    visible=False, interactive=False,
-                                )
-
-                with gr.TabItem("🎥 Interview Vision"):
+                with gr.TabItem("🎥 Interview Analysis"):
                     gr.HTML(
                         '<div class="iv-tab-header">'
                         '<div class="iv-tab-title">Post-Interview Video Analysis</div>'
@@ -5944,7 +5889,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         "🔍  Analyze Video", variant="primary", elem_id="iv-analyze-btn", size="lg"
                     )
                     gr.HTML('</div>')
-                    iv_progress = gr.HTML(value="", elem_id="iv-progress")
+                    iv_progress     = gr.HTML(value="", elem_id="iv-progress")
                     iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel")
                     iv_timeline     = gr.HTML(value="", elem_id="iv-timeline")
                     iv_summary      = gr.HTML(value="", elem_id="iv-summary")
@@ -5954,6 +5899,18 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         interactive=False,
                         visible=False,
                     )
+                    gr.HTML('<hr style="border-color:var(--ta-border);margin:18px 0 10px">')
+                    interview_out = gr.HTML(
+                        value='<p style="color:#94a3b8;padding:4px 0;">Enable <b>Interview Mode</b> in the sidebar, then analyze a recording to see question-by-question coaching here.</p>'
+                    )
+                    va_inline_video = gr.File(label="Download Annotated Video", visible=False, interactive=False)
+                    # stub widgets kept for event-handler compatibility
+                    va_video_in     = gr.File(visible=False)
+                    va_analyze_btn  = gr.Button(visible=False)
+                    va_status_html  = gr.HTML(visible=False)
+                    va_score_html   = gr.HTML(visible=False)
+                    va_timeline_plt = gr.Plot(visible=False)
+                    va_video_out    = gr.File(visible=False)
 
                 with gr.TabItem("📂 History"):
                     with gr.Row():

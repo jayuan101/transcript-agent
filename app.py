@@ -5231,7 +5231,7 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
 """
 
 # ── Desktop download section ──────────────────────────────────────────────────
-_HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent/resolve/main"
+_HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent-v2/resolve/main"
 
 _DOWNLOAD_SECTION = f"""
 <div class="ta-dl-wrap">

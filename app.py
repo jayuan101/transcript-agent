@@ -1462,7 +1462,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 23   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 28   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1471,12 +1471,15 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), stats=gr.update(), rs=None):
+         net=gr.update(), stats=gr.update(), rs=None,
+         iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
+         iv_vid=gr.update(), iv_prog=gr.update()):
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
             dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
             dl_srt, dl_vtt, dl_docx,
-            dl_acc, log, eta, net, stats, rs)
+            dl_acc, log, eta, net, stats, rs,
+            iv_scores, iv_tl, iv_sum, iv_vid, iv_prog)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -2279,8 +2282,14 @@ def process_file(
     model_name,
     transcription_only=False,
     image_files=None,
+    iv_person_count=2,
+    iv_role_0="Candidate",
+    iv_role_1="Interviewer 1",
+    iv_role_2="Interviewer 2",
+    iv_role_3="Interviewer 3",
 ):
     yield _NOCHANGE   # immediate tick — clears the loading indicator right away
+    _va_res = None  # video analysis result — populated later if video + Interview Mode
     # Route unified model dropdown to the correct STT parameter
     if stt_engine == "whisper_local":
         _whisper_model = stt_model or "base"
@@ -2821,11 +2830,9 @@ def process_file(
                     try:
                         thumbs, _ = _video_analyzer.scan_faces(uploaded_file)
                         pids = list(thumbs.keys())
-                        _rm = {}
-                        if pids:
-                            _rm[pids[0]] = "Candidate"
-                            for _i, _p in enumerate(pids[1:], 1):
-                                _rm[_p] = f"Interviewer {_i}"
+                        _role_labels = [iv_role_0, iv_role_1, iv_role_2, iv_role_3]
+                        _rm = {pid: (_role_labels[i] if i < len(_role_labels) else f"Person {i+1}")
+                               for i, pid in enumerate(pids[:int(iv_person_count or 2)])}
                         def _pcb(v): _va_q.put(("pct", v))
                         res = _video_analyzer.analyze_video(
                             uploaded_file, _rm, sample_fps=1.0, progress_cb=_pcb
@@ -2937,7 +2944,7 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
-                dl_active=gr.update(value=f_p, visible=bool(f_p), label="Report — PDF"),
+
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
                                         _total_dl_mb, _peak_dl_speed, done=True,
                                         model_name=model_name, provider_type=provider_type),
@@ -2950,6 +2957,11 @@ def process_file(
                     "speaker_dialogue": result.speaker_dialogue or "",
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
+                iv_scores=gr.update(value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',True) else "", visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                iv_tl=gr.update(visible=False),
+                iv_sum=gr.update(visible=False),
+                iv_vid=gr.update(value=getattr(_va_res,'annotated_video_path',None), visible=bool(_va_res and getattr(_va_res,'annotated_video_path',None))),
+                iv_prog=gr.update(value="", visible=False),
             )
             break
 
@@ -5619,6 +5631,33 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     variant="secondary", size="sm", visible=False,
                     elem_id="ta-reanalyze-btn",
                 )
+                gr.HTML('<hr style="border-color:var(--ta-border);margin:12px 0 8px">')
+                with gr.Row(elem_id="iv-controls-row"):
+                    iv_person_count = gr.Number(
+                        label="People in video",
+                        value=2, minimum=1, maximum=4, step=1,
+                        elem_id="iv-person-count", scale=1,
+                    )
+                    iv_role_0 = gr.Dropdown(
+                        label="Person 1 (leftmost)",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Candidate", scale=1,
+                    )
+                    iv_role_1 = gr.Dropdown(
+                        label="Person 2",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 1", scale=1,
+                    )
+                    iv_role_2 = gr.Dropdown(
+                        label="Person 3",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 2", visible=False, scale=1,
+                    )
+                    iv_role_3 = gr.Dropdown(
+                        label="Person 4",
+                        choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
+                        value="Interviewer 3", visible=False, scale=1,
+                    )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -5840,52 +5879,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     )
 
                 with gr.TabItem("🎥 Interview Analysis"):
-                    # ── Interview coaching (auto-populated on Analyze) ────────────
                     interview_out = gr.HTML(
-                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see coaching results here.</p>'
+                        value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see results here.</p>'
                     )
+                    iv_analyze_btn = gr.Button(visible=False)  # stub — main Analyze btn drives this tab
 
-                    # ── Video delivery controls ───────────────────────────────────
-                    gr.HTML(
-                        '<div style="margin:20px 0 10px;border-top:2px solid var(--ta-card-border,#e2e8f0);'
-                        'padding-top:16px;">'
-                        '<div style="font-size:0.9em;font-weight:800;color:#1e293b;margin-bottom:4px;">'
-                        '🎥 Video Delivery Analysis</div>'
-                        '<div style="font-size:0.78em;color:#64748b;">'
-                        'Uses the video uploaded above — set roles and click Analyze.</div></div>'
-                    )
-                    with gr.Row(elem_id="iv-controls-row"):
-                        iv_person_count = gr.Number(
-                            label="People in video",
-                            value=2, minimum=1, maximum=4, step=1,
-                            elem_id="iv-person-count", scale=1,
-                        )
-                        iv_role_0 = gr.Dropdown(
-                            label="Person 1 (leftmost)",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Candidate", scale=1,
-                        )
-                        iv_role_1 = gr.Dropdown(
-                            label="Person 2",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 1", scale=1,
-                        )
-                        iv_role_2 = gr.Dropdown(
-                            label="Person 3",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 2", visible=False, scale=1,
-                        )
-                        iv_role_3 = gr.Dropdown(
-                            label="Person 4",
-                            choices=["Candidate", "Interviewer 1", "Interviewer 2", "Interviewer 3", "Late Joiner"],
-                            value="Interviewer 3", visible=False, scale=1,
-                        )
-                    iv_analyze_btn = gr.Button(
-                        "🔍  Analyze Video", variant="primary",
-                        elem_id="iv-analyze-btn", size="lg",
-                    )
-
-                    # ── Video delivery results ────────────────────────────────────
+                    # ── Results (hidden until analysis runs) ──────────────────────
                     iv_progress     = gr.HTML(value="", elem_id="iv-progress", visible=False)
                     iv_scores_panel = gr.HTML(value="", elem_id="iv-scores-panel", visible=False)
                     iv_timeline     = gr.HTML(value="", elem_id="iv-timeline", visible=False)
@@ -6147,12 +6146,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         queue=False,
     )
 
-    iv_analyze_btn.click(
-        fn=analyze_interview_tab,
-        inputs=[file_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
-        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
-    )
-
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):
         cfg = _PROVIDERS.get(provider, _PROVIDERS["Claude (Anthropic)"])
@@ -6306,6 +6299,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             provider_dropdown, model_dropdown,
             transcription_only_toggle,
             image_input,
+            iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3,
         ],
         concurrency_id="analyze",
         concurrency_limit=1,
@@ -6322,6 +6316,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             net_monitor,
             stats_panel,
             result_state,
+            iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)

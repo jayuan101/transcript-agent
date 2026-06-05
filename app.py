@@ -2070,6 +2070,34 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
     return first[:200] if first else err[:200]
 
 
+def _fmt_action_item(a) -> str:
+    """Format an action item — handles both plain strings and structured dicts."""
+    if isinstance(a, dict):
+        action   = a.get("action", a.get("item", str(a)))
+        owner    = a.get("owner", a.get("assigned_to", ""))
+        timeline = a.get("timeline", a.get("due", ""))
+        parts = [action]
+        if owner:    parts.append(f"**Owner:** {owner}")
+        if timeline: parts.append(f"**Timeline:** {timeline}")
+        return " · ".join(parts)
+    return str(a)
+
+
+def _fmt_action_item_md(a) -> str:
+    """Format an action item as a Markdown checkbox line."""
+    if isinstance(a, dict):
+        action   = a.get("action", a.get("item", str(a)))
+        owner    = a.get("owner", a.get("assigned_to", ""))
+        timeline = a.get("timeline", a.get("due", ""))
+        line = f"- [ ] {action}"
+        meta = []
+        if owner:    meta.append(f"*{owner}*")
+        if timeline: meta.append(f"*{timeline}*")
+        if meta:     line += "  \n  " + " · ".join(meta)
+        return line
+    return f"- [ ] {a}"
+
+
 def _err(msg: str) -> tuple:
     """Yield this tuple to display an inline error card instead of a popup."""
     html = (
@@ -2786,9 +2814,11 @@ def process_file(
                 summary_md = f"## Summary\n\n{_summary_text}"
             if not transcription_only:
                 if inc_key_points and result.key_points:
-                    summary_md += "\n\n## Key Points\n" + "\n".join(f"- {p}" for p in result.key_points)
+                    kp_lines = "\n".join(f"- {p}" for p in result.key_points)
+                    summary_md += f"\n\n---\n\n## Key Points\n\n{kp_lines}"
                 if inc_action_items and result.action_items:
-                    summary_md += "\n\n## Action Items\n" + "\n".join(f"- [ ] {a}" for a in result.action_items)
+                    ai_lines = "\n".join(_fmt_action_item_md(a) for a in result.action_items)
+                    summary_md += f"\n\n---\n\n## Action Items\n\n{ai_lines}"
 
             if result.speaker_profiles:
                 profiles_md = "\n\n---\n\n".join(
@@ -5416,7 +5446,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "1.3.1"
+APP_VERSION = "2.0.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

@@ -460,7 +460,16 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bo
     if result.action_items:
         doc.add_heading("Action Items", 1)
         for ai in result.action_items:
-            doc.add_paragraph(ai, style="List Bullet")
+            if isinstance(ai, dict):
+                action   = ai.get("action", ai.get("item", str(ai)))
+                owner    = ai.get("owner", "")
+                timeline = ai.get("timeline", "")
+                text = action
+                if owner:    text += f"  (Owner: {owner})"
+                if timeline: text += f"  [{timeline}]"
+                doc.add_paragraph(text, style="List Bullet")
+            else:
+                doc.add_paragraph(str(ai), style="List Bullet")
 
     if result.speaker_dialogue:
         doc.add_heading("Speaker Dialogue", 1)
@@ -1292,7 +1301,7 @@ Return JSON with exactly these keys (analysis fields first — ALWAYS include th
   "speaker_map": {{"SPEAKER_00": "name or role", ...}},
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
-  "action_items": ["action 1", ...],
+  "action_items": [{"action": "what needs to be done", "owner": "who", "timeline": "when"}, ...],
   "speaker_profiles": {{"Name": "2-3 sentence profile of contributions"}},
   "speaker_stats": [
     {{
@@ -1348,7 +1357,7 @@ Return JSON with exactly these keys (in this order — analysis fields first, tr
 {{{speaker_fields}
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
-  "action_items": [],
+  "action_items": [{{"action": "what", "owner": "who", "timeline": "when"}}],
   "speaker_stats": [
     {{
       "name": "resolved speaker name or role",
@@ -1836,7 +1845,17 @@ def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str
     if result.key_points:
         report_lines += ["## Key Points", *[f"- {p}" for p in result.key_points], ""]
     if result.action_items:
-        report_lines += ["## Action Items", *[f"- [ ] {a}" for a in result.action_items], ""]
+        def _fmt_ai(a):
+            if isinstance(a, dict):
+                action = a.get("action", a.get("item", str(a)))
+                owner  = a.get("owner", "")
+                tl     = a.get("timeline", "")
+                line   = f"- [ ] {action}"
+                if owner: line += f"  *(Owner: {owner})*"
+                if tl:    line += f"  *[{tl}]*"
+                return line
+            return f"- [ ] {a}"
+        report_lines += ["## Action Items", *[_fmt_ai(a) for a in result.action_items], ""]
     if result.speaker_stats:
         report_lines += ["## Speech Analytics", ""]
         for s in result.speaker_stats:

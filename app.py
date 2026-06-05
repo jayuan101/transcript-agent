@@ -2834,8 +2834,11 @@ def process_file(
             combined_text = build_combined_report(result, config)
 
             # ── Build Interview Analysis tab (coaching + optional video delivery) ──
+            # iv_html is NOT written to the UI until the very final yield — no mid-run updates
             iv_html = _build_interview_html(result.interview_analysis)
             _va_annotated_path = None
+            _va_res = None
+            _va_timeline_html = ""
 
             _is_video_file = Path(uploaded_file).suffix.lower() in {
                 ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
@@ -2843,14 +2846,14 @@ def process_file(
             }
             if (interview_mode and _is_video_file and _HAS_VIDEO_ANALYZER
                     and not transcription_only and not _cancel_ev.is_set()):
-                log_text = _add_log("🎥 Running video delivery analysis…", "ai")
+                log_text = _add_log("━━━ Step 3 of 3 — Video Delivery Analysis ━━━", "info")
+                log_text = _add_log("🎥 Scanning faces and analysing delivery — this may take a minute…", "ai")
                 yield _out(
-                    status=_status_compact("🎥", "Analysing video delivery…", _elapsed()),
+                    status=_status_compact("🎥", "Step 3 of 3 — Video delivery…", _elapsed()),
                     log=log_text,
-                    interview=(
-                        iv_html
-                        + '<div style="padding:14px 0 4px;color:#3b82f6;font-size:0.84em;">'
-                        '🎥 Running video delivery analysis — this may take a minute…</div>'
+                    iv_prog=gr.update(
+                        value='<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Scanning video frames…</p>',
+                        visible=True,
                     ),
                 )
                 _va_q: Q.Queue = Q.Queue()
@@ -2882,14 +2885,20 @@ def process_file(
                         continue
                     if _va_msg[0] == "pct":
                         _pct = int(_va_msg[1] * 100)
-                        yield _out(status=_status_compact("🎥", f"Video analysis {_pct}%…", _elapsed()))
+                        log_text = _add_log(f"🎥 Video analysis {_pct}%…", "progress")
+                        yield _out(
+                            status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
+                            log=log_text,
+                            iv_prog=gr.update(
+                                value=f'<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Analysing frames… {_pct}%</p>',
+                                visible=True,
+                            ),
+                        )
                     elif _va_msg[0] == "done":
                         _va_res = _va_msg[1]
-                        if _va_res and not _va_res.error:
-                            iv_html = _build_unified_interview_html(
-                                result.interview_analysis, _va_res
-                            )
-                            _va_annotated_path = None  # skip annotated video re-encode (too slow)
+                        if _va_res and not getattr(_va_res, "error", None):
+                            log_text = _add_log("✅ Video delivery analysis complete.", "done")
+                            yield _out(log=log_text)
                         else:
                             log_text = _add_log(f"⚠️ Video analysis: {getattr(_va_res,'error','failed')}", "warn")
                             yield _out(log=log_text)
@@ -2899,18 +2908,31 @@ def process_file(
                         yield _out(log=log_text)
                         break
 
-                log_text = _add_log("🎥 Video delivery analysis complete.", "done")
-                yield _out(log=log_text)
-
                 # ── Claude interprets the video analysis results ──────────────
-                if _va_res and not getattr(_va_res, "error", True):
+                if _va_res and not getattr(_va_res, "error", None):
                     try:
-                        log_text = _add_log("🤖 Claude is reviewing video analysis results…", "ai")
+                        log_text = _add_log("🤖 Claude writing interview assessment…", "ai")
                         yield _out(
                             status=_status_compact("🤖", "Claude reviewing video results…", _elapsed()),
                             log=log_text,
                         )
                         _persons = getattr(_va_res, "persons", {})
+                        # compute overall grade from average candidate scores
+                        _candidate_scores = []
+                        for _role, _p in _persons.items():
+                            if "candidate" in _role.lower():
+                                _s = _p.get("scores", {})
+                                _avg = sum(_s.values()) / len(_s) if _s else 0
+                                _candidate_scores.append(_avg)
+                        _overall_pct = (_candidate_scores[0] if _candidate_scores
+                                        else sum(
+                                            sum(p.get("scores", {}).values()) / max(len(p.get("scores", {})), 1)
+                                            for p in _persons.values()
+                                        ) / max(len(_persons), 1))
+                        _grade = ("A" if _overall_pct >= 0.85 else
+                                  "B" if _overall_pct >= 0.70 else
+                                  "C" if _overall_pct >= 0.55 else
+                                  "D" if _overall_pct >= 0.40 else "F")
                         _scores_summary = "\n".join(
                             f"- {role}: confidence={p.get('scores',{}).get('confidence',0):.0%}, "
                             f"composure={p.get('scores',{}).get('composure',0):.0%}, "
@@ -2925,7 +2947,8 @@ def process_file(
                             "You are an expert interview coach. Based on the following video delivery "
                             "analysis data and transcript excerpt, write a concise, actionable assessment "
                             "(3-5 short paragraphs) covering: overall impression, key strengths, areas to "
-                            "improve, and one specific tip for each participant.\n\n"
+                            "improve, and one specific tip for each participant. "
+                            f"Overall grade: {_grade} ({_overall_pct:.0%}).\n\n"
                             f"PARTICIPANTS:\n{_scores_summary}\n\n"
                             f"TRANSCRIPT EXCERPT:\n{_transcript_snippet}\n\n"
                             "Write in a supportive, professional tone. Be specific and actionable."
@@ -2940,19 +2963,35 @@ def process_file(
                             user=_va_claude_prompt,
                             max_tokens=800,
                         )
+                        # grade badge colours
+                        _grade_color = {"A":"#16a34a","B":"#2563eb","C":"#d97706","D":"#dc2626","F":"#7f1d1d"}.get(_grade,"#6b7280")
                         _va_claude_html = (
-                            '<div style="margin-top:16px;padding:16px 18px;'
-                            'background:linear-gradient(135deg,rgba(29,78,216,0.08),rgba(59,130,246,0.05));'
-                            'border:1.5px solid rgba(59,130,246,0.25);border-radius:14px;">'
-                            '<div style="font-size:0.82em;font-weight:700;color:#3b82f6;margin-bottom:8px;">'
-                            '🤖 Claude\'s Interview Assessment</div>'
-                            '<div style="font-size:0.84em;line-height:1.7;color:var(--ta-text);">'
-                            + _va_claude_text.replace("\n\n", "</p><p>").replace("\n", "<br>")
-                            .replace("<p>", '<p style="margin:0 0 10px">') + '</div></div>'
+                            f'<div style="margin-top:16px;padding:16px 18px;'
+                            f'background:linear-gradient(135deg,rgba(29,78,216,0.08),rgba(59,130,246,0.05));'
+                            f'border:1.5px solid rgba(59,130,246,0.25);border-radius:14px;">'
+                            f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">'
+                            f'<span style="font-size:0.82em;font-weight:700;color:#3b82f6;">🤖 Claude\'s Interview Assessment</span>'
+                            f'<span style="font-size:1.1em;font-weight:800;color:{_grade_color};'
+                            f'background:rgba(0,0,0,0.06);border-radius:6px;padding:2px 10px;">'
+                            f'Grade: {_grade}</span></div>'
+                            f'<div style="font-size:0.84em;line-height:1.7;color:var(--ta-text);">'
+                            + _va_claude_text.replace("\n\n", "</p><p style='margin:0 0 10px'>")
+                                             .replace("\n", "<br>")
+                            + '</div></div>'
                         )
+                        iv_html = _build_unified_interview_html(result.interview_analysis, _va_res)
                         iv_html = iv_html + _va_claude_html
-                        log_text = _add_log("🤖 Claude interview assessment complete.", "done")
-                        yield _out(log=log_text, interview=iv_html)
+                        log_text = _add_log(f"🤖 Assessment complete — Final Grade: {_grade}", "done")
+                        yield _out(log=log_text)
+                        # pre-render timeline once to avoid double call in final yield
+                        try:
+                            _tl_fig = _video_analyzer.render_timeline_figure(_va_res)
+                            _va_timeline_html = (_tl_fig.to_html(
+                                full_html=False, include_plotlyjs="cdn",
+                                config={"displayModeBar": False}
+                            ) if _tl_fig else "")
+                        except Exception:
+                            _va_timeline_html = ""
                     except Exception as _ce:
                         log_text = _add_log(f"⚠️ Claude video assessment skipped: {_ce}", "warn")
                         yield _out(log=log_text)
@@ -3046,16 +3085,18 @@ def process_file(
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
                 iv_scores=gr.update(
-                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',True) else "",
-                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',None) else "",
+                    visible=bool(_va_res and not getattr(_va_res,'error',None))),
                 iv_tl=gr.update(
-                    value=(_video_analyzer.render_timeline_figure(_va_res).to_html(full_html=False, include_plotlyjs="cdn", config={"displayModeBar":False}) if _va_res and not getattr(_va_res,'error',True) and _video_analyzer.render_timeline_figure(_va_res) else ""),
-                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                    value=_va_timeline_html,
+                    visible=bool(_va_timeline_html)),
                 iv_sum=gr.update(
                     value=("<ul style='margin:0;padding-left:18px;'>" + "".join(f"<li style='font-size:0.88em;color:#374151;margin-bottom:6px;'>{o}</li>" for o in getattr(_va_res,'observations',[])) + "</ul>") if _va_res and getattr(_va_res,'observations',None) else "",
                     visible=bool(_va_res and getattr(_va_res,'observations',None))),
-                iv_vid=gr.update(value=getattr(_va_res,'annotated_video_path',None), visible=bool(_va_res and getattr(_va_res,'annotated_video_path',None))),
-                iv_prog=gr.update(value="<p style='color:#22c55e;font-size:0.84em;padding:4px 0;'>✅ Delivery analysis complete.</p>", visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                iv_vid=gr.update(value=None, visible=False),
+                iv_prog=gr.update(
+                    value="<p style='color:#22c55e;font-size:0.84em;padding:4px 0;'>✅ Step 3 complete — Delivery analysis ready.</p>" if _va_res and not getattr(_va_res,'error',None) else "",
+                    visible=bool(_va_res and not getattr(_va_res,'error',None))),
             )
             break
 

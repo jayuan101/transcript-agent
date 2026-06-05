@@ -1542,7 +1542,12 @@ def process_transcript(
                 if _parse_attempt == 0:
                     _log("⚠️ JSON parse failed — retrying with stricter JSON-only prompt…")
                 else:
-                    raise
+                    # Both attempts failed — return whatever raw text we got
+                    # rather than crashing the whole job
+                    _log("⚠️ JSON parse failed on retry — returning raw response as fallback")
+                    results.append({"raw": raw, "parse_error": True,
+                                    "summary": raw[:2000] if raw else "AI returned no content.",
+                                    "clean_transcript": "", "speaker_dialogue": ""})
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")
 
     r = results[0] if n == 1 else None

@@ -3,17 +3,6 @@ name: Build & Publish Desktop App
 on:
   push:
     branches: [main]
-    paths:
-      - 'app.py'
-      - 'transcript_agent.py'
-      - 'video_analyzer.py'
-      - 'launcher.py'
-      - 'api.py'
-      - 'requirements.txt'
-      - 'TranscriptAgent.spec'
-      - 'create_icon.py'
-      - 'setup_windows.bat'
-      - 'setup_mac.sh'
     tags: ['v*.*']
   workflow_dispatch:
     inputs:

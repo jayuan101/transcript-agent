@@ -7,7 +7,7 @@ set "APPDIR=%~dp0"
 cls
 echo.
 echo  ============================================================
-echo    Transcript Agent v2.1.3
+echo    Transcript Agent v2.1.4
 echo  ============================================================
 echo.
 

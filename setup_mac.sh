@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent v2.1.3  |  macOS Installer
+#   Transcript Agent v2.1.4  |  macOS Installer
 #   Run once to install, then double-click the Desktop launcher.
 #   Run again at any time to update or repair.
 # ============================================================
@@ -11,7 +11,7 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="2.1.3"
+CURRENT_VERSION="2.1.4"
 APP_URL="http://localhost:7860"
 
 # ── Colour helpers ─────────────────────────────────────────────────────────────

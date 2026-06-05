@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.4 — 2026-06-05
+- Always-on sleep prevention: machine stays awake the entire time the app is running (not just during jobs)
+  - Windows: SetThreadExecutionState blocks idle sleep + lid-close blocked from app startup
+  - Mac: caffeinate -i -m -s subprocess keeps system awake on both battery and AC power
+
 ## v2.1.3 — 2026-06-05
 - GPU: MediaPipe face/pose landmarkers now use Delegate.GPU when GPU is enabled (falls back to CPU if unsupported on current platform)
 - GPU: Whisper on CUDA enables cudnn.benchmark and allow_tf32 for ~10% faster convolutions/matmul on Ampere+ GPUs

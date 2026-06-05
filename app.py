@@ -1879,10 +1879,12 @@ _PDF_LANGUAGES = [
 def _translate_transcript(
     text: str, target_language: str, api_key: str,
     provider: str = "anthropic", model: str = None, base_url: str = None,
+    use_gpu: bool = True,
 ) -> str:
     """Translate raw transcript text to target_language."""
     _model = model or ("claude-sonnet-4-6" if provider == "anthropic" else "gpt-4o")
-    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url,
+                       use_gpu=use_gpu)
     return client.chat(
         system="You are a professional translator. Translate text accurately and naturally.",
         user=(
@@ -1899,10 +1901,12 @@ def _translate_transcript(
 def _translate_combined_text(
     combined_text: str, target_language: str, api_key: str,
     provider: str = "anthropic", model: str = None, base_url: str = None,
+    use_gpu: bool = True,
 ) -> str:
     """Translate the combined report text to target_language using the selected provider."""
     _model = model or ("claude-sonnet-4-6" if provider == "anthropic" else "gpt-4o")
-    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url,
+                       use_gpu=use_gpu)
     return client.chat(
         system="You are a professional translator.",
         user=(
@@ -3278,6 +3282,7 @@ def process_file(
                             provider=provider_name,
                             model=model_name,
                             api_key=user_api_key or "",
+                            use_gpu=bool(use_gpu),
                         )
                         _va_claude_text = _llm.chat(
                             system="You are an expert interview coach providing concise, actionable feedback.",
@@ -3409,11 +3414,13 @@ def process_file(
                     _display_transcript = _translate_transcript(
                         result.clean_transcript, _out_lang,
                         api_key, provider_type, model_name, base_url,
+                        use_gpu=bool(use_gpu),
                     )
                     if result.speaker_dialogue:
                         _display_dialogue = _translate_transcript(
                             result.speaker_dialogue, _out_lang,
                             api_key, provider_type, model_name, base_url,
+                            use_gpu=bool(use_gpu),
                         )
                 except Exception as _te:
                     log_text = _add_log(f"⚠️ Translation failed: {_te} — showing original", "warn")
@@ -7214,7 +7221,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     )
 
     # ── Re-analyze with Profile — skips STT, re-runs coaching on cached transcript
-    def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name):
+    def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name, use_gpu=True):
         # result_state is a dict — use .get() not getattr
         transcript = (result.get("clean_transcript", "") if isinstance(result, dict)
                       else getattr(result, "clean_transcript", ""))
@@ -7229,6 +7236,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         client = LLMClient(
             provider=provider_cfg["type"], api_key=api_key,
             model=model_name, base_url=provider_cfg["base_url"],
+            use_gpu=bool(use_gpu),
         )
         yield ('<div style="padding:14px;color:#94a3b8;font-style:italic;">'
                '⏳ Re-analyzing with your profile — this takes about 30 seconds…</div>')
@@ -7242,7 +7250,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     reanalyze_btn.click(
         fn=reanalyze_with_profile,
         inputs=[result_state, profile_text_state, interview_deep,
-                user_api_key, provider_dropdown, model_dropdown],
+                user_api_key, provider_dropdown, model_dropdown, gpu_toggle],
         outputs=[interview_out],
     )
 

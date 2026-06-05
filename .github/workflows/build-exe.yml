@@ -40,6 +40,11 @@ jobs:
           pip install requests packaging typing_extensions
           pip install opencv-python-headless mediapipe
 
+      - name: Generate app icon
+        run: |
+          pip install pillow
+          python create_icon.py --windows
+
       - name: Build with PyInstaller
         run: pyinstaller TranscriptAgent.spec
 
@@ -121,6 +126,11 @@ jobs:
           pip install fastapi "uvicorn[standard]" python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
           pip install opencv-python-headless mediapipe
+
+      - name: Generate app icon
+        run: |
+          pip install pillow
+          python create_icon.py --mac
 
       - name: Build with PyInstaller
         run: pyinstaller TranscriptAgent.spec

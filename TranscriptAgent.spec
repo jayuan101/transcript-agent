@@ -133,7 +133,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=None,                      # add icon.ico / icon.icns here if available
+    icon='icon.ico' if sys.platform == 'win32' else 'icon.icns',
 )
 
 coll = COLLECT(
@@ -152,7 +152,7 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='TranscriptAgent.app',
-        icon=None,
+        icon='icon.icns',
         bundle_identifier='com.transcriptagent.app',
         info_plist={
             'CFBundleName':              'Transcript Agent',

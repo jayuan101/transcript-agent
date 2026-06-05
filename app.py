@@ -6248,10 +6248,21 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
+                        history_export_btn  = gr.DownloadButton(
+                            "⬇ Export History", value=None, visible=True,
+                            variant="secondary", size="sm", scale=1,
+                            elem_id="ta-history-export",
+                        )
+                        history_import_file = gr.File(
+                            label="⬆ Import History (.jsonl)", file_types=[".jsonl",".json"],
+                            visible=True, scale=2, height=50,
+                        )
                         gr.Markdown(
-                            "_Click any row to reload that session's summary._",
+                            "_Click any row to reload that session's summary. "
+                            "Export backs up your history; Import restores it._",
                             elem_classes=["ta-history-hint"],
                         )
+                    history_import_status = gr.HTML(value="", visible=False)
                     history_table = gr.Dataframe(
                         headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Tokens", "Cost", "Score", "Verdict"],
                         datatype=["str","str","str","number","str","str","str","str","str"],
@@ -6675,6 +6686,51 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
     history_table.select(fn=load_history_row, outputs=history_selected_summary)
+
+    # ── History export ────────────────────────────────────────────────────────
+    def _export_history():
+        """Return the history JSONL file path for download; create if empty."""
+        HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        if not HISTORY_PATH.exists():
+            HISTORY_PATH.write_text("", encoding="utf-8")
+        return gr.update(value=str(HISTORY_PATH), visible=True)
+
+    history_export_btn.click(fn=_export_history, outputs=history_export_btn)
+
+    # ── History import ────────────────────────────────────────────────────────
+    def _import_history(upload):
+        """Merge uploaded history JSONL into current history, deduplicating by id."""
+        if not upload:
+            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No file uploaded.</p>", visible=True), refresh_history()
+        try:
+            uploaded = Path(upload.name) if hasattr(upload, "name") else Path(str(upload))
+            existing = load_history(HISTORY_PATH)
+            existing_ids = {e.get("id") for e in existing if e.get("id")}
+            added = 0
+            with open(uploaded, encoding="utf-8", errors="replace") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        entry = json.loads(line)
+                        if entry.get("id") not in existing_ids:
+                            save_history_entry(entry, HISTORY_PATH)
+                            existing_ids.add(entry.get("id"))
+                            added += 1
+                    except Exception:
+                        pass
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Imported {added} new session(s) into history.</p>"
+            return gr.update(value=msg, visible=True), refresh_history()
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Import failed: {ex}</p>", visible=True), refresh_history()
+
+    history_import_file.change(
+        fn=_import_history,
+        inputs=[history_import_file],
+        outputs=[history_import_status, history_table],
+        queue=True,
+    )
 
     process_event = process_btn.click(
         fn=process_file,

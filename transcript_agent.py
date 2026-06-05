@@ -1287,7 +1287,7 @@ Style: {style_note}
 {content}
 </transcript>
 
-Return JSON with exactly these keys (analysis fields first, large transcript fields last):
+Return JSON with exactly these keys (analysis fields first — ALWAYS include these):
 {{
   "speaker_map": {{"SPEAKER_00": "name or role", ...}},
   "summary": "Executive summary",
@@ -1304,9 +1304,11 @@ Return JSON with exactly these keys (analysis fields first, large transcript fie
       "accent_confidence": "medium"
     }}
   ],
-  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps",
-  "speaker_dialogue": "Readable dialogue with speaker labels"
+  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps — OMIT THIS FIELD if the transcript is very long (>2000 words) to stay within token limits",
+  "speaker_dialogue": "Readable dialogue with speaker labels — OMIT THIS FIELD if the transcript is very long (>2000 words) to stay within token limits"
 }}
+
+IMPORTANT: Always write the analysis fields (summary, key_points, action_items, speaker_profiles, speaker_stats) first and completely. The clean_transcript and speaker_dialogue fields are optional — skip them if including them would exceed your output limit.
 
 For accent_indicators: analyze vocabulary, syntax, idiomatic expressions, and regional phrases.
 Always state confidence level (low/medium/high)."""
@@ -1357,9 +1359,11 @@ Return JSON with exactly these keys (in this order — analysis fields first, tr
       "accent_confidence": "medium"
     }}
   ],
-  "clean_transcript": "Full cleaned transcript with resolved speaker names and timestamps",
-  "speaker_dialogue": "Readable dialogue with resolved speaker labels"
-}}"""
+  "clean_transcript": "Full cleaned transcript — OMIT if transcript is very long (>2000 words)",
+  "speaker_dialogue": "Readable dialogue with speaker labels — OMIT if transcript is very long (>2000 words)"
+}}
+
+IMPORTANT: Always complete the analysis fields first. clean_transcript and speaker_dialogue are optional — skip them for long transcripts to avoid hitting output limits."""
 
 
 # ── processing ────────────────────────────────────────────────────────────────
@@ -1522,15 +1526,40 @@ def process_transcript(
             prompt = f"[Part {i} of {n}]\n\n" + prompt
 
         _parse_ok = False
-        for _parse_attempt in range(2):
-            _sys = sys_prompt if _parse_attempt == 0 else (
-                "IMPORTANT: Respond with ONLY a raw JSON object. "
-                "No markdown, no code fences, no explanation — just the JSON.\n\n" + sys_prompt
-            )
+        # Attempt 0: full prompt, generous tokens
+        # Attempt 1: strict JSON-only system prompt
+        # Attempt 2: analysis-only (no transcript echo) — for very long recordings
+        _ANALYSIS_ONLY_SCHEMA = """{
+  "speaker_map": {},
+  "summary": "...",
+  "key_points": [],
+  "action_items": [],
+  "speaker_profiles": {},
+  "speaker_stats": [],
+  "clean_transcript": "",
+  "speaker_dialogue": ""
+}"""
+        for _parse_attempt in range(3):
+            if _parse_attempt == 0:
+                _sys = sys_prompt
+                _max_tok = 16000
+            elif _parse_attempt == 1:
+                _sys = ("IMPORTANT: Respond with ONLY a raw JSON object. "
+                        "No markdown, no code fences, no explanation — just the JSON.\n\n"
+                        + sys_prompt)
+                _max_tok = 8000
+            else:
+                # Final fallback: analysis fields only, skip transcript echo
+                _sys = ("Return ONLY a JSON object with these keys: "
+                        "speaker_map, summary, key_points, action_items, "
+                        "speaker_profiles, speaker_stats. "
+                        "Leave clean_transcript and speaker_dialogue as empty strings. "
+                        "No markdown, no fences.")
+                _max_tok = 4000
             raw = client.chat(
                 system=_sys,
                 user=prompt,
-                max_tokens=8000 if _parse_attempt == 0 else 4000,
+                max_tokens=_max_tok,
                 thinking=False,
                 on_usage=_on_usage,
             )
@@ -1540,11 +1569,11 @@ def process_transcript(
                 break
             except json.JSONDecodeError:
                 if _parse_attempt == 0:
-                    _log("⚠️ JSON parse failed — retrying with stricter JSON-only prompt…")
+                    _log("⚠️ JSON parse failed — retrying with stricter prompt…")
+                elif _parse_attempt == 1:
+                    _log("⚠️ Still failed — retrying analysis-only (no transcript echo)…")
                 else:
-                    # Both attempts failed — return whatever raw text we got
-                    # rather than crashing the whole job
-                    _log("⚠️ JSON parse failed on retry — returning raw response as fallback")
+                    _log("⚠️ All 3 attempts failed — using raw response as fallback")
                     results.append({"raw": raw, "parse_error": True,
                                     "summary": raw[:2000] if raw else "AI returned no content.",
                                     "clean_transcript": "", "speaker_dialogue": ""})

@@ -6249,20 +6249,24 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
                         history_export_btn  = gr.DownloadButton(
-                            "⬇ Export History", value=None, visible=True,
+                            "⬇ Export", value=None, visible=True,
                             variant="secondary", size="sm", scale=1,
                             elem_id="ta-history-export",
                         )
                         history_import_file = gr.File(
-                            label="⬆ Import History (.jsonl)", file_types=[".jsonl",".json"],
+                            label="⬆ Import (.jsonl)", file_types=[".jsonl",".json"],
                             visible=True, scale=2, height=50,
                         )
-                        gr.Markdown(
-                            "_Click any row to reload that session's summary. "
-                            "Export backs up your history; Import restores it._",
-                            elem_classes=["ta-history-hint"],
+                        history_delete_btn  = gr.Button(
+                            "🗑 Delete Selected", variant="stop", size="sm", scale=1,
+                            interactive=False, elem_id="ta-history-delete",
                         )
-                    history_import_status = gr.HTML(value="", visible=False)
+                        history_clear_btn   = gr.Button(
+                            "🗑 Clear All", variant="stop", size="sm", scale=1,
+                            elem_id="ta-history-clear",
+                        )
+                    history_action_status = gr.HTML(value="", visible=False)
+                    history_selected_id   = gr.State(value=None)   # id of selected row
                     history_table = gr.Dataframe(
                         headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Tokens", "Cost", "Score", "Verdict"],
                         datatype=["str","str","str","number","str","str","str","str","str"],
@@ -6631,7 +6635,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         entries = load_history(HISTORY_PATH)
         idx = evt.index[0] if hasattr(evt, "index") else 0
         if not entries or idx >= len(entries):
-            return "_No session data found._"
+            return "_No session data found._", None, gr.update(interactive=False)
         e = entries[idx]
         tok_in  = e.get("tok_in",  0) or 0
         tok_out = e.get("tok_out", 0) or 0
@@ -6682,10 +6686,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     + (f" — {score_reason}" if score_reason else "")
                     + "  \n\n"
                 )
-        return md
+        return md, e.get("id"), gr.update(interactive=True)
 
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
-    history_table.select(fn=load_history_row, outputs=history_selected_summary)
+    history_table.select(
+        fn=load_history_row,
+        outputs=[history_selected_summary, history_selected_id, history_delete_btn],
+    )
 
     # ── History export ────────────────────────────────────────────────────────
     def _export_history():
@@ -6728,7 +6735,46 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     history_import_file.change(
         fn=_import_history,
         inputs=[history_import_file],
-        outputs=[history_import_status, history_table],
+        outputs=[history_action_status, history_table],
+        queue=True,
+    )
+
+    # ── Delete selected entry ─────────────────────────────────────────────────
+    def _delete_history_entry(entry_id):
+        if not entry_id:
+            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No entry selected.</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
+        try:
+            entries = load_history(HISTORY_PATH)
+            kept = [e for e in entries if e.get("id") != entry_id]
+            # Rewrite the file with the remaining entries (oldest first)
+            HISTORY_PATH.write_text(
+                "\n".join(json.dumps(e, ensure_ascii=False, default=str) for e in reversed(kept)) + ("\n" if kept else ""),
+                encoding="utf-8",
+            )
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Entry deleted.</p>"
+            return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Delete failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
+
+    history_delete_btn.click(
+        fn=_delete_history_entry,
+        inputs=[history_selected_id],
+        outputs=[history_action_status, history_table, history_selected_id, history_delete_btn],
+        queue=True,
+    )
+
+    # ── Clear all history ─────────────────────────────────────────────────────
+    def _clear_all_history():
+        try:
+            HISTORY_PATH.write_text("", encoding="utf-8")
+            msg = "<p style='color:#22c55e;font-size:0.82em;'>✅ All history cleared.</p>"
+            return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Clear failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
+
+    history_clear_btn.click(
+        fn=_clear_all_history,
+        outputs=[history_action_status, history_table, history_selected_id, history_delete_btn],
         queue=True,
     )
 

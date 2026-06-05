@@ -3011,11 +3011,17 @@ def process_file(
                     "speaker_dialogue": result.speaker_dialogue or "",
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
-                iv_scores=gr.update(value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',True) else "", visible=bool(_va_res and not getattr(_va_res,'error',True))),
-                iv_tl=gr.update(visible=False),
-                iv_sum=gr.update(visible=False),
+                iv_scores=gr.update(
+                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',True) else "",
+                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                iv_tl=gr.update(
+                    value=(_video_analyzer.render_timeline_figure(_va_res).to_html(full_html=False, include_plotlyjs="cdn", config={"displayModeBar":False}) if _va_res and not getattr(_va_res,'error',True) and _video_analyzer.render_timeline_figure(_va_res) else ""),
+                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                iv_sum=gr.update(
+                    value=("<ul style='margin:0;padding-left:18px;'>" + "".join(f"<li style='font-size:0.88em;color:#374151;margin-bottom:6px;'>{o}</li>" for o in getattr(_va_res,'observations',[])) + "</ul>") if _va_res and getattr(_va_res,'observations',None) else "",
+                    visible=bool(_va_res and getattr(_va_res,'observations',None))),
                 iv_vid=gr.update(value=getattr(_va_res,'annotated_video_path',None), visible=bool(_va_res and getattr(_va_res,'annotated_video_path',None))),
-                iv_prog=gr.update(value="", visible=False),
+                iv_prog=gr.update(value="<p style='color:#22c55e;font-size:0.84em;padding:4px 0;'>✅ Delivery analysis complete.</p>", visible=bool(_va_res and not getattr(_va_res,'error',True))),
             )
             break
 
@@ -5960,9 +5966,13 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     iv_person_count = gr.State(value=2)   # updated by face scan
                     iv_scan_status  = gr.HTML(value="")
 
+                    gr.HTML(
+                        '<div style="font-size:0.78em;color:#64748b;padding:6px 0 4px;">'
+                        'Video delivery analysis runs automatically when you click <b>▶ Analyze</b> above.</div>'
+                    )
                     iv_analyze_btn = gr.Button(
                         "🔍  Analyze Video", variant="primary", size="lg",
-                        elem_id="iv-analyze-btn",
+                        elem_id="iv-analyze-btn", visible=False,
                     )
 
                     # ── Results ───────────────────────────────────────────────────

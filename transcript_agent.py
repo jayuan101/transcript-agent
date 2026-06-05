@@ -1540,7 +1540,7 @@ def process_transcript(
                 break
             except json.JSONDecodeError:
                 if _parse_attempt == 0:
-                    _log("⚠️ JSON parse failed — retrying with stricter JSON-only prompt…", "warn")
+                    _log("⚠️ JSON parse failed — retrying with stricter JSON-only prompt…")
                 else:
                     raise
         _log(f"Claude analysis complete{f' ({i}/{n})' if n > 1 else ''}.")

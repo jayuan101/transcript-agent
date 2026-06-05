@@ -37,12 +37,11 @@ regex>=2023.0.0
 imageio-ffmpeg>=0.4.9
 opencv-contrib-python-headless>=4.9.0
 mediapipe>=0.10.0
-deepface>=0.0.93
 matplotlib>=3.8.0
 
 # ── Video Interview Analysis ──────────────────────────────────────────────────
-# Core (required for Video Analysis tab)
-opencv-python>=4.8.0
+# Use headless build — no display/GL libs needed in Docker/server environments
+opencv-python-headless>=4.8.0
 mediapipe>=0.10.0
 # Emotion detection backends (optional — install at least one for best accuracy)
 # deepface>=0.0.93        # most accurate; pulls in TensorFlow (~2 GB)

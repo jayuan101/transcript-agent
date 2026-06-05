@@ -62,10 +62,13 @@ class LLMClient:
              thinking: bool = False, on_usage=None) -> str:
         """on_usage(input_tokens, output_tokens) — called after each API response."""
         if self.provider == "anthropic":
+            import time as _time
             kw = {}
             if thinking:
                 kw["thinking"] = {"type": "adaptive"}
-            for _attempt in range(3):
+            _backoff = [5, 15, 30, 60]   # seconds between retries on overloaded
+            _max_attempts = 5
+            for _attempt in range(_max_attempts):
                 try:
                     with self._client.messages.stream(
                         model=self.model,
@@ -80,14 +83,31 @@ class LLMClient:
                     result = next((b.text for b in resp.content if b.type == "text"), "")
                     if result:
                         return result
-                    # empty text — retry without thinking on second attempt
                     if _attempt == 1:
                         kw.pop("thinking", None)
                 except Exception as _e:
-                    if _attempt == 2:
+                    _err_str = str(_e).lower()
+                    _is_overloaded = (
+                        "overloaded" in _err_str
+                        or "529" in _err_str
+                        or getattr(_e, "status_code", None) == 529
+                    )
+                    _is_rate_limit = (
+                        "rate" in _err_str or "429" in _err_str
+                        or getattr(_e, "status_code", None) == 429
+                    )
+                    if _attempt >= _max_attempts - 1:
+                        if _is_overloaded:
+                            raise RuntimeError(
+                                "Claude is temporarily at capacity. "
+                                "Please wait a moment and try again."
+                            ) from _e
                         raise
-                    import time as _time
-                    _time.sleep(3)
+                    wait = _backoff[min(_attempt, len(_backoff)-1)]
+                    if _is_overloaded or _is_rate_limit:
+                        _time.sleep(wait)
+                    else:
+                        _time.sleep(3)
             return ""
         else:
             import re as _re2, time as _t2

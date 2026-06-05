@@ -2045,6 +2045,12 @@ def _friendly_api_error(err: str, provider_name: str = "", model_name: str = "")
             f"Cannot connect to {provider_name or 'the API'}. "
             "Check your internet connection, firewall, or VPN, then try again."
         )
+    # 529 / overloaded
+    if "overloaded" in e or "529" in err or "at capacity" in e:
+        return (
+            "Claude is temporarily at capacity (overloaded). "
+            "The app will retry automatically — or wait a moment and try again."
+        )
     # 429 / quota
     if "429" in err or "resource_exhausted" in e or "quota" in e:
         delay_m = _re.search(r"retry in (\d+(?:\.\d+)?)s", err, _re.IGNORECASE)

@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-APP_VERSION = "2.0.3"
+APP_VERSION = "2.1.5"
 
 block_cipher = None
 HERE = Path(SPECPATH)

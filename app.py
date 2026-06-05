@@ -7,6 +7,10 @@ import sys
 # Allow TensorFlow (DeepFace) and PyTorch to use GPU when available.
 # TF picks up GPU automatically; setting memory growth avoids OOM crashes.
 os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
+# XLA JIT compilation — speeds up TF/DeepFace inference on GPU
+os.environ.setdefault("TF_XLA_FLAGS", "--tf_xla_auto_jit=2")
+# Disable TF info/warning spam
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
 # Fix for PyInstaller --noconsole: sys.stdout/stderr are None when there is no
 # console window. uvicorn's DefaultFormatter calls stream.isatty() → crash.
@@ -3185,7 +3189,7 @@ def process_file(
 
                 def _va_worker():
                     try:
-                        thumbs, _ = _video_analyzer.scan_faces(uploaded_file)
+                        thumbs, _ = _video_analyzer.scan_faces(uploaded_file, use_gpu=bool(use_gpu))
                         pids = list(thumbs.keys())
                         _role_labels = [iv_role_0, iv_role_1, iv_role_2, iv_role_3]
                         _rm = {pid: (_role_labels[i] if i < len(_role_labels) else f"Person {i+1}")

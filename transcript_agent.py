@@ -801,6 +801,13 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     if dur_secs > 0:
         _log(f"Loading Whisper '{model_size}' model… (device: {_device_label})")
     model = openai_whisper.load_model(model_size, device=device)
+    if device == "cuda":
+        try:
+            import torch as _t
+            _t.backends.cudnn.benchmark = True       # faster convolutions for fixed input sizes
+            _t.backends.cuda.matmul.allow_tf32 = True  # ~10% faster matmul on Ampere+
+        except Exception:
+            pass
     _log(f"Model loaded on {_device_label}.")
 
     with _progress_lock:

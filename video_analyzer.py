@@ -235,9 +235,19 @@ class _CentroidTracker:
 
 class VideoAnalyzer:
 
+    @staticmethod
+    def _mp_delegate(use_gpu: bool):
+        """Return mediapipe GPU delegate when use_gpu=True and GPU is available, else CPU."""
+        if not use_gpu:
+            return _mp_tasks.BaseOptions.Delegate.CPU
+        try:
+            return _mp_tasks.BaseOptions.Delegate.GPU
+        except Exception:
+            return _mp_tasks.BaseOptions.Delegate.CPU
+
     # ── Public API: uploaded-video pipeline ───────────────────────────────────
 
-    def scan_faces(self, video_path: str, progress_cb=None) -> Tuple[Dict[int, str], float]:
+    def scan_faces(self, video_path: str, progress_cb=None, use_gpu: bool = True) -> Tuple[Dict[int, str], float]:
         if not _HAS_MP: return {}, 0.0
         try: fl = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
         except Exception as e: print(f"[VA] model error: {e}"); return {}, 0.0
@@ -248,7 +258,8 @@ class VideoAnalyzer:
         dur = tot / fps
 
         opts = _mp_vision.FaceLandmarkerOptions(
-            base_options=_mp_tasks.BaseOptions(model_asset_path=fl),
+            base_options=_mp_tasks.BaseOptions(model_asset_path=fl,
+                                               delegate=self._mp_delegate(use_gpu)),
             num_faces=5, output_face_blendshapes=False,
             output_facial_transformation_matrixes=False,
             min_face_detection_confidence=0.4, min_face_presence_confidence=0.4,
@@ -329,9 +340,11 @@ class VideoAnalyzer:
         dur  = tot / fps
         ivl  = max(1, int(fps / sample_fps))
 
+        _delegate = self._mp_delegate(use_gpu)
         fl_opts = _mp_vision.FaceLandmarkerOptions(
-            base_options=_mp_tasks.BaseOptions(model_asset_path=fl), num_faces=5,
-            output_face_blendshapes=True, output_facial_transformation_matrixes=True,
+            base_options=_mp_tasks.BaseOptions(model_asset_path=fl, delegate=_delegate),
+            num_faces=5, output_face_blendshapes=True,
+            output_facial_transformation_matrixes=True,
             min_face_detection_confidence=0.4, min_face_presence_confidence=0.4,
             min_tracking_confidence=0.4,
         )
@@ -340,7 +353,8 @@ class VideoAnalyzer:
         if pl:
             pose_lm = _mp_vision.PoseLandmarker.create_from_options(
                 _mp_vision.PoseLandmarkerOptions(
-                    base_options=_mp_tasks.BaseOptions(model_asset_path=pl), num_poses=4,
+                    base_options=_mp_tasks.BaseOptions(model_asset_path=pl, delegate=_delegate),
+                    num_poses=4,
                     min_pose_detection_confidence=0.4, min_pose_presence_confidence=0.4,
                     min_tracking_confidence=0.4,
                 )

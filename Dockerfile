@@ -17,15 +17,18 @@ LABEL org.opencontainers.image.title="Transcript Agent" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
-# System packages — ffmpeg for audio/video; libgl1+libgles2 for mediapipe/OpenCV
+# System packages — ffmpeg + full GL/EGL stack for mediapipe on headless Linux
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
     libgl1 \
     libgles2 \
+    libegl1 \
+    libgbm1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
+    libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -69,6 +72,10 @@ USER user
 
 # Whisper model cache — mount as volume to avoid re-downloading on restart
 ENV XDG_CACHE_HOME=/app/.cache
+
+# Force software GL rendering — mediapipe/OpenCV won't need hardware GPU drivers
+ENV LIBGL_ALWAYS_SOFTWARE=1
+ENV MESA_GL_VERSION_OVERRIDE=3.3
 
 # Gradio — listen on all interfaces so Docker port mapping works
 ENV GRADIO_SERVER_NAME=0.0.0.0

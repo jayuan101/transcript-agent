@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.1.3 — 2026-06-05
+- GPU: MediaPipe face/pose landmarkers now use Delegate.GPU when GPU is enabled (falls back to CPU if unsupported on current platform)
+- GPU: Whisper on CUDA enables cudnn.benchmark and allow_tf32 for ~10% faster convolutions/matmul on Ampere+ GPUs
+- GPU: TF_XLA_FLAGS auto-jit=2 enables XLA JIT compilation for TF/DeepFace at startup; TF_CPP_MIN_LOG_LEVEL=2 suppresses TF noise
+- GPU: scan_faces() now respects use_gpu toggle and passes correct delegate
+
 ## v2.1.2 — 2026-06-05
 - Fix: removed broken app_kwargs uvicorn timeout setting — was targeting FastAPI not uvicorn, had no effect and risked unexpected keyword error
 

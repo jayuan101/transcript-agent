@@ -201,13 +201,27 @@ class LLMClient:
 
 # ── resolve bundled ffmpeg (works on Windows without a system ffmpeg install) ──
 import subprocess as _sp
+import shutil as _shutil
 import numpy as _np
 
-try:
-    import imageio_ffmpeg as _iff
-    FFMPEG_EXE = _iff.get_ffmpeg_exe()   # full path to bundled binary
-except ImportError:
-    FFMPEG_EXE = "ffmpeg"                 # fall back to system ffmpeg
+def _resolve_ffmpeg() -> str:
+    # 1. imageio_ffmpeg bundles a binary — use it if the file actually exists
+    try:
+        import imageio_ffmpeg as _iff
+        _candidate = _iff.get_ffmpeg_exe()
+        if _candidate and __import__("os").path.isfile(_candidate):
+            return _candidate
+    except Exception:
+        pass
+    # 2. system ffmpeg on PATH
+    _sys_ffmpeg = _shutil.which("ffmpeg")
+    if _sys_ffmpeg:
+        return _sys_ffmpeg
+    # 3. bare name — last resort (will raise FileNotFoundError at call time
+    #    with a clear message rather than a silent WinError 2)
+    return "ffmpeg"
+
+FFMPEG_EXE = _resolve_ffmpeg()
 
 # patch Whisper's internal audio loader to use the resolved binary
 try:
@@ -784,16 +798,21 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
         tmp_path = tmp.name
         tmp.close()
         # -vn: ignore video, -sn: ignore subtitles, force pcm_s16le mono 16k for Whisper
-        proc = _sp.run(
-            [FFMPEG_EXE, "-y", "-i", path,
-             "-vn", "-sn", "-acodec", "pcm_s16le",
-             "-ar", "16000", "-ac", "1",
-             tmp_path],
-            capture_output=True,
-        )
+        try:
+            proc = _sp.run(
+                [FFMPEG_EXE, "-y", "-i", path,
+                 "-vn", "-sn", "-acodec", "pcm_s16le",
+                 "-ar", "16000", "-ac", "1",
+                 tmp_path],
+                capture_output=True,
+            )
+        except FileNotFoundError:
+            raise RuntimeError(
+                "ffmpeg not found. Re-run setup_windows.bat (or setup_mac.sh on Mac) "
+                "to reinstall dependencies, then try again."
+            )
         if proc.returncode != 0:
             err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
-            # keep the error short but informative
             tail = "\n".join(err.splitlines()[-8:]) if err else "(no stderr output)"
             raise RuntimeError(
                 "ffmpeg failed extracting audio from video.\n"
@@ -1151,6 +1170,13 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
             if on_log:
                 sz_mb = Path(upload_path).stat().st_size / 1_048_576
                 on_log(f"Audio extracted for upload ({sz_mb:.1f} MB)", "info")
+        except FileNotFoundError:
+            if on_log:
+                on_log(
+                    "ffmpeg not found — audio extraction skipped, uploading original. "
+                    "Re-run setup_windows.bat (or setup_mac.sh) to fix this.",
+                    "warn",
+                )
         except Exception as _e:
             if on_log:
                 on_log(f"Audio extraction failed ({_e}), uploading original", "warn")

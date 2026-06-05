@@ -1473,10 +1473,13 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          net=gr.update(), stats=gr.update(), rs=None,
          iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
          iv_vid=gr.update(), iv_prog=gr.update()):
+    def _dl(v):
+        if isinstance(v, gr.update().__class__): return v
+        return gr.update(value=v, visible=bool(v)) if v else gr.update(visible=False)
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
-            dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
-            dl_srt, dl_vtt, dl_docx,
+            _dl(dl_t), _dl(dl_s), _dl(dl_r), _dl(dl_c), _dl(dl_j), _dl(dl_p),
+            _dl(dl_srt), _dl(dl_vtt), _dl(dl_docx),
             dl_acc, log, eta, net, stats, rs,
             iv_scores, iv_tl, iv_sum, iv_vid, iv_prog)
 
@@ -5491,7 +5494,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.0.2"
+APP_VERSION = "1.3.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5859,60 +5862,30 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("⬇  Download Outputs", open=False, elem_id="ta-dl-accordion")
+            download_accordion = gr.Accordion("⬇  Download", open=False, elem_id="ta-dl-accordion")
             with download_accordion:
                 gr.HTML(
                     '<div class="ta-dl-panel-header">'
-                    '<span class="ta-dl-panel-title">Choose a file to download</span>'
-                    '<span class="ta-dl-panel-sub">All outputs are generated automatically after analysis</span>'
+                    '<span class="ta-dl-panel-title">Download your outputs</span>'
+                    '<span class="ta-dl-panel-sub">All files are generated automatically after analysis completes</span>'
                     '</div>'
                 )
-                dl_format_dropdown = gr.Dropdown(
-                    label="Select output file",
-                    choices=[
-                        "📄  Clean Transcript (.txt)",
-                        "🎙  Speaker Dialogue (.txt)",
-                        "📋  Full Report (.md)",
-                        "📦  Combined Report (.txt)",
-                        "🗂  Raw Data (.json)",
-                        "📑  Report — PDF",
-                        "📝  Report — DOCX",
-                        "🎬  Subtitles (.srt)",
-                        "🎬  Subtitles (.vtt)",
-                    ],
-                    value="📑  Report — PDF",
-                    interactive=True,
-                    elem_id="ta-dl-format-sel",
-                )
-                # Hidden file components (populated by backend, triggered by dropdown)
-                dl_transcript = gr.File(label="Transcript (.txt)",       visible=False, elem_id="ta-dl-transcript")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)", visible=False, elem_id="ta-dl-speakers")
-                dl_report     = gr.File(label="Report (.md)",            visible=False, elem_id="ta-dl-report")
-                dl_pdf        = gr.File(label="Report (.pdf)",           visible=False, elem_id="ta-dl-pdf")
-                dl_docx       = gr.File(label="Report (.docx)",          visible=False, elem_id="ta-dl-docx")
-                dl_combined   = gr.File(label="Combined Report (.txt)",  visible=False, elem_id="ta-dl-combined")
-                dl_json       = gr.File(label="Raw Data (.json)",        visible=False, elem_id="ta-dl-json")
-                dl_srt        = gr.File(label="Subtitles (.srt)",        visible=False, elem_id="ta-dl-srt")
-                dl_vtt        = gr.File(label="Subtitles (.vtt)",        visible=False, elem_id="ta-dl-vtt")
-                # Visible download area — shows selected file
-                dl_active = gr.File(label="Download", visible=False, elem_id="ta-dl-active")
-                gr.HTML('<div class="ta-dl-divider"></div>')
-                with gr.Row(elem_id="ta-dl-regen-row"):
-                    pdf_lang_input = gr.Dropdown(
-                        label="Output language (PDF & DOCX)",
-                        choices=_PDF_LANGUAGES,
-                        value="Same as source",
-                        scale=3,
-                        elem_id="ta-dl-lang-sel",
-                    )
-                    pdf_regen_btn = gr.Button("↺  Regenerate PDF & DOCX", scale=1, size="sm", elem_id="ta-pdf-regen-btn")
-                report_format_radio = gr.Radio(
-                    choices=["PDF", "DOCX"],
-                    value="PDF",
-                    label="Report format",
-                    interactive=True,
-                    visible=False,  # kept for backend compat, hidden from UI
-                )
+                # All download files shown directly — visible when populated after analysis
+                dl_pdf        = gr.File(label="📑  Download — Report (PDF)",           visible=False, elem_id="ta-dl-pdf")
+                dl_docx       = gr.File(label="📝  Download — Report (DOCX)",          visible=False, elem_id="ta-dl-docx")
+                dl_transcript = gr.File(label="📄  Download — Transcript (.txt)",      visible=False, elem_id="ta-dl-transcript")
+                dl_speakers   = gr.File(label="🎙  Download — Speaker Dialogue (.txt)",visible=False, elem_id="ta-dl-speakers")
+                dl_report     = gr.File(label="📋  Download — Full Report (.md)",      visible=False, elem_id="ta-dl-report")
+                dl_combined   = gr.File(label="📦  Download — Combined Report (.txt)", visible=False, elem_id="ta-dl-combined")
+                dl_json       = gr.File(label="🗂  Download — Raw Data (.json)",       visible=False, elem_id="ta-dl-json")
+                dl_srt        = gr.File(label="🎬  Download — Subtitles (.srt)",       visible=False, elem_id="ta-dl-srt")
+                dl_vtt        = gr.File(label="🎬  Download — Subtitles (.vtt)",       visible=False, elem_id="ta-dl-vtt")
+                # stub components kept for wiring compat
+                dl_active          = gr.State(value=None)
+                dl_format_dropdown = gr.State(value=None)
+                pdf_lang_input     = gr.Dropdown(label="Output language (PDF & DOCX)", choices=_PDF_LANGUAGES, value="Same as source", visible=False, elem_id="ta-dl-lang-sel")
+                pdf_regen_btn      = gr.Button("↺  Regenerate PDF & DOCX", visible=False, elem_id="ta-pdf-regen-btn")
+                report_format_radio = gr.Radio(choices=["PDF","DOCX"], value="PDF", label="Report format", interactive=True, visible=False)
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -6618,44 +6591,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         queue=False,
     )
 
-    _DL_MAP = {
-        "📄  Clean Transcript (.txt)":  "transcript",
-        "🎙  Speaker Dialogue (.txt)":  "speakers",
-        "📋  Full Report (.md)":        "report",
-        "📦  Combined Report (.txt)":   "combined",
-        "🗂  Raw Data (.json)":         "json",
-        "📑  Report — PDF":             "pdf",
-        "📝  Report — DOCX":            "docx",
-        "🎬  Subtitles (.srt)":         "srt",
-        "🎬  Subtitles (.vtt)":         "vtt",
-    }
-    _DL_COMPS = {
-        "transcript": dl_transcript,
-        "speakers":   dl_speakers,
-        "report":     dl_report,
-        "combined":   dl_combined,
-        "json":       dl_json,
-        "pdf":        dl_pdf,
-        "docx":       dl_docx,
-        "srt":        dl_srt,
-        "vtt":        dl_vtt,
-    }
 
-    def _show_selected_download(choice, *file_values):
-        key = _DL_MAP.get(choice, "pdf")
-        idx = list(_DL_COMPS.keys()).index(key)
-        file_val = file_values[idx] if idx < len(file_values) else None
-        if file_val:
-            return gr.update(value=file_val, visible=True, label=choice.split("  ", 1)[-1])
-        return gr.update(visible=False)
-
-    dl_format_dropdown.change(
-        fn=_show_selected_download,
-        inputs=[dl_format_dropdown, dl_transcript, dl_speakers, dl_report,
-                dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt],
-        outputs=[dl_active],
-        queue=False,
-    )
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
     _id = lambda v: v

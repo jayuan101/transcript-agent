@@ -17,12 +17,15 @@ LABEL org.opencontainers.image.title="Transcript Agent" \
       org.opencontainers.image.created="${BUILD_DATE}" \
       org.opencontainers.image.revision="${GIT_SHA}"
 
-# System packages — ffmpeg for audio/video, libgl1/libglib2.0-0 for OpenCV
+# System packages — ffmpeg for audio/video; libgl1+libgles2 for mediapipe/OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
     libgl1 \
+    libgles2 \
     libglib2.0-0 \
+    libsm6 \
+    libxext6 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

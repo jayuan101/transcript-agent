@@ -11,7 +11,7 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="1.1.87"
+CURRENT_VERSION="2.0.0"
 APP_URL="http://localhost:7860"
 
 # ── Colour helpers ─────────────────────────────────────────────────────────────

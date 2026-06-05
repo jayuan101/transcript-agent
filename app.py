@@ -6201,8 +6201,14 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 file_types=SUPPORTED,
                 type="filepath",
             )
+            gr.HTML("""
+<div style="margin:6px 0 2px;padding:8px 10px;background:#fefce8;border:1px solid #fbbf24;
+     border-radius:8px;font-size:0.78em;color:#92400e;line-height:1.5;">
+  ⚠️ <strong>Large video? Don't upload — paste the file path below instead.</strong><br>
+  Uploads time out on files &gt; ~500 MB. Pasting the path reads directly from disk — instant and no timeout.
+</div>""")
             path_input = gr.Textbox(
-                label="Or paste a file path or URL (large files / no upload wait)",
+                label="Paste file path or URL (large files — no upload, no timeout)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
             image_input = gr.File(visible=False, type="filepath", elem_id="ta-image-input")
@@ -7468,14 +7474,17 @@ if __name__ == "__main__":
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],
         inbrowser=not _docker,
         show_error=True,
-        share=not _docker,
+        share=False,
     )
     if "max_file_size" in _launch_sig:
-        _launch_kw["max_file_size"] = "4gb"
+        _launch_kw["max_file_size"] = "10gb"
     if "strict_cors" in _launch_sig:
         _launch_kw["strict_cors"] = not _docker
     if "show_api" in _launch_sig:
         _launch_kw["show_api"] = False
+    if "app_kwargs" in _launch_sig:
+        # Raise uvicorn keep-alive timeout so large uploads don't get cut off
+        _launch_kw["app_kwargs"] = {"timeout_keep_alive": 600}
 
     import socket as _socket
     try:

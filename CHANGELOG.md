@@ -3,6 +3,10 @@
 ## v2.1.0 — 2026-06-05
 - GPU toggle preference persisted in browser localStorage — survives page reloads
 - GPU detected at startup in run.bat (Windows) and setup_mac.sh (Mac); result passed to app via TA_GPU_DEVICE so the toggle is pre-selected without re-running detection in the browser
+- GPU now accelerates DeepFace emotion analysis (tf.device context) and Ollama LLM (num_gpu=-1 forces all layers onto GPU) in addition to Whisper
+- Merge two files into one transcript: paste a second file path in the new "Part 2" field — both files are transcribed sequentially, timestamps offset, then merged before AI analysis
+- Large file upload: prominent warning banner directing files >500 MB to the path input; share tunnel disabled for local installs (was causing upload timeouts); max_file_size raised to 10 GB
+- Fix: Whisper progress stalled at 99% — overrode tqdm close() to fire final 100% callback
 - Fix: ffmpeg resolution now verifies the binary exists on disk before using it, then falls back to shutil.which — prevents silent WinError 2 on machines where the imageio_ffmpeg path is stale
 - Fix: clear user-facing error when ffmpeg is missing ("re-run setup script") instead of cryptic WinError 2 in both Whisper and Deepgram paths
 

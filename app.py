@@ -3188,7 +3188,8 @@ def process_file(
                                for i, pid in enumerate(pids[:int(iv_person_count or 2)])}
                         def _pcb(v): _va_q.put(("pct", v))
                         res = _video_analyzer.analyze_video(
-                            uploaded_file, _rm, sample_fps=1.0, progress_cb=_pcb
+                            uploaded_file, _rm, sample_fps=1.0, progress_cb=_pcb,
+                            use_gpu=bool(use_gpu),
                         )
                         _va_q.put(("done", res))
                     except Exception as _e:
@@ -6284,12 +6285,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     _gpu_label = {"cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS",
                                   "dml":"AMD/Intel DirectML"}.get(_ta_gpu_env, _ta_gpu_env)
                 gpu_toggle = gr.Checkbox(
-                    label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper & DeepFace"
+                    label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper, DeepFace & Ollama"
                            if _gpu_available else
                            "⚡ Use GPU when available (no GPU detected on this machine)"),
                     value=_gpu_available,
-                    info=("GPU acceleration active — Whisper transcription is 5-10x faster. "
-                          "Uncheck to force CPU."
+                    info=("GPU acceleration active — Whisper 5-10x faster, DeepFace emotion analysis on GPU, "
+                          "Ollama LLM uses all GPU layers. Uncheck to force CPU."
                           if _gpu_available else
                           "No GPU found. Supports: NVIDIA (CUDA), AMD/Intel (DirectML on Windows), "
                           "Apple Silicon (MPS). Install the right PyTorch build to enable."),

@@ -43,9 +43,13 @@ from typing import Optional
 class LLMClient:
     """Thin wrapper normalising Anthropic and OpenAI-compatible provider SDKs."""
 
-    def __init__(self, provider: str, api_key: str, model: str, base_url: str = None):
+    def __init__(self, provider: str, api_key: str, model: str, base_url: str = None,
+                 use_gpu: bool = True):
         self.provider = provider  # "anthropic" | "openai" | "openai_compat"
         self.model = model
+        self.use_gpu = use_gpu
+        # Detect Ollama by base_url so we can pass num_gpu options
+        self._is_ollama = bool(base_url and ("11434" in base_url or "ollama" in base_url.lower()))
         if provider == "anthropic":
             import anthropic as _ant
             self._client = _ant.Anthropic(api_key=api_key) if api_key else _ant.Anthropic()
@@ -113,7 +117,7 @@ class LLMClient:
             import re as _re2, time as _t2
             for _attempt in range(4):
                 try:
-                    resp = self._client.chat.completions.create(
+                    _kw = dict(
                         model=self.model,
                         max_tokens=max_tokens,
                         messages=[
@@ -121,6 +125,10 @@ class LLMClient:
                             {"role": "user", "content": user},
                         ],
                     )
+                    if self._is_ollama:
+                        # num_gpu=-1 = all layers on GPU; 0 = CPU only
+                        _kw["extra_body"] = {"options": {"num_gpu": -1 if self.use_gpu else 0}}
+                    resp = self._client.chat.completions.create(**_kw)
                     if on_usage and resp.usage:
                         on_usage(resp.usage.prompt_tokens, resp.usage.completion_tokens)
                     return resp.choices[0].message.content or ""
@@ -2394,7 +2402,8 @@ def run(
 
     if on_stage_change: on_stage_change("claude")
     _model = model or ("claude-opus-4-8" if provider == "anthropic" else "gpt-4o")
-    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url)
+    client = LLMClient(provider=provider, api_key=api_key, model=_model, base_url=base_url,
+                       use_gpu=use_gpu)
 
     image_context = ""
     if image_paths:

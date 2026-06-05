@@ -304,20 +304,21 @@ class VideoAnalyzer:
         progress_cb=None,
         cultural_mode: str = "both",
         annotate: bool = False,
+        use_gpu: bool = True,
     ) -> VideoAnalysisResult:
         if not _HAS_MP:
             r = VideoAnalysisResult()
             r.error = "mediapipe not installed. Run: pip install mediapipe opencv-python"
             return r
         try:
-            return self._run_upload(video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate)
+            return self._run_upload(video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate, use_gpu=use_gpu)
         except Exception as exc:
             import traceback
             r = VideoAnalysisResult()
             r.error = f"Analysis failed: {exc}\n{traceback.format_exc()}"
             return r
 
-    def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate=False):
+    def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate=False, use_gpu=True):
         fl   = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
         try:   pl = _ensure_model(_POSE_LANDMARKER_URL, "pose_landmarker_lite.task")
         except: pl = None
@@ -485,7 +486,7 @@ class VideoAnalyzer:
             ec   = abs(yaw) < 20 and abs(pitch) < 20
             jaw  = self._bs_val(bs, "jawOpen") if bs else 0.0
             crop = frame[y:y+fh, x:x+fw]
-            emo, eprobs = self._emotion(crop, bs)
+            emo, eprobs = self._emotion(crop, bs, use_gpu=use_gpu)
 
             bl = self._body_language(pose_res, pitch_hist, roll) if pose_res else BodyLanguageSummary()
             posture = bl.body_language_label.lower() if bl.body_language_label != "NEUTRAL" else "upright"
@@ -523,12 +524,20 @@ class VideoAnalyzer:
             if b.category_name == name: return float(b.score)
         return 0.0
 
-    def _emotion(self, crop, bs) -> Tuple[str, Dict[str, float]]:
+    def _emotion(self, crop, bs, use_gpu: bool = True) -> Tuple[str, Dict[str, float]]:
         if crop is not None and crop.size > 0 and crop.shape[0] >= 20:
             if _HAS_DEEPFACE:
                 try:
-                    res = _DeepFace.analyze(crop, actions=["emotion"], enforce_detection=False, silent=True,
-                                            detector_backend="skip")
+                    try:
+                        import tensorflow as _tf
+                        _device = "/GPU:0" if (use_gpu and _tf.config.list_physical_devices("GPU")) else "/CPU:0"
+                        ctx = _tf.device(_device)
+                    except Exception:
+                        import contextlib as _cl
+                        ctx = _cl.nullcontext()
+                    with ctx:
+                        res = _DeepFace.analyze(crop, actions=["emotion"], enforce_detection=False, silent=True,
+                                                detector_backend="skip")
                     raw = (res[0] if isinstance(res, list) else res)["emotion"]
                     dom = max(raw, key=raw.get)
                     return self._map_emo(dom), {self._map_emo(k): v for k, v in raw.items()}

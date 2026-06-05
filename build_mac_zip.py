@@ -2,7 +2,7 @@
 import zipfile
 from pathlib import Path
 
-APP_VERSION = "2.0.3"
+APP_VERSION = "2.1.0"
 
 out_zip = Path("dist/TranscriptAgent-Mac.zip")
 out_zip.parent.mkdir(exist_ok=True)

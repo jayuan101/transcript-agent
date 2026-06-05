@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.0.3 — 2026-06-05
+## v2.1.0 — 2026-06-05
 - GPU toggle preference persisted in browser localStorage — survives page reloads
 - GPU detected at startup in run.bat (Windows) and setup_mac.sh (Mac); result passed to app via TA_GPU_DEVICE so the toggle is pre-selected without re-running detection in the browser
 - Fix: ffmpeg resolution now verifies the binary exists on disk before using it, then falls back to shutil.which — prevents silent WinError 2 on machines where the imageio_ffmpeg path is stale

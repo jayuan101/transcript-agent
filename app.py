@@ -3037,6 +3037,49 @@ def process_file(
                 f_srt  = str(job_dir / f"{stem}.srt")   if (job_dir / f"{stem}.srt").exists()  else None
                 f_vtt  = str(job_dir / f"{stem}.vtt")   if (job_dir / f"{stem}.vtt").exists()  else None
                 f_docx = str(job_dir / f"{stem}_report.docx") if (job_dir / f"{stem}_report.docx").exists() else None
+                # ── Append video delivery section to PDF/DOCX if available ──
+                _va_combined_section = ""
+                if _va_res and not getattr(_va_res, "error", None) and _va_res.persons:
+                    _divider = "=" * 60
+                    _thin    = "-" * 40
+                    _lines   = ["", _divider, "VIDEO DELIVERY ANALYSIS", _divider,
+                                f"  Duration : {int(_va_res.duration_seconds//60)}m {int(_va_res.duration_seconds%60)}s  |  "
+                                f"Participants : {_va_res.person_count}  |  "
+                                f"Overall : {_va_res.overall_score:.0f}/100", ""]
+                    for _pid, _p in _va_res.persons.items():
+                        _lines.append(f"  {_p.role.upper()}")
+                        _lines.append(f"  {'_'*30}")
+                        _lines.append(f"    Confidence   : {_p.confidence:.0f}/100")
+                        _lines.append(f"    Composure    : {_p.composure:.0f}/100")
+                        _lines.append(f"    Eye Contact  : {_p.eye_contact:.0f}/100")
+                        _lines.append(f"    Engagement   : {_p.engagement:.0f}/100")
+                        _lines.append(f"    Energy       : {_p.energy:.0f}/100")
+                        _lines.append(f"    Dominant Mood: {_p.dominant_emotion}")
+                        _lines.append(f"    Open Posture : {_p.open_body_pct:.0f}%  |  Arms Crossed: {_p.arm_crossed_pct:.0f}%  |  Forward Lean: {_p.forward_lean_pct:.0f}%")
+                        if _p.cultural:
+                            _lines.append(f"    Cultural Scores:")
+                            _lines.append(f"      American Interview Standard : {_p.cultural.american_score:.0f}/100")
+                            _lines.append(f"      Indian → American Adaptation: {_p.cultural.adaptation_score:.0f}/100")
+                            for _t in _p.cultural.american_tips[:3]:
+                                _lines.append(f"      • {_t[:120]}")
+                            for _t in _p.cultural.adaptation_tips[:3]:
+                                _lines.append(f"      → {_t[:120]}")
+                        _lines.append("")
+                    if _va_res.observations:
+                        _lines += ["  KEY OBSERVATIONS", "  " + _thin]
+                        for _o in _va_res.observations:
+                            _lines.append(f"    • {_o}")
+                    _va_combined_section = "\n".join(_lines)
+                    combined_text = combined_text + _va_combined_section
+
+                # ── Regenerate DOCX with interview analysis included ──────────
+                if f_docx:
+                    try:
+                        from transcript_agent import generate_docx as _gen_docx
+                        _gen_docx(result, stem, f_docx)
+                    except Exception:
+                        pass
+
                 f_p_path = job_dir / f"{stem}_report.pdf"
                 try:
                     _generate_pdf(stem, combined_text, f_p_path)

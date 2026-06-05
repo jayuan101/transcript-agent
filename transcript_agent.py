@@ -498,6 +498,58 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bo
         doc.add_heading("Transcript", 1)
         doc.add_paragraph(result.clean_transcript)
 
+    # ── Interview Coaching Analysis ───────────────────────────────────────────
+    ia = result.interview_analysis
+    if ia and not ia.get("parse_error"):
+        doc.add_heading("Interview Coaching Analysis", 1)
+
+        # Score banner
+        score   = ia.get("overall_score", "—")
+        verdict = ia.get("overall_verdict", "")
+        adv     = ia.get("advance_likelihood", "")
+        defl    = ia.get("deflection_rate", "")
+        p = doc.add_paragraph()
+        p.add_run(f"Overall Score: {score}/10").bold = True
+        if verdict: p.add_run(f"  —  {verdict}")
+        if adv:
+            doc.add_paragraph(f"Advance Likelihood: {adv}%")
+        if defl:
+            doc.add_paragraph(f"Deflection Rate: {defl}%")
+
+        # Per-question breakdown
+        qs = ia.get("questions", [])
+        if qs:
+            doc.add_heading("Question Breakdown", 2)
+            _SCORE_ICON = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
+            for q in qs:
+                qid   = q.get("id", "")
+                question = q.get("question", "")
+                sc    = q.get("score", "")
+                reason= q.get("score_reason", "")
+                said  = q.get("answer_said") or q.get("answer_summary", "")
+                ideal = q.get("model_answer") or q.get("ideal_answer", "")
+                tip   = q.get("coaching_tip", "")
+                icon  = _SCORE_ICON.get(sc, "·")
+
+                h = doc.add_heading(f"Q{qid}: {question}", 3)
+                p = doc.add_paragraph()
+                p.add_run(f"Score: {icon} {sc}").bold = True
+                if reason: p.add_run(f"  —  {reason}")
+                if said:
+                    doc.add_paragraph("What was said:").runs[0].italic = True
+                    doc.add_paragraph(said[:400])
+                if ideal:
+                    doc.add_paragraph("What could have been said:").runs[0].italic = True
+                    doc.add_paragraph(ideal[:400])
+                if tip:
+                    doc.add_paragraph("Coaching Tip:").runs[0].italic = True
+                    doc.add_paragraph(tip[:400])
+
+        adv_reason = ia.get("advance_reasoning", "")
+        if adv_reason:
+            doc.add_heading("Assessment", 2)
+            doc.add_paragraph(adv_reason)
+
     doc.save(output_path)
     return True
 
@@ -1848,6 +1900,49 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
 
     if config.include_transcript:
         sections += [divider, "FULL TRANSCRIPT", divider, result.clean_transcript, ""]
+
+    # ── Interview Coaching Analysis ───────────────────────────────────────────
+    ia = result.interview_analysis
+    if ia and not ia.get("parse_error"):
+        sections += [divider, "INTERVIEW COACHING ANALYSIS", divider]
+        score   = ia.get("overall_score", "—")
+        verdict = ia.get("overall_verdict", "")
+        adv     = ia.get("advance_likelihood", "")
+        defl    = ia.get("deflection_rate", "")
+        sections.append(f"  Overall Score     : {score} / 10  —  {verdict}")
+        if adv:
+            sections.append(f"  Advance Likelihood: {adv}%")
+        if defl:
+            sections.append(f"  Deflection Rate   : {defl}%")
+        sections.append("")
+
+        qs = ia.get("questions", [])
+        if qs:
+            _SCORE_ICON = {
+                "Great": "★", "Good": "◑",
+                "Needs Improvement": "△", "Missed": "✗",
+            }
+            sections.append("  QUESTION BREAKDOWN")
+            sections.append("  " + thin)
+            for q in qs:
+                qid      = q.get("id", "")
+                question = q.get("question", "")
+                sc       = q.get("score", "")
+                reason   = q.get("score_reason", "")
+                said     = q.get("answer_said") or q.get("answer_summary", "")
+                ideal    = q.get("model_answer") or q.get("ideal_answer", "")
+                tip      = q.get("coaching_tip", "")
+                icon     = _SCORE_ICON.get(sc, "·")
+                sections.append(f"  Q{qid}: {question}")
+                sections.append(f"    Score   : {icon} {sc}" + (f"  — {reason}" if reason else ""))
+                if said:  sections.append(f"    Said    : {said[:200]}")
+                if ideal: sections.append(f"    Ideal   : {ideal[:200]}")
+                if tip:   sections.append(f"    Tip     : {tip[:200]}")
+                sections.append("")
+
+        adv_reason = ia.get("advance_reasoning", "")
+        if adv_reason:
+            sections += ["  ASSESSMENT", "  " + thin, f"  {adv_reason}", ""]
 
     return "\n".join(sections)
 

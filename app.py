@@ -1473,10 +1473,13 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          net=gr.update(), stats=gr.update(), rs=None,
          iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
          iv_vid=gr.update(), iv_prog=gr.update()):
+    def _dl(v):
+        if isinstance(v, gr.update().__class__): return v
+        return gr.update(value=v, visible=bool(v)) if v else gr.update(visible=False)
     return (status, summary, transcript, dialogue, profiles, analytics,
             combined, interview,
-            dl_t, dl_s, dl_r, dl_c, dl_j, dl_p,
-            dl_srt, dl_vtt, dl_docx,
+            _dl(dl_t), _dl(dl_s), _dl(dl_r), _dl(dl_c), _dl(dl_j), _dl(dl_p),
+            _dl(dl_srt), _dl(dl_vtt), _dl(dl_docx),
             dl_acc, log, eta, net, stats, rs,
             iv_scores, iv_tl, iv_sum, iv_vid, iv_prog)
 
@@ -2834,8 +2837,11 @@ def process_file(
             combined_text = build_combined_report(result, config)
 
             # ── Build Interview Analysis tab (coaching + optional video delivery) ──
+            # iv_html is NOT written to the UI until the very final yield — no mid-run updates
             iv_html = _build_interview_html(result.interview_analysis)
             _va_annotated_path = None
+            _va_res = None
+            _va_timeline_html = ""
 
             _is_video_file = Path(uploaded_file).suffix.lower() in {
                 ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
@@ -2843,14 +2849,14 @@ def process_file(
             }
             if (interview_mode and _is_video_file and _HAS_VIDEO_ANALYZER
                     and not transcription_only and not _cancel_ev.is_set()):
-                log_text = _add_log("🎥 Running video delivery analysis…", "ai")
+                log_text = _add_log("━━━ Step 3 of 3 — Video Delivery Analysis ━━━", "info")
+                log_text = _add_log("🎥 Scanning faces and analysing delivery — this may take a minute…", "ai")
                 yield _out(
-                    status=_status_compact("🎥", "Analysing video delivery…", _elapsed()),
+                    status=_status_compact("🎥", "Step 3 of 3 — Video delivery…", _elapsed()),
                     log=log_text,
-                    interview=(
-                        iv_html
-                        + '<div style="padding:14px 0 4px;color:#3b82f6;font-size:0.84em;">'
-                        '🎥 Running video delivery analysis — this may take a minute…</div>'
+                    iv_prog=gr.update(
+                        value='<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Scanning video frames…</p>',
+                        visible=True,
                     ),
                 )
                 _va_q: Q.Queue = Q.Queue()
@@ -2874,18 +2880,28 @@ def process_file(
                 _va_t.start()
 
                 while _va_t.is_alive() or not _va_q.empty():
-                    try: _va_msg = _va_q.get(timeout=2.0)
-                    except Q.Empty: continue
+                    if _cancel_ev.is_set():
+                        break
+                    try: _va_msg = _va_q.get(timeout=1.0)
+                    except Q.Empty:
+                        yield _NOCHANGE  # keepalive so Gradio stream doesn't freeze
+                        continue
                     if _va_msg[0] == "pct":
                         _pct = int(_va_msg[1] * 100)
-                        yield _out(status=_status_compact("🎥", f"Video analysis {_pct}%…", _elapsed()))
+                        log_text = _add_log(f"🎥 Video analysis {_pct}%…", "progress")
+                        yield _out(
+                            status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
+                            log=log_text,
+                            iv_prog=gr.update(
+                                value=f'<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Analysing frames… {_pct}%</p>',
+                                visible=True,
+                            ),
+                        )
                     elif _va_msg[0] == "done":
                         _va_res = _va_msg[1]
-                        if _va_res and not _va_res.error:
-                            iv_html = _build_unified_interview_html(
-                                result.interview_analysis, _va_res
-                            )
-                            _va_annotated_path = None  # skip annotated video re-encode (too slow)
+                        if _va_res and not getattr(_va_res, "error", None):
+                            log_text = _add_log("✅ Video delivery analysis complete.", "done")
+                            yield _out(log=log_text)
                         else:
                             log_text = _add_log(f"⚠️ Video analysis: {getattr(_va_res,'error','failed')}", "warn")
                             yield _out(log=log_text)
@@ -2895,18 +2911,31 @@ def process_file(
                         yield _out(log=log_text)
                         break
 
-                log_text = _add_log("🎥 Video delivery analysis complete.", "done")
-                yield _out(log=log_text)
-
                 # ── Claude interprets the video analysis results ──────────────
-                if _va_res and not getattr(_va_res, "error", True):
+                if _va_res and not getattr(_va_res, "error", None):
                     try:
-                        log_text = _add_log("🤖 Claude is reviewing video analysis results…", "ai")
+                        log_text = _add_log("🤖 Claude writing interview assessment…", "ai")
                         yield _out(
                             status=_status_compact("🤖", "Claude reviewing video results…", _elapsed()),
                             log=log_text,
                         )
                         _persons = getattr(_va_res, "persons", {})
+                        # compute overall grade from average candidate scores
+                        _candidate_scores = []
+                        for _role, _p in _persons.items():
+                            if "candidate" in _role.lower():
+                                _s = _p.get("scores", {})
+                                _avg = sum(_s.values()) / len(_s) if _s else 0
+                                _candidate_scores.append(_avg)
+                        _overall_pct = (_candidate_scores[0] if _candidate_scores
+                                        else sum(
+                                            sum(p.get("scores", {}).values()) / max(len(p.get("scores", {})), 1)
+                                            for p in _persons.values()
+                                        ) / max(len(_persons), 1))
+                        _grade = ("A" if _overall_pct >= 0.85 else
+                                  "B" if _overall_pct >= 0.70 else
+                                  "C" if _overall_pct >= 0.55 else
+                                  "D" if _overall_pct >= 0.40 else "F")
                         _scores_summary = "\n".join(
                             f"- {role}: confidence={p.get('scores',{}).get('confidence',0):.0%}, "
                             f"composure={p.get('scores',{}).get('composure',0):.0%}, "
@@ -2921,7 +2950,8 @@ def process_file(
                             "You are an expert interview coach. Based on the following video delivery "
                             "analysis data and transcript excerpt, write a concise, actionable assessment "
                             "(3-5 short paragraphs) covering: overall impression, key strengths, areas to "
-                            "improve, and one specific tip for each participant.\n\n"
+                            "improve, and one specific tip for each participant. "
+                            f"Overall grade: {_grade} ({_overall_pct:.0%}).\n\n"
                             f"PARTICIPANTS:\n{_scores_summary}\n\n"
                             f"TRANSCRIPT EXCERPT:\n{_transcript_snippet}\n\n"
                             "Write in a supportive, professional tone. Be specific and actionable."
@@ -2936,19 +2966,35 @@ def process_file(
                             user=_va_claude_prompt,
                             max_tokens=800,
                         )
+                        # grade badge colours
+                        _grade_color = {"A":"#16a34a","B":"#2563eb","C":"#d97706","D":"#dc2626","F":"#7f1d1d"}.get(_grade,"#6b7280")
                         _va_claude_html = (
-                            '<div style="margin-top:16px;padding:16px 18px;'
-                            'background:linear-gradient(135deg,rgba(29,78,216,0.08),rgba(59,130,246,0.05));'
-                            'border:1.5px solid rgba(59,130,246,0.25);border-radius:14px;">'
-                            '<div style="font-size:0.82em;font-weight:700;color:#3b82f6;margin-bottom:8px;">'
-                            '🤖 Claude\'s Interview Assessment</div>'
-                            '<div style="font-size:0.84em;line-height:1.7;color:var(--ta-text);">'
-                            + _va_claude_text.replace("\n\n", "</p><p>").replace("\n", "<br>")
-                            .replace("<p>", '<p style="margin:0 0 10px">') + '</div></div>'
+                            f'<div style="margin-top:16px;padding:16px 18px;'
+                            f'background:linear-gradient(135deg,rgba(29,78,216,0.08),rgba(59,130,246,0.05));'
+                            f'border:1.5px solid rgba(59,130,246,0.25);border-radius:14px;">'
+                            f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">'
+                            f'<span style="font-size:0.82em;font-weight:700;color:#3b82f6;">🤖 Claude\'s Interview Assessment</span>'
+                            f'<span style="font-size:1.1em;font-weight:800;color:{_grade_color};'
+                            f'background:rgba(0,0,0,0.06);border-radius:6px;padding:2px 10px;">'
+                            f'Grade: {_grade}</span></div>'
+                            f'<div style="font-size:0.84em;line-height:1.7;color:var(--ta-text);">'
+                            + _va_claude_text.replace("\n\n", "</p><p style='margin:0 0 10px'>")
+                                             .replace("\n", "<br>")
+                            + '</div></div>'
                         )
+                        iv_html = _build_unified_interview_html(result.interview_analysis, _va_res)
                         iv_html = iv_html + _va_claude_html
-                        log_text = _add_log("🤖 Claude interview assessment complete.", "done")
-                        yield _out(log=log_text, interview=iv_html)
+                        log_text = _add_log(f"🤖 Assessment complete — Final Grade: {_grade}", "done")
+                        yield _out(log=log_text)
+                        # pre-render timeline once to avoid double call in final yield
+                        try:
+                            _tl_fig = _video_analyzer.render_timeline_figure(_va_res)
+                            _va_timeline_html = (_tl_fig.to_html(
+                                full_html=False, include_plotlyjs="cdn",
+                                config={"displayModeBar": False}
+                            ) if _tl_fig else "")
+                        except Exception:
+                            _va_timeline_html = ""
                     except Exception as _ce:
                         log_text = _add_log(f"⚠️ Claude video assessment skipped: {_ce}", "warn")
                         yield _out(log=log_text)
@@ -3042,16 +3088,18 @@ def process_file(
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
                 iv_scores=gr.update(
-                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',True) else "",
-                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',None) else "",
+                    visible=bool(_va_res and not getattr(_va_res,'error',None))),
                 iv_tl=gr.update(
-                    value=(_video_analyzer.render_timeline_figure(_va_res).to_html(full_html=False, include_plotlyjs="cdn", config={"displayModeBar":False}) if _va_res and not getattr(_va_res,'error',True) and _video_analyzer.render_timeline_figure(_va_res) else ""),
-                    visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                    value=_va_timeline_html,
+                    visible=bool(_va_timeline_html)),
                 iv_sum=gr.update(
                     value=("<ul style='margin:0;padding-left:18px;'>" + "".join(f"<li style='font-size:0.88em;color:#374151;margin-bottom:6px;'>{o}</li>" for o in getattr(_va_res,'observations',[])) + "</ul>") if _va_res and getattr(_va_res,'observations',None) else "",
                     visible=bool(_va_res and getattr(_va_res,'observations',None))),
-                iv_vid=gr.update(value=getattr(_va_res,'annotated_video_path',None), visible=bool(_va_res and getattr(_va_res,'annotated_video_path',None))),
-                iv_prog=gr.update(value="<p style='color:#22c55e;font-size:0.84em;padding:4px 0;'>✅ Delivery analysis complete.</p>", visible=bool(_va_res and not getattr(_va_res,'error',True))),
+                iv_vid=gr.update(value=None, visible=False),
+                iv_prog=gr.update(
+                    value="<p style='color:#22c55e;font-size:0.84em;padding:4px 0;'>✅ Step 3 complete — Delivery analysis ready.</p>" if _va_res and not getattr(_va_res,'error',None) else "",
+                    visible=bool(_va_res and not getattr(_va_res,'error',None))),
             )
             break
 
@@ -5500,7 +5548,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.0.2"
+APP_VERSION = "1.3.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5868,60 +5916,30 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("⬇  Download Outputs", open=False, elem_id="ta-dl-accordion")
+            download_accordion = gr.Accordion("⬇  Download", open=False, elem_id="ta-dl-accordion")
             with download_accordion:
                 gr.HTML(
                     '<div class="ta-dl-panel-header">'
-                    '<span class="ta-dl-panel-title">Choose a file to download</span>'
-                    '<span class="ta-dl-panel-sub">All outputs are generated automatically after analysis</span>'
+                    '<span class="ta-dl-panel-title">Download your outputs</span>'
+                    '<span class="ta-dl-panel-sub">All files are generated automatically after analysis completes</span>'
                     '</div>'
                 )
-                dl_format_dropdown = gr.Dropdown(
-                    label="Select output file",
-                    choices=[
-                        "📄  Clean Transcript (.txt)",
-                        "🎙  Speaker Dialogue (.txt)",
-                        "📋  Full Report (.md)",
-                        "📦  Combined Report (.txt)",
-                        "🗂  Raw Data (.json)",
-                        "📑  Report — PDF",
-                        "📝  Report — DOCX",
-                        "🎬  Subtitles (.srt)",
-                        "🎬  Subtitles (.vtt)",
-                    ],
-                    value="📑  Report — PDF",
-                    interactive=True,
-                    elem_id="ta-dl-format-sel",
-                )
-                # Hidden file components (populated by backend, triggered by dropdown)
-                dl_transcript = gr.File(label="Transcript (.txt)",       visible=False, elem_id="ta-dl-transcript")
-                dl_speakers   = gr.File(label="Speaker Dialogue (.txt)", visible=False, elem_id="ta-dl-speakers")
-                dl_report     = gr.File(label="Report (.md)",            visible=False, elem_id="ta-dl-report")
-                dl_pdf        = gr.File(label="Report (.pdf)",           visible=False, elem_id="ta-dl-pdf")
-                dl_docx       = gr.File(label="Report (.docx)",          visible=False, elem_id="ta-dl-docx")
-                dl_combined   = gr.File(label="Combined Report (.txt)",  visible=False, elem_id="ta-dl-combined")
-                dl_json       = gr.File(label="Raw Data (.json)",        visible=False, elem_id="ta-dl-json")
-                dl_srt        = gr.File(label="Subtitles (.srt)",        visible=False, elem_id="ta-dl-srt")
-                dl_vtt        = gr.File(label="Subtitles (.vtt)",        visible=False, elem_id="ta-dl-vtt")
-                # Visible download area — shows selected file
-                dl_active = gr.File(label="Download", visible=False, elem_id="ta-dl-active")
-                gr.HTML('<div class="ta-dl-divider"></div>')
-                with gr.Row(elem_id="ta-dl-regen-row"):
-                    pdf_lang_input = gr.Dropdown(
-                        label="Output language (PDF & DOCX)",
-                        choices=_PDF_LANGUAGES,
-                        value="Same as source",
-                        scale=3,
-                        elem_id="ta-dl-lang-sel",
-                    )
-                    pdf_regen_btn = gr.Button("↺  Regenerate PDF & DOCX", scale=1, size="sm", elem_id="ta-pdf-regen-btn")
-                report_format_radio = gr.Radio(
-                    choices=["PDF", "DOCX"],
-                    value="PDF",
-                    label="Report format",
-                    interactive=True,
-                    visible=False,  # kept for backend compat, hidden from UI
-                )
+                # All download files shown directly — visible when populated after analysis
+                dl_pdf        = gr.File(label="📑  Download — Report (PDF)",           visible=False, elem_id="ta-dl-pdf")
+                dl_docx       = gr.File(label="📝  Download — Report (DOCX)",          visible=False, elem_id="ta-dl-docx")
+                dl_transcript = gr.File(label="📄  Download — Transcript (.txt)",      visible=False, elem_id="ta-dl-transcript")
+                dl_speakers   = gr.File(label="🎙  Download — Speaker Dialogue (.txt)",visible=False, elem_id="ta-dl-speakers")
+                dl_report     = gr.File(label="📋  Download — Full Report (.md)",      visible=False, elem_id="ta-dl-report")
+                dl_combined   = gr.File(label="📦  Download — Combined Report (.txt)", visible=False, elem_id="ta-dl-combined")
+                dl_json       = gr.File(label="🗂  Download — Raw Data (.json)",       visible=False, elem_id="ta-dl-json")
+                dl_srt        = gr.File(label="🎬  Download — Subtitles (.srt)",       visible=False, elem_id="ta-dl-srt")
+                dl_vtt        = gr.File(label="🎬  Download — Subtitles (.vtt)",       visible=False, elem_id="ta-dl-vtt")
+                # stub components kept for wiring compat
+                dl_active          = gr.State(value=None)
+                dl_format_dropdown = gr.State(value=None)
+                pdf_lang_input     = gr.Dropdown(label="Output language (PDF & DOCX)", choices=_PDF_LANGUAGES, value="Same as source", visible=False, elem_id="ta-dl-lang-sel")
+                pdf_regen_btn      = gr.Button("↺  Regenerate PDF & DOCX", visible=False, elem_id="ta-pdf-regen-btn")
+                report_format_radio = gr.Radio(choices=["PDF","DOCX"], value="PDF", label="Report format", interactive=True, visible=False)
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):
@@ -6627,44 +6645,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         queue=False,
     )
 
-    _DL_MAP = {
-        "📄  Clean Transcript (.txt)":  "transcript",
-        "🎙  Speaker Dialogue (.txt)":  "speakers",
-        "📋  Full Report (.md)":        "report",
-        "📦  Combined Report (.txt)":   "combined",
-        "🗂  Raw Data (.json)":         "json",
-        "📑  Report — PDF":             "pdf",
-        "📝  Report — DOCX":            "docx",
-        "🎬  Subtitles (.srt)":         "srt",
-        "🎬  Subtitles (.vtt)":         "vtt",
-    }
-    _DL_COMPS = {
-        "transcript": dl_transcript,
-        "speakers":   dl_speakers,
-        "report":     dl_report,
-        "combined":   dl_combined,
-        "json":       dl_json,
-        "pdf":        dl_pdf,
-        "docx":       dl_docx,
-        "srt":        dl_srt,
-        "vtt":        dl_vtt,
-    }
 
-    def _show_selected_download(choice, *file_values):
-        key = _DL_MAP.get(choice, "pdf")
-        idx = list(_DL_COMPS.keys()).index(key)
-        file_val = file_values[idx] if idx < len(file_values) else None
-        if file_val:
-            return gr.update(value=file_val, visible=True, label=choice.split("  ", 1)[-1])
-        return gr.update(visible=False)
-
-    dl_format_dropdown.change(
-        fn=_show_selected_download,
-        inputs=[dl_format_dropdown, dl_transcript, dl_speakers, dl_report,
-                dl_combined, dl_json, dl_pdf, dl_docx, dl_srt, dl_vtt],
-        outputs=[dl_active],
-        queue=False,
-    )
 
     # ── Save settings → bsw_* (WRITE instances, never inputs to demo.load) ──────
     _id = lambda v: v

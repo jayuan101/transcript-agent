@@ -185,9 +185,32 @@ if [ "$ACTION" = install ]; then
 APPDIR="${BAKED_APPDIR}"
 VPYTHON="${BAKED_VPYTHON}"
 
+clear
 echo ""
-echo "  Starting Transcript Agent v${CURRENT_VERSION}…"
-echo "  Browser will open at http://localhost:7860"
+echo "  ============================================================"
+echo "    Transcript Agent v${CURRENT_VERSION}"
+echo "  ============================================================"
+echo ""
+
+# ── GPU detection at startup ─────────────────────────────────────────────────
+ARCH=\$(uname -m)
+GPU_INFO="CPU (no GPU acceleration)"
+export TA_GPU_DEVICE="cpu"
+
+if [ "\$ARCH" = "arm64" ]; then
+    # Apple Silicon — MPS is always available
+    GPU_INFO="Apple Silicon GPU (MPS) — 3-5x faster transcription"
+    export TA_GPU_DEVICE="mps"
+else
+    # Intel Mac — check for Metal or discrete GPU
+    GPUNAME=\$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed 's/.*: //')
+    if [ -n "\$GPUNAME" ]; then
+        GPU_INFO="\$GPUNAME (CPU mode — Intel Mac)"
+    fi
+fi
+
+echo "  GPU: \$GPU_INFO"
+echo "  Browser will open automatically at http://localhost:7860"
 echo "  Press Ctrl+C to stop."
 echo ""
 

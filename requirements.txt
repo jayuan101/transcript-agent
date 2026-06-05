@@ -44,7 +44,7 @@ matplotlib>=3.8.0
 opencv-python-headless>=4.8.0
 mediapipe>=0.10.0
 # Emotion detection backends (optional — install at least one for best accuracy)
-# deepface>=0.0.93        # most accurate; pulls in TensorFlow (~2 GB)
+deepface>=0.0.93        # most accurate; pulls in TensorFlow (~2 GB)
 # fer>=22.5.1             # lighter alternative (TF-based)
 # plotly is already a Gradio transitive dep; add explicitly for clarity
 plotly>=5.0.0

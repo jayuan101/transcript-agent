@@ -5996,10 +5996,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     iv_person_count = gr.State(value=2)   # updated by face scan
                     iv_scan_status  = gr.HTML(value="")
 
-                    gr.HTML(
-                        '<div style="font-size:0.78em;color:#64748b;padding:6px 0 4px;">'
-                        'Video delivery analysis runs automatically when you click <b>▶ Analyze</b> above.</div>'
-                    )
                     iv_analyze_btn = gr.Button(
                         "🔍  Analyze Video", variant="primary", size="lg",
                         elem_id="iv-analyze-btn", visible=False,
@@ -6514,7 +6510,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
     # ── Re-analyze with Profile — skips STT, re-runs coaching on cached transcript
     def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name):
-        if not result or not getattr(result, "clean_transcript", ""):
+        # result_state is a dict — use .get() not getattr
+        transcript = (result.get("clean_transcript", "") if isinstance(result, dict)
+                      else getattr(result, "clean_transcript", ""))
+        if not result or not transcript:
             yield '<p style="color:#ef4444;padding:12px;">Run Analyze first to load a transcript.</p>'
             return
         api_key = (api_key or "").strip()
@@ -6529,11 +6528,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         yield ('<div style="padding:14px;color:#94a3b8;font-style:italic;">'
                '⏳ Re-analyzing with your profile — this takes about 30 seconds…</div>')
         ia = run_interview_analysis(
-            result.clean_transcript, client,
+            transcript, client,
             deep_mode=bool(deep),
             candidate_profile=profile_text or "",
         )
-        result.interview_analysis = ia
         yield _build_interview_html(ia)
 
     reanalyze_btn.click(

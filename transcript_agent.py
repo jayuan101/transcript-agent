@@ -506,7 +506,8 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bo
 
 
 def load_audio_video(path: str, model_size: str = "base", on_progress=None,
-                     on_stage_change=None, language: str = None, on_log=None) -> str:
+                     on_stage_change=None, language: str = None, on_log=None,
+                     use_gpu: bool = True) -> str:
     """Transcribe audio/video using OpenAI Whisper with timestamps.
     on_progress(pct: float) — live 0.0-1.0 progress updates.
     on_log(msg: str)        — human-readable step-by-step log messages.
@@ -530,10 +531,16 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     else:
         _log(f"File duration: unknown  |  Loading Whisper '{model_size}' model…")
 
+    try:
+        import torch as _torch
+        _cuda_ok = _torch.cuda.is_available()
+    except Exception:
+        _cuda_ok = False
+    device = "cuda" if (use_gpu and _cuda_ok) else "cpu"
     if dur_secs > 0:
-        _log(f"Loading Whisper '{model_size}' model…")
-    model = openai_whisper.load_model(model_size)
-    _log(f"Model loaded.")
+        _log(f"Loading Whisper '{model_size}' model… (device: {device})")
+    model = openai_whisper.load_model(model_size, device=device)
+    _log(f"Model loaded on {device}.")
 
     with _progress_lock:
         _progress_cb = on_progress
@@ -595,7 +602,7 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
 
 def load_audio_video_panel(
     path: str, model_size: str = "base", num_speakers: int = None,
-    language: str = None, on_log=None
+    language: str = None, on_log=None, use_gpu: bool = True,
 ) -> tuple:
     """
     Transcribe + diarize with WhisperX.
@@ -631,7 +638,12 @@ def load_audio_video_panel(
                 capture_output=True)
         audio_path = tmp_path
 
-    device = "cuda" if __import__("torch").cuda.is_available() else "cpu"
+    try:
+        import torch as _t2
+        _cuda_ok2 = _t2.cuda.is_available()
+    except Exception:
+        _cuda_ok2 = False
+    device = "cuda" if (use_gpu and _cuda_ok2) else "cpu"
     compute_type = "float16" if device == "cuda" else "int8"
 
     lang_note = f" (language: {language})" if language else " (language: auto-detect)"
@@ -1167,6 +1179,7 @@ def stt_transcribe(
     whisper_model: str = "base", language: str = None,
     stt_model: str = None,   # model selection for cloud engines
     on_progress=None, on_stage_change=None, on_log=None,
+    use_gpu: bool = True,
 ) -> tuple:
     """Unified STT dispatcher. Returns (text, detected_lang, segments, stt_secs)."""
     import time as _t
@@ -1186,6 +1199,7 @@ def stt_transcribe(
             on_stage_change=on_stage_change,
             language=language,
             on_log=on_log,
+            use_gpu=use_gpu,
         )
     elif engine == "openai_whisper":
         text, lang, segs = _stt_openai_api(path, api_key, language, on_log, model=stt_model)
@@ -1940,6 +1954,7 @@ def run(
     pre_transcribed=None,           # (raw_text, lang, segments) — skip STT when provided
     transcription_only: bool = False,  # skip AI analysis — return raw transcript immediately
     image_paths: list = None,       # optional images (slides, whiteboard) for visual context
+    use_gpu: bool = True,           # use CUDA if available for Whisper
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -1972,7 +1987,8 @@ def run(
             _log("Mode: Panel (multi-speaker diarization)")
             if on_stage_change: on_stage_change("extracting")
             raw_text, raw_whisperx = load_audio_video_panel(
-                file_path, whisper_model, num_speakers, language=language, on_log=on_log
+                file_path, whisper_model, num_speakers, language=language, on_log=on_log,
+                use_gpu=use_gpu,
             )
             _detected_lang = raw_whisperx.get("language", "")
             fmt = "panel audio/video (diarized)"
@@ -1988,6 +2004,7 @@ def run(
                 on_progress=on_whisper_progress,
                 on_stage_change=on_stage_change,
                 on_log=on_log,
+                use_gpu=use_gpu,
             )
             fmt = "audio/video"
         if on_stt_done:

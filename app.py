@@ -4,6 +4,10 @@
 import os
 import sys
 
+# Allow TensorFlow (DeepFace) and PyTorch to use GPU when available.
+# TF picks up GPU automatically; setting memory growth avoids OOM crashes.
+os.environ.setdefault("TF_FORCE_GPU_ALLOW_GROWTH", "true")
+
 # Fix for PyInstaller --noconsole: sys.stdout/stderr are None when there is no
 # console window. uvicorn's DefaultFormatter calls stream.isatty() → crash.
 if sys.stdout is None or sys.stderr is None:
@@ -2323,6 +2327,7 @@ def process_file(
     iv_role_1="Interviewer 1",
     iv_role_2="Interviewer 2",
     iv_role_3="Interviewer 3",
+    use_gpu=True,
 ):
     yield _NOCHANGE   # immediate tick — clears the loading indicator right away
     _va_res = None  # video analysis result — populated later if video + Interview Mode
@@ -2623,6 +2628,7 @@ def process_file(
                 pre_transcribed=_pre_transcribed,
                 transcription_only=bool(transcription_only),
                 image_paths=image_files if isinstance(image_files, list) else ([image_files] if image_files else []),
+                use_gpu=bool(use_gpu),
             )
             q.put(("done", result))
         except ImportError as e:
@@ -5870,6 +5876,23 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     visible=True,
                     elem_id="ta-stt-key-input",
                 )
+                # ── GPU toggle ────────────────────────────────────────────────
+                _gpu_available = False
+                try:
+                    import torch as _torch_chk
+                    _gpu_available = _torch_chk.cuda.is_available()
+                except Exception:
+                    pass
+                gpu_toggle = gr.Checkbox(
+                    label=("⚡ Use GPU (CUDA detected — faster Whisper & DeepFace)"
+                           if _gpu_available else
+                           "⚡ Use GPU when available (no CUDA detected on this machine)"),
+                    value=_gpu_available,
+                    info=("GPU acceleration is active. Uncheck to force CPU (useful for debugging)."
+                          if _gpu_available else
+                          "GPU not found — running on CPU. Install CUDA + PyTorch GPU build to enable."),
+                    elem_id="ta-gpu-toggle",
+                )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
 
             with gr.Accordion("🎤 Interview Mode", open=False):
@@ -6627,6 +6650,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             transcription_only_toggle,
             image_input,
             iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3,
+            gpu_toggle,
         ],
         concurrency_id="analyze",
         concurrency_limit=1,

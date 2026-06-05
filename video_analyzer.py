@@ -178,20 +178,23 @@ class VideoAnalysisResult:
 # ── Face centroid tracker ─────────────────────────────────────────────────────
 
 class _CentroidTracker:
-    def __init__(self, max_gone: int = 45, max_dist: int = 160):
+    def __init__(self, max_gone: int = 45, max_dist: int = 160, min_hits: int = 2):
         self.next_id  = 0
         self._c: Dict[int, tuple]  = {}  # id → centroid
         self._b: Dict[int, tuple]  = {}  # id → bbox
         self._g: Dict[int, int]    = {}  # id → frames_gone
+        self._h: Dict[int, int]    = {}  # id → hit count (frames seen)
         self.max_gone = max_gone
         self.max_dist = max_dist
+        self.min_hits = min_hits         # frames before a track is promoted
 
     def update(self, bboxes: List[Tuple]) -> Dict[int, Tuple]:
         if not bboxes:
             for oid in list(self._g):
                 self._g[oid] += 1
                 if self._g[oid] > self.max_gone:
-                    self._c.pop(oid, None); self._b.pop(oid, None); del self._g[oid]
+                    self._c.pop(oid, None); self._b.pop(oid, None)
+                    del self._g[oid]; self._h.pop(oid, None)
             return {}
 
         nc = [(x + w // 2, y + h // 2) for x, y, w, h in bboxes]
@@ -199,8 +202,10 @@ class _CentroidTracker:
             r = {}
             for c, b in zip(nc, bboxes):
                 self._c[self.next_id] = c; self._b[self.next_id] = b
-                self._g[self.next_id] = 0; r[self.next_id] = b; self.next_id += 1
-            return r
+                self._g[self.next_id] = 0; self._h[self.next_id] = 1
+                self.next_id += 1
+            # Only return tracks that already meet min_hits (none yet on first frame)
+            return {oid: self._b[oid] for oid in self._h if self._h[oid] >= self.min_hits}
 
         oids = list(self._c.keys())
         oc   = [self._c[o] for o in oids]
@@ -211,14 +216,18 @@ class _CentroidTracker:
             if rr in ur or cc in uc or D[rr, cc] > self.max_dist: continue
             oid = oids[rr]
             self._c[oid] = nc[cc]; self._b[oid] = bboxes[cc]; self._g[oid] = 0
-            r[oid] = bboxes[cc]; ur.add(rr); uc.add(cc)
+            self._h[oid] = self._h.get(oid, 0) + 1
+            if self._h[oid] >= self.min_hits:
+                r[oid] = bboxes[cc]
+            ur.add(rr); uc.add(cc)
         for rr in set(range(len(oids))) - ur:
             oid = oids[rr]; self._g[oid] += 1
             if self._g[oid] > self.max_gone:
-                self._c.pop(oid, None); self._b.pop(oid, None); del self._g[oid]
+                self._c.pop(oid, None); self._b.pop(oid, None)
+                self._g.pop(oid, None); self._h.pop(oid, None)
         for cc in set(range(len(bboxes))) - uc:
             self._c[self.next_id] = nc[cc]; self._b[self.next_id] = bboxes[cc]
-            self._g[self.next_id] = 0; r[self.next_id] = bboxes[cc]; self.next_id += 1
+            self._g[self.next_id] = 0; self._h[self.next_id] = 1; self.next_id += 1
         return r
 
 
@@ -248,8 +257,10 @@ class VideoAnalyzer:
         lm  = _mp_vision.FaceLandmarker.create_from_options(opts)
         trk = _CentroidTracker(max_gone=int(fps * 3), max_dist=180)
         thumbs: Dict[int, str] = {}
-        ivl = max(1, int(fps * 2))
-        idx = 0
+        seen_count: Dict[int, int] = {}   # pid → frames seen
+        ivl   = max(1, int(fps * 2))
+        idx   = 0
+        total_scanned = 0
         while cap.isOpened():
             ret, frame = cap.read()
             if not ret: break
@@ -263,15 +274,25 @@ class VideoAnalyzer:
                     face_data = self._haar_crop_detect(frame, lm)
                 bbs = [fd[0] for fd in face_data]
                 for pid, (x, y, fw, fh) in trk.update(bbs).items():
+                    seen_count[pid] = seen_count.get(pid, 0) + 1
                     if pid not in thumbs:
                         crop = frame[y:y+fh, x:x+fw]
                         if crop.size > 0:
                             p = tempfile.mktemp(suffix=f"_t{pid}.jpg")
                             cv2.imwrite(p, cv2.resize(crop, (120, 160)))
                             thumbs[pid] = p
+                total_scanned += 1
                 if progress_cb: progress_cb(min(0.3, idx / tot * 0.35))
             idx += 1
         cap.release(); lm.close()
+
+        # Keep only the top 5 most-seen faces (filters Zoom sidebar thumbnails)
+        min_seen = max(2, int(total_scanned * 0.05))
+        stable   = sorted(
+            [pid for pid, n in seen_count.items() if n >= min_seen],
+            key=lambda p: seen_count[p], reverse=True
+        )[:5]
+        thumbs = {pid: thumbs[pid] for pid in stable if pid in thumbs}
         return thumbs, dur
 
     def analyze_video(
@@ -394,17 +415,22 @@ class VideoAnalyzer:
         even when extracted from a cropped sub-image.
         """
         CROP_SIZE = 400
+        MAX_FACES = 5          # ignore excess detections (UI icons, thumbnails)
+        MIN_FACE_PX = 50       # faces smaller than this are icons/artifacts
         h, w = frame.shape[:2]
         haar = self._get_haar()
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         dets = haar.detectMultiScale(
-            gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20)
+            gray, scaleFactor=1.05, minNeighbors=6, minSize=(MIN_FACE_PX, MIN_FACE_PX)
         )
         if not len(dets):
             return []
 
+        # Keep only the N largest detections (real faces > UI thumbnails)
+        dets_sorted = sorted(dets, key=lambda d: d[2] * d[3], reverse=True)[:MAX_FACES]
+
         out = []
-        for (fx, fy, fw, fh) in dets:
+        for (fx, fy, fw, fh) in dets_sorted:
             # Expand by 60% to include forehead + chin
             px, py = int(fw * 0.6), int(fh * 0.6)
             x1 = max(0, fx - px); y1 = max(0, fy - py)
@@ -500,7 +526,8 @@ class VideoAnalyzer:
         if crop is not None and crop.size > 0 and crop.shape[0] >= 20:
             if _HAS_DEEPFACE:
                 try:
-                    res = _DeepFace.analyze(crop, actions=["emotion"], enforce_detection=False, silent=True)
+                    res = _DeepFace.analyze(crop, actions=["emotion"], enforce_detection=False, silent=True,
+                                            detector_backend="skip")
                     raw = (res[0] if isinstance(res, list) else res)["emotion"]
                     dom = max(raw, key=raw.get)
                     return self._map_emo(dom), {self._map_emo(k): v for k, v in raw.items()}
@@ -731,6 +758,12 @@ class VideoAnalyzer:
         pf: Dict[int, List[FaceFrame]] = defaultdict(list)
         for ffs in all_frames:
             for ff in ffs: pf[ff.person_id].append(ff)
+
+        # Drop persons seen in <5% of total sampled frames — filters Zoom thumbnail
+        # false positives and brief UI elements picked up by the Haar cascade.
+        total_samples = max(1, len(all_frames))
+        min_frames = max(3, int(total_samples * 0.05))
+        pf = {pid: ffs for pid, ffs in pf.items() if len(ffs) >= min_frames}
 
         tot_sp = sum(sum(1 for f in ffs if f.is_speaking) for ffs in pf.values())
         result = VideoAnalysisResult(duration_seconds=duration, person_count=len(pf))

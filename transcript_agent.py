@@ -463,121 +463,259 @@ def generate_vtt(segments: list) -> str:
 def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bool:
     if not DOCX_AVAILABLE:
         return False
+    from docx.shared import Pt, RGBColor, Inches, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    import copy
+
+    # ── Colour helpers ────────────────────────────────────────────────────────
+    _RGB = {
+        "great":  RGBColor(22, 163, 74),
+        "good":   RGBColor(37,  99,235),
+        "ni":     RGBColor(217,119,  6),
+        "missed": RGBColor(220, 38, 38),
+        "header": RGBColor(30,  41, 59),
+        "muted":  RGBColor(100,116,139),
+        "accent": RGBColor(59, 130,246),
+        "amber":  RGBColor(146, 64,  14),
+        "blue":   RGBColor(30,  64,175),
+    }
+    _SCORE_RGB = {
+        "Great": _RGB["great"], "Good": _RGB["good"],
+        "Needs Improvement": _RGB["ni"], "Missed": _RGB["missed"],
+    }
+
+    def _shade_paragraph(para, hex_fill: str):
+        """Apply a background shading to a paragraph."""
+        pPr = para._p.get_or_add_pPr()
+        shd = OxmlElement("w:shd")
+        shd.set(qn("w:val"), "clear")
+        shd.set(qn("w:color"), "auto")
+        shd.set(qn("w:fill"), hex_fill)
+        pPr.append(shd)
+
+    def _set_para_spacing(para, before=0, after=0, line=None):
+        pPr = para._p.get_or_add_pPr()
+        pPr_spacing = OxmlElement("w:spacing")
+        pPr_spacing.set(qn("w:before"), str(before))
+        pPr_spacing.set(qn("w:after"),  str(after))
+        if line:
+            pPr_spacing.set(qn("w:line"), str(line))
+            pPr_spacing.set(qn("w:lineRule"), "auto")
+        pPr.append(pPr_spacing)
+
+    def _add_section_heading(doc, title: str, level=1):
+        h = doc.add_heading(title, level)
+        h.runs[0].font.color.rgb = _RGB["header"]
+        _set_para_spacing(h, before=160, after=80)
+        return h
+
+    def _add_labelled_block(doc, label: str, text: str, fill_hex: str, label_rgb: RGBColor):
+        """Shaded labelled block (What was said / ideal / tip)."""
+        lp = doc.add_paragraph()
+        _shade_paragraph(lp, fill_hex)
+        lp.paragraph_format.left_indent = Cm(0.5)
+        lp.paragraph_format.space_before = Pt(4)
+        lp.paragraph_format.space_after  = Pt(1)
+        r = lp.add_run(label)
+        r.bold = True
+        r.font.size = Pt(8)
+        r.font.color.rgb = label_rgb
+
+        bp = doc.add_paragraph(text)
+        _shade_paragraph(bp, fill_hex)
+        bp.paragraph_format.left_indent = Cm(0.5)
+        bp.paragraph_format.space_before = Pt(0)
+        bp.paragraph_format.space_after  = Pt(6)
+        bp.runs[0].font.size = Pt(9)
+        bp.runs[0].font.color.rgb = _RGB["header"]
+        return bp
+
+    # ── Document setup ────────────────────────────────────────────────────────
     doc = DocxDocument()
-    doc.add_heading(stem, 0)
-    if result.detected_language:
-        doc.add_paragraph(f"Language: {result.detected_language}")
 
+    # Page margins
+    for section in doc.sections:
+        section.top_margin    = Cm(2)
+        section.bottom_margin = Cm(2)
+        section.left_margin   = Cm(2.5)
+        section.right_margin  = Cm(2.5)
+
+    # Title
+    title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    _shade_paragraph(title_p, "1E293B")
+    _set_para_spacing(title_p, before=0, after=80)
+    tr = title_p.add_run(stem)
+    tr.bold = True
+    tr.font.size = Pt(18)
+    tr.font.color.rgb = RGBColor(255, 255, 255)
+
+    # Meta line
+    meta_parts = []
+    if result.detected_language: meta_parts.append(f"Language: {result.detected_language}")
+    if getattr(result, "stt_engine", ""): meta_parts.append(f"STT: {result.stt_engine}")
+    if meta_parts:
+        mp = doc.add_paragraph("   ".join(meta_parts))
+        mp.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        mp.runs[0].font.size = Pt(9)
+        mp.runs[0].font.color.rgb = _RGB["muted"]
+        _set_para_spacing(mp, before=40, after=120)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
     if result.summary:
-        doc.add_heading("Summary", 1)
-        doc.add_paragraph(result.summary)
+        _add_section_heading(doc, "Summary")
+        p = doc.add_paragraph(result.summary)
+        p.runs[0].font.size = Pt(10)
+        _set_para_spacing(p, after=100)
 
+    # ── Key Points ────────────────────────────────────────────────────────────
     if result.key_points:
-        doc.add_heading("Key Points", 1)
+        _add_section_heading(doc, "Key Points")
         for kp in result.key_points:
-            doc.add_paragraph(kp, style="List Bullet")
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run(kp).font.size = Pt(10)
 
+    # ── Action Items ──────────────────────────────────────────────────────────
     if result.action_items:
-        doc.add_heading("Action Items", 1)
+        _add_section_heading(doc, "Action Items")
         for ai in result.action_items:
             if isinstance(ai, dict):
                 action   = ai.get("action", ai.get("item", str(ai)))
                 owner    = ai.get("owner", "")
-                timeline = ai.get("timeline", "")
-                text = action
-                if owner:    text += f"  (Owner: {owner})"
-                if timeline: text += f"  [{timeline}]"
-                doc.add_paragraph(text, style="List Bullet")
+                tl       = ai.get("timeline", "")
+                text     = action
+                if owner: text += f"  (Owner: {owner})"
+                if tl:    text += f"  [{tl}]"
             else:
-                doc.add_paragraph(str(ai), style="List Bullet")
+                text = str(ai)
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run(text).font.size = Pt(10)
 
+    # ── Speaker Profiles ──────────────────────────────────────────────────────
+    if result.speaker_profiles:
+        _add_section_heading(doc, "Speaker Profiles")
+        for name, profile in result.speaker_profiles.items():
+            np = doc.add_paragraph()
+            np.add_run(name + ": ").bold = True
+            np.add_run(profile)
+
+    # ── Transcript ────────────────────────────────────────────────────────────
     if result.speaker_dialogue:
-        doc.add_heading("Speaker Dialogue", 1)
-        doc.add_paragraph(result.speaker_dialogue)
+        _add_section_heading(doc, "Speaker Dialogue")
+        p = doc.add_paragraph(result.speaker_dialogue)
+        p.runs[0].font.size = Pt(9)
     elif result.clean_transcript:
-        doc.add_heading("Transcript", 1)
-        doc.add_paragraph(result.clean_transcript)
+        _add_section_heading(doc, "Transcript")
+        p = doc.add_paragraph(result.clean_transcript)
+        p.runs[0].font.size = Pt(9)
 
     # ── Interview Coaching Analysis ───────────────────────────────────────────
-    ia = result.interview_analysis
+    ia = result.interview_analysis or {}
     if ia and not ia.get("parse_error"):
-        doc.add_heading("Interview Coaching Analysis", 1)
+        _add_section_heading(doc, "Interview Coaching Analysis")
 
-        # Score banner
+        # Score banner table (3 cells: Score | Advance Likelihood | Deflection Rate)
         score   = ia.get("overall_score", "—")
         verdict = ia.get("overall_verdict", "")
         adv     = ia.get("advance_likelihood", "")
-        defl    = ia.get("deflection_rate", "")
-        p = doc.add_paragraph()
-        p.add_run(f"Overall Score: {score}/10").bold = True
-        if verdict: p.add_run(f"  —  {verdict}")
-        if adv:
-            doc.add_paragraph(f"Advance Likelihood: {adv}%")
-        if defl:
-            doc.add_paragraph(f"Deflection Rate: {defl}%")
+        defl_rt = ia.get("deflection_rate", "")
 
-        # Per-question breakdown — all questions, no truncation
+        tbl = doc.add_table(rows=1, cols=3)
+        tbl.style = "Table Grid"
+        cells = tbl.rows[0].cells
+        for i, (lbl, val, col_hex) in enumerate([
+            (f"{score}/10", "Overall Score",  "166534"),
+            (f"{adv}%"     if adv   else "—", "Advance Likelihood", "1D4ED8"),
+            (f"{defl_rt}%" if defl_rt else "—", "Deflection Rate", "92400E"),
+        ]):
+            shd = OxmlElement("w:shd")
+            shd.set(qn("w:val"), "clear"); shd.set(qn("w:color"), "auto")
+            shd.set(qn("w:fill"), col_hex)
+            cells[i]._tc.get_or_add_tcPr().append(shd)
+            p1 = cells[i].paragraphs[0]
+            p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            r1 = p1.add_run(lbl)
+            r1.bold = True; r1.font.size = Pt(16)
+            r1.font.color.rgb = RGBColor(255,255,255)
+            p2 = cells[i].add_paragraph(val)
+            p2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            p2.runs[0].font.size = Pt(8)
+            p2.runs[0].font.color.rgb = RGBColor(200,220,255)
+
+        if verdict:
+            vp = doc.add_paragraph(verdict)
+            vp.runs[0].font.size = Pt(10)
+            vp.runs[0].italic = True
+            vp.runs[0].font.color.rgb = _RGB["muted"]
+            _set_para_spacing(vp, before=80, after=120)
+
+        # Per-question breakdown
         qs = ia.get("questions", [])
         if qs:
-            doc.add_heading("Question Breakdown", 2)
-            _SCORE_ICON  = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
-            _DEFL_LABEL  = {"partial": "⚠️ Partially deflected", "full": "🚫 Did not answer"}
+            _add_section_heading(doc, "Question Breakdown", level=2)
+            _DEFL_LABEL = {"partial": "! PARTIALLY DEFLECTED", "full": "X DID NOT ANSWER"}
+            _DEFL_RGB   = {"partial": _RGB["ni"], "full": _RGB["missed"]}
+
             for q in qs:
                 qid       = q.get("id", "")
                 question  = q.get("question", "")
                 sc        = q.get("score", "")
                 reason    = q.get("score_reason", "")
-                defl      = (q.get("deflection") or "none").lower().strip()
-                defl_note = q.get("deflection_note", "")
+                dfl       = (q.get("deflection") or "none").lower().strip()
+                dfl_note  = q.get("deflection_note", "")
                 said      = q.get("answer_said") or q.get("answer_summary", "")
                 ideal     = q.get("model_answer") or q.get("ideal_answer", "")
                 tip       = q.get("coaching_tip", "")
-                icon      = _SCORE_ICON.get(sc, "·")
+                sc_rgb    = _SCORE_RGB.get(sc, _RGB["muted"])
 
-                doc.add_heading(f"Q{qid}: {question}", 3)
+                # Q header row (shaded)
+                qp = doc.add_paragraph()
+                _shade_paragraph(qp, "F1F5F9")
+                _set_para_spacing(qp, before=120, after=20)
+                r_id = qp.add_run(f"Q{qid}  ")
+                r_id.bold = True; r_id.font.size = Pt(9)
+                r_id.font.color.rgb = _RGB["muted"]
+                r_q = qp.add_run(question)
+                r_q.bold = True; r_q.font.size = Pt(10)
+                r_q.font.color.rgb = _RGB["header"]
 
-                # Score line
-                p = doc.add_paragraph()
-                p.add_run(f"Score: {icon} {sc}").bold = True
-                if reason: p.add_run(f"  —  {reason}")
+                # Score badge line
+                sp = doc.add_paragraph()
+                _set_para_spacing(sp, before=0, after=20)
+                r_sc = sp.add_run(f"  {sc.upper()}  ")
+                r_sc.bold = True; r_sc.font.size = Pt(9)
+                r_sc.font.color.rgb = sc_rgb
+                if reason:
+                    r_rs = sp.add_run(f"  —  {reason}")
+                    r_rs.font.size = Pt(9)
+                    r_rs.font.color.rgb = _RGB["muted"]
+                    r_rs.italic = True
 
                 # Deflection
-                if defl in _DEFL_LABEL:
-                    dp = doc.add_paragraph(_DEFL_LABEL[defl])
-                    dp.runs[0].italic = True
-                    if defl_note:
-                        doc.add_paragraph(defl_note)
+                if dfl in _DEFL_LABEL:
+                    dp = doc.add_paragraph()
+                    _set_para_spacing(dp, before=0, after=20)
+                    dr = dp.add_run(f"  {_DEFL_LABEL[dfl]}")
+                    dr.bold = True; dr.font.size = Pt(9)
+                    dr.font.color.rgb = _DEFL_RGB.get(dfl, _RGB["ni"])
+                    if dfl_note:
+                        dnp = doc.add_paragraph(dfl_note)
+                        dnp.runs[0].font.size = Pt(9)
+                        dnp.runs[0].italic = True
+                        dnp.paragraph_format.left_indent = Cm(0.5)
 
-                # What was said
-                if said:
-                    lbl = doc.add_paragraph("📝 What was said")
-                    lbl.runs[0].bold = True
-                    doc.add_paragraph(said)
+                if said:  _add_labelled_block(doc, "WHAT WAS SAID",           said,  "F8FAFC", _RGB["muted"])
+                if ideal: _add_labelled_block(doc, "WHAT YOU COULD HAVE SAID",ideal, "EFF6FF", _RGB["blue"])
+                if tip:   _add_labelled_block(doc, "COACHING TIP",             tip,  "FFFBEB", _RGB["amber"])
 
-                # What could have been said
-                if ideal:
-                    lbl = doc.add_paragraph("💬 What you could have said")
-                    lbl.runs[0].bold = True
-                    doc.add_paragraph(ideal)
-
-                # Coaching tip
-                if tip:
-                    lbl = doc.add_paragraph("🏋️ Coaching Tip")
-                    lbl.runs[0].bold = True
-                    doc.add_paragraph(tip)
-
-        # Deep analysis section
+        # Deep analysis
         adv_reason = ia.get("advance_reasoning", "")
-        defl_rate  = ia.get("deflection_rate", "")
-        adv_pct    = ia.get("advance_likelihood", "")
-        if adv_reason or defl_rate or adv_pct:
-            doc.add_heading("Deep Analysis", 2)
-            if defl_rate:
-                doc.add_paragraph(f"Deflection Rate: {defl_rate}%")
-            if adv_pct:
-                doc.add_paragraph(f"Advance Likelihood: {adv_pct}%")
-            if adv_reason:
-                doc.add_paragraph(adv_reason)
+        if adv_reason:
+            _add_section_heading(doc, "Deep Analysis", level=2)
+            dp = doc.add_paragraph(adv_reason)
+            dp.runs[0].font.size = Pt(10)
 
     doc.save(output_path)
     return True

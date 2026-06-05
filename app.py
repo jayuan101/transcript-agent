@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Transcript Agent — Gradio UI with drag-and-drop | v2.1"""
 
 import os
@@ -1401,58 +1401,361 @@ def stats_to_markdown(speaker_stats) -> str:
 # ── processing — generator streams every update live to the UI ────────────────
 #
 # Output order (15 items, must match outputs= list in .click()):
-def _generate_pdf(stem: str, combined_text: str, path: Path) -> str:
-    """Render the combined report as a formatted PDF using fpdf2."""
+def _generate_pdf(stem: str, combined_text: str, path: Path,
+                  result=None, va_result=None) -> str:
+    # Generate a structured colour-coded PDF report.
+    # When result (TranscriptResult) is provided the report is built from
+    # structured data for best quality. Falls back to plain-text parsing
+    # when only combined_text is available (e.g. translated reports).
     from fpdf import FPDF
 
-    class _PDF(FPDF):
-        def footer(self):
-            self.set_y(-12)
-            self.set_font("Helvetica", "I", 8)
-            self.set_text_color(150, 150, 150)
-            self.cell(0, 10, f"Page {self.page_no()}", align="C")
+    # ── Colour palette ────────────────────────────────────────────────────────
+    _C = {
+        "great":   (22, 163, 74),    # green
+        "good":    (37, 99, 235),    # blue
+        "ni":      (217, 119,  6),   # amber
+        "missed":  (220,  38, 38),   # red
+        "header":  (30,  41, 59),    # slate-800
+        "sub":     (71,  85, 105),   # slate-600
+        "muted":   (148,163,184),    # slate-400
+        "bg_grey": (241,245,249),    # slate-100
+        "bg_blue": (239,246,255),    # blue-50
+        "bg_amber":(255,251,235),    # amber-50
+        "accent":  (59, 130,246),    # blue-500
+        "white":   (255,255,255),
+    }
+    _SCORE_COL = {
+        "Great": _C["great"], "Good": _C["good"],
+        "Needs Improvement": _C["ni"], "Missed": _C["missed"],
+    }
+    _SCORE_ICON = {"Great": "GREAT", "Good": "GOOD",
+                   "Needs Improvement": "NEEDS IMPROVEMENT", "Missed": "MISSED"}
 
-    def _safe(text: str) -> str:
-        return (text
-                .replace("☐", "[ ]").replace("☑", "[x]")
-                .replace("•", "-").replace("’", "'")
-                .replace("“", '"').replace("”", '"')
-                .replace("–", "-").replace("—", "--")
+    def _s(text: str) -> str:
+        """Sanitise to latin-1, strip problematic unicode."""
+        return (str(text or "")
+                .replace("★","*").replace("◑","~")
+                .replace("△","^").replace("✗","x")
+                .replace("⚠","!").replace("✅","[ok]")
+                .replace("❌","[x]").replace("✓","[ok]")
+                .replace("✔","[ok]").replace("☑","[x]")
+                .replace("☐","[ ]").replace("•","-")
+                .replace("'","'").replace("'","'")
+                .replace(""",'"').replace(""",'"')
+                .replace("–","-").replace("—","--")
+                .replace("\U0001f4dd","").replace("\U0001f4ac","")
+                .replace("\U0001f3cb","").replace("\U0001f9ea","")
+                .replace("\U0001f3a4","").replace("\U0001f4c2","")
+                .replace("\U0001f50d","").replace("\U0001f916","")
                 .encode("latin-1", errors="replace").decode("latin-1"))
 
+    class _PDF(FPDF):
+        def header(self):
+            if self.page_no() == 1:
+                return
+            self.set_font("Helvetica", "I", 7)
+            self.set_text_color(*_C["muted"])
+            self.cell(0, 8, _s(stem[:80]), align="L", new_x="LMARGIN", new_y="NEXT")
+            self.set_draw_color(*_C["muted"])
+            self.set_line_width(0.2)
+            self.line(self.l_margin, self.get_y(), self.w - self.r_margin, self.get_y())
+            self.ln(2)
+
+        def footer(self):
+            self.set_y(-13)
+            self.set_font("Helvetica", "I", 7)
+            self.set_text_color(*_C["muted"])
+            self.cell(0, 8, f"Transcript Agent  |  Page {self.page_no()}", align="C")
+
     pdf = _PDF()
-    pdf.set_auto_page_break(auto=True, margin=18)
-    pdf.set_margins(20, 20, 20)  # must be set BEFORE add_page
+    pdf.set_auto_page_break(auto=True, margin=20)
+    pdf.set_margins(20, 22, 20)
     pdf.add_page()
+    W = pdf.w - pdf.l_margin - pdf.r_margin
 
-    # Title
-    pdf.set_font("Helvetica", "B", 20)
-    effective_w = pdf.w - pdf.l_margin - pdf.r_margin
-    pdf.cell(effective_w, 12, _safe(stem), new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.set_draw_color(80, 80, 80)
-    pdf.set_line_width(0.5)
-    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
-    pdf.ln(5)
-    pdf.set_font("Helvetica", "", 10)
+    def _section_header(title: str, r, g, b):
+        pdf.ln(4)
+        pdf.set_fill_color(r, g, b)
+        pdf.set_text_color(*_C["white"])
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(W, 8, f"  {_s(title)}", new_x="LMARGIN", new_y="NEXT", fill=True)
+        pdf.set_text_color(0, 0, 0)
+        pdf.ln(3)
 
-    for line in combined_text.splitlines():
-        stripped = line.rstrip()
-        if stripped and set(stripped) <= {"=", "-", " "} and len(stripped) > 4:
-            continue
-        if not stripped:
-            pdf.ln(2)
-            continue
-        inner = stripped.strip()
-        if (inner.isupper() and 2 < len(inner) < 60
-                and not set(inner) <= {"=", "-", " "}):
-            pdf.ln(5)
-            pdf.set_fill_color(235, 235, 235)
-            pdf.set_font("Helvetica", "B", 11)
-            pdf.cell(effective_w, 7, _safe(inner), new_x="LMARGIN", new_y="NEXT", fill=True)
-            pdf.ln(2)
-            pdf.set_font("Helvetica", "", 10)
+    def _body(text: str, size=10, indent=0):
+        pdf.set_font("Helvetica", "", size)
+        pdf.set_text_color(*_C["sub"])
+        if indent:
+            pdf.set_x(pdf.l_margin + indent)
+            pdf.multi_cell(W - indent, 5, _s(text))
         else:
-            pdf.multi_cell(effective_w, 5, _safe(stripped))
+            pdf.multi_cell(W, 5, _s(text))
+        pdf.set_text_color(0, 0, 0)
+
+    def _label_block(label: str, text: str, bg: tuple, lc: tuple, indent=6):
+        """Shaded block: coloured left rule + label + body text."""
+        pdf.ln(2)
+        pdf.set_fill_color(*bg)
+        pdf.set_draw_color(*lc)
+        pdf.set_line_width(0.8)
+        # measure height by simulating multi_cell
+        pdf.set_font("Helvetica", "B", 8)
+        label_h = 5
+        pdf.set_font("Helvetica", "", 9)
+        # draw left rule + shaded rect
+        x0, y0 = pdf.get_x() + indent, pdf.get_y()
+        block_w = W - indent
+        # label
+        pdf.set_xy(x0, y0)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.set_text_color(*lc)
+        pdf.cell(block_w, label_h, _s(label), new_x="LMARGIN", new_y="NEXT")
+        # body
+        pdf.set_x(x0)
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*_C["sub"])
+        pdf.multi_cell(block_w, 5, _s(text))
+        # draw the left rule line
+        y1 = pdf.get_y()
+        pdf.set_draw_color(*lc)
+        pdf.line(pdf.l_margin + indent - 2, y0, pdf.l_margin + indent - 2, y1)
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_draw_color(0, 0, 0)
+        pdf.ln(2)
+
+    # ── Title ─────────────────────────────────────────────────────────────────
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_text_color(*_C["header"])
+    pdf.multi_cell(W, 10, _s(stem), align="C")
+    pdf.set_draw_color(*_C["accent"])
+    pdf.set_line_width(1.0)
+    pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
+    pdf.ln(6)
+
+    # ── Build from structured result if available ─────────────────────────────
+    if result is not None:
+        # Meta row
+        pdf.set_font("Helvetica", "", 9)
+        pdf.set_text_color(*_C["muted"])
+        meta = []
+        if getattr(result, "detected_language", ""):
+            meta.append(f"Language: {result.detected_language}")
+        if getattr(result, "stt_engine", ""):
+            meta.append(f"STT: {result.stt_engine}")
+        if meta:
+            pdf.cell(W, 5, "  ".join(meta), new_x="LMARGIN", new_y="NEXT")
+            pdf.ln(3)
+        pdf.set_text_color(0, 0, 0)
+
+        # Summary
+        if getattr(result, "summary", ""):
+            _section_header("SUMMARY", *_C["header"])
+            _body(result.summary)
+            pdf.ln(2)
+
+        # Key Points
+        if getattr(result, "key_points", []):
+            _section_header("KEY POINTS", *_C["sub"])
+            for kp in result.key_points:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_x(pdf.l_margin + 4)
+                pdf.multi_cell(W - 4, 5, f"- {_s(kp)}")
+            pdf.ln(2)
+
+        # Action Items
+        if getattr(result, "action_items", []):
+            _section_header("ACTION ITEMS", *_C["sub"])
+            for ai in result.action_items:
+                if isinstance(ai, dict):
+                    txt = ai.get("action", ai.get("item", str(ai)))
+                    owner = ai.get("owner", "")
+                    tl    = ai.get("timeline", "")
+                    line  = f"[ ] {txt}"
+                    if owner: line += f"  (Owner: {owner})"
+                    if tl:    line += f"  [{tl}]"
+                else:
+                    line = f"[ ] {str(ai)}"
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_x(pdf.l_margin + 4)
+                pdf.multi_cell(W - 4, 5, _s(line))
+            pdf.ln(2)
+
+        # Speaker profiles
+        if getattr(result, "speaker_profiles", {}):
+            _section_header("SPEAKER PROFILES", *_C["sub"])
+            for name, profile in result.speaker_profiles.items():
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(W, 5, _s(name), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*_C["sub"])
+                pdf.multi_cell(W, 5, _s(profile))
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
+
+        # Interview Coaching
+        ia = getattr(result, "interview_analysis", {}) or {}
+        if ia and not ia.get("parse_error"):
+            _section_header("INTERVIEW COACHING ANALYSIS", *_C["accent"])
+
+            # Score banner
+            score   = ia.get("overall_score", "—")
+            verdict = ia.get("overall_verdict", "")
+            adv     = ia.get("advance_likelihood", "")
+            defl    = ia.get("deflection_rate", "")
+            pdf.set_fill_color(*_C["bg_grey"])
+            pdf.set_font("Helvetica", "B", 14)
+            pdf.set_text_color(*_C["header"])
+            pdf.cell(W, 10, f"Overall Score: {_s(str(score))}/10", new_x="LMARGIN", new_y="NEXT", fill=True)
+            if verdict:
+                pdf.set_font("Helvetica", "I", 10)
+                pdf.set_text_color(*_C["sub"])
+                pdf.multi_cell(W, 5, _s(verdict))
+            pdf.set_text_color(0, 0, 0)
+            pdf.ln(2)
+
+            if adv or defl:
+                pdf.set_font("Helvetica", "", 9)
+                stats = []
+                if adv:  stats.append(f"Advance Likelihood: {adv}%")
+                if defl: stats.append(f"Deflection Rate: {defl}%")
+                pdf.cell(W, 5, "  |  ".join(stats), new_x="LMARGIN", new_y="NEXT")
+                pdf.ln(3)
+
+            # Per-question
+            qs = ia.get("questions", [])
+            _DEFL_LABEL = {"partial": "! PARTIALLY DEFLECTED", "full": "X DID NOT ANSWER"}
+            for q in qs:
+                qid       = q.get("id", "")
+                question  = q.get("question", "")
+                sc        = q.get("score", "")
+                reason    = q.get("score_reason", "")
+                dfl       = (q.get("deflection") or "none").lower().strip()
+                dfl_note  = q.get("deflection_note", "")
+                said      = q.get("answer_said") or q.get("answer_summary", "")
+                ideal     = q.get("model_answer") or q.get("ideal_answer", "")
+                tip       = q.get("coaching_tip", "")
+                sc_col    = _SCORE_COL.get(sc, _C["sub"])
+                sc_lbl    = _SCORE_ICON.get(sc, sc.upper())
+
+                # Question header row
+                pdf.ln(3)
+                pdf.set_fill_color(*_C["bg_grey"])
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(*_C["header"])
+                pdf.multi_cell(W, 6, f"Q{_s(str(qid))}: {_s(question)}", fill=True)
+
+                # Score badge
+                pdf.set_fill_color(*sc_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 8)
+                pdf.cell(50, 5, f" {sc_lbl} ", fill=True)
+                if reason:
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.multi_cell(W - 50, 5, f"  {_s(reason)}")
+                else:
+                    pdf.ln(5)
+                pdf.set_text_color(0, 0, 0)
+
+                # Deflection warning
+                if dfl in _DEFL_LABEL:
+                    pdf.set_font("Helvetica", "B", 8)
+                    pdf.set_text_color(*_C["ni"])
+                    pdf.cell(W, 4, _DEFL_LABEL[dfl], new_x="LMARGIN", new_y="NEXT")
+                    if dfl_note:
+                        pdf.set_font("Helvetica", "I", 8)
+                        pdf.multi_cell(W, 4, _s(dfl_note))
+                    pdf.set_text_color(0, 0, 0)
+
+                if said:
+                    _label_block("WHAT WAS SAID", said, _C["bg_grey"], _C["sub"])
+                if ideal:
+                    _label_block("WHAT YOU COULD HAVE SAID", ideal, _C["bg_blue"], _C["accent"])
+                if tip:
+                    _label_block("COACHING TIP", tip, _C["bg_amber"], _C["ni"])
+
+            # Deep analysis
+            adv_reason = ia.get("advance_reasoning", "")
+            if adv_reason:
+                pdf.ln(3)
+                _section_header("DEEP ANALYSIS", *_C["sub"])
+                if adv: pdf.set_font("Helvetica", "B", 10); pdf.cell(W, 5, f"Advance Likelihood: {adv}%", new_x="LMARGIN", new_y="NEXT")
+                if defl: pdf.set_font("Helvetica", "B", 10); pdf.cell(W, 5, f"Deflection Rate: {defl}%", new_x="LMARGIN", new_y="NEXT")
+                _body(adv_reason)
+
+        # Video delivery section
+        if va_result and not getattr(va_result, "error", None) and va_result.persons:
+            _section_header("VIDEO DELIVERY ANALYSIS", 59, 130, 246)
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(*_C["sub"])
+            pdf.cell(W, 5, f"Overall: {va_result.overall_score:.0f}/100  |  "
+                           f"Duration: {int(va_result.duration_seconds//60)}m {int(va_result.duration_seconds%60)}s  |  "
+                           f"Participants: {va_result.person_count}", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(0,0,0)
+            pdf.ln(3)
+            for pid, p in va_result.persons.items():
+                sc_col = _SCORE_COL.get("Great" if p.overall >= 80 else "Good" if p.overall >= 65 else "Needs Improvement" if p.overall >= 50 else "Missed", _C["sub"])
+                pdf.set_fill_color(*sc_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.cell(W, 6, f"  {_s(p.role)}  —  {p.overall:.0f}/100", fill=True, new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0,0,0)
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*_C["sub"])
+                metrics = (f"Confidence: {p.confidence:.0f}   Composure: {p.composure:.0f}   "
+                           f"Eye Contact: {p.eye_contact:.0f}   Engagement: {p.engagement:.0f}   Energy: {p.energy:.0f}")
+                pdf.cell(W, 5, metrics, new_x="LMARGIN", new_y="NEXT")
+                body_lang = (f"Open Posture: {p.open_body_pct:.0f}%   "
+                             f"Arms Crossed: {p.arm_crossed_pct:.0f}%   "
+                             f"Forward Lean: {p.forward_lean_pct:.0f}%   "
+                             f"Mood: {_s(p.dominant_emotion)}")
+                pdf.cell(W, 5, body_lang, new_x="LMARGIN", new_y="NEXT")
+                if p.cultural:
+                    pdf.cell(W, 5,
+                             f"American Standard: {p.cultural.american_score:.0f}/100   "
+                             f"Adaptation Score: {p.cultural.adaptation_score:.0f}/100",
+                             new_x="LMARGIN", new_y="NEXT")
+                    for t in p.cultural.american_tips[:2]:
+                        pdf.set_font("Helvetica", "", 8)
+                        pdf.set_x(pdf.l_margin + 4)
+                        pdf.multi_cell(W - 4, 4, f"- {_s(t)}")
+                pdf.set_text_color(0,0,0)
+                pdf.ln(3)
+
+        # Transcript
+        if getattr(result, "speaker_dialogue", ""):
+            _section_header("SPEAKER DIALOGUE", *_C["sub"])
+            _body(result.speaker_dialogue, size=9)
+        elif getattr(result, "clean_transcript", ""):
+            _section_header("TRANSCRIPT", *_C["sub"])
+            _body(result.clean_transcript, size=9)
+
+    else:
+        # ── Fallback: plain-text parsing (used for translated reports) ────────
+        pdf.set_font("Helvetica", "", 10)
+        for line in combined_text.splitlines():
+            stripped = line.rstrip()
+            if not stripped:
+                pdf.ln(2); continue
+            if set(stripped.strip()) <= {"=", "-", " "} and len(stripped.strip()) > 4:
+                continue
+            inner = stripped.strip()
+            if (inner.isupper() and 3 < len(inner) < 70
+                    and not set(inner) <= {"=", "-", " "}):
+                _section_header(inner, *_C["header"])
+            elif inner.startswith("Q") and ":" in inner[:8]:
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(*_C["header"])
+                pdf.multi_cell(W, 5, _s(inner))
+                pdf.set_text_color(0,0,0)
+                pdf.set_font("Helvetica", "", 10)
+            elif any(inner.startswith(k) for k in ("WHAT WAS SAID","WHAT YOU COULD","COACHING TIP","Said    :","Ideal   :","Tip     :")):
+                _body(inner, size=9, indent=4)
+            else:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(*_C["sub"])
+                pdf.multi_cell(W, 5, _s(stripped))
+                pdf.set_text_color(0,0,0)
 
     pdf.output(str(path))
     return str(path)
@@ -3082,7 +3385,8 @@ def process_file(
 
                 f_p_path = job_dir / f"{stem}_report.pdf"
                 try:
-                    _generate_pdf(stem, combined_text, f_p_path)
+                    _generate_pdf(stem, combined_text, f_p_path,
+                                 result=result, va_result=_va_res)
                     f_p = str(f_p_path)
                 except Exception:
                     f_p = None

@@ -258,6 +258,14 @@ try:
             if cb and self.total and self.total > 0:
                 cb(min(self.n / self.total, 1.0))
 
+        def close(self):
+            # Fire a final 100% when tqdm closes so the UI never stalls at 99%.
+            with _progress_lock:
+                cb = _progress_cb
+            if cb:
+                cb(1.0)
+            super().close()
+
     # whisper.transcribe calls tqdm.tqdm(...) where tqdm is the MODULE.
     # Patching the function object (_wt = whisper.transcribe the function) does
     # nothing. We must patch tqdm.tqdm on the real submodule via sys.modules.

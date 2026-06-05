@@ -2258,6 +2258,7 @@ def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str
 
 def run(
     file_path: str,
+    file_path_2: str = None,             # optional second file — merged into one transcript
     output_dir: str = "transcript_output",
     whisper_model: str = "base",
     stt_engine: str = "whisper_local",   # see STT_ENGINES keys
@@ -2346,6 +2347,32 @@ def run(
         _log(f"Mode: Document  ({ext or 'text'})")
         raw_text, fmt = load_file(file_path, whisper_model)
         _log(f"Document loaded: ~{len(raw_text.split()):,} words")
+
+    # ── Merge second file if provided ────────────────────────────────────────────
+    if file_path_2 and Path(file_path_2).exists() and ext in (AUDIO_EXTS | VIDEO_EXTS):
+        _log(f"▶ File 2: {Path(file_path_2).name} — transcribing…")
+        _dur1 = _get_audio_duration(file_path) or (
+            max((s.get("end", 0) for s in _segments), default=0) if _segments else 0
+        )
+        _raw2, _lang2, _segs2, _secs2 = stt_transcribe(
+            file_path_2, stt_engine,
+            api_key=stt_api_key,
+            whisper_model=whisper_model,
+            language=language,
+            stt_model=stt_model,
+            on_progress=on_whisper_progress,
+            on_stage_change=on_stage_change,
+            on_log=on_log,
+            use_gpu=use_gpu,
+        )
+        # Offset file-2 segment timestamps so they follow file 1 continuously
+        for seg in _segs2:
+            if "start" in seg: seg["start"] = round(seg["start"] + _dur1, 3)
+            if "end"   in seg: seg["end"]   = round(seg["end"]   + _dur1, 3)
+        raw_text  = raw_text.rstrip() + "\n\n" + _raw2.lstrip()
+        _segments = _segments + _segs2
+        _stt_secs += _secs2
+        _log(f"✅ Both files transcribed — {len(raw_text.split()):,} words total")
 
     if on_raw_transcript:
         on_raw_transcript(raw_text)

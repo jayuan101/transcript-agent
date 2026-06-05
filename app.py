@@ -2602,6 +2602,7 @@ def _build_unified_interview_html(ia: dict, va_result) -> str:
 def process_file(
     uploaded_file,
     path_input,
+    path_input_2,
     panel_mode,
     num_speakers,
     stt_engine,
@@ -2678,6 +2679,7 @@ def process_file(
     pasted = (path_input or "").strip().strip('"').strip("'")
     if pasted:
         uploaded_file = pasted
+    _file2 = (path_input_2 or "").strip().strip('"').strip("'")
 
     if not uploaded_file:
         yield _err("Please drag a file, paste a file path, or paste a URL above.")
@@ -2902,6 +2904,7 @@ def process_file(
         try:
             result = run(
                 file_path=uploaded_file,
+                file_path_2=_file2 or None,
                 output_dir=str(job_dir),
                 whisper_model=_whisper_model,
                 stt_engine=stt_engine,
@@ -6211,6 +6214,10 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 label="Paste file path or URL (large files — no upload, no timeout)",
                 placeholder='e.g.  C:\\Videos\\interview.mp4  or  https://example.com/recording.webm',
             )
+            path_input_2 = gr.Textbox(
+                label="Part 2 — paste second file path to merge into one transcript (optional)",
+                placeholder='e.g.  C:\\Videos\\interview_part2.mp4',
+            )
             image_input = gr.File(visible=False, type="filepath", elem_id="ta-image-input")
             with gr.Accordion("⚡ What we support", open=False):
                 gr.HTML(_CAPABILITIES)
@@ -7150,7 +7157,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     process_event = process_btn.click(
         fn=process_file,
         inputs=[
-            file_input, path_input,
+            file_input, path_input, path_input_2,
             panel_toggle, speakers_input,
             stt_engine_input, stt_key_input, stt_model_input,
             interview_toggle, interview_deep, profile_text_state,

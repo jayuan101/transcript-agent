@@ -16,6 +16,17 @@ services:
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT=7860
       - TZ=${TZ:-America/New_York}
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+    # ── GPU support (NVIDIA) ──────────────────────────────────────────────────
+    # Uncomment the deploy block below if you have an NVIDIA GPU + nvidia-container-toolkit.
+    # Run first: sudo apt install nvidia-container-toolkit && sudo systemctl restart docker
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     dns:
       - 8.8.8.8
       - 1.1.1.1

@@ -23,6 +23,16 @@ services:
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT=7860
       - TZ=${TZ:-America/New_York}
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+    # ── GPU support (NVIDIA) ──────────────────────────────────────────────────
+    # Uncomment if you have an NVIDIA GPU + nvidia-container-toolkit installed.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]

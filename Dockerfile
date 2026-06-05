@@ -76,6 +76,8 @@ ENV XDG_CACHE_HOME=/app/.cache
 # Force software GL rendering — mediapipe/OpenCV won't need hardware GPU drivers
 ENV LIBGL_ALWAYS_SOFTWARE=1
 ENV MESA_GL_VERSION_OVERRIDE=3.3
+# Allow TensorFlow (DeepFace) to use GPU memory growth — avoids OOM if CUDA is available
+ENV TF_FORCE_GPU_ALLOW_GROWTH=true
 
 # Gradio — listen on all interfaces so Docker port mapping works
 ENV GRADIO_SERVER_NAME=0.0.0.0

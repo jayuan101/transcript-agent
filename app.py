@@ -2260,7 +2260,7 @@ def _build_unified_interview_html(ia: dict, va_result) -> str:
     )
 
     # ── Score cards ───────────────────────────────────────────────────────────
-    delivery += _video_analyzer.render_score_cards_html(va_result)
+    delivery += _video_analyzer.render_score_cards_html(va_result, ia=ia)
 
     # ── Emotion timeline (inline Plotly) ──────────────────────────────────────
     try:
@@ -3087,7 +3087,7 @@ def process_file(
                     "clean_transcript": result.clean_transcript or ""},
                 log=log_text,
                 iv_scores=gr.update(
-                    value=_video_analyzer.render_score_cards_html(_va_res) if _va_res and not getattr(_va_res,'error',None) else "",
+                    value=_video_analyzer.render_score_cards_html(_va_res, ia=result.interview_analysis) if _va_res and not getattr(_va_res,'error',None) else "",
                     visible=bool(_va_res and not getattr(_va_res,'error',None))),
                 iv_tl=gr.update(
                     value=_va_timeline_html,

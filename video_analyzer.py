@@ -880,63 +880,197 @@ class VideoAnalyzer:
 
     # ── HTML renderers ────────────────────────────────────────────────────────
 
-    def render_score_cards_html(self, result: VideoAnalysisResult, cultural_mode="both") -> str:
+    def render_score_cards_html(self, result: VideoAnalysisResult, cultural_mode="both", ia: dict = None) -> str:
         if result.error:
             return f'<div style="color:#ef4444;padding:16px;white-space:pre-wrap;">{result.error[:800]}</div>'
 
         SC  = lambda v: "#166534" if v>=80 else "#1d4ed8" if v>=65 else "#92400e" if v>=50 else "#991b1b"
-        BAR = lambda v,c: (f'<div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:4px;">'
-                           f'<div style="background:{c};height:6px;border-radius:4px;width:{v:.0f}%;"></div></div>')
-        MET = lambda lbl,v,c: (f'<div style="margin-bottom:10px;">'
-                                f'<div style="display:flex;justify-content:space-between;font-size:0.8em;">'
-                                f'<span style="color:#64748b;">{lbl}</span>'
-                                f'<span style="font-weight:700;color:{c};">{v:.0f}%</span></div>'
-                                + BAR(v,c) + '</div>')
+        BAR = lambda v,c: (f'<div style="background:#e2e8f0;border-radius:4px;height:7px;margin-top:4px;">'
+                           f'<div style="background:{c};height:7px;border-radius:4px;width:{min(100,v):.0f}%;"></div></div>')
+
+        # MET with description line under the label
+        _DESCS = {
+            "Confidence":    "How assertive and self-assured you came across",
+            "Composure":     "How calm and controlled you stayed under pressure",
+            "Eye Contact":   "How often you looked directly at the camera",
+            "Engagement":    "Overall presence and active attentiveness",
+            "Energy Level":  "Expressiveness and enthusiasm in your delivery",
+            "Open Posture":  "Open, welcoming body position — uncrossed arms",
+            "Forward Lean":  "Leaning in slightly signals active interest",
+            "Receptiveness": "How open and responsive you appeared to others",
+        }
+        def MET(lbl, v, c):
+            desc = _DESCS.get(lbl, "")
+            return (f'<div style="margin-bottom:12px;">'
+                    f'<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+                    f'<div><span style="font-size:0.82em;font-weight:600;color:#1e293b;">{lbl}</span>'
+                    + (f'<div style="font-size:0.7em;color:#94a3b8;margin-top:1px;">{desc}</div>' if desc else '')
+                    + f'</div>'
+                    f'<span style="font-size:1.05em;font-weight:800;color:{c};margin-left:12px;flex-shrink:0;">{min(100,v):.0f}</span>'
+                    f'</div>'
+                    + BAR(v, c) + '</div>')
+
+        # ── Parse interview analysis scores if provided ───────────────────────
+        content_score_100: Optional[float] = None
+        advance_pct: Optional[int]         = None
+        q_summary: List[dict]              = []
+        ia_verdict: str                    = ""
+        if ia:
+            try:
+                raw = str(ia.get("overall_score", "") or "").replace("/10","").strip()
+                content_score_100 = float(raw) * 10 if raw else None
+            except (ValueError, TypeError):
+                content_score_100 = None
+            try:
+                adv = str(ia.get("advance_likelihood","") or "").strip().rstrip("%")
+                advance_pct = int(adv) if adv else None
+            except (ValueError, TypeError):
+                advance_pct = None
+            ia_verdict = ia.get("overall_verdict","") or ""
+            q_summary  = ia.get("questions", [])[:8]
+
+        delivery_score = result.overall_score
+
+        # Combined final score: 60% content + 40% delivery (if both available)
+        if content_score_100 is not None:
+            final_score = round(content_score_100 * 0.6 + delivery_score * 0.4, 1)
+        else:
+            final_score = delivery_score
 
         cands = [p for p in result.persons.values() if p.role == "Candidate"]
         ivrs  = [p for p in result.persons.values() if p.role not in ("Candidate","Unknown","")]
         html  = '<div style="font-family:system-ui,sans-serif;padding:4px 0;">'
 
-        # Overall banner
-        ov = result.overall_score; oc = SC(ov)
-        html += (f'<div style="background:{oc};border-radius:16px;padding:18px 24px;'
-                 f'margin-bottom:20px;display:flex;align-items:center;gap:20px;">'
-                 f'<div style="background:rgba(255,255,255,0.18);border-radius:12px;'
-                 f'padding:10px 18px;text-align:center;min-width:78px;">'
-                 f'<div style="font-size:2.5em;font-weight:900;color:#fff;line-height:1;">{ov:.0f}</div>'
-                 f'<div style="font-size:0.68em;font-weight:700;color:rgba(255,255,255,.75);'
-                 f'text-transform:uppercase;letter-spacing:.08em;">/ 100</div></div>'
-                 f'<div><div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                 f'letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:4px;">Overall Session Score</div>'
-                 f'<div style="font-size:1.1em;font-weight:800;color:#fff;">'
-                 f'{result.person_count} participant{"s" if result.person_count!=1 else ""} · '
-                 f'{int(result.duration_seconds//60)}m {int(result.duration_seconds%60)}s</div></div></div>')
+        # ── Combined Final Score banner ───────────────────────────────────────
+        fc = SC(final_score)
+        if content_score_100 is not None:
+            dc = SC(delivery_score); cc = SC(content_score_100)
+            def _score_box(val, label, sub="/ 100"):
+                col = SC(val)
+                return (f'<div style="background:rgba(255,255,255,0.15);border-radius:12px;'
+                        f'padding:10px 14px;text-align:center;min-width:72px;">'
+                        f'<div style="font-size:2em;font-weight:900;color:#fff;line-height:1;">{val:.0f}</div>'
+                        f'<div style="font-size:0.62em;font-weight:700;color:rgba(255,255,255,.7);'
+                        f'text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">{sub}</div>'
+                        f'<div style="font-size:0.68em;color:rgba(255,255,255,.9);margin-top:3px;">{label}</div>'
+                        f'</div>')
+            html += (f'<div style="background:{fc};border-radius:16px;padding:18px 22px;'
+                     f'margin-bottom:20px;">'
+                     f'<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;'
+                     f'letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:12px;">🏆 Final Interview Score</div>'
+                     f'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">'
+                     + _score_box(final_score,      "Combined Final")
+                     + f'<div style="color:rgba(255,255,255,0.4);font-size:1.4em;font-weight:300;">=</div>'
+                     + _score_box(content_score_100, "Answer Quality", "/ 100")
+                     + f'<div style="color:rgba(255,255,255,0.4);font-size:1.1em;">60%</div>'
+                     + _score_box(delivery_score,    "Delivery",        "/ 100")
+                     + f'<div style="color:rgba(255,255,255,0.4);font-size:1.1em;">40%</div>'
+                     + (f'<div style="margin-left:auto;background:rgba(255,255,255,0.12);border-radius:10px;'
+                        f'padding:8px 14px;text-align:center;">'
+                        f'<div style="font-size:1.5em;font-weight:900;color:#fff;">{advance_pct}%</div>'
+                        f'<div style="font-size:0.62em;color:rgba(255,255,255,.75);text-transform:uppercase;'
+                        f'letter-spacing:.05em;">Advance<br>Likelihood</div></div>'
+                        if advance_pct is not None else '')
+                     + f'</div>'
+                     + (f'<div style="font-size:0.82em;color:rgba(255,255,255,.85);margin-top:10px;">{ia_verdict}</div>'
+                        if ia_verdict else '')
+                     + f'</div>')
+        else:
+            # Delivery-only banner (no interview analysis available)
+            html += (f'<div style="background:{fc};border-radius:16px;padding:18px 24px;'
+                     f'margin-bottom:20px;display:flex;align-items:center;gap:20px;">'
+                     f'<div style="background:rgba(255,255,255,0.18);border-radius:12px;'
+                     f'padding:10px 18px;text-align:center;min-width:78px;">'
+                     f'<div style="font-size:2.5em;font-weight:900;color:#fff;line-height:1;">{final_score:.0f}</div>'
+                     f'<div style="font-size:0.68em;font-weight:700;color:rgba(255,255,255,.75);'
+                     f'text-transform:uppercase;letter-spacing:.08em;">/ 100</div></div>'
+                     f'<div><div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                     f'letter-spacing:.1em;color:rgba(255,255,255,.7);margin-bottom:4px;">Delivery Score</div>'
+                     f'<div style="font-size:1.1em;font-weight:800;color:#fff;">'
+                     f'{result.person_count} participant{"s" if result.person_count!=1 else ""} · '
+                     f'{int(result.duration_seconds//60)}m {int(result.duration_seconds%60)}s</div></div></div>')
 
-        # Candidate card
-        for p in cands:
-            c = SC(p.overall)
-            html += (f'<div style="border:2px solid {c};border-radius:14px;padding:18px 20px;'
-                     f'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
-                     f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">'
-                     f'<div style="background:{c};border-radius:10px;padding:6px 14px;'
-                     f'color:#fff;font-weight:800;font-size:0.9em;">Candidate</div>'
-                     f'<div style="font-size:1.4em;font-weight:900;color:{c};">{p.overall:.0f}%</div>'
-                     f'<div style="font-size:0.78em;color:#64748b;margin-left:auto;">'
-                     f'Talk: {p.talk_time_pct:.0f}% · Mood: {p.dominant_emotion}</div></div>'
-                     + MET("Confidence",   p.confidence,  SC(p.confidence))
-                     + MET("Composure",    p.composure,   SC(p.composure))
-                     + MET("Eye Contact",  p.eye_contact, SC(p.eye_contact))
-                     + MET("Engagement",   p.engagement,  SC(p.engagement))
-                     + MET("Energy Level", p.energy,      SC(p.energy)))
-            # Body language sub-section
-            bl_col = BL_HTML.get(("OPEN" if p.open_body_pct > 60 else "CLOSED" if p.arm_crossed_pct > 25 else "NEUTRAL"), "#94a3b8")
-            html += (f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">'
-                     f'<div style="font-size:0.78em;font-weight:700;color:#475569;margin-bottom:6px;">Body Language</div>'
-                     + MET("Open Posture",   p.open_body_pct,    SC(p.open_body_pct))
-                     + MET("Forward Lean",   p.forward_lean_pct, SC(p.forward_lean_pct))
-                     + f'<div style="font-size:0.75em;color:#64748b;">'
-                     f'Arms crossed: {p.arm_crossed_pct:.0f}% of session</div></div>')
-            html += '</div>'
+        # ── Two-column layout when interview data available ───────────────────
+        if content_score_100 is not None and cands:
+            _Q_COL = {"Great":"#22c55e","Good":"#3b82f6",
+                      "Needs Improvement":"#f59e0b","Missed":"#ef4444"}
+            qs_html = ""
+            for q in q_summary:
+                sc_lbl = q.get("score","")
+                sc_col = _Q_COL.get(sc_lbl,"#94a3b8")
+                qs_html += (f'<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:8px;">'
+                            f'<span style="background:{sc_col};color:#fff;font-size:0.65em;font-weight:700;'
+                            f'padding:2px 8px;border-radius:10px;white-space:nowrap;margin-top:2px;flex-shrink:0;">'
+                            f'{sc_lbl or "—"}</span>'
+                            f'<span style="font-size:0.78em;color:#374151;line-height:1.4;">'
+                            f'{q.get("question","")[:90]}</span></div>')
+
+            content_card = (f'<div style="border:2px solid {SC(content_score_100)};border-radius:14px;'
+                            f'padding:16px 18px;background:var(--ta-card-bg,#f8fafc);">'
+                            f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+                            f'<div style="background:{SC(content_score_100)};border-radius:8px;padding:4px 12px;'
+                            f'color:#fff;font-weight:800;font-size:0.82em;">📝 Answer Quality</div>'
+                            f'<div style="font-size:1.3em;font-weight:900;color:{SC(content_score_100)};">'
+                            f'{content_score_100:.0f}<span style="font-size:0.5em;color:#94a3b8;">/100</span></div>'
+                            + (f'<div style="margin-left:auto;font-size:0.75em;color:#64748b;">'
+                               f'Advance: <b style="color:{SC(advance_pct)};">{advance_pct}%</b></div>'
+                               if advance_pct is not None else '')
+                            + f'</div>'
+                            + (qs_html if qs_html else '<div style="font-size:0.78em;color:#94a3b8;">No questions recorded.</div>')
+                            + f'</div>')
+
+            p = cands[0]; c = SC(p.overall)
+            delivery_card = (f'<div style="border:2px solid {c};border-radius:14px;padding:16px 18px;'
+                             f'background:var(--ta-card-bg,#f8fafc);">'
+                             f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">'
+                             f'<div style="background:{c};border-radius:8px;padding:4px 12px;'
+                             f'color:#fff;font-weight:800;font-size:0.82em;">🎥 Delivery</div>'
+                             f'<div style="font-size:1.3em;font-weight:900;color:{c};">'
+                             f'{p.overall:.0f}<span style="font-size:0.5em;color:#94a3b8;">/100</span></div>'
+                             f'<div style="font-size:0.72em;color:#64748b;margin-left:auto;">'
+                             f'Mood: {p.dominant_emotion}</div></div>'
+                             + MET("Confidence",   p.confidence,  SC(p.confidence))
+                             + MET("Composure",    p.composure,   SC(p.composure))
+                             + MET("Eye Contact",  p.eye_contact, SC(p.eye_contact))
+                             + MET("Engagement",   p.engagement,  SC(p.engagement))
+                             + MET("Energy Level", p.energy,      SC(p.energy))
+                             + f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">'
+                             f'<div style="font-size:0.75em;font-weight:700;color:#475569;margin-bottom:8px;">Body Language</div>'
+                             + MET("Open Posture",  p.open_body_pct,    SC(p.open_body_pct))
+                             + MET("Forward Lean",  p.forward_lean_pct, SC(p.forward_lean_pct))
+                             + f'<div style="font-size:0.72em;color:#64748b;">'
+                             f'Arms crossed: {p.arm_crossed_pct:.0f}% of session</div></div>'
+                             f'<div style="font-size:0.7em;color:#64748b;margin-top:8px;">'
+                             f'Talk share: {p.talk_time_pct:.0f}%</div>'
+                             f'</div>')
+
+            html += (f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">'
+                     + delivery_card + content_card + f'</div>')
+
+        else:
+            # No interview analysis — render delivery card full-width
+            for p in cands:
+                c = SC(p.overall)
+                html += (f'<div style="border:2px solid {c};border-radius:14px;padding:18px 20px;'
+                         f'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
+                         f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">'
+                         f'<div style="background:{c};border-radius:10px;padding:6px 14px;'
+                         f'color:#fff;font-weight:800;font-size:0.9em;">Candidate</div>'
+                         f'<div style="font-size:1.4em;font-weight:900;color:{c};">{p.overall:.0f}</div>'
+                         f'<div style="font-size:0.78em;color:#64748b;margin-left:auto;">'
+                         f'Talk: {p.talk_time_pct:.0f}% · Mood: {p.dominant_emotion}</div></div>'
+                         + MET("Confidence",   p.confidence,  SC(p.confidence))
+                         + MET("Composure",    p.composure,   SC(p.composure))
+                         + MET("Eye Contact",  p.eye_contact, SC(p.eye_contact))
+                         + MET("Engagement",   p.engagement,  SC(p.engagement))
+                         + MET("Energy Level", p.energy,      SC(p.energy))
+                         + f'<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">'
+                         f'<div style="font-size:0.78em;font-weight:700;color:#475569;margin-bottom:6px;">Body Language</div>'
+                         + MET("Open Posture",   p.open_body_pct,    SC(p.open_body_pct))
+                         + MET("Forward Lean",   p.forward_lean_pct, SC(p.forward_lean_pct))
+                         + f'<div style="font-size:0.75em;color:#64748b;">'
+                         f'Arms crossed: {p.arm_crossed_pct:.0f}% of session</div></div>'
+                         f'</div>')
 
         # Interviewer cards
         for p in ivrs:
@@ -946,7 +1080,7 @@ class VideoAnalyzer:
                      f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">'
                      f'<div style="background:{c};border-radius:10px;padding:6px 14px;'
                      f'color:#fff;font-weight:800;font-size:0.9em;">{p.role}</div>'
-                     f'<div style="font-size:1.4em;font-weight:900;color:{c};">{p.overall:.0f}%</div>'
+                     f'<div style="font-size:1.4em;font-weight:900;color:{c};">{p.overall:.0f}</div>'
                      f'<div style="font-size:0.78em;color:#64748b;margin-left:auto;">'
                      f'Talk: {p.talk_time_pct:.0f}% · Mood: {p.dominant_emotion}</div></div>'
                      + MET("Receptiveness", p.receptiveness, SC(p.receptiveness))
@@ -961,7 +1095,7 @@ class VideoAnalyzer:
                  + MET("Rapport",      result.rapport_score,     SC(result.rapport_score))
                  + MET("Talk Balance", result.talk_balance_score, SC(result.talk_balance_score))
                  + f'<div style="font-size:0.78em;color:#64748b;margin-top:6px;">'
-                 f'Candidate {ct:.0f}% · Interviewer(s) {it:.0f}%</div></div>')
+                 f'Candidate spoke {ct:.0f}% · Interviewer(s) {it:.0f}%</div></div>')
 
         # Observations
         if result.observations:

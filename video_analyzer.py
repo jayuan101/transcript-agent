@@ -1197,11 +1197,15 @@ class VideoAnalyzer:
                     if reason:
                         html += (f'<div style="font-size:0.78em;color:#64748b;margin-bottom:8px;">'
                                  f'<em>{reason}</em></div>')
+                    defl_note = q.get("deflection_note","")
                     if defl in ("partial","full"):
                         _defl_col = "#f59e0b" if defl == "partial" else "#ef4444"
                         _defl_lbl = "⚠️ Partially deflected" if defl == "partial" else "🚫 Did not answer"
                         html += (f'<div style="font-size:0.75em;font-weight:700;color:{_defl_col};'
-                                 f'margin-bottom:8px;">{_defl_lbl}</div>')
+                                 f'margin-bottom:4px;">{_defl_lbl}</div>')
+                        if defl_note:
+                            html += (f'<div style="font-size:0.78em;color:#64748b;font-style:italic;'
+                                     f'margin-bottom:8px;">{defl_note}</div>')
                     if said:
                         html += (f'<div style="margin-bottom:8px;">'
                                  f'<div style="font-size:0.72em;font-weight:700;color:#475569;'
@@ -1220,6 +1224,31 @@ class VideoAnalyzer:
                                  f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Coaching Tip</div>'
                                  f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{tip}</div></div>')
                     html += '</div>'
+                html += '</div>'
+
+            # ── Deep Analysis panel ───────────────────────────────────────────
+            _adv_reason = ia.get("advance_reasoning","")
+            _defl_rate  = ia.get("deflection_rate","")
+            _adv_pct_da = ia.get("advance_likelihood","")
+            if _adv_reason or _defl_rate or _adv_pct_da:
+                _ac = SC(float(str(_adv_pct_da).rstrip("%") or 50))
+                html += ('<div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;'
+                         'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
+                         '<div style="font-weight:800;color:#1e293b;margin-bottom:10px;font-size:0.9em;">'
+                         '🔬 Deep Analysis</div>')
+                if _defl_rate or _adv_pct_da:
+                    html += f'<div style="display:flex;gap:20px;margin-bottom:10px;flex-wrap:wrap;">'
+                    if _defl_rate:
+                        html += (f'<div><span style="font-size:0.75em;color:#64748b;text-transform:uppercase;'
+                                 f'letter-spacing:.05em;">Deflection Rate</span>'
+                                 f'<div style="font-size:1.4em;font-weight:800;color:#f59e0b;">{_defl_rate}%</div></div>')
+                    if _adv_pct_da:
+                        html += (f'<div><span style="font-size:0.75em;color:#64748b;text-transform:uppercase;'
+                                 f'letter-spacing:.05em;">Advance Likelihood</span>'
+                                 f'<div style="font-size:1.4em;font-weight:800;color:{_ac};">{_adv_pct_da}%</div></div>')
+                    html += '</div>'
+                if _adv_reason:
+                    html += (f'<div style="font-size:0.84em;color:#374151;line-height:1.6;">{_adv_reason}</div>')
                 html += '</div>'
 
         else:

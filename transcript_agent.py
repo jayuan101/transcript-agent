@@ -516,39 +516,68 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bo
         if defl:
             doc.add_paragraph(f"Deflection Rate: {defl}%")
 
-        # Per-question breakdown
+        # Per-question breakdown — all questions, no truncation
         qs = ia.get("questions", [])
         if qs:
             doc.add_heading("Question Breakdown", 2)
-            _SCORE_ICON = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
+            _SCORE_ICON  = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
+            _DEFL_LABEL  = {"partial": "⚠️ Partially deflected", "full": "🚫 Did not answer"}
             for q in qs:
-                qid   = q.get("id", "")
-                question = q.get("question", "")
-                sc    = q.get("score", "")
-                reason= q.get("score_reason", "")
-                said  = q.get("answer_said") or q.get("answer_summary", "")
-                ideal = q.get("model_answer") or q.get("ideal_answer", "")
-                tip   = q.get("coaching_tip", "")
-                icon  = _SCORE_ICON.get(sc, "·")
+                qid       = q.get("id", "")
+                question  = q.get("question", "")
+                sc        = q.get("score", "")
+                reason    = q.get("score_reason", "")
+                defl      = (q.get("deflection") or "none").lower().strip()
+                defl_note = q.get("deflection_note", "")
+                said      = q.get("answer_said") or q.get("answer_summary", "")
+                ideal     = q.get("model_answer") or q.get("ideal_answer", "")
+                tip       = q.get("coaching_tip", "")
+                icon      = _SCORE_ICON.get(sc, "·")
 
-                h = doc.add_heading(f"Q{qid}: {question}", 3)
+                doc.add_heading(f"Q{qid}: {question}", 3)
+
+                # Score line
                 p = doc.add_paragraph()
                 p.add_run(f"Score: {icon} {sc}").bold = True
                 if reason: p.add_run(f"  —  {reason}")
-                if said:
-                    doc.add_paragraph("What was said:").runs[0].italic = True
-                    doc.add_paragraph(said[:400])
-                if ideal:
-                    doc.add_paragraph("What could have been said:").runs[0].italic = True
-                    doc.add_paragraph(ideal[:400])
-                if tip:
-                    doc.add_paragraph("Coaching Tip:").runs[0].italic = True
-                    doc.add_paragraph(tip[:400])
 
+                # Deflection
+                if defl in _DEFL_LABEL:
+                    dp = doc.add_paragraph(_DEFL_LABEL[defl])
+                    dp.runs[0].italic = True
+                    if defl_note:
+                        doc.add_paragraph(defl_note)
+
+                # What was said
+                if said:
+                    lbl = doc.add_paragraph("📝 What was said")
+                    lbl.runs[0].bold = True
+                    doc.add_paragraph(said)
+
+                # What could have been said
+                if ideal:
+                    lbl = doc.add_paragraph("💬 What you could have said")
+                    lbl.runs[0].bold = True
+                    doc.add_paragraph(ideal)
+
+                # Coaching tip
+                if tip:
+                    lbl = doc.add_paragraph("🏋️ Coaching Tip")
+                    lbl.runs[0].bold = True
+                    doc.add_paragraph(tip)
+
+        # Deep analysis section
         adv_reason = ia.get("advance_reasoning", "")
-        if adv_reason:
-            doc.add_heading("Assessment", 2)
-            doc.add_paragraph(adv_reason)
+        defl_rate  = ia.get("deflection_rate", "")
+        adv_pct    = ia.get("advance_likelihood", "")
+        if adv_reason or defl_rate or adv_pct:
+            doc.add_heading("Deep Analysis", 2)
+            if defl_rate:
+                doc.add_paragraph(f"Deflection Rate: {defl_rate}%")
+            if adv_pct:
+                doc.add_paragraph(f"Advance Likelihood: {adv_pct}%")
+            if adv_reason:
+                doc.add_paragraph(adv_reason)
 
     doc.save(output_path)
     return True
@@ -1922,27 +1951,48 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                 "Great": "★", "Good": "◑",
                 "Needs Improvement": "△", "Missed": "✗",
             }
+            _DEFL_LABEL = {
+                "partial": "⚠️  Partially deflected",
+                "full":    "🚫  Did not answer",
+            }
             sections.append("  QUESTION BREAKDOWN")
             sections.append("  " + thin)
             for q in qs:
-                qid      = q.get("id", "")
-                question = q.get("question", "")
-                sc       = q.get("score", "")
-                reason   = q.get("score_reason", "")
-                said     = q.get("answer_said") or q.get("answer_summary", "")
-                ideal    = q.get("model_answer") or q.get("ideal_answer", "")
-                tip      = q.get("coaching_tip", "")
-                icon     = _SCORE_ICON.get(sc, "·")
+                qid        = q.get("id", "")
+                question   = q.get("question", "")
+                sc         = q.get("score", "")
+                reason     = q.get("score_reason", "")
+                defl       = (q.get("deflection") or "none").lower().strip()
+                defl_note  = q.get("deflection_note", "")
+                said       = q.get("answer_said") or q.get("answer_summary", "")
+                ideal      = q.get("model_answer") or q.get("ideal_answer", "")
+                tip        = q.get("coaching_tip", "")
+                icon       = _SCORE_ICON.get(sc, "·")
+
                 sections.append(f"  Q{qid}: {question}")
-                sections.append(f"    Score   : {icon} {sc}" + (f"  — {reason}" if reason else ""))
-                if said:  sections.append(f"    Said    : {said[:200]}")
-                if ideal: sections.append(f"    Ideal   : {ideal[:200]}")
-                if tip:   sections.append(f"    Tip     : {tip[:200]}")
+                sections.append(f"    Score  : {icon} {sc}" + (f"  — {reason}" if reason else ""))
+                if defl in _DEFL_LABEL:
+                    sections.append(f"    {_DEFL_LABEL[defl]}")
+                    if defl_note:
+                        sections.append(f"    {defl_note}")
+                if said:
+                    sections.append(f"    What was said:")
+                    for _line in said.splitlines():
+                        sections.append(f"      {_line}")
+                if ideal:
+                    sections.append(f"    What you could have said:")
+                    for _line in ideal.splitlines():
+                        sections.append(f"      {_line}")
+                if tip:
+                    sections.append(f"    Coaching Tip: {tip}")
                 sections.append("")
 
         adv_reason = ia.get("advance_reasoning", "")
         if adv_reason:
-            sections += ["  ASSESSMENT", "  " + thin, f"  {adv_reason}", ""]
+            sections += ["  " + divider, "  DEEP ANALYSIS", "  " + thin,
+                         f"  Deflection Rate   : {defl_pct}%" if (defl_pct := ia.get("deflection_rate","")) else "",
+                         f"  Advance Likelihood: {adv_pct}%" if (adv_pct := ia.get("advance_likelihood","")) else "",
+                         "", f"  {adv_reason}", ""]
 
     return "\n".join(sections)
 

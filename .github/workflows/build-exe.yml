@@ -38,6 +38,7 @@ jobs:
           pip install "deepgram-sdk>=3.2.0,<4.0.0" assemblyai elevenlabs rev_ai
           pip install fastapi uvicorn[standard] python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
+          pip install opencv-python-headless mediapipe
 
       - name: Build with PyInstaller
         run: pyinstaller TranscriptAgent.spec
@@ -106,6 +107,7 @@ jobs:
           pip install "deepgram-sdk>=3.2.0,<4.0.0" assemblyai elevenlabs rev_ai
           pip install fastapi "uvicorn[standard]" python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
+          pip install opencv-python-headless mediapipe
 
       - name: Build with PyInstaller
         run: pyinstaller TranscriptAgent.spec

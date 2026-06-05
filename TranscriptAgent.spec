@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-APP_VERSION = "1.1.82"
+APP_VERSION = "2.0.2"
 
 block_cipher = None
 HERE = Path(SPECPATH)
@@ -53,6 +53,8 @@ a = Analysis(
         # Bundle the main application files
         (str(HERE / 'app.py'),              '.'),
         (str(HERE / 'transcript_agent.py'), '.'),
+        (str(HERE / 'video_analyzer.py'),   '.'),
+        (str(HERE / 'api.py'),              '.'),
         (str(HERE / 'CHANGELOG.md'),        '.'),
         # Bundle setup scripts for the update flow
         (str(HERE / 'setup_windows.bat'),   '.'),
@@ -90,6 +92,9 @@ a = Analysis(
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
         'multiprocessing',
+        # Video analysis
+        'cv2', 'mediapipe', 'mediapipe.tasks', 'mediapipe.tasks.python',
+        'mediapipe.tasks.python.vision',
     ] + _gradio_hidden + _safehttpx_hidden + _groovy_hidden,
     hookspath=[],
     hooksconfig={},

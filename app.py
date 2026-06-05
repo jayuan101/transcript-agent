@@ -3155,15 +3155,73 @@ _STT_AUTOFILL_PREFIX = {
 _WHISPER_SIZES = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "turbo"]
 
 
-_STT_KEY_BANNER = (
-    '<div class="ta-stt-banner">'
-    '<span style="font-size:1.1em;flex-shrink:0;">🔑</span>'
-    '<div style="flex:1;min-width:0;">'
-    '<span class="ta-stt-banner-title">API Key Required</span>'
-    '<span class="ta-stt-banner-body">'
-    'Enter your API key below. Billed to your account — nothing stored here.'
-    '</span></div></div>'
-)
+_STT_KEY_INFO = {
+    "deepgram": (
+        "console.deepgram.com",
+        "https://console.deepgram.com",
+        "200 hours free — no credit card required to start",
+    ),
+    "assemblyai": (
+        "assemblyai.com",
+        "https://www.assemblyai.com/dashboard/signup",
+        "Free tier available — sign up and copy your API key",
+    ),
+    "openai_whisper": (
+        "platform.openai.com → API keys",
+        "https://platform.openai.com/api-keys",
+        "Billed per minute of audio — ~$0.006/min",
+    ),
+    "groq_whisper": (
+        "console.groq.com",
+        "https://console.groq.com/keys",
+        "Free tier with generous limits",
+    ),
+    "elevenlabs": (
+        "elevenlabs.io",
+        "https://elevenlabs.io/app/settings/api-keys",
+        "Free tier available — best for speaker-aware transcription",
+    ),
+    "revai": (
+        "rev.ai",
+        "https://www.rev.ai/access_token",
+        "300 minutes free on signup",
+    ),
+    "google_stt": (
+        "console.cloud.google.com",
+        "https://console.cloud.google.com/apis/credentials",
+        "60 mins free/month — requires Google Cloud account",
+    ),
+    "azure_speech": (
+        "portal.azure.com",
+        "https://portal.azure.com/#create/Microsoft.CognitiveServicesSpeechServices",
+        "5 hours free/month — requires Azure account",
+    ),
+}
+
+
+def _stt_key_banner(engine: str) -> str:
+    info = _STT_KEY_INFO.get(engine)
+    if not info:
+        return (
+            '<div class="ta-stt-banner">'
+            '<span style="font-size:1.1em;flex-shrink:0;">🔑</span>'
+            '<div style="flex:1;min-width:0;">'
+            '<span class="ta-stt-banner-title">API Key Required</span>'
+            '<span class="ta-stt-banner-body">Enter your API key below — never stored on this server.</span>'
+            '</div></div>'
+        )
+    label, url, note = info
+    return (
+        f'<div class="ta-stt-banner">'
+        f'<span style="font-size:1.1em;flex-shrink:0;">🔑</span>'
+        f'<div style="flex:1;min-width:0;">'
+        f'<span class="ta-stt-banner-title">API Key Required</span>'
+        f'<span class="ta-stt-banner-body">'
+        f'Get your key at <a href="{url}" target="_blank" '
+        f'style="color:#3b82f6;font-weight:600;">{label}</a> — {note}.'
+        f'</span></div></div>'
+    )
+
 
 def toggle_stt_engine(engine, main_api_key="", stored_model=None):
     is_local = engine == "whisper_local"
@@ -3184,7 +3242,10 @@ def toggle_stt_engine(engine, main_api_key="", stored_model=None):
     else:
         default = models[0] if models else None
 
-    banner = gr.update(visible=not is_local, value=_STT_KEY_BANNER if not is_local else "")
+    banner = gr.update(
+        visible=not is_local,
+        value=_stt_key_banner(engine) if not is_local else "",
+    )
 
     return (
         gr.update(**key_kw),                                                # stt_key_input

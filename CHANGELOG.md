@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.1.1 — 2026-06-05
+- Fix: GPU toggle was ignored for translation, video LLM call, and re-analysis with profile — all LLMClient sites now respect use_gpu so Ollama uses GPU layers correctly
+
 ## v2.1.0 — 2026-06-05
 - GPU toggle preference persisted in browser localStorage — survives page reloads
 - GPU detected at startup in run.bat (Windows) and setup_mac.sh (Mac); result passed to app via TA_GPU_DEVICE so the toggle is pre-selected without re-running detection in the browser

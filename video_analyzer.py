@@ -286,12 +286,13 @@ class VideoAnalyzer:
             idx += 1
         cap.release(); lm.close()
 
-        # Keep only the top 5 most-seen faces (filters Zoom sidebar thumbnails)
-        min_seen = max(2, int(total_scanned * 0.05))
+        # Keep top 4 most-seen faces, min 2% of frames (lowered from 5% so
+        # Zoom/Teams screen recordings — where faces appear intermittently — still get thumbnails)
+        min_seen = max(2, int(total_scanned * 0.02))
         stable   = sorted(
             [pid for pid, n in seen_count.items() if n >= min_seen],
             key=lambda p: seen_count[p], reverse=True
-        )[:5]
+        )[:4]
         thumbs = {pid: thumbs[pid] for pid in stable if pid in thumbs}
         return thumbs, dur
 

@@ -6544,7 +6544,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
                     iv_analyze_btn = gr.Button(
                         "🔍  Analyze Video", variant="primary", size="lg",
-                        elem_id="iv-analyze-btn", visible=False,
+                        elem_id="iv-analyze-btn", visible=True,
                     )
 
                     # ── Results ───────────────────────────────────────────────────
@@ -6769,7 +6769,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         _no_vid = (
             gr.update(visible=False), gr.update(visible=False),
             gr.update(visible=False), gr.update(visible=False),
-            gr.update(visible=False), gr.update(visible=False),
+            gr.update(visible=True),  gr.update(visible=True),   # always show 2 role dropdowns
             gr.update(visible=False), gr.update(visible=False),
             2, gr.update(value=""),
         )
@@ -6783,24 +6783,41 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             pids  = list(thumbs.keys())
             n     = min(len(pids), 4)
             dur_s = f"{int(dur//60)}m {int(dur%60)}s"
-            defaults = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3"]
-            status = (
-                f'<div style="color:#475569;font-size:0.82em;padding:4px 0;">'
-                f'Detected <b>{n} face{"s" if n!=1 else ""}</b> · {dur_s} — assign roles below.</div>'
-            ) if n else (
-                '<div style="color:#94a3b8;font-size:0.82em;padding:4px 0;">'
-                'No faces detected — set roles manually and click Analyze.</div>'
-            )
+
+            if n:
+                status = (
+                    f'<div style="color:#22c55e;font-size:0.82em;padding:4px 0;">'
+                    f'Detected <b>{n} face{"s" if n!=1 else ""}</b> · {dur_s} '
+                    f'— confirm roles below then click Analyze.</div>'
+                )
+            else:
+                status = (
+                    f'<div style="color:#3b82f6;font-size:0.82em;padding:6px 8px;'
+                    f'background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">'
+                    f'<b>Zoom / Teams recording detected.</b> Face thumbnails could not be '
+                    f'auto-generated because faces are small inside the screen recording window. '
+                    f'<b>This is normal</b> — just set the roles below '
+                    f'(Candidate / Interviewer) and click <b>Analyze Video</b>. '
+                    f'The analysis will still run fully. &nbsp;·&nbsp; {dur_s}</div>'
+                )
+
+            # Thumbnails — show only detected faces
             thumb_ups = [
                 gr.update(value=thumbs.get(pids[i]) if i < n else None, visible=(i < n))
                 for i in range(4)
             ]
-            role_ups  = [gr.update(visible=(i < n)) for i in range(4)]
-            return (*thumb_ups, *role_ups, n if n else 2, gr.update(value=status))
+            # Role dropdowns — always show at least 2 so user can assign manually
+            show_count = max(n, 2)
+            role_ups = [gr.update(visible=(i < show_count)) for i in range(4)]
+            return (*thumb_ups, *role_ups, show_count, gr.update(value=status))
         except Exception as e:
-            return (*[gr.update(visible=False)]*8, 2,
-                    gr.update(value=f'<div style="color:#f59e0b;font-size:0.82em;">'
-                                   f'Could not scan faces: {e}</div>'))
+            return (*[gr.update(visible=False)]*4,
+                    gr.update(visible=True), gr.update(visible=True),   # keep 2 role dropdowns
+                    gr.update(visible=False), gr.update(visible=False),
+                    2,
+                    gr.update(value=f'<div style="color:#f59e0b;font-size:0.82em;padding:4px 0;">'
+                                   f'Could not auto-detect faces ({e}) — '
+                                   f'set roles manually and click Analyze.</div>'))
 
     file_input.change(
         fn=_iv_scan_on_upload,

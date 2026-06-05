@@ -258,7 +258,10 @@ class VideoAnalyzer:
                 rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mpi  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
                 res  = lm.detect(mpi)
-                bbs  = self._lm_to_bboxes(res, h, w)
+                face_data = self._detect_faces(res, h, w)
+                if not face_data:
+                    face_data = self._haar_crop_detect(frame, lm)
+                bbs = [fd[0] for fd in face_data]
                 for pid, (x, y, fw, fh) in trk.update(bbs).items():
                     if pid not in thumbs:
                         crop = frame[y:y+fh, x:x+fw]
@@ -278,20 +281,21 @@ class VideoAnalyzer:
         sample_fps: float = 1.0,
         progress_cb=None,
         cultural_mode: str = "both",
+        annotate: bool = False,
     ) -> VideoAnalysisResult:
         if not _HAS_MP:
             r = VideoAnalysisResult()
             r.error = "mediapipe not installed. Run: pip install mediapipe opencv-python"
             return r
         try:
-            return self._run_upload(video_path, role_map, sample_fps, progress_cb, cultural_mode)
+            return self._run_upload(video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate)
         except Exception as exc:
             import traceback
             r = VideoAnalysisResult()
             r.error = f"Analysis failed: {exc}\n{traceback.format_exc()}"
             return r
 
-    def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode):
+    def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate=False):
         fl   = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
         try:   pl = _ensure_model(_POSE_LANDMARKER_URL, "pose_landmarker_lite.task")
         except: pl = None
@@ -338,7 +342,8 @@ class VideoAnalyzer:
 
         result = self._aggregate(all_frames, role_map, dur, first_seen, cultural_mode)
         if progress_cb: progress_cb(0.85)
-        result.annotated_video_path = self._make_annotated_video(video_path, all_frames, role_map, fps)
+        if annotate:
+            result.annotated_video_path = self._make_annotated_video(video_path, all_frames, role_map, fps)
         if progress_cb: progress_cb(1.0)
         return result
 
@@ -354,23 +359,99 @@ class VideoAnalyzer:
             if x2-x1 > 20 and y2-y1 > 20: bbs.append((x1, y1, x2-x1, y2-y1))
         return bbs
 
+    def _get_haar(self):
+        if not getattr(self, '_haar_cascade', None):
+            self._haar_cascade = cv2.CascadeClassifier(
+                cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+            )
+        return self._haar_cascade
+
+    def _detect_faces(self, fl_r, h, w) -> List[Tuple]:
+        """Extract (bbox, blendshapes, transform_matrix) from a FaceLandmarker result."""
+        out = []
+        if not (fl_r and fl_r.face_landmarks):
+            return out
+        for i, face in enumerate(fl_r.face_landmarks):
+            xs = [lm.x * w for lm in face]; ys = [lm.y * h for lm in face]
+            x1, y1 = max(0, int(min(xs)-10)), max(0, int(min(ys)-20))
+            x2, y2 = min(w, int(max(xs)+10)), min(h, int(max(ys)+10))
+            if x2-x1 < 20 or y2-y1 < 20:
+                continue
+            bbox = (x1, y1, x2-x1, y2-y1)
+            bs = (fl_r.face_blendshapes[i]
+                  if fl_r.face_blendshapes and i < len(fl_r.face_blendshapes) else None)
+            tm = (fl_r.facial_transformation_matrixes[i]
+                  if fl_r.facial_transformation_matrixes and i < len(fl_r.facial_transformation_matrixes) else None)
+            out.append((bbox, bs, tm))
+        return out
+
+    def _haar_crop_detect(self, frame, face_lm) -> List[Tuple]:
+        """
+        Fallback for screen recordings / small faces:
+        Haar cascade finds face regions → each region cropped + upscaled to 400×400
+        → FaceLandmarker run on crop to get blendshapes & head-pose matrix.
+        Blendshapes and transformation matrices are face-relative so are valid
+        even when extracted from a cropped sub-image.
+        """
+        CROP_SIZE = 400
+        h, w = frame.shape[:2]
+        haar = self._get_haar()
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        dets = haar.detectMultiScale(
+            gray, scaleFactor=1.05, minNeighbors=3, minSize=(20, 20)
+        )
+        if not len(dets):
+            return []
+
+        out = []
+        for (fx, fy, fw, fh) in dets:
+            # Expand by 60% to include forehead + chin
+            px, py = int(fw * 0.6), int(fh * 0.6)
+            x1 = max(0, fx - px); y1 = max(0, fy - py)
+            x2 = min(w, fx + fw + px); y2 = min(h, fy + fh + py)
+            crop = frame[y1:y2, x1:x2]
+            if crop.size == 0:
+                continue
+
+            crop_up  = cv2.resize(crop, (CROP_SIZE, CROP_SIZE))
+            rgb_up   = cv2.cvtColor(crop_up, cv2.COLOR_BGR2RGB)
+            mpi_crop = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_up)
+            fl_crop  = face_lm.detect(mpi_crop)
+
+            bbox = (x1, y1, x2-x1, y2-y1)
+            if fl_crop and fl_crop.face_landmarks:
+                bs = fl_crop.face_blendshapes[0] if fl_crop.face_blendshapes else None
+                tm = fl_crop.facial_transformation_matrixes[0] if fl_crop.facial_transformation_matrixes else None
+            else:
+                bs, tm = None, None
+            out.append((bbox, bs, tm))
+        return out
+
     def _proc(self, frame, ts, trk, face_lm, pose_lm, first_seen, pitch_hist) -> List[FaceFrame]:
         h, w  = frame.shape[:2]
         rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mpi   = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         fl_r  = face_lm.detect(mpi)
-        bbs   = self._lm_to_bboxes(fl_r, h, w)
-        trkd  = trk.update(bbs)
+
+        # Full-frame detection; fall back to Haar+crop for screen recordings
+        face_data = self._detect_faces(fl_r, h, w)
+        if not face_data:
+            face_data = self._haar_crop_detect(frame, face_lm)
+
+        bbs        = [fd[0] for fd in face_data]
+        bbox_to_fd = {fd[0]: fd for fd in face_data}
+        trkd       = trk.update(bbs)
         for pid in trkd:
             if pid not in first_seen: first_seen[pid] = ts
 
         pose_res = pose_lm.detect(mpi) if pose_lm else None
 
         out = []
-        for fi, (pid, bbox) in enumerate(trkd.items()):
+        for pid, bbox in trkd.items():
             x, y, fw, fh = bbox
-            bs  = fl_r.face_blendshapes[fi] if (fl_r and fl_r.face_blendshapes and fi < len(fl_r.face_blendshapes)) else None
-            tm  = fl_r.facial_transformation_matrixes[fi] if (fl_r and fl_r.facial_transformation_matrixes and fi < len(fl_r.facial_transformation_matrixes)) else None
+            fd  = bbox_to_fd.get(bbox)
+            bs  = fd[1] if fd else None
+            tm  = fd[2] if fd else None
 
             yaw, pitch, roll = self._head_pose_angles(tm) if tm is not None else (0.0, 0.0, 0.0)
             pitch_hist.append(pitch)

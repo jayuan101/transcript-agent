@@ -4717,19 +4717,25 @@ window.taDoUpdate = function(url, btn, platform) {
       return bytes + ' B';
     }
 
-    /* ── Periodic background ping — keeps display live when idle ── */
+    /* ── Periodic background ping — measures latency + baseline download speed ── */
+    var _pingEndpoints = ['/queue/status', '/info', window.location.pathname];
+    var _pingIdx = 0;
     (function pingLoop() {
+      var url = _pingEndpoints[_pingIdx % _pingEndpoints.length] + '?_t=' + Date.now();
+      _pingIdx++;
       var t0 = performance.now();
-      fetch(window.location.pathname + '?_spd=' + Date.now(), {
-        cache: 'no-store',
-        headers: { 'Range': 'bytes=0-8191' }
-      }).then(function(r) {
-        return r.arrayBuffer();
-      }).then(function(buf) {
-        _pingMs = Math.round(performance.now() - t0);
-        if (buf.byteLength > 0) _pushRx(buf.byteLength);
-      }).catch(function() { _pingMs = 0; })
-        .finally(function() { setTimeout(pingLoop, 2000); });
+      fetch(url, { cache: 'no-store' })
+        .then(function(r) {
+          _pingMs = Math.round(performance.now() - t0);
+          var cl = r.headers && r.headers.get('content-length');
+          if (cl) _pushRx(parseInt(cl, 10));
+          return r.text();
+        })
+        .then(function(txt) {
+          if (txt && txt.length > 0) _pushRx(txt.length);
+        })
+        .catch(function() { _pingMs = 0; })
+        .finally(function() { setTimeout(pingLoop, 3000); });
     })();
 
     /* mini bar — 16 segments */
@@ -4796,11 +4802,25 @@ window.taDoUpdate = function(url, btn, platform) {
           + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
       }
 
-      /* ping note when fully idle */
+      /* connection info when idle */
       var pingNote = '';
-      if (rxBps < 512 && txBps < 512 && _pingMs > 0) {
-        pingNote = '<div style="font-size:0.74em;color:var(--ta-card-sub,#64748b);padding-top:3px;">'
-                 + '🏓 ping ' + _pingMs + ' ms</div>';
+      if (rxBps < 512 && txBps < 512) {
+        var connInfo = '';
+        try {
+          var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+          if (nc) {
+            var et = nc.effectiveType || '';
+            var dl = nc.downlink;
+            if (et) connInfo += et.toUpperCase();
+            if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps est.';
+          }
+        } catch(ex) {}
+        if (_pingMs > 0 || connInfo) {
+          pingNote = '<div style="font-size:0.74em;color:var(--ta-card-sub,#64748b);padding-top:3px;">'
+            + (_pingMs > 0 ? '🏓 ' + _pingMs + ' ms' : '')
+            + (connInfo ? ((_pingMs > 0 ? '  ·  ' : '') + '📶 ' + connInfo) : '')
+            + '</div>';
+        }
       }
 
       p.innerHTML = (
@@ -4819,6 +4839,35 @@ window.taDoUpdate = function(url, btn, platform) {
       );
     }
 
+    /* ── EventSource intercept — measures Gradio SSE stream (main processing traffic) ── */
+    (function() {
+      var OrigES = window.EventSource;
+      if (!OrigES) return;
+      function PatchedES(url, init) {
+        var es = new OrigES(url, init);
+        var origAdd = es.addEventListener.bind(es);
+        es.addEventListener = function(evt, fn, opts) {
+          origAdd(evt, function(e) {
+            try {
+              if (e.data) {
+                var b = (typeof TextEncoder !== 'undefined')
+                  ? new TextEncoder().encode(e.data).length
+                  : e.data.length;
+                _pushRx(b);
+              }
+            } catch(ex) {}
+            fn.call(this, e);
+          }, opts);
+        };
+        return es;
+      }
+      PatchedES.prototype = OrigES.prototype;
+      PatchedES.CONNECTING = OrigES.CONNECTING;
+      PatchedES.OPEN = OrigES.OPEN;
+      PatchedES.CLOSED = OrigES.CLOSED;
+      window.EventSource = PatchedES;
+    })();
+
     /* ── PerformanceObserver: resource downloads ── */
     if (window.PerformanceObserver) {
       try {
@@ -4832,19 +4881,24 @@ window.taDoUpdate = function(url, btn, platform) {
       } catch(ex) {}
     }
 
-    /* ── Fetch intercept: track upload body size only (no stream clone) ── */
+    /* ── Fetch intercept: track upload body + response size ── */
     var _origFetch = window.fetch;
     window.fetch = function(url, opts) {
       /* track request body size as upload */
       if (opts && opts.body) {
         var bSz = 0;
-        if (typeof opts.body === 'string')      bSz = opts.body.length;
+        if (typeof opts.body === 'string')         bSz = opts.body.length;
         else if (opts.body && opts.body.byteLength) bSz = opts.body.byteLength;
         if (bSz > 0) _pushTx(bSz);
       }
-      /* Do NOT clone or read the response body — cloning SSE streams causes
-         BodyStreamBuffer aborted errors when Gradio reads the same stream */
-      return _origFetch.apply(this, arguments);
+      /* Measure response Content-Length when available (safe — no stream clone) */
+      return _origFetch.apply(this, arguments).then(function(resp) {
+        try {
+          var cl = resp.headers && resp.headers.get('content-length');
+          if (cl) _pushRx(parseInt(cl, 10));
+        } catch(ex) {}
+        return resp;
+      });
     };
 
     /* ── XHR intercept: upload progress + download bytes ── */

@@ -6164,6 +6164,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     bsr_inc_pr   = bsw_inc_pr   = gr.BrowserState(True,     storage_key="ta-bs-inc-pr")
     bsr_inc_an   = bsw_inc_an   = gr.BrowserState(True,     storage_key="ta-bs-inc-an")
     bsr_speakers = bsw_speakers = gr.BrowserState(None,     storage_key="ta-bs-speakers")
+    bsr_gpu      = bsw_gpu      = gr.BrowserState(None,     storage_key="ta-bs-gpu")
 
     with gr.Row():
         provider_dropdown = gr.Dropdown(
@@ -6241,6 +6242,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     elem_id="ta-stt-key-input",
                 )
                 # ── GPU toggle — detect NVIDIA / Apple Silicon / AMD / Intel ──
+                # run.bat sets TA_GPU_DEVICE so we can use its detection result
+                _ta_gpu_env    = os.environ.get("TA_GPU_DEVICE", "")
                 _gpu_available = False
                 _gpu_label     = "no GPU detected"
                 try:
@@ -6262,6 +6265,11 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                             pass
                 except Exception:
                     pass
+                # Override with run.bat detection if available
+                if not _gpu_available and _ta_gpu_env in ("cuda","mps","dml"):
+                    _gpu_available = True
+                    _gpu_label = {"cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS",
+                                  "dml":"AMD/Intel DirectML"}.get(_ta_gpu_env, _ta_gpu_env)
                 gpu_toggle = gr.Checkbox(
                     label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper & DeepFace"
                            if _gpu_available else
@@ -7285,6 +7293,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     inc_profiles.change(    fn=_id, inputs=inc_profiles,     outputs=bsw_inc_pr,   queue=False)
     inc_analytics.change(   fn=_id, inputs=inc_analytics,    outputs=bsw_inc_an,   queue=False)
     speakers_input.change(  fn=_id, inputs=speakers_input,   outputs=bsw_speakers, queue=False)
+    gpu_toggle.change(      fn=_id, inputs=gpu_toggle,        outputs=bsw_gpu,      queue=False)
 
     # ── Restore on page load → reads bsr_* (READ instances, never written by .change) ──
     def _restore_settings(whisper, lang, style, interview, deep,
@@ -7312,7 +7321,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     # toggle_stt_engine so Deepgram restores nova-3 (or whatever was last used)
     # instead of always defaulting to the first item in the list.
     def _restore_all(whisper_model, stt_model, lang, style, interview, deep,
-                     inc_s, inc_k, inc_a, inc_t, inc_p, inc_an, speakers, stt_engine):
+                     inc_s, inc_k, inc_a, inc_t, inc_p, inc_an, speakers, stt_engine, gpu):
         def _b(v, default): return v if isinstance(v, bool) else default
         engine = stt_engine or "whisper_local"
         stored = whisper_model if engine == "whisper_local" else stt_model
@@ -7334,17 +7343,18 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             gr.update(value=_b(inc_p,  True)),
             gr.update(value=_b(inc_an, True)),
             gr.update(value=speakers),
+            gr.update() if gpu is None else gr.update(value=_b(gpu, _gpu_available)),
         )
 
     demo.load(
         fn=_restore_all,
         inputs=[bsr_whisper, bsr_stt_model, bsr_language, bsr_style, bsr_interview, bsr_deep,
                 bsr_inc_sum, bsr_inc_kp, bsr_inc_ac, bsr_inc_tr, bsr_inc_pr, bsr_inc_an, bsr_speakers,
-                bsw_stt],
+                bsw_stt, bsr_gpu],
         outputs=[stt_key_input, stt_model_input, stt_key_banner,
                  language_input, report_style, interview_toggle, interview_deep,
                  inc_summary, inc_key_points, inc_action, inc_transcript, inc_profiles, inc_analytics,
-                 speakers_input],
+                 speakers_input, gpu_toggle],
         queue=False,
     )
 

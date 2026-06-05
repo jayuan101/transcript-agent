@@ -117,15 +117,24 @@ if [ "$ACTION" = install ]; then
     fi
     "$PIP" install --upgrade pip --quiet
 
-    # 3 — PyTorch --------------------------------------------------------------
-    header "[3/6] Installing PyTorch (CPU)…"
-    info "This may take 5–10 minutes on first install (~700 MB)."
-    if "$PIP" install torch --index-url https://download.pytorch.org/whl/cpu --quiet 2>/dev/null; then
-        success "PyTorch installed (CPU build)."
+    # 3 — PyTorch (auto-detect Apple Silicon MPS vs Intel CPU) ─────────────────
+    header "[3/6] Installing PyTorch…"
+    _ARCH=$(uname -m)
+    if [ "$_ARCH" = "arm64" ]; then
+        info "Apple Silicon (M1/M2/M3/M4) detected — installing PyTorch with MPS GPU support."
+        info "MPS acceleration makes Whisper 3-5x faster than CPU."
+        # Standard pip torch on arm64 macOS includes MPS automatically
+        "$PIP" install torch torchvision torchaudio --quiet
+        success "PyTorch installed with Apple MPS GPU support."
     else
-        warn "Index install failed — retrying with default index…"
-        "$PIP" install torch --quiet
-        success "PyTorch installed."
+        info "Intel Mac detected — installing CPU build (~700 MB)."
+        if "$PIP" install torch --index-url https://download.pytorch.org/whl/cpu --quiet 2>/dev/null; then
+            success "PyTorch installed (CPU build)."
+        else
+            warn "Index install failed — retrying with default index…"
+            "$PIP" install torch --quiet
+            success "PyTorch installed."
+        fi
     fi
 
     # 4 — App requirements -----------------------------------------------------

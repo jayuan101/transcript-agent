@@ -6240,21 +6240,38 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     visible=True,
                     elem_id="ta-stt-key-input",
                 )
-                # ── GPU toggle ────────────────────────────────────────────────
+                # ── GPU toggle — detect NVIDIA / Apple Silicon / AMD / Intel ──
                 _gpu_available = False
+                _gpu_label     = "no GPU detected"
                 try:
                     import torch as _torch_chk
-                    _gpu_available = _torch_chk.cuda.is_available()
+                    if _torch_chk.cuda.is_available():
+                        _gpu_available = True
+                        _n = _torch_chk.cuda.get_device_name(0)
+                        _gpu_label = f"NVIDIA CUDA — {_n}"
+                    elif (hasattr(_torch_chk.backends, "mps")
+                          and _torch_chk.backends.mps.is_available()):
+                        _gpu_available = True
+                        _gpu_label = "Apple Silicon MPS"
+                    else:
+                        try:
+                            import torch_directml as _dml_chk
+                            _gpu_available = True
+                            _gpu_label = "AMD/Intel DirectML"
+                        except ImportError:
+                            pass
                 except Exception:
                     pass
                 gpu_toggle = gr.Checkbox(
-                    label=("⚡ Use GPU (CUDA detected — faster Whisper & DeepFace)"
+                    label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper & DeepFace"
                            if _gpu_available else
-                           "⚡ Use GPU when available (no CUDA detected on this machine)"),
+                           "⚡ Use GPU when available (no GPU detected on this machine)"),
                     value=_gpu_available,
-                    info=("GPU acceleration is active. Uncheck to force CPU (useful for debugging)."
+                    info=("GPU acceleration active — Whisper transcription is 5-10x faster. "
+                          "Uncheck to force CPU."
                           if _gpu_available else
-                          "GPU not found — running on CPU. Install CUDA + PyTorch GPU build to enable."),
+                          "No GPU found. Supports: NVIDIA (CUDA), AMD/Intel (DirectML on Windows), "
+                          "Apple Silicon (MPS). Install the right PyTorch build to enable."),
                     elem_id="ta-gpu-toggle",
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)

@@ -750,16 +750,28 @@ def load_audio_video(path: str, model_size: str = "base", on_progress=None,
     else:
         _log(f"File duration: unknown  |  Loading Whisper '{model_size}' model…")
 
-    try:
-        import torch as _torch
-        _cuda_ok = _torch.cuda.is_available()
-    except Exception:
-        _cuda_ok = False
-    device = "cuda" if (use_gpu and _cuda_ok) else "cpu"
+    device = "cpu"
+    if use_gpu:
+        try:
+            import torch as _torch
+            if _torch.cuda.is_available():
+                device = "cuda"                          # NVIDIA
+            elif hasattr(_torch.backends, "mps") and _torch.backends.mps.is_available():
+                device = "mps"                           # Apple Silicon
+            else:
+                # Check DirectML (AMD / Intel on Windows)
+                try:
+                    import torch_directml as _dml
+                    device = _dml.device()               # DirectML device handle
+                except ImportError:
+                    pass
+        except Exception:
+            device = "cpu"
+    _device_label = device if isinstance(device, str) else "DirectML"
     if dur_secs > 0:
-        _log(f"Loading Whisper '{model_size}' model… (device: {device})")
+        _log(f"Loading Whisper '{model_size}' model… (device: {_device_label})")
     model = openai_whisper.load_model(model_size, device=device)
-    _log(f"Model loaded on {device}.")
+    _log(f"Model loaded on {_device_label}.")
 
     with _progress_lock:
         _progress_cb = on_progress
@@ -857,13 +869,17 @@ def load_audio_video_panel(
                 capture_output=True)
         audio_path = tmp_path
 
-    try:
-        import torch as _t2
-        _cuda_ok2 = _t2.cuda.is_available()
-    except Exception:
-        _cuda_ok2 = False
-    device = "cuda" if (use_gpu and _cuda_ok2) else "cpu"
-    compute_type = "float16" if device == "cuda" else "int8"
+    device = "cpu"
+    if use_gpu:
+        try:
+            import torch as _t2
+            if _t2.cuda.is_available():
+                device = "cuda"
+            elif hasattr(_t2.backends, "mps") and _t2.backends.mps.is_available():
+                device = "mps"
+        except Exception:
+            device = "cpu"
+    compute_type = "float16" if device in ("cuda", "mps") else "int8"
 
     lang_note = f" (language: {language})" if language else " (language: auto-detect)"
     dur_secs = _get_audio_duration(audio_path)

@@ -119,11 +119,69 @@ echo.
 
 "!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
 
-echo   Installing PyTorch (CPU only - smaller download)...
-"!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
-if %errorlevel% neq 0 (
-    echo   Retrying with default index...
-    "!PIP!" install torch --quiet
+:: -- Auto-detect GPU vendor -------------------------------------------------------
+set "NVIDIA_FOUND=0"
+set "AMD_FOUND=0"
+set "INTEL_FOUND=0"
+
+where nvidia-smi >nul 2>&1
+if %errorlevel%==0 ( nvidia-smi >nul 2>&1 & if !errorlevel!==0 set "NVIDIA_FOUND=1" )
+
+wmic path win32_VideoController get Name 2>nul | findstr /i "AMD Radeon\|RX " >nul 2>&1
+if %errorlevel%==0 set "AMD_FOUND=1"
+
+wmic path win32_VideoController get Name 2>nul | findstr /i "Intel.*UHD\|Intel.*Iris\|Intel.*Arc" >nul 2>&1
+if %errorlevel%==0 set "INTEL_FOUND=1"
+
+:: -- GPU selection menu -----------------------------------------------------------
+echo.
+echo  ============================================================
+echo   GPU Detection
+echo  ============================================================
+if "!NVIDIA_FOUND!"=="1" echo   NVIDIA GPU detected ^(CUDA supported^)
+if "!AMD_FOUND!"=="1"   echo   AMD GPU detected ^(DirectML supported on Windows^)
+if "!INTEL_FOUND!"=="1" echo   Intel GPU detected ^(DirectML supported on Windows^)
+if "!NVIDIA_FOUND!!AMD_FOUND!!INTEL_FOUND!"=="000" echo   No discrete GPU detected
+echo.
+echo  Choose PyTorch build:
+echo    [1]  NVIDIA GPU - CUDA 12.1  ^(Recommended for RTX/GTX cards^)
+echo    [2]  NVIDIA GPU - CUDA 11.8  ^(older GTX 10xx/16xx/20xx cards^)
+echo    [3]  AMD / Intel GPU - DirectML  ^(Windows 10/11, any DirectX 12 GPU^)
+echo    [4]  CPU only  ^(smaller ~1 GB download, no GPU^)
+echo.
+if "!NVIDIA_FOUND!"=="1" (
+    set /p "TORCH_CHOICE= Choose [1]: "
+    if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=1"
+) else if "!AMD_FOUND!!INTEL_FOUND!" neq "00" (
+    set /p "TORCH_CHOICE= Choose [3]: "
+    if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=3"
+) else (
+    set "TORCH_CHOICE=4"
+    echo   Defaulting to CPU build.
+)
+
+if "!TORCH_CHOICE!"=="1" (
+    echo   Installing PyTorch CUDA 12.1 ^(~2.5 GB^)...
+    "!PIP!" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 --quiet
+    if !errorlevel! neq 0 ( "!PIP!" install torch --quiet )
+) else if "!TORCH_CHOICE!"=="2" (
+    echo   Installing PyTorch CUDA 11.8 ^(~2.3 GB^)...
+    "!PIP!" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 --quiet
+    if !errorlevel! neq 0 ( "!PIP!" install torch --quiet )
+) else if "!TORCH_CHOICE!"=="3" (
+    echo   Installing PyTorch + DirectML for AMD/Intel GPU ^(~1.5 GB^)...
+    "!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+    "!PIP!" install torch-directml --quiet
+    if !errorlevel! neq 0 (
+        echo   Note: DirectML install failed - falling back to CPU.
+        echo   Your GPU will not be used for acceleration.
+    ) else (
+        echo   DirectML installed. AMD/Intel GPU will accelerate Whisper transcription.
+    )
+) else (
+    echo   Installing PyTorch CPU ^(~1 GB^)...
+    "!PIP!" install torch --index-url https://download.pytorch.org/whl/cpu --quiet
+    if !errorlevel! neq 0 ( "!PIP!" install torch --quiet )
 )
 
 echo   Installing app requirements...

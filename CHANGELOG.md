@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.1.2 — 2026-06-05
+- Fix: removed broken app_kwargs uvicorn timeout setting — was targeting FastAPI not uvicorn, had no effect and risked unexpected keyword error
+
 ## v2.1.1 — 2026-06-05
 - Fix: GPU toggle was ignored for translation, video LLM call, and re-analysis with profile — all LLMClient sites now respect use_gpu so Ollama uses GPU layers correctly
 

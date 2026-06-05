@@ -7,7 +7,7 @@ set "APPDIR=%~dp0"
 set "VENV=%APPDIR%venv"
 set "VPYTHON=%VENV%\Scripts\python.exe"
 set "PIP=%VENV%\Scripts\pip.exe"
-set "CURRENT_VERSION=2.1.4"
+set "CURRENT_VERSION=2.1.5"
 
 cls
 echo.
@@ -117,7 +117,7 @@ echo.
 echo  [3/5] Installing dependencies (first run: ~15 min, ~2 GB)...
 echo.
 
-"!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
+"!VPYTHON!" -m pip install --upgrade pip setuptools wheel --quiet 2>nul
 
 :: -- Auto-detect GPU vendor -------------------------------------------------------
 set "NVIDIA_FOUND=0"
@@ -270,7 +270,7 @@ if %errorlevel%==0 (
 
 echo.
 echo  Updating Python packages...
-"!VPYTHON!" -m pip install --upgrade pip --quiet 2>nul
+"!VPYTHON!" -m pip install --upgrade pip setuptools wheel --quiet 2>nul
 "!PIP!" install -r "!APPDIR!requirements.txt" --upgrade --quiet
 "!PIP!" install imageio-ffmpeg --upgrade --quiet
 "!PIP!" install mediapipe opencv-python plotly --upgrade --quiet

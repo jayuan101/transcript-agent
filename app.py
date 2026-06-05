@@ -286,14 +286,16 @@ def _download_url(url: str, dest_dir: Path, on_progress=None) -> Path:
 
     return dest
 
-# ── Windows sleep prevention ──────────────────────────────────────────────────
+# ── Sleep prevention — Windows + Mac ─────────────────────────────────────────
+# Always active while the app is running; screen may still dim/turn off.
 _ES_CONTINUOUS      = 0x80000000
-_ES_SYSTEM_REQUIRED = 0x00000001   # blocks idle auto-sleep; screen can still turn off
+_ES_SYSTEM_REQUIRED = 0x00000001
 _sleep_active       = False
 _sleep_thread       = None
+_caffeinate_proc    = None   # Mac: caffeinate subprocess handle
 
 def _set_lid_action(action: int):
-    """Set lid-close power action: 0=do nothing, 1=sleep. Requires no elevation on most systems."""
+    """0 = lid close keeps running, 1 = lid close sleeps (Windows only)."""
     if sys.platform != "win32":
         return
     import subprocess
@@ -305,32 +307,47 @@ def _set_lid_action(action: int):
     subprocess.run(["powercfg", "/setactive", "SCHEME_CURRENT"], capture_output=True, check=False)
 
 def _prevent_sleep():
-    """Block idle sleep (screen can turn off). Prevent lid-close sleep.
-    Refresh thread re-asserts every 60 s — Windows can silently drop the flag."""
-    global _sleep_active, _sleep_thread
-    if sys.platform != "win32":
-        return
-    import ctypes
+    """Block idle/lid-close sleep on Windows and Mac. Safe to call multiple times."""
+    global _sleep_active, _sleep_thread, _caffeinate_proc
     _sleep_active = True
-    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
-    _set_lid_action(0)   # lid close → do nothing (keep running)
-    if _sleep_thread is None or not _sleep_thread.is_alive():
-        def _refresh():
-            import ctypes as _ct
-            while _sleep_active:
-                _ct.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
-                time.sleep(60)
-        _sleep_thread = threading.Thread(target=_refresh, daemon=True)
-        _sleep_thread.start()
+
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+        _set_lid_action(0)
+        if _sleep_thread is None or not _sleep_thread.is_alive():
+            def _refresh():
+                import ctypes as _ct
+                while _sleep_active:
+                    _ct.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS | _ES_SYSTEM_REQUIRED)
+                    time.sleep(60)
+            _sleep_thread = threading.Thread(target=_refresh, daemon=True)
+            _sleep_thread.start()
+
+    elif sys.platform == "darwin":
+        # caffeinate -i (idle sleep) -m (disk sleep) -s (system sleep on AC)
+        if _caffeinate_proc is None or _caffeinate_proc.poll() is not None:
+            try:
+                import subprocess
+                _caffeinate_proc = subprocess.Popen(
+                    ["caffeinate", "-i", "-m", "-s"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+            except Exception:
+                pass
 
 def _allow_sleep():
-    global _sleep_active
+    """Restore normal sleep behaviour. Called on clean app exit."""
+    global _sleep_active, _caffeinate_proc
     _sleep_active = False
-    if sys.platform != "win32":
-        return
-    import ctypes
-    ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
-    _set_lid_action(1)   # restore: lid close → sleep
+    if sys.platform == "win32":
+        import ctypes
+        ctypes.windll.kernel32.SetThreadExecutionState(_ES_CONTINUOUS)
+        _set_lid_action(1)
+    elif sys.platform == "darwin":
+        if _caffeinate_proc and _caffeinate_proc.poll() is None:
+            _caffeinate_proc.terminate()
+            _caffeinate_proc = None
 
 from transcript_agent import (
     run, ReportConfig, build_combined_report, LLMClient,
@@ -2681,8 +2698,6 @@ def process_file(
                 yield _err(f"Failed to download {model_name}: {_pe}\nMake sure Ollama is running: ollama serve")
                 return
 
-    _prevent_sleep()
-
     # prefer pasted path/URL (no upload wait) over drag-and-drop
     pasted = (path_input or "").strip().strip('"').strip("'")
     if pasted:
@@ -3494,7 +3509,6 @@ def process_file(
             break
     finally:
         _cancel_ev.set()   # always signal the background thread to stop
-        _allow_sleep()
 
 
 def toggle_speakers(is_panel):
@@ -7479,6 +7493,11 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
 
 if __name__ == "__main__":
+    # Keep the machine awake the entire time the app is running
+    import atexit as _atexit
+    _prevent_sleep()
+    _atexit.register(_allow_sleep)
+
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"

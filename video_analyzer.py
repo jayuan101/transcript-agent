@@ -372,7 +372,7 @@ class VideoAnalyzer:
             bs  = fl_r.face_blendshapes[fi] if (fl_r and fl_r.face_blendshapes and fi < len(fl_r.face_blendshapes)) else None
             tm  = fl_r.facial_transformation_matrixes[fi] if (fl_r and fl_r.facial_transformation_matrixes and fi < len(fl_r.facial_transformation_matrixes)) else None
 
-            yaw, pitch, roll = self._head_pose_angles(tm) if tm else (0.0, 0.0, 0.0)
+            yaw, pitch, roll = self._head_pose_angles(tm) if tm is not None else (0.0, 0.0, 0.0)
             pitch_hist.append(pitch)
             ec   = abs(yaw) < 20 and abs(pitch) < 20
             jaw  = self._bs_val(bs, "jawOpen") if bs else 0.0
@@ -671,8 +671,9 @@ class VideoAnalyzer:
                  for pid, ffs in pf.items() if role_map.get(pid) == "Candidate")
         result.candidate_talk_pct = round(cs / tot_sp * 100, 1) if tot_sp else 0
 
-        cands = [p for p in result.persons.values() if p.role == "Candidate"]
-        c_ov  = sum([p.confidence,p.composure,p.eye_contact,p.engagement,p.energy])/5 if cands else 0
+        cands = [ps for ps in result.persons.values() if ps.role == "Candidate"]
+        c_ov  = sum([cands[0].confidence, cands[0].composure, cands[0].eye_contact,
+                     cands[0].engagement, cands[0].energy]) / 5 if cands else 0
         result.overall_score = round(c_ov*0.5 + result.rapport_score*0.3 + result.talk_balance_score*0.2, 1)
         result.timeline_data = self._build_timeline(all_frames, role_map)
         result.observations  = self._observations(result, pf, role_map)

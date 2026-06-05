@@ -2920,30 +2920,29 @@ def process_file(
                             log=log_text,
                         )
                         _persons = getattr(_va_res, "persons", {})
-                        # compute overall grade from average candidate scores
+                        # _persons is Dict[int, PersonScore] — access dataclass attrs directly
                         _candidate_scores = []
-                        for _role, _p in _persons.items():
-                            if "candidate" in _role.lower():
-                                _s = _p.get("scores", {})
-                                _avg = sum(_s.values()) / len(_s) if _s else 0
+                        for _pid, _p in _persons.items():
+                            if "candidate" in _p.role.lower():
+                                _avg = (_p.confidence + _p.composure + _p.eye_contact
+                                        + _p.engagement + _p.energy) / 5
                                 _candidate_scores.append(_avg)
-                        _overall_pct = (_candidate_scores[0] if _candidate_scores
+                        _overall_pct = ((_candidate_scores[0] / 100) if _candidate_scores
                                         else sum(
-                                            sum(p.get("scores", {}).values()) / max(len(p.get("scores", {})), 1)
-                                            for p in _persons.values()
+                                            (_p.overall / 100) for _p in _persons.values()
                                         ) / max(len(_persons), 1))
                         _grade = ("A" if _overall_pct >= 0.85 else
                                   "B" if _overall_pct >= 0.70 else
                                   "C" if _overall_pct >= 0.55 else
                                   "D" if _overall_pct >= 0.40 else "F")
                         _scores_summary = "\n".join(
-                            f"- {role}: confidence={p.get('scores',{}).get('confidence',0):.0%}, "
-                            f"composure={p.get('scores',{}).get('composure',0):.0%}, "
-                            f"eye_contact={p.get('scores',{}).get('eye_contact',0):.0%}, "
-                            f"engagement={p.get('scores',{}).get('engagement',0):.0%}, "
-                            f"dominant_emotion={p.get('dominant_emotion','neutral')}, "
-                            f"talk_pct={p.get('talk_pct',0):.0%}"
-                            for role, p in _persons.items()
+                            f"- {_p.role}: confidence={_p.confidence:.0f}%, "
+                            f"composure={_p.composure:.0f}%, "
+                            f"eye_contact={_p.eye_contact:.0f}%, "
+                            f"engagement={_p.engagement:.0f}%, "
+                            f"dominant_emotion={_p.dominant_emotion}, "
+                            f"talk_pct={_p.talk_time_pct:.0f}%"
+                            for _p in _persons.values()
                         )
                         _transcript_snippet = (result.clean_transcript or "")[:2000]
                         _va_claude_prompt = (

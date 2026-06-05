@@ -2874,8 +2874,12 @@ def process_file(
                 _va_t.start()
 
                 while _va_t.is_alive() or not _va_q.empty():
-                    try: _va_msg = _va_q.get(timeout=2.0)
-                    except Q.Empty: continue
+                    if _cancel_ev.is_set():
+                        break
+                    try: _va_msg = _va_q.get(timeout=1.0)
+                    except Q.Empty:
+                        yield _NOCHANGE  # keepalive so Gradio stream doesn't freeze
+                        continue
                     if _va_msg[0] == "pct":
                         _pct = int(_va_msg[1] * 100)
                         yield _out(status=_status_compact("🎥", f"Video analysis {_pct}%…", _elapsed()))

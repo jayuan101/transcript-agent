@@ -1161,6 +1161,67 @@ class VideoAnalyzer:
             html += (f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">'
                      + delivery_card + content_card + f'</div>')
 
+            # ── Full question-by-question breakdown ───────────────────────────
+            if q_summary:
+                _Q_COL = {"Great":"#22c55e","Good":"#3b82f6",
+                          "Needs Improvement":"#f59e0b","Missed":"#ef4444"}
+                _Q_BG  = {"Great":"#f0fdf4","Good":"#eff6ff",
+                          "Needs Improvement":"#fffbeb","Missed":"#fef2f2"}
+                html += ('<div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;'
+                         'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
+                         '<div style="font-weight:800;color:#1e293b;margin-bottom:14px;font-size:0.95em;">'
+                         '📋 Question-by-Question Breakdown</div>')
+                all_qs = ia.get("questions", [])
+                for q in all_qs:
+                    sc_lbl  = q.get("score","")
+                    sc_col  = _Q_COL.get(sc_lbl,"#94a3b8")
+                    sc_bg   = _Q_BG.get(sc_lbl,"#f8fafc")
+                    reason  = q.get("score_reason","")
+                    said    = q.get("answer_said") or q.get("answer_summary","")
+                    ideal   = q.get("model_answer") or q.get("ideal_answer","")
+                    tip     = q.get("coaching_tip","")
+                    defl    = (q.get("deflection") or "none").lower()
+                    qid     = q.get("id","")
+                    html += (
+                        f'<div style="border:1.5px solid {sc_col};border-radius:12px;padding:14px 16px;'
+                        f'margin-bottom:12px;background:{sc_bg};">'
+                        # Header: Q# badge + question text + score badge
+                        f'<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;">'
+                        f'<span style="background:#e2e8f0;color:#475569;font-size:0.7em;font-weight:700;'
+                        f'padding:2px 8px;border-radius:8px;white-space:nowrap;margin-top:2px;flex-shrink:0;">Q{qid}</span>'
+                        f'<span style="font-size:0.88em;font-weight:600;color:#1e293b;flex:1;">{q.get("question","")}</span>'
+                        f'<span style="background:{sc_col};color:#fff;font-size:0.7em;font-weight:700;'
+                        f'padding:2px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;">{sc_lbl or "—"}</span>'
+                        f'</div>'
+                    )
+                    if reason:
+                        html += (f'<div style="font-size:0.78em;color:#64748b;margin-bottom:8px;">'
+                                 f'<em>{reason}</em></div>')
+                    if defl in ("partial","full"):
+                        _defl_col = "#f59e0b" if defl == "partial" else "#ef4444"
+                        _defl_lbl = "⚠️ Partially deflected" if defl == "partial" else "🚫 Did not answer"
+                        html += (f'<div style="font-size:0.75em;font-weight:700;color:{_defl_col};'
+                                 f'margin-bottom:8px;">{_defl_lbl}</div>')
+                    if said:
+                        html += (f'<div style="margin-bottom:8px;">'
+                                 f'<div style="font-size:0.72em;font-weight:700;color:#475569;'
+                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">What was said</div>'
+                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{said}</div></div>')
+                    if ideal:
+                        html += (f'<div style="margin-bottom:8px;padding:8px 10px;'
+                                 f'background:rgba(59,130,246,0.06);border-left:3px solid #3b82f6;border-radius:4px;">'
+                                 f'<div style="font-size:0.72em;font-weight:700;color:#1d4ed8;'
+                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">What you could have said</div>'
+                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{ideal}</div></div>')
+                    if tip:
+                        html += (f'<div style="padding:8px 10px;background:rgba(245,158,11,0.08);'
+                                 f'border-left:3px solid #f59e0b;border-radius:4px;">'
+                                 f'<div style="font-size:0.72em;font-weight:700;color:#92400e;'
+                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Coaching Tip</div>'
+                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{tip}</div></div>')
+                    html += '</div>'
+                html += '</div>'
+
         else:
             # No interview analysis — render delivery card full-width
             for p in cands:

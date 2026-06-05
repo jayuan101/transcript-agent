@@ -6541,10 +6541,26 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
         outputs=[interview_out],
     )
 
+    def _regen_and_show(rs, target_lang, api_key, provider_name, model_name):
+        """Regenerate PDF+DOCX and immediately show the result in dl_active."""
+        if not rs:
+            return gr.update(), gr.update(), gr.update(
+                value=None, visible=True,
+                label="Run Analyze first, then click Regenerate.")
+        pdf_path, docx_path = generate_pdf_in_language(
+            rs, target_lang, api_key, provider_name, model_name)
+        if pdf_path:
+            active = gr.update(value=pdf_path, visible=True, label="Report (.pdf)")
+        elif docx_path:
+            active = gr.update(value=docx_path, visible=True, label="Report (.docx)")
+        else:
+            active = gr.update(visible=False)
+        return pdf_path or gr.update(), docx_path or gr.update(), active
+
     pdf_regen_btn.click(
-        fn=generate_pdf_in_language,
+        fn=_regen_and_show,
         inputs=[result_state, pdf_lang_input, user_api_key, provider_dropdown, model_dropdown],
-        outputs=[dl_pdf, dl_docx],
+        outputs=[dl_pdf, dl_docx, dl_active],
     )
 
     def _toggle_report_format(choice):

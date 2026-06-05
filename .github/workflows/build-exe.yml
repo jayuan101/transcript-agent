@@ -2,13 +2,25 @@ name: Build & Publish Desktop App
 
 on:
   push:
+    branches: [main]
+    paths:
+      - 'app.py'
+      - 'transcript_agent.py'
+      - 'video_analyzer.py'
+      - 'launcher.py'
+      - 'api.py'
+      - 'requirements.txt'
+      - 'TranscriptAgent.spec'
+      - 'create_icon.py'
+      - 'setup_windows.bat'
+      - 'setup_mac.sh'
     tags: ['v*.*']
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v3.48)'
+        description: 'Version tag (e.g. v2.1.5)'
         required: false
-        default: 'v3.48'
+        default: 'v2.1.5'
 
 permissions:
   contents: write
@@ -183,8 +195,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${{ github.ref_type }}" == "tag" ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=v2.1.5" >> $GITHUB_OUTPUT
           fi
 
       - name: Publish Release

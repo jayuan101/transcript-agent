@@ -5921,30 +5921,51 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("⬇  Download", open=False, elem_id="ta-dl-accordion")
+            download_accordion = gr.Accordion("⬇  Download Results", open=False, elem_id="ta-dl-accordion")
             with download_accordion:
                 gr.HTML(
-                    '<div class="ta-dl-panel-header">'
-                    '<span class="ta-dl-panel-title">Download your outputs</span>'
-                    '<span class="ta-dl-panel-sub">All files are generated automatically after analysis completes</span>'
-                    '</div>'
+                    '<div style="padding:4px 0 10px;font-size:0.78em;color:#64748b;">'
+                    'Files are generated automatically when analysis finishes. '
+                    'Click any button to download.</div>'
                 )
-                # All download files shown directly — visible when populated after analysis
-                dl_pdf        = gr.File(label="📑  Download — Report (PDF)",           visible=False, elem_id="ta-dl-pdf")
-                dl_docx       = gr.File(label="📝  Download — Report (DOCX)",          visible=False, elem_id="ta-dl-docx")
-                dl_transcript = gr.File(label="📄  Download — Transcript (.txt)",      visible=False, elem_id="ta-dl-transcript")
-                dl_speakers   = gr.File(label="🎙  Download — Speaker Dialogue (.txt)",visible=False, elem_id="ta-dl-speakers")
-                dl_report     = gr.File(label="📋  Download — Full Report (.md)",      visible=False, elem_id="ta-dl-report")
-                dl_combined   = gr.File(label="📦  Download — Combined Report (.txt)", visible=False, elem_id="ta-dl-combined")
-                dl_json       = gr.File(label="🗂  Download — Raw Data (.json)",       visible=False, elem_id="ta-dl-json")
-                dl_srt        = gr.File(label="🎬  Download — Subtitles (.srt)",       visible=False, elem_id="ta-dl-srt")
-                dl_vtt        = gr.File(label="🎬  Download — Subtitles (.vtt)",       visible=False, elem_id="ta-dl-vtt")
-                # stub components kept for wiring compat
+                # ── Reports row ───────────────────────────────────────────────
+                gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">Reports</div>')
+                with gr.Row():
+                    dl_pdf   = gr.DownloadButton(label="📑 PDF Report",   value=None, visible=False,
+                                                 variant="secondary", size="sm", elem_id="ta-dl-pdf")
+                    dl_docx  = gr.DownloadButton(label="📝 DOCX Report",  value=None, visible=False,
+                                                 variant="secondary", size="sm", elem_id="ta-dl-docx")
+                    dl_report= gr.DownloadButton(label="📋 Markdown",     value=None, visible=False,
+                                                 variant="secondary", size="sm", elem_id="ta-dl-report")
+                # ── Transcripts row ───────────────────────────────────────────
+                gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Transcripts</div>')
+                with gr.Row():
+                    dl_transcript = gr.DownloadButton(label="📄 Transcript",      value=None, visible=False,
+                                                      variant="secondary", size="sm", elem_id="ta-dl-transcript")
+                    dl_speakers   = gr.DownloadButton(label="🎙 Speaker Dialogue", value=None, visible=False,
+                                                      variant="secondary", size="sm", elem_id="ta-dl-speakers")
+                    dl_combined   = gr.DownloadButton(label="📦 Combined",         value=None, visible=False,
+                                                      variant="secondary", size="sm", elem_id="ta-dl-combined")
+                # ── Subtitles & Data row ──────────────────────────────────────
+                gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Subtitles & Data</div>')
+                with gr.Row():
+                    dl_srt  = gr.DownloadButton(label="🎬 SRT Subtitles", value=None, visible=False,
+                                                variant="secondary", size="sm", elem_id="ta-dl-srt")
+                    dl_vtt  = gr.DownloadButton(label="🎬 VTT Subtitles", value=None, visible=False,
+                                                variant="secondary", size="sm", elem_id="ta-dl-vtt")
+                    dl_json = gr.DownloadButton(label="🗂 Raw JSON",      value=None, visible=False,
+                                                variant="secondary", size="sm", elem_id="ta-dl-json")
+                # ── Regen controls (hidden until ready) ───────────────────────
+                pdf_lang_input     = gr.Dropdown(label="Output language (PDF & DOCX)", choices=_PDF_LANGUAGES,
+                                                 value="Same as source", visible=False, elem_id="ta-dl-lang-sel")
+                pdf_regen_btn      = gr.Button("↺  Regenerate PDF & DOCX", visible=False, elem_id="ta-pdf-regen-btn")
+                report_format_radio= gr.Radio(choices=["PDF","DOCX"], value="PDF", label="Report format",
+                                              interactive=True, visible=False)
                 dl_active          = gr.State(value=None)
                 dl_format_dropdown = gr.State(value=None)
-                pdf_lang_input     = gr.Dropdown(label="Output language (PDF & DOCX)", choices=_PDF_LANGUAGES, value="Same as source", visible=False, elem_id="ta-dl-lang-sel")
-                pdf_regen_btn      = gr.Button("↺  Regenerate PDF & DOCX", visible=False, elem_id="ta-pdf-regen-btn")
-                report_format_radio = gr.Radio(choices=["PDF","DOCX"], value="PDF", label="Report format", interactive=True, visible=False)
 
         # ── results panel ─────────────────────────────────────────────────────
         with gr.Column(scale=2):

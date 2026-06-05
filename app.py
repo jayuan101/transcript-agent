@@ -5284,6 +5284,23 @@ _SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "2.0.3",
+        "date": "2026-06-05",
+        "notes": [
+            "Full Q&A details in UI + DOCX + PDF — what was said, ideal answer, coaching tip, deflection notes, deep analysis",
+            "History: Export / Import / Delete entry / Clear all history",
+            "GPU acceleration toggle — auto-detects CUDA, used by Whisper + DeepFace + WhisperX",
+            "Download section redesigned as clean button grid (PDF, DOCX, Transcript, SRT, JSON...)",
+            "STT engine signup links — Deepgram (200h free), Groq, AssemblyAI, ElevenLabs, Rev.ai",
+            "Overloaded error retry with exponential backoff (5→15→30→60s), friendly error messages",
+            "Video analysis: Haar cascade fallback for Zoom screen recordings, body language, cultural scoring",
+            "Combined Final Score: 60% answer quality + 40% delivery with advance likelihood badge",
+            "Mac DMG fix: video_analyzer.py + api.py bundled, mediapipe/cv2 in hidden imports",
+            "Docker: GPU support (TF_FORCE_GPU_ALLOW_GROWTH), NVIDIA deploy block in compose files",
+            "OTA update checker now points to correct GitHub repo",
+        ],
+    },
+    {
         "version": "1.1.73",
         "date": "2026-06-03",
         "notes": [
@@ -5663,7 +5680,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.0.2"
+APP_VERSION = "2.0.3"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -5701,7 +5718,7 @@ def _build_changelog():
 _CHANGELOG_HTML = _build_changelog()
 
 # ── GitHub OTA update checker ─────────────────────────────────────────────────
-_GH_RELEASES_REPO = "jayuan101/transcript-agent-releases"
+_GH_RELEASES_REPO = "jayuan101/transcript-agent"
 
 def _check_github_update() -> str:
     """Poll GitHub releases API; return update banner HTML or empty string."""

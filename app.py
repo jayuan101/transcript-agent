@@ -7498,9 +7498,6 @@ if __name__ == "__main__":
         _launch_kw["strict_cors"] = not _docker
     if "show_api" in _launch_sig:
         _launch_kw["show_api"] = False
-    if "app_kwargs" in _launch_sig:
-        # Raise uvicorn keep-alive timeout so large uploads don't get cut off
-        _launch_kw["app_kwargs"] = {"timeout_keep_alive": 600}
 
     import socket as _socket
     try:

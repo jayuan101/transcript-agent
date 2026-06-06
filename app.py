@@ -860,37 +860,69 @@ input[type="checkbox"]:checked::after {
 }
 html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
 
+/* ── Analyze button pulse animation ── */
+@keyframes ta-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0.55), 0 3px 12px rgba(220,38,38,0.35); }
+  60%  { box-shadow: 0 0 0 10px rgba(220,38,38,0), 0 3px 12px rgba(220,38,38,0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(220,38,38,0), 0 3px 12px rgba(220,38,38,0.35); }
+}
+@keyframes ta-spin { to { transform: rotate(360deg); } }
+
 /* ── Analyze button ── */
 button.ta-analyze-btn, #ta-analyze-btn {
-  background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
+  background: linear-gradient(135deg,#b91c1c,#ef4444) !important;
   color: #fff !important; font-size: 0.92em !important; font-weight: 700 !important;
   border: none !important; border-radius: 9px !important;
   padding: 10px 20px !important; width: 100% !important;
-  box-shadow: 0 3px 12px rgba(29,78,216,0.3) !important;
-  letter-spacing: 0.02em !important; transition: all 0.18s !important;
+  letter-spacing: 0.02em !important; cursor: pointer !important;
+  animation: ta-pulse-ring 1.8s ease-out infinite !important;
+  transition: background 0.18s, transform 0.18s !important;
 }
-button.ta-analyze-btn:hover, #ta-analyze-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
-html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
+button.ta-analyze-btn:hover, #ta-analyze-btn:hover {
+  background: linear-gradient(135deg,#991b1b,#dc2626) !important;
+  transform: translateY(-1px) !important;
+}
+button.ta-analyze-btn:active, #ta-analyze-btn:active {
+  transform: translateY(1px) !important;
+  animation: none !important;
+}
+button.ta-analyze-btn.ta-running, #ta-analyze-btn.ta-running {
+  background: linear-gradient(135deg,#7f1d1d,#b91c1c) !important;
+  animation: none !important;
+  cursor: default !important;
+  opacity: 0.85 !important;
+}
+html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn {
+  background: linear-gradient(135deg,#991b1b,#ef4444) !important;
+  color: #fff !important; border: none !important;
+}
 
 /* ── Stop / Cancel button ── */
 .ta-cancel-btn { flex: 0 0 auto !important; min-width: 80px !important; }
 .ta-cancel-btn button {
-  background: linear-gradient(135deg,#dc2626,#ef4444) !important;
+  background: #dc2626 !important;
   color: #fff !important;
-  border: none !important;
+  border: 2px solid #fca5a5 !important;
   border-radius: 8px !important;
   font-size: 0.85em !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: 0.03em !important;
   padding: 7px 14px !important;
-  box-shadow: 0 2px 8px rgba(220,38,38,0.35) !important;
-  transition: all 0.15s !important;
+  box-shadow: 0 3px 12px rgba(220,38,38,0.5), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  transition: all 0.12s !important;
   width: 100% !important;
+  cursor: pointer !important;
 }
 .ta-cancel-btn button:hover {
-  background: linear-gradient(135deg,#b91c1c,#dc2626) !important;
+  background: #b91c1c !important;
+  border-color: #f87171 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(220,38,38,0.5) !important;
+  box-shadow: 0 5px 18px rgba(220,38,38,0.65) !important;
+}
+.ta-cancel-btn button:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 4px rgba(220,38,38,0.4) !important;
+  background: #991b1b !important;
 }
 .ta-cancel-btn button:active { transform: translateY(0) !important; }
 html.dark .ta-cancel-btn button { box-shadow: 0 2px 10px rgba(239,68,68,0.4) !important; }
@@ -3886,7 +3918,7 @@ window.taDoUpdate = function(url, btn, platform) {
         'font-size:0.7em;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;'
         + 'color:#fff;backdrop-filter:blur(6px);'
         + 'padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s,background 0.3s;'
-        + 'pointer-events:none;white-space:nowrap;background:rgba(29,78,216,0.85);'
+        + 'pointer-events:none;white-space:nowrap;background:rgba(185,28,28,0.85);'
       );
       flabel.textContent = 'Analyze';
 
@@ -3897,12 +3929,12 @@ window.taDoUpdate = function(url, btn, platform) {
       fbtn.id = 'ta-float-analyze';
       fbtn.style.cssText = (
         'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
-        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;'
         + 'font-size:1.5em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 24px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
-        + 'position:relative;z-index:1;'
+        + 'box-shadow:0 4px 24px rgba(220,38,38,0.55);outline:none;pointer-events:all;'
+        + 'position:relative;z-index:1;animation:ta-pulse-ring 1.8s ease-out infinite;'
       );
-      fbtn.textContent = '▶';
+      fbtn.textContent = '⏺';
 
       fbtn.addEventListener('mouseenter', function() {
         if (fbtn.dataset.mode !== 'stop') this.style.transform = 'scale(1.1)';
@@ -3930,22 +3962,28 @@ window.taDoUpdate = function(url, btn, platform) {
       var flabel = document.getElementById('ta-float-label');
       var fring  = document.getElementById('ta-float-ring');
       if (!fbtn) return;
+      /* also update the main sidebar analyze button */
+      var mainBtn = document.querySelector('#ta-analyze-btn button, button.ta-analyze-btn');
       if (mode === 'stop') {
         fbtn.textContent = '⏹';
-        fbtn.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
-        fbtn.style.boxShadow = '0 4px 20px rgba(239,68,68,0.55)';
+        fbtn.style.background = 'linear-gradient(135deg,#7f1d1d,#b91c1c)';
+        fbtn.style.boxShadow = '0 4px 20px rgba(127,29,29,0.7)';
+        fbtn.style.animation = 'none';
         fbtn.dataset.mode = 'stop';
         flabel.textContent = 'Stop';
-        flabel.style.background = 'rgba(185,28,28,0.85)';
+        flabel.style.background = 'rgba(127,29,29,0.9)';
         if (fring) fring.style.display = 'block';
+        if (mainBtn) { mainBtn.classList.add('ta-running'); mainBtn.textContent = '⏸  Running…'; }
       } else {
-        fbtn.textContent = '▶';
-        fbtn.style.background = 'linear-gradient(135deg,#1d4ed8,#3b82f6)';
-        fbtn.style.boxShadow = '0 4px 20px rgba(29,78,216,0.5)';
+        fbtn.textContent = '⏺';
+        fbtn.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
+        fbtn.style.boxShadow = '0 4px 24px rgba(220,38,38,0.55)';
+        fbtn.style.animation = 'ta-pulse-ring 1.8s ease-out infinite';
         fbtn.dataset.mode = 'analyze';
         flabel.textContent = 'Analyze';
-        flabel.style.background = 'rgba(29,78,216,0.85)';
+        flabel.style.background = 'rgba(185,28,28,0.85)';
         if (fring) fring.style.display = 'none';
+        if (mainBtn) { mainBtn.classList.remove('ta-running'); mainBtn.textContent = '⏺  Analyze'; }
       }
     }
 
@@ -4028,12 +4066,15 @@ window.taDoUpdate = function(url, btn, platform) {
       '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important;background:transparent!important}',
       /* ── Accordions ── */
       '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
-      /* ── Analyze button — compact, pill style ── */
-      'button.ta-analyze-btn,#ta-analyze-btn{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
-      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
+      /* ── Analyze button — pulsing red ── */
+      '@keyframes ta-pulse-ring{0%{box-shadow:0 0 0 0 rgba(220,38,38,0.55),0 3px 12px rgba(220,38,38,0.35)}60%{box-shadow:0 0 0 10px rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}}',
+      'button.ta-analyze-btn,#ta-analyze-btn{background:linear-gradient(135deg,#b91c1c,#ef4444)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;letter-spacing:0.02em!important;cursor:pointer!important;width:100%!important;animation:ta-pulse-ring 1.8s ease-out infinite!important}',
+      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{background:linear-gradient(135deg,#991b1b,#dc2626)!important;transform:translateY(-1px)!important}',
+      'button.ta-analyze-btn.ta-running,#ta-analyze-btn.ta-running{background:linear-gradient(135deg,#7f1d1d,#b91c1c)!important;animation:none!important;opacity:0.85!important;cursor:default!important}',
       /* ── Stop / Cancel button ── */
-      '#ta-cancel-btn button,.ta-cancel-btn button{background:linear-gradient(135deg,#dc2626,#ef4444)!important;color:#fff!important;border:none!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 2px 8px rgba(220,38,38,0.35)!important;transition:all 0.15s!important;width:100%!important}',
-      '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:linear-gradient(135deg,#b91c1c,#dc2626)!important;transform:translateY(-1px)!important;box-shadow:0 4px 14px rgba(220,38,38,0.5)!important}',
+      '#ta-cancel-btn button,.ta-cancel-btn button{background:#dc2626!important;color:#fff!important;border:2px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:800!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 3px 12px rgba(220,38,38,0.5),inset 0 1px 0 rgba(255,255,255,0.15)!important;transition:all 0.12s!important;width:100%!important;cursor:pointer!important}',
+      '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:#b91c1c!important;border-color:#f87171!important;transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(220,38,38,0.65)!important}',
+      '#ta-cancel-btn button:active,.ta-cancel-btn button:active{transform:translateY(2px)!important;box-shadow:0 1px 4px rgba(220,38,38,0.4)!important;background:#991b1b!important}',
       /* ── Scrollable dropdowns ── */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -4207,7 +4248,7 @@ window.taDoUpdate = function(url, btn, platform) {
     /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
-    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 3px 12px rgba(29,78,216,0.5)!important}',
+    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#991b1b,#ef4444)!important;color:#fff!important;border:none!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
@@ -6441,7 +6482,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 elem_id="ta-transcription-only",
             )
             process_btn = gr.Button(
-                "▶  Analyze",
+                "⏺  Analyze",
                 variant="primary", size="sm",
                 elem_classes=["ta-analyze-btn"],
                 elem_id="ta-analyze-btn",

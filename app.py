@@ -6348,11 +6348,6 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     type="filepath",
                 )
                 profile_text_state = gr.State(value="")
-                reanalyze_btn = gr.Button(
-                    "🔄  Re-analyze with Profile",
-                    variant="secondary", size="sm", visible=False,
-                    elem_id="ta-reanalyze-btn",
-                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -7223,57 +7218,23 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)
 
-    # ── Profile upload — parse file → store text, show re-analyze button ─────
+    # ── Profile upload — parse file → store text ─────────────────────────────
     def _parse_profile(file_path):
         if not file_path:
-            return "", gr.update(visible=False)
+            return ""
         try:
             text = extract_profile_text(file_path)
             if text and text.strip():
-                return text, gr.update(visible=True)
+                return text
         except Exception:
             pass
-        return "", gr.update(visible=False)
+        return ""
 
     profile_upload.change(
         fn=_parse_profile,
         inputs=[profile_upload],
-        outputs=[profile_text_state, reanalyze_btn],
+        outputs=[profile_text_state],
         queue=False,
-    )
-
-    # ── Re-analyze with Profile — skips STT, re-runs coaching on cached transcript
-    def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name, use_gpu=True):
-        # result_state is a dict — use .get() not getattr
-        transcript = (result.get("clean_transcript", "") if isinstance(result, dict)
-                      else getattr(result, "clean_transcript", ""))
-        if not result or not transcript:
-            yield '<p style="color:#ef4444;padding:12px;">Run Analyze first to load a transcript.</p>'
-            return
-        api_key = (api_key or "").strip()
-        if not api_key and provider_name != "Ollama (Local)":
-            yield f'<p style="color:#ef4444;padding:12px;">Please enter your {provider_name} API key.</p>'
-            return
-        provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
-        client = LLMClient(
-            provider=provider_cfg["type"], api_key=api_key,
-            model=model_name, base_url=provider_cfg["base_url"],
-            use_gpu=bool(use_gpu),
-        )
-        yield ('<div style="padding:14px;color:#94a3b8;font-style:italic;">'
-               '⏳ Re-analyzing with your profile — this takes about 30 seconds…</div>')
-        ia = run_interview_analysis(
-            transcript, client,
-            deep_mode=bool(deep),
-            candidate_profile=profile_text or "",
-        )
-        yield _build_interview_html(ia)
-
-    reanalyze_btn.click(
-        fn=reanalyze_with_profile,
-        inputs=[result_state, profile_text_state, interview_deep,
-                user_api_key, provider_dropdown, model_dropdown, gpu_toggle],
-        outputs=[interview_out],
     )
 
     def _regen_and_show(rs, target_lang, api_key, provider_name, model_name):

@@ -1758,7 +1758,15 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
         _coding = ia.get("coding_challenges", []) if ia and not ia.get("parse_error") else []
         if _coding:
             _section_header("CODING CHALLENGE ANALYSIS", *_C["accent"])
-            _cs = ia.get("coding_score")
+            _det_role = (ia or {}).get("detected_role", "")
+            if _det_role and _det_role.lower() not in ("", "unknown"):
+                pdf.set_font("Helvetica", "I", 9)
+                pdf.set_text_color(*_C["sub"])
+                pdf.cell(W, 5, f"  Detected Role: {_s(_det_role)}", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
+
+            _cs = (ia or {}).get("coding_score")
             if _cs is not None and str(_cs) not in ("", "null"):
                 try:
                     _cs_num = int(str(_cs))
@@ -1769,25 +1777,29 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 pdf.set_fill_color(*_cs_col)
                 pdf.set_text_color(*_C["white"])
                 pdf.set_font("Helvetica", "B", 13)
-                pdf.cell(W, 9, f"  Coding Score: {_cs} / 10", new_x="LMARGIN", new_y="NEXT", fill=True)
+                pdf.cell(W, 9, f"  Coding Score: {_s(str(_cs))} / 10", new_x="LMARGIN", new_y="NEXT", fill=True)
                 pdf.set_text_color(0, 0, 0)
                 pdf.ln(4)
 
             _CS_COL = {"Great": _C["great"], "Good": _C["good"],
                        "Needs Improvement": _C["ni"], "Missed": _C["missed"]}
             for _ch in _coding:
-                _cid    = _ch.get("id", "")
-                _prob   = _ch.get("problem", "")
-                _ans    = _ch.get("candidate_answer", "")
-                _sc     = _ch.get("score", "")
-                _reason = _ch.get("score_reason", "")
-                _cappr  = _ch.get("candidate_approach", "")
-                _opt    = _ch.get("optimal_solution", "")
-                _oappr  = _ch.get("optimal_approach", "")
-                _tc     = _ch.get("time_complexity", "")
-                _spc    = _ch.get("space_complexity", "")
-                _tip    = _ch.get("coaching_tip", "")
-                _sc_col = _CS_COL.get(_sc, _C["sub"])
+                _cid      = _ch.get("id", "")
+                _prob     = _ch.get("problem", "")
+                _ans      = _ch.get("candidate_answer", "")
+                _sc       = _ch.get("score", "")
+                _reason   = _ch.get("score_reason", "")
+                _cappr    = _ch.get("candidate_approach", "")
+                _lang_req = _ch.get("language_requested", "")
+                _lang_used= _ch.get("language_used", "")
+                _libs     = _ch.get("libraries_used", "")
+                _opt      = _ch.get("optimal_solution", "")
+                _oappr    = _ch.get("optimal_approach", "")
+                _tc       = _ch.get("time_complexity", "")
+                _spc      = _ch.get("space_complexity", "")
+                _role_ctx = _ch.get("role_context", "")
+                _tip      = _ch.get("coaching_tip", "")
+                _sc_col   = _CS_COL.get(_sc, _C["sub"])
 
                 # Challenge header
                 pdf.ln(3)
@@ -1795,6 +1807,21 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 pdf.set_font("Helvetica", "B", 9)
                 pdf.set_text_color(*_C["header"])
                 pdf.multi_cell(W, 6, f"Challenge {_s(str(_cid))}: {_s(_prob)}", fill=True)
+
+                # Language / library line
+                _lang_line_parts = []
+                if _lang_req and _lang_req.lower() not in ("", "not specified"):
+                    _lang_line_parts.append(f"Asked in: {_lang_req}")
+                if _lang_used and _lang_used.lower() not in ("", "not specified"):
+                    _lang_line_parts.append(f"Solution: {_lang_used}")
+                if _libs and _libs.lower() not in ("", "none", "not specified"):
+                    _lang_line_parts.append(f"Libraries: {_libs}")
+                if _lang_line_parts:
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.cell(W, 4, "  " + "   |   ".join(_lang_line_parts), new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.ln(1)
 
                 # Score badge
                 pdf.set_fill_color(*_sc_col)
@@ -1820,7 +1847,10 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                     pdf.set_fill_color(15, 23, 42)
                     pdf.set_text_color(148, 163, 184)
                     pdf.set_font("Helvetica", "B", 7)
-                    pdf.cell(W, 5, "  OPTIMAL SOLUTION", new_x="LMARGIN", new_y="NEXT", fill=True)
+                    _sol_hdr = "  OPTIMAL SOLUTION"
+                    if _lang_used: _sol_hdr += f" — {_lang_used}"
+                    if _libs and _libs.lower() not in ("", "none"): _sol_hdr += f" ({_libs})"
+                    pdf.cell(W, 5, _s(_sol_hdr), new_x="LMARGIN", new_y="NEXT", fill=True)
                     pdf.set_font("Courier", "", 7.5)
                     pdf.set_text_color(226, 232, 240)
                     for _line in _opt.splitlines():
@@ -1831,16 +1861,17 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                     pdf.set_text_color(0, 0, 0)
                     pdf.set_font("Helvetica", "", 9)
 
-                # Complexity + approach
-                if _oappr or _tc or _spc:
+                # Complexity + approach + role context
+                _pdf_parts = []
+                if _oappr:    _pdf_parts.append(f"Approach: {_s(_oappr)}")
+                if _tc:       _pdf_parts.append(f"Time: {_s(_tc)}")
+                if _spc:      _pdf_parts.append(f"Space: {_s(_spc)}")
+                if _role_ctx: _pdf_parts.append(f"Role context: {_s(_role_ctx)}")
+                if _pdf_parts:
                     pdf.ln(2)
                     pdf.set_font("Helvetica", "", 8)
                     pdf.set_text_color(*_C["sub"])
-                    parts = []
-                    if _oappr: parts.append(f"Approach: {_s(_oappr)}")
-                    if _tc:    parts.append(f"Time: {_s(_tc)}")
-                    if _spc:   parts.append(f"Space: {_s(_spc)}")
-                    pdf.multi_cell(W, 4.5, "  " + "   |   ".join(parts))
+                    pdf.multi_cell(W, 4.5, "  " + "   |   ".join(_pdf_parts))
                     pdf.set_text_color(0, 0, 0)
 
                 if _tip:
@@ -2749,27 +2780,72 @@ def _build_interview_html(ia: dict) -> str:
             'letter-spacing:.1em;color:#64748b;margin-bottom:12px;">💻 Coding Challenges</div>'
         )
 
+        # Show detected role badge
+        _role = ia.get("detected_role", "")
+        if _role and _role.lower() not in ("", "unknown"):
+            html += (
+                f'<div style="display:inline-flex;align-items:center;gap:8px;'
+                f'background:#0f172a;border-radius:20px;padding:5px 14px;margin-bottom:12px;">'
+                f'<span style="font-size:0.75em;color:#94a3b8;">🎯 Role detected:</span>'
+                f'<span style="font-size:0.82em;font-weight:700;color:#38bdf8;">{_role}</span>'
+                f'</div>'
+            )
+
         _CC_COL = {"Great":"#22c55e","Good":"#3b82f6","Needs Improvement":"#f59e0b","Missed":"#ef4444"}
         for _ch in _coding:
-            _sc     = _ch.get("score","")
-            _col    = _CC_COL.get(_sc,"#6b7280")
-            _prob   = _ch.get("problem","")
-            _ans    = _ch.get("candidate_answer","")
-            _cappr  = _ch.get("candidate_approach","")
-            _opt    = _ch.get("optimal_solution","").replace("<","&lt;").replace(">","&gt;")
-            _oappr  = _ch.get("optimal_approach","")
-            _tc     = _ch.get("time_complexity","")
-            _spc    = _ch.get("space_complexity","")
-            _tip    = _ch.get("coaching_tip","")
-            _reason = _ch.get("score_reason","")
+            _sc      = _ch.get("score","")
+            _col     = _CC_COL.get(_sc,"#6b7280")
+            _prob    = _ch.get("problem","")
+            _ans     = _ch.get("candidate_answer","")
+            _cappr   = _ch.get("candidate_approach","")
+            _lang_req= _ch.get("language_requested","")
+            _lang_used=_ch.get("language_used","")
+            _libs    = _ch.get("libraries_used","")
+            _role_ctx= _ch.get("role_context","")
+            _opt     = _ch.get("optimal_solution","").replace("<","&lt;").replace(">","&gt;")
+            _oappr   = _ch.get("optimal_approach","")
+            _tc      = _ch.get("time_complexity","")
+            _spc     = _ch.get("space_complexity","")
+            _tip     = _ch.get("coaching_tip","")
+            _reason  = _ch.get("score_reason","")
+
+            # Build language/library badges
+            _lang_badges = ""
+            if _lang_req and _lang_req.lower() not in ("", "not specified"):
+                _lang_badges += (
+                    f'<span style="background:#1e3a5f;color:#60a5fa;font-size:0.75em;font-weight:700;'
+                    f'padding:3px 10px;border-radius:20px;border:1px solid #3b82f6;">Asked in: {_lang_req}</span> '
+                )
+            if _lang_used and _lang_used.lower() not in ("", "not specified"):
+                _lang_badges += (
+                    f'<span style="background:#052e16;color:#86efac;font-size:0.75em;font-weight:700;'
+                    f'padding:3px 10px;border-radius:20px;border:1px solid #22c55e;">{_lang_used}</span> '
+                )
+            if _libs and _libs.lower() not in ("", "none", "not specified"):
+                for _lib in _libs.split(","):
+                    _lib = _lib.strip()
+                    if _lib:
+                        _lang_badges += (
+                            f'<span style="background:#1c1917;color:#fdba74;font-size:0.75em;font-weight:700;'
+                            f'padding:3px 10px;border-radius:20px;border:1px solid #f97316;">{_lib}</span> '
+                        )
+
+            # Optimal solution header — shows language
+            _sol_header = "✅ Optimal Solution"
+            if _lang_used:
+                _sol_header += f" — {_lang_used}"
+            if _libs and _libs.lower() not in ("", "none", "not specified"):
+                _sol_header += f" ({_libs})"
 
             html += (
                 f'<div class="ta-q-card" style="border:2px solid {_col};margin-bottom:14px;">'
-                f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+                f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">'
                 f'<span style="background:{_col};color:#fff;font-size:0.78em;font-weight:800;'
                 f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">💻</span>'
                 f'<div class="ta-q-title">{_prob}</div></div>'
-                f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+                + (f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">{_lang_badges}</div>'
+                   if _lang_badges else '')
+                + f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
                 f'<span style="background:{_col};color:#fff;font-size:0.8em;font-weight:800;'
                 f'padding:4px 14px;border-radius:20px;">{_sc}</span>'
                 f'<span class="ta-q-reason">{_reason}</span></div>'
@@ -2791,26 +2867,28 @@ def _build_interview_html(ia: dict) -> str:
                     f'<div style="margin:10px 0;">'
                     f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
                     f'letter-spacing:.08em;color:#22d3ee;background:#0f172a;'
-                    f'padding:6px 14px;border-radius:8px 8px 0 0;">✅ Optimal Solution</div>'
+                    f'padding:6px 14px;border-radius:8px 8px 0 0;">{_sol_header}</div>'
                     f'<pre style="background:#0f172a;color:#e2e8f0;font-size:0.8em;'
                     f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
                     f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_opt}</pre>'
                     f'</div>'
                 )
-            if _oappr or _tc or _spc:
-                parts = []
-                if _oappr: parts.append(f"<b>Approach:</b> {_oappr}")
-                if _tc:    parts.append(f"<b>Time:</b> {_tc}")
-                if _spc:   parts.append(f"<b>Space:</b> {_spc}")
+            _meta_parts = []
+            if _oappr:    _meta_parts.append(f"<b>Approach:</b> {_oappr}")
+            if _tc:       _meta_parts.append(f"<b>Time:</b> {_tc}")
+            if _spc:      _meta_parts.append(f"<b>Space:</b> {_spc}")
+            if _role_ctx: _meta_parts.append(f"<b>Role context:</b> {_role_ctx}")
+            if _meta_parts:
                 html += (
                     f'<div style="font-size:0.82em;color:#475569;margin:6px 0;'
-                    f'padding:6px 10px;background:#f1f5f9;border-radius:6px;">'
-                    + "  ·  ".join(parts) + "</div>"
+                    f'padding:8px 12px;background:#f1f5f9;border-radius:6px;">'
+                    + "<br>".join(_meta_parts) + "</div>"
                 )
             if _tip:
                 html += (
                     f'<div class="ta-q-tip">'
-                    f'<div class="ta-q-tip-label">🏋️ Coaching Tip <span style="font-weight:400;font-size:0.85em;opacity:0.7;">(informational)</span></div>'
+                    f'<div class="ta-q-tip-label">🏋️ Coaching Tip '
+                    f'<span style="font-weight:400;font-size:0.85em;opacity:0.7;">(informational — does not affect score)</span></div>'
                     f'<p class="ta-q-tip-text">{_tip}</p></div>'
                 )
             html += '</div>'

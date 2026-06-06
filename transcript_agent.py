@@ -2136,14 +2136,26 @@ def process_transcript(
 # ── Interview Mode ────────────────────────────────────────────────────────────
 
 _INTERVIEW_SYSTEM = """\
-You are an expert interview coach, communication analyst, and software engineer.
+You are an expert interview coach, communication analyst, and polyglot software engineer
+with deep knowledge of every major programming language, framework, and technology stack.
 Analyse the provided interview transcript and return a structured JSON object.
 Be specific, honest, and actionable. Use the exact keys shown below.
 When a candidate profile/resume is provided, every model_answer MUST be personalised to that
 specific person — draw on their real job titles, projects, companies, skills, and experiences.
 The suggested answer should sound exactly like THAT candidate speaking naturally, not a generic template.
-For coding challenges, always provide a complete, working code solution in the candidate's
-apparent language (default Python if unclear), with proper variable names and comments.
+
+For coding challenges you must:
+1. First detect the ROLE from the interview (Data Engineer, Data Scientist/Gen AI, Android, iOS,
+   Backend, Frontend, DevOps, Full Stack, ML Engineer, etc.).
+2. Then detect the LANGUAGE AND LIBRARIES explicitly requested in the question.
+   - If a specific language was asked (Java, Kotlin, Python, SQL, Scala, Swift, Go, C++, etc.)
+     → write the solution ONLY in that language using its idiomatic style and relevant libraries.
+   - If a library/framework was asked (Spark, Pandas, NumPy, TensorFlow, PyTorch, dbt, Kafka, etc.)
+     → use that library in the solution.
+   - If NO language was specified → infer from context (role + what the candidate used) or use
+     pseudocode/Python as a last resort. Do NOT invent a language constraint that was not asked.
+3. Score ONLY on the language/technology that was actually requested. If no language was asked,
+   score on algorithm correctness and approach only — never penalise for language choice.
 """
 
 _INTERVIEW_PROMPT = """\
@@ -2190,18 +2202,23 @@ Rules for model_answer:
       "coaching_tip": "<one specific, actionable piece of advice — informational only, does not change the score>"
     }}
   ],
+  "detected_role": "<inferred role from the interview, e.g. Data Engineer | Data Scientist | Gen AI Engineer | Android Developer | iOS Developer | Backend Engineer | Frontend Engineer | Full Stack | DevOps | ML Engineer | General Software Engineer | unknown>",
   "coding_challenges": [
     {{
       "id": 1,
       "problem": "<exact problem statement as given in the transcript>",
+      "language_requested": "<the language/framework explicitly asked for in the question, or 'not specified' if none was asked>",
       "candidate_answer": "<what the candidate described, coded, or attempted — be specific about their approach, any code they wrote, edge cases they mentioned>",
       "score": "<Great|Good|Needs Improvement|Missed>",
-      "score_reason": "<one sentence why — based only on correctness, efficiency, and communication — coaching_tip does NOT affect this score>",
+      "score_reason": "<one sentence why — score ONLY on the language/tech that was asked; if none was specified, score on approach and algorithm correctness only — coaching_tip does NOT affect this score>",
       "candidate_approach": "<the algorithm or strategy the candidate used, e.g. 'brute force O(n²) nested loop'>",
-      "optimal_solution": "<complete working code solution with proper variable names — Python by default unless a different language is apparent>",
+      "language_used": "<the language used in optimal_solution, e.g. Python + PySpark | Java | Kotlin | SQL | Scala | Swift | Go | C++ | JavaScript | TypeScript | Pseudocode>",
+      "libraries_used": "<comma-separated list of libraries/frameworks in the solution, e.g. PySpark, Pandas, NumPy, or 'none'>",
+      "optimal_solution": "<complete working solution — in the REQUESTED language with relevant libraries; if no language was requested, use the candidate's apparent language or pseudocode>",
       "optimal_approach": "<one sentence explaining the optimal algorithm and why it is better>",
       "time_complexity": "<e.g. O(n log n)>",
       "space_complexity": "<e.g. O(1)>",
+      "role_context": "<one sentence explaining why this is the idiomatic approach for this role/stack, e.g. 'For a Data Engineer on Spark this uses DataFrame API to leverage distributed processing'>",
       "coaching_tip": "<one specific actionable tip — informational only, does not change the score>"
     }}
   ],
@@ -2214,11 +2231,32 @@ Rules for model_answer:
 }}
 
 CODING CHALLENGES RULES:
-- Only populate "coding_challenges" if the transcript contains actual algorithmic/coding problems (LeetCode-style, whiteboard coding, data structure questions, SQL queries, system design with code, etc.).
-- If no coding challenges were present, set "coding_challenges": [] and "coding_score": null.
-- The "optimal_solution" must be complete, runnable code — not pseudocode. Include a brief comment explaining key steps.
-- Score each challenge on: correctness of approach, time/space complexity awareness, edge case handling, and clarity of explanation.
-- Coaching tips are purely informational and must NOT change the score value.
+- Only populate "coding_challenges" if the transcript contains actual algorithmic/coding problems,
+  data manipulation tasks, SQL queries, system design with code, library usage questions, etc.
+- If no coding challenges were present: "coding_challenges": [], "coding_score": null.
+- LANGUAGE / LIBRARY DETECTION (critical):
+    • If the question explicitly names a language (Java, Python, Kotlin, SQL, Scala, Swift, Go,
+      C++, JavaScript, TypeScript, Rust, R, MATLAB, etc.) → use ONLY that language.
+    • If the question names a library or framework (PySpark, Pandas, NumPy, TensorFlow, PyTorch,
+      Keras, scikit-learn, dbt, Airflow, Kafka, Flink, Hadoop, React, Spring, Django, FastAPI,
+      Android SDK, Jetpack Compose, SwiftUI, Flutter, etc.) → use it in the solution.
+    • If NO language was asked → infer from role context:
+        - Data Engineer: PySpark / SQL / Python + Pandas
+        - Data Scientist / Gen AI: Python + PyTorch or TensorFlow + NumPy + Pandas
+        - ML Engineer: Python + scikit-learn / PyTorch
+        - Android Developer: Kotlin + Android SDK / Jetpack Compose
+        - iOS Developer: Swift + SwiftUI or UIKit
+        - Backend (JVM): Java or Kotlin + Spring Boot
+        - Backend (Python): Python + FastAPI or Django
+        - Frontend: TypeScript + React or Vue
+        - DevOps / Platform: Go, Bash, Python, Terraform snippets
+        - If role is unknown and no language given → use Python as a readable fallback
+    • NEVER invent a language requirement that was not in the question.
+- SCORING RULE: Score ONLY on the language/tech that was asked. If no language was specified,
+  score on algorithm correctness, approach quality, and communication — NEVER penalise for
+  language choice. Coaching tips are informational only and must NOT change the score.
+- The "optimal_solution" must be complete, runnable code with a brief inline comment. No pseudocode
+  unless pseudocode was explicitly what was asked.
 
 --- DEEP MODE (only fill if requested) ---
   "deflection_rate": "<0-100 % of questions deflected>",
@@ -2414,22 +2452,36 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             sections.append(f"  Coding Score : {coding_score} / 10")
             sections.append("")
         _CS_ICON = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
+        detected_role = ia.get("detected_role", "")
+        if detected_role and detected_role.lower() not in ("", "unknown"):
+            sections.append(f"  Detected Role : {detected_role}")
+            sections.append("")
         for c in challenges:
-            cid    = c.get("id", "")
-            prob   = c.get("problem", "")
-            ans    = c.get("candidate_answer", "")
-            sc     = c.get("score", "")
-            reason = c.get("score_reason", "")
-            cappr  = c.get("candidate_approach", "")
-            optimal= c.get("optimal_solution", "")
-            oappr  = c.get("optimal_approach", "")
-            tc     = c.get("time_complexity", "")
-            sc2    = c.get("space_complexity", "")
-            tip    = c.get("coaching_tip", "")
-            icon   = _CS_ICON.get(sc, "·")
+            cid      = c.get("id", "")
+            prob     = c.get("problem", "")
+            ans      = c.get("candidate_answer", "")
+            sc       = c.get("score", "")
+            reason   = c.get("score_reason", "")
+            cappr    = c.get("candidate_approach", "")
+            lang_req = c.get("language_requested", "")
+            lang_used= c.get("language_used", "")
+            libs     = c.get("libraries_used", "")
+            optimal  = c.get("optimal_solution", "")
+            oappr    = c.get("optimal_approach", "")
+            tc       = c.get("time_complexity", "")
+            sc2      = c.get("space_complexity", "")
+            role_ctx = c.get("role_context", "")
+            tip      = c.get("coaching_tip", "")
+            icon     = _CS_ICON.get(sc, "·")
 
             sections.append(f"  Challenge {cid}: {prob}")
-            sections.append(f"    Score            : {icon} {sc}" + (f"  — {reason}" if reason else ""))
+            sections.append(f"    Score             : {icon} {sc}" + (f"  — {reason}" if reason else ""))
+            if lang_req and lang_req.lower() not in ("", "not specified"):
+                sections.append(f"    Language Asked    : {lang_req}")
+            if lang_used and lang_used.lower() not in ("", "not specified"):
+                sections.append(f"    Solution Language : {lang_used}")
+            if libs and libs.lower() not in ("", "none", "not specified"):
+                sections.append(f"    Libraries Used    : {libs}")
             if cappr:
                 sections.append(f"    Candidate Approach: {cappr}")
             if ans:
@@ -2437,7 +2489,8 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                 for line in ans.splitlines():
                     sections.append(f"      {line}")
             if optimal:
-                sections.append(f"    Optimal Solution:")
+                sol_label = f"Optimal Solution ({lang_used})" if lang_used else "Optimal Solution"
+                sections.append(f"    {sol_label}:")
                 sections.append(f"    " + "-" * 40)
                 for line in optimal.splitlines():
                     sections.append(f"      {line}")
@@ -2448,6 +2501,8 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                 sections.append(f"    Time Complexity   : {tc}")
             if sc2:
                 sections.append(f"    Space Complexity  : {sc2}")
+            if role_ctx:
+                sections.append(f"    Role Context      : {role_ctx}")
             if tip:
                 sections.append(f"    Coaching Tip      : {tip}")
             sections.append("")

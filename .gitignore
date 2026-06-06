@@ -19,6 +19,14 @@ startup_err.txt
 # Test files
 test_audio.mp3
 test_sample.txt
+test_*.js
+test_*.mp4
+test_*.webm
+test_*.docx
+test_*.pdf
+
+# MediaPipe models
+.mediapipe_models/
 
 # Share dir — generated files only
 share/docker-compose.yml

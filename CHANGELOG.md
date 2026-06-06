@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.3.3 — 2026-06-06
+- Removed standalone Video Delivery card (role dropdowns + Analyze Video button) from Interview Analysis tab — it was appearing before analysis ran and triggering the kGpuService/EGL error on CPU-only HuggingFace Spaces
+- Video analysis now runs automatically as part of the main Analyze flow; role assignments are handled as hidden components
+
 ## v2.3.2 — 2026-06-06
 - Fixed "Could not auto-detect faces" error on video upload when GPU/EGL is unavailable — FaceLandmarker and PoseLandmarker now automatically retry with CPU delegate if GPU init fails (e.g. headless Linux, missing EGL)
 - Fixed a NameError in the frame processing loop where `use_gpu` was referenced but not passed through to the inner method

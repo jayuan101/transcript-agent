@@ -117,7 +117,11 @@ echo.
 echo  [3/5] Installing dependencies (first run: ~15 min, ~2 GB)...
 echo.
 
-"!VPYTHON!" -m pip install --upgrade pip setuptools wheel --quiet 2>nul
+"!VPYTHON!" -m pip install --upgrade pip setuptools wheel
+if %errorlevel% neq 0 (
+    echo  WARNING: Could not upgrade pip/setuptools — retrying once...
+    "!VPYTHON!" -m pip install setuptools wheel
+)
 
 :: -- Auto-detect GPU vendor -------------------------------------------------------
 set "NVIDIA_FOUND=0"
@@ -220,6 +224,7 @@ if "!TORCH_CHOICE!"=="1" (
 )
 
 echo   Installing app requirements...
+"!PIP!" install setuptools wheel --quiet
 "!PIP!" install -r "!APPDIR!requirements.txt" --quiet
 if %errorlevel% neq 0 (
     echo.

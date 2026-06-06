@@ -13,7 +13,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_all
 
 # Single source of truth — read version from app.py
 HERE = Path(SPECPATH)
-APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', (HERE / "app.py").read_text()).group(1)
+APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', (HERE / "app.py").read_text(encoding="utf-8")).group(1)
 
 block_cipher = None
 

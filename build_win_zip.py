@@ -3,7 +3,7 @@ import re, zipfile
 from pathlib import Path
 
 # Single source of truth — read version from app.py
-APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', Path("app.py").read_text()).group(1)
+APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', Path("app.py").read_text(encoding="utf-8")).group(1)
 
 out_zip = Path("dist/TranscriptAgent-Windows.zip")
 out_zip.parent.mkdir(exist_ok=True)

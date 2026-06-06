@@ -1,6 +1,6 @@
 ---
 title: Transcript Agent
-emoji: microphone
+emoji: 🎤
 colorFrom: blue
 colorTo: indigo
 sdk: docker

@@ -8026,6 +8026,36 @@ if __name__ == "__main__":
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
+
+    # Kill any stale process holding port 7860 (e.g. previous instance still closing)
+    import socket as _sock
+    def _port_free(p):
+        with _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM) as s:
+            return s.connect_ex(("127.0.0.1", p)) != 0
+    if not _port_free(_port):
+        try:
+            if os.name == "nt":
+                import subprocess as _sp2
+                _r = _sp2.run(
+                    ["netstat", "-ano"], capture_output=True, text=True
+                )
+                for _ln in _r.stdout.splitlines():
+                    if f":{_port} " in _ln and "LISTENING" in _ln:
+                        _pid = int(_ln.strip().split()[-1])
+                        _sp2.run(["taskkill", "/F", "/PID", str(_pid)],
+                                 capture_output=True)
+                        break
+        except Exception:
+            pass
+        import time as _t2
+        _t2.sleep(1)
+        # If still busy, find next free port
+        if not _port_free(_port):
+            for _p in range(_port + 1, _port + 10):
+                if _port_free(_p):
+                    _port = _p
+                    break
+
     demo.queue(max_size=5, default_concurrency_limit=4)
     import inspect as _inspect
     _launch_sig = _inspect.signature(demo.launch).parameters

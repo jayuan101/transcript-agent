@@ -1962,7 +1962,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 28   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 29   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1973,7 +1973,8 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
          net=gr.update(), stats=gr.update(), rs=None,
          iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
-         iv_vid=gr.update(), iv_prog=gr.update()):
+         iv_vid=gr.update(), iv_prog=gr.update(),
+         dl_wait=gr.update()):
     def _dl(v):
         if isinstance(v, gr.update().__class__): return v
         return gr.update(value=v, visible=bool(v)) if v else gr.update(visible=False)
@@ -1982,7 +1983,8 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
             _dl(dl_t), _dl(dl_s), _dl(dl_r), _dl(dl_c), _dl(dl_j), _dl(dl_p),
             _dl(dl_srt), _dl(dl_vtt), _dl(dl_docx),
             dl_acc, log, eta, net, stats, rs,
-            iv_scores, iv_tl, iv_sum, iv_vid, iv_prog)
+            iv_scores, iv_tl, iv_sum, iv_vid, iv_prog,
+            dl_wait)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -3787,6 +3789,7 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                dl_wait=gr.update(visible=False),
 
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
                                         _total_dl_mb, _peak_dl_speed, done=True,
@@ -6898,17 +6901,21 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("⬇  Download Results", open=False, elem_id="ta-dl-accordion")
+            download_accordion = gr.Accordion("⬇  Download Results", open=True, elem_id="ta-dl-accordion")
             with download_accordion:
-                gr.HTML(
-                    '<div style="padding:4px 0 10px;font-size:0.78em;color:#64748b;">'
-                    'PDF and DOCX include full report with colors and formatting. '
-                    'All other formats are plain text. Click to download.</div>'
+                dl_waiting = gr.HTML(
+                    '<div style="padding:10px 4px;text-align:center;">'
+                    '<div style="font-size:1.5em;margin-bottom:6px;">📂</div>'
+                    '<div style="font-size:0.85em;font-weight:600;color:#475569;">Run an analysis to generate your reports</div>'
+                    '<div style="font-size:0.78em;color:#94a3b8;margin-top:4px;">'
+                    'PDF · DOCX · Transcript · SRT · JSON — all appear here when done</div>'
+                    '</div>',
+                    elem_id="ta-dl-waiting"
                 )
                 # ── Reports row (PDF + DOCX — colored/formatted) ─────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">'
-                        'Reports — with color &amp; formatting</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;" id="ta-dl-hdr-reports">'
+                        '📄 Reports — with color &amp; formatting</div>')
                 with gr.Row():
                     dl_pdf   = gr.DownloadButton(label="📑 Download PDF",        value=None, visible=False,
                                                  variant="primary", size="sm", elem_id="ta-dl-pdf")
@@ -6919,7 +6926,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                 # ── Transcripts row ───────────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
                         'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
-                        'Transcripts — plain text</div>')
+                        '🎙 Transcripts — plain text</div>')
                 with gr.Row():
                     dl_transcript = gr.DownloadButton(label="📄 Transcript .txt",      value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-transcript")
@@ -6930,7 +6937,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                 # ── Subtitles & Data row ──────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
                         'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
-                        'Subtitles &amp; Data — plain text</div>')
+                        '🎬 Subtitles &amp; Data — plain text</div>')
                 with gr.Row():
                     dl_srt  = gr.DownloadButton(label="🎬 SRT Subtitles", value=None, visible=False,
                                                 variant="secondary", size="sm", elem_id="ta-dl-srt")
@@ -7696,6 +7703,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
             stats_panel,
             result_state,
             iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress,
+            dl_waiting,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)

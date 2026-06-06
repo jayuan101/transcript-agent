@@ -26,6 +26,23 @@ if exist "!VPYTHON!" (
     for /f "tokens=*" %%v in ('powershell -NoProfile -Command "(Invoke-RestMethod https://api.github.com/repos/jayuan101/transcript-agent/releases/latest 2>$null).tag_name" 2^>nul') do set "LATEST_VER=%%v"
     set "LATEST_VER=!LATEST_VER:v=!"
 
+    :: Detect if torch is CPU-only but GPU is present (mismatch warning)
+    set "TORCH_IS_CPU=0"
+    "!VPYTHON!" -c "import torch; exit(0 if torch.cuda.is_available() or getattr(torch,'has_mps',False) else 1)" >nul 2>&1
+    if !errorlevel! neq 0 (
+        where nvidia-smi >nul 2>&1
+        if !errorlevel!==0 (
+            nvidia-smi >nul 2>&1
+            if !errorlevel!==0 set "TORCH_IS_CPU=1"
+        )
+    )
+    if "!TORCH_IS_CPU!"=="1" (
+        echo.
+        echo  *** GPU MISMATCH: NVIDIA GPU detected but PyTorch is CPU-only build ***
+        echo  *** Choose [5] to fix this and enable GPU acceleration             ***
+        echo.
+    )
+
     if "!LATEST_VER!" neq "" if "!LATEST_VER!" neq "%CURRENT_VERSION%" (
         echo  *** UPDATE AVAILABLE: v%CURRENT_VERSION% ^-^> v!LATEST_VER! ***
         echo.
@@ -33,19 +50,22 @@ if exist "!VPYTHON!" (
         echo    [2]  Update to v!LATEST_VER!   ^<^- new version available
         echo    [3]  Reinstall from scratch
         echo    [4]  Exit
+        echo    [5]  Fix GPU ^(reinstall PyTorch with CUDA^)
     ) else (
         echo    [1]  Launch app
         echo    [2]  Check for updates
         echo    [3]  Reinstall from scratch
         echo    [4]  Exit
+        echo    [5]  Fix GPU ^(reinstall PyTorch with CUDA^)
     )
     echo.
-    set /p "CHOICE= Enter choice [1-4]: "
+    set /p "CHOICE= Enter choice [1-5]: "
     echo.
     if "!CHOICE!"=="1" goto :launch
     if "!CHOICE!"=="2" goto :update
     if "!CHOICE!"=="3" goto :fresh_install
     if "!CHOICE!"=="4" goto :end
+    if "!CHOICE!"=="5" goto :fix_gpu
     goto :launch
 )
 
@@ -331,6 +351,85 @@ echo  Updating Python packages...
 "!PIP!" install mediapipe opencv-python plotly --upgrade --quiet
 echo  All packages up to date.
 
+echo.
+set /p "LAUNCH= Launch app now? [Y/n]: "
+if /i "!LAUNCH!" neq "n" goto :launch
+goto :end
+
+:: -- Fix GPU (reinstall PyTorch with CUDA) -------------------------------------
+:fix_gpu
+echo.
+echo  ============================================================
+echo   Fix GPU — Reinstall PyTorch with CUDA
+echo  ============================================================
+echo.
+
+:: Detect GPU again for best recommendation
+set "NVIDIA_FOUND=0"
+set "GPU_NAME="
+set "DRIVER_CUDA="
+set "CUDA_MAJOR=0"
+
+where nvidia-smi >nul 2>&1
+if %errorlevel%==0 (
+    nvidia-smi >nul 2>&1
+    if !errorlevel!==0 (
+        set "NVIDIA_FOUND=1"
+        for /f "tokens=*" %%g in ('nvidia-smi --query-gpu^=name --format^=csv,noheader 2^>nul') do (
+            if "!GPU_NAME!"=="" set "GPU_NAME=%%g"
+        )
+        for /f "tokens=*" %%l in ('nvidia-smi 2^>nul') do (
+            echo %%l | findstr /i "CUDA Version" >nul 2>&1
+            if !errorlevel!==0 (
+                for /f "tokens=3" %%v in ("%%l") do set "DRIVER_CUDA=%%v"
+            )
+        )
+        if "!DRIVER_CUDA!" neq "" (
+            for /f "tokens=1 delims=." %%m in ("!DRIVER_CUDA!") do set "CUDA_MAJOR=%%m"
+        )
+    )
+)
+
+if "!NVIDIA_FOUND!"=="1" (
+    echo  Detected: !GPU_NAME!
+    if "!DRIVER_CUDA!" neq "" echo  Driver supports up to CUDA !DRIVER_CUDA!
+    echo.
+    set "DEFAULT_CUDA=1"
+    if !CUDA_MAJOR! LSS 12 if !CUDA_MAJOR! GTR 0 set "DEFAULT_CUDA=2"
+    if "!DEFAULT_CUDA!"=="1" (
+        echo  Your driver supports CUDA 12 — installing CUDA 12.1 build.
+    ) else (
+        echo  Your driver supports CUDA 11 — installing CUDA 11.8 build.
+    )
+    echo.
+    set /p "GPU_CONFIRM= Press Enter to install, or type 1=CUDA 12.1 / 2=CUDA 11.8: "
+    if "!GPU_CONFIRM!"=="" set "GPU_CONFIRM=!DEFAULT_CUDA!"
+) else (
+    echo  No NVIDIA GPU found via nvidia-smi.
+    echo  If you have AMD/Intel, DirectML is already the correct build.
+    echo.
+    pause
+    goto :end
+)
+
+echo.
+echo  Uninstalling current PyTorch...
+"!PIP!" uninstall torch torchvision torchaudio torch-directml -y --quiet 2>nul
+
+if "!GPU_CONFIRM!"=="2" (
+    echo  Installing PyTorch CUDA 11.8...
+    "!PIP!" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+) else (
+    echo  Installing PyTorch CUDA 12.1...
+    "!PIP!" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+)
+
+echo.
+echo  Verifying CUDA is now available...
+"!VPYTHON!" -c "import torch; print('  CUDA available:', torch.cuda.is_available()); print('  GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'none')"
+
+echo.
+echo  Done! Restart the app to use GPU acceleration.
 echo.
 set /p "LAUNCH= Launch app now? [Y/n]: "
 if /i "!LAUNCH!" neq "n" goto :launch

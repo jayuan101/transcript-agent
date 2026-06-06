@@ -6436,6 +6436,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 _ta_gpu_env    = os.environ.get("TA_GPU_DEVICE", "")
                 _gpu_available = False
                 _gpu_label     = "no GPU detected"
+                _gpu_mismatch  = False  # True = GPU present but wrong torch build
                 try:
                     import torch as _torch_chk
                     if _torch_chk.cuda.is_available():
@@ -6453,6 +6454,18 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                             _gpu_label = "AMD/Intel DirectML"
                         except ImportError:
                             pass
+                        # Check if NVIDIA GPU exists but torch is CPU build
+                        if not _gpu_available and "+cpu" in getattr(_torch_chk, "__version__", ""):
+                            try:
+                                import subprocess as _sp
+                                _smi = _sp.run(
+                                    ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                                    capture_output=True, text=True, timeout=3)
+                                if _smi.returncode == 0 and _smi.stdout.strip():
+                                    _gpu_mismatch = True
+                                    _gpu_label = f"NVIDIA GPU found ({_smi.stdout.strip().splitlines()[0]}) — wrong PyTorch build"
+                            except Exception:
+                                pass
                 except Exception:
                     pass
                 # Override with launcher/run.bat detection if available
@@ -6462,14 +6475,18 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                         "cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS","dml":"AMD/Intel DirectML"
                     }.get(_ta_gpu_env, _ta_gpu_env)
                 # ── GPU badge ─────────────────────────────────────────────────
-                _badge_bg    = "#dcfce7" if _gpu_available else "#f1f5f9"
-                _badge_bdr   = "#22c55e" if _gpu_available else "#cbd5e1"
-                _badge_clr   = "#15803d" if _gpu_available else "#475569"
-                _badge_icon  = "⚡" if _gpu_available else "🖥"
-                _badge_title = "GPU Active" if _gpu_available else "CPU Mode"
-                _dark_bg     = "#052e16" if _gpu_available else "#1e293b"
-                _dark_bdr    = "#16a34a" if _gpu_available else "#334155"
-                _dark_clr    = "#4ade80" if _gpu_available else "#94a3b8"
+                if _gpu_available:
+                    _badge_bg, _badge_bdr, _badge_clr = "#dcfce7", "#22c55e", "#15803d"
+                    _badge_icon, _badge_title         = "⚡", "GPU Active"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#052e16", "#16a34a", "#4ade80"
+                elif _gpu_mismatch:
+                    _badge_bg, _badge_bdr, _badge_clr = "#fff7ed", "#f97316", "#9a3412"
+                    _badge_icon, _badge_title         = "⚠️", "GPU Mismatch"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#431407", "#ea580c", "#fdba74"
+                else:
+                    _badge_bg, _badge_bdr, _badge_clr = "#f1f5f9", "#cbd5e1", "#475569"
+                    _badge_icon, _badge_title         = "🖥", "CPU Mode"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#1e293b", "#334155", "#94a3b8"
                 gr.HTML(f"""
 <style>
 .ta-gpu-badge{{display:flex;align-items:center;gap:10px;padding:10px 14px;
@@ -6488,6 +6505,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
   <div>
     <div class="ta-gpu-badge-title">{_badge_title}</div>
     <div class="ta-gpu-badge-name">{_gpu_label}</div>
+    {'<div style="font-size:0.75em;margin-top:4px;color:#9a3412;">PyTorch CPU build installed — run setup_windows.bat → Fix GPU (option 5) to enable CUDA.</div>' if _gpu_mismatch else ''}
   </div>
 </div>""")
                 gpu_toggle = gr.Checkbox(

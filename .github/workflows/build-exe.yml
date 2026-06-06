@@ -56,47 +56,53 @@ jobs:
           Compress-Archive -Path TranscriptAgent -DestinationPath TranscriptAgent-win64.zip -Force
           cd ..
 
+      - name: Get app version
+        id: appver
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path app.py -Pattern '^APP_VERSION\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          echo "ver=$v" >> $env:GITHUB_OUTPUT
+
       - name: Create installer and OTA launcher
         shell: pwsh
         run: |
-          # ── OTA launcher PowerShell script ──────────────────────────────────
-          # Runs on every launch: checks GitHub, updates silently, starts app.
-          $launcher = @'
-$installDir = "$env:LOCALAPPDATA\TranscriptAgent"
-$exePath    = "$installDir\TranscriptAgent\TranscriptAgent.exe"
-$verFile    = "$installDir\version.txt"
-$currentVer = if (Test-Path $verFile) { (Get-Content $verFile -Raw).Trim() } else { "0.0.0" }
+          $ver = "${{ steps.appver.outputs.ver }}"
 
-try {
-    $rel     = Invoke-RestMethod "https://api.github.com/repos/jayuan101/transcript-agent/releases/latest" -TimeoutSec 8
-    $latest  = $rel.tag_name.TrimStart("v")
-    $asset   = $rel.assets | Where-Object { $_.name -eq "TranscriptAgent-win64.zip" } | Select-Object -First 1
-    if ($asset -and $latest -ne $currentVer) {
-        $zip = "$env:TEMP\ta_update.zip"
-        Write-Host "Updating Transcript Agent $currentVer -> $latest ..."
-        Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
-        Expand-Archive $zip -DestinationPath $installDir -Force
-        Set-Content $verFile $latest -Encoding UTF8
-        Remove-Item $zip -Force -ErrorAction SilentlyContinue
-        Write-Host "Update complete."
-    }
-} catch {
-    # No internet or GitHub unreachable — skip update, launch anyway
-}
+          # ── ta_launcher.ps1 — runs on every launch ───────────────────────────
+          $lines = @(
+            '$installDir = "$env:LOCALAPPDATA\TranscriptAgent"',
+            '$exePath    = "$installDir\TranscriptAgent\TranscriptAgent.exe"',
+            '$verFile    = "$installDir\version.txt"',
+            '$currentVer = if (Test-Path $verFile) { (Get-Content $verFile -Raw).Trim() } else { "0.0.0" }',
+            'try {',
+            '    $rel    = Invoke-RestMethod "https://api.github.com/repos/jayuan101/transcript-agent/releases/latest" -TimeoutSec 8',
+            '    $latest = $rel.tag_name.TrimStart("v")',
+            '    $asset  = $rel.assets | Where-Object { $_.name -eq "TranscriptAgent-win64.zip" } | Select-Object -First 1',
+            '    if ($asset -and $latest -ne $currentVer) {',
+            '        $zip = "$env:TEMP\ta_update.zip"',
+            '        Write-Host "Updating Transcript Agent $currentVer -> $latest ..."',
+            '        Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing',
+            '        Expand-Archive $zip -DestinationPath $installDir -Force',
+            '        Set-Content $verFile $latest -Encoding UTF8',
+            '        Remove-Item $zip -Force -ErrorAction SilentlyContinue',
+            '        Write-Host "Update complete."',
+            '    }',
+            '} catch {',
+            '    # No internet or GitHub unreachable - launch anyway',
+            '}',
+            'if (Test-Path $exePath) { Start-Process $exePath } else { Write-Host "ERROR: App not found at $exePath" }'
+          )
+          $lines | Out-File -FilePath dist\ta_launcher.ps1 -Encoding UTF8
 
-if (Test-Path $exePath) { Start-Process $exePath } else { Write-Host "ERROR: App not found at $exePath" }
-'@
-          $launcher | Out-File -FilePath dist\ta_launcher.ps1 -Encoding UTF8
+          # ── Launch-TranscriptAgent.bat — wrapper for PS execution policy ─────
+          $bat = @(
+            '@echo off',
+            'powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%LOCALAPPDATA%\TranscriptAgent\ta_launcher.ps1"'
+          )
+          $bat | Out-File -FilePath dist\Launch-TranscriptAgent.bat -Encoding ASCII
 
-          # ── Launcher wrapper .bat (handles PS execution policy) ──────────────
-          $launchBat = @'
-@echo off
-powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%LOCALAPPDATA%\TranscriptAgent\ta_launcher.ps1"
-'@
-          $launchBat | Out-File -FilePath dist\Launch-TranscriptAgent.bat -Encoding ASCII
-
-          # ── Installer .bat ───────────────────────────────────────────────────
-          $installer = @(
+          # ── Install-TranscriptAgent.bat ───────────────────────────────────────
+          $inst = @(
             '@echo off',
             'setlocal',
             'echo ============================================',
@@ -105,28 +111,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%LOCALA
             'echo.',
             'echo %~dp0 | findstr /i "OneDrive" >nul 2>&1',
             'if not errorlevel 1 (',
-            '  echo  WARNING: OneDrive folder detected.',
-            '  echo  Move this folder to C:\TranscriptAgent\ first.',
-            '  pause & exit /b 1',
+            '  echo  WARNING: OneDrive folder detected. Move to C:\TranscriptAgent\ first.',
+            '  pause',
+            '  exit /b 1',
             ')',
             'set INSTALL_DIR=%LOCALAPPDATA%\TranscriptAgent',
+            'if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"',
             'echo Installing to: %INSTALL_DIR%',
             'echo.',
             'powershell -NoProfile -Command "Expand-Archive -Path ''%~dp0TranscriptAgent-win64.zip'' -DestinationPath ''%INSTALL_DIR%'' -Force"',
             'if errorlevel 1 ( echo ERROR: Extraction failed. & pause & exit /b 1 )',
-            'echo.',
             'copy /Y "%~dp0ta_launcher.ps1" "%INSTALL_DIR%\ta_launcher.ps1" >nul',
             'copy /Y "%~dp0Launch-TranscriptAgent.bat" "%INSTALL_DIR%\Launch-TranscriptAgent.bat" >nul',
-            'powershell -NoProfile -Command "''${{ github.ref_name }}''.TrimStart(''v'')" > "%INSTALL_DIR%\version.txt"',
+            "echo $ver > `"%INSTALL_DIR%\version.txt`"",
             'echo.',
             'echo Creating Desktop shortcut...',
             'powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Transcript Agent.lnk''); $s.TargetPath=''%INSTALL_DIR%\Launch-TranscriptAgent.bat''; $s.WorkingDirectory=''%INSTALL_DIR%''; $s.IconLocation=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe,0''; $s.WindowStyle=7; $s.Save()"',
             'echo.',
-            'echo Done! Launching Transcript Agent...',
+            'echo Done! Launching...',
             'start "" "%INSTALL_DIR%\Launch-TranscriptAgent.bat"',
             'exit /b 0'
           )
-          $installer | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
+          $inst | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4

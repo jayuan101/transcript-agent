@@ -3354,8 +3354,8 @@ def process_file(
                 log_text = _add_log(f"🎤 {eng_label} — {result.stt_seconds:.1f}s", "done")
 
             _f_t_path = job_dir / f"{stem}_transcript.txt"
+            _f_t_path.write_text(result.clean_transcript, encoding="utf-8")
             if transcription_only:
-                _f_t_path.write_text(result.clean_transcript, encoding="utf-8")
                 f_t = str(_f_t_path)
                 f_s = f_r = f_c = f_j = f_p = None
                 f_srt = f_vtt = f_docx = None
@@ -6231,8 +6231,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                 type="filepath",
             )
             gr.HTML("""
-<div style="margin:6px 0 2px;padding:8px 10px;background:#fefce8;border:1px solid #fbbf24;
-     border-radius:8px;font-size:0.78em;color:#92400e;line-height:1.5;">
+<style>
+.ta-large-file-warn{margin:6px 0 2px;padding:8px 10px;border-radius:8px;font-size:0.78em;line-height:1.5;
+  background:#fefce8;border:1px solid #fbbf24;color:#78350f;}
+@media(prefers-color-scheme:dark){.ta-large-file-warn{background:#422006;border-color:#d97706;color:#fde68a;}}
+</style>
+<div class="ta-large-file-warn">
   ⚠️ <strong>Large video? Don't upload — paste the file path below instead.</strong><br>
   Uploads time out on files &gt; ~500 MB. Pasting the path reads directly from disk — instant and no timeout.
 </div>""")

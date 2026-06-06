@@ -2169,23 +2169,30 @@ CRITICAL: Include EVERY question asked by the interviewer in the "questions" arr
 
 EXCLUDE from scoring: Do NOT include any question where the interviewer is inviting the candidate to ask their own questions — e.g. "Do you have any questions for me?", "Is there anything you'd like to ask?", "Any questions from your side?", or similar closing invitations. These are not interview questions and must not appear in the "questions" array or affect the score.
 
-Rules for answer_said:
-- Quote or closely paraphrase what the candidate ACTUALLY said — 3 to 5 sentences.
-- Include the specific points, examples, numbers, stories, or projects they mentioned.
-- Do NOT generalise or summarise vaguely. Capture the real substance of their words.
-- If they gave no answer or deflected, say so plainly.
+Rules for answer_said — NO SUMMARISING:
+- Reproduce everything the candidate said in full. Do NOT shorten, summarise, or paraphrase.
+- Include every specific point, example, number, story, technology, project name, company name,
+  result, or metric they mentioned — exactly as they said it.
+- If they went on at length, capture all of it. There is NO sentence limit. More detail is always better.
+- Preserve their exact reasoning, the order they said things, and any follow-up clarifications.
+- If they gave no answer or deflected, quote what they actually said word-for-word.
 
 Rules for deflection:
 - "none" = candidate answered directly and on-topic.
 - "partial" = candidate answered but avoided the core of the question, gave a vague or generic response, or pivoted to a different topic without fully addressing what was asked.
 - "full" = candidate completely skipped, refused, or gave a non-answer (e.g. "I'd rather not say", silence, or a wholly unrelated response).
 
-Rules for model_answer:
+Rules for model_answer — FULL DETAILED RESPONSE, NOT SUMMARISED:
 - Write as if YOU are the candidate speaking right now — first-person, present tense.
-- If a candidate profile was provided above, use their REAL background: name actual companies, projects, technologies, and experiences from their profile. Make it sound like them specifically.
-- If no profile was provided, write a confident, believable answer that feels natural for this role.
-- Natural, conversational voice — no bullets, no headers, no "I would say…". Just speak the answer.
-- 3–5 sentences. Confident but not robotic. Sound like a real person, not an AI template.
+- This must be a COMPLETE, THOROUGH answer — not a brief summary. Write everything a top-performing
+  candidate would say in full: context, specific examples, metrics, technologies used, what you learned,
+  impact achieved, how you would approach it, edge cases considered, trade-offs made.
+- If a candidate profile was provided above, use their REAL background: name actual companies, projects,
+  technologies, and experiences from their profile. The answer must sound exactly like THAT specific person.
+- If no profile was provided, write a full, detailed, believable answer for someone strong in this role.
+- Natural, conversational voice — as if speaking in the interview. No bullets, no headers.
+- There is NO sentence limit. A thorough answer is always better than a short one.
+- Sound like a real, senior person — confident, specific, detailed. Not a generic template.
 
 {{
   "questions": [
@@ -2193,12 +2200,12 @@ Rules for model_answer:
       "id": 1,
       "question": "<exact question text from the transcript>",
       "speaker": "<interviewer name or 'Interviewer'>",
-      "answer_said": "<3-5 sentences of exactly what the candidate said — specific points, examples, stories>",
+      "answer_said": "<FULL verbatim or near-verbatim reproduction of everything the candidate said — every point, example, number, company, project, metric, and reasoning — NO summarising, NO sentence limit>",
       "deflection": "<none|partial|full>",
       "deflection_note": "<one sentence explaining HOW they deflected, or empty string if none>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why — coaching_tip does NOT affect this score>",
-      "model_answer": "<first-person natural answer as if you are the candidate speaking — confident, no bullets>",
+      "model_answer": "<COMPLETE detailed answer as if you are the candidate speaking — everything a top performer would say: context, specific examples, metrics, technologies, impact, trade-offs, edge cases — NO sentence limit, NO summarising>",
       "coaching_tip": "<one specific, actionable piece of advice — informational only, does not change the score>"
     }}
   ],
@@ -2208,7 +2215,7 @@ Rules for model_answer:
       "id": 1,
       "problem": "<exact problem statement as given in the transcript>",
       "language_requested": "<the language/framework explicitly asked for in the question, or 'not specified' if none was asked>",
-      "candidate_answer": "<what the candidate described, coded, or attempted — be specific about their approach, any code they wrote, edge cases they mentioned>",
+      "candidate_answer": "<FULL reproduction of everything the candidate described, coded, or attempted — every step of their reasoning, all code they wrote or sketched, edge cases they mentioned, mistakes they made — NO summarising>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why — score ONLY on the language/tech that was asked; if none was specified, score on approach and algorithm correctness only — coaching_tip does NOT affect this score>",
       "candidate_approach": "<the algorithm or strategy the candidate used, e.g. 'brute force O(n²) nested loop'>",
@@ -2299,7 +2306,7 @@ def run_interview_analysis(
         transcript=transcript[:_TRANSCRIPT_CHAR_LIMIT],
         deep_mode="YES" if deep_mode else "NO",
     )
-    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=16000)
+    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=32000)
     _log("Interview analysis complete.")
     try:
         # Strip markdown fences if model ignores instructions

@@ -6383,7 +6383,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3.5"
+APP_VERSION = "2.3.6"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -6422,9 +6422,12 @@ _CHANGELOG_HTML = _build_changelog()
 
 # ── GitHub OTA update checker ─────────────────────────────────────────────────
 _GH_RELEASES_REPO = "jayuan101/transcript-agent"
+_LATEST_WIN_URL   = ""   # set by _check_github_update, read by _do_in_app_update
+_LATEST_VERSION   = ""
 
 def _check_github_update() -> str:
     """Poll GitHub releases API; return update banner HTML or empty string."""
+    global _LATEST_WIN_URL, _LATEST_VERSION
     import urllib.request as _ur, json as _json
     try:
         req = _ur.Request(
@@ -6453,6 +6456,8 @@ def _check_github_update() -> str:
                             f"https://github.com/{_GH_RELEASES_REPO}/releases/latest")
         body     = (data.get("body") or "")[:180]
         notes    = body + ("…" if len(data.get("body") or "") > 180 else "")
+        _LATEST_WIN_URL = win_url
+        _LATEST_VERSION = latest_tag
         return _build_update_banner(latest_tag, win_url, mac_url, html_url, notes)
     except Exception:
         return ""
@@ -6489,71 +6494,154 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
 """
 
 
-def _do_in_app_update() -> str:
-    """Pull latest code + upgrade packages from within the running app."""
-    import subprocess as _sp, sys as _sys
-    BASE = os.path.dirname(os.path.abspath(__file__))
-    lines = []
-    ok = True
+def _do_in_app_update():
+    """
+    Windows exe  → download new zip, write a PowerShell updater, launch it detached, exit.
+    Source install → git pull + pip upgrade (existing behaviour).
+    """
+    import sys as _sys, os as _os, tempfile as _tmp
+    import urllib.request as _ur, subprocess as _sp
+    from pathlib import Path as _P
 
     is_bundle = getattr(_sys, "frozen", False)
-    is_git    = os.path.isdir(os.path.join(BASE, ".git"))
+    is_win    = _sys.platform == "win32"
 
+    def _bann(body, color="#1e40af", bg="#eff6ff", border="#93c5fd"):
+        return (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+                f'<div style="font-size:0.88em;color:{color};">{body}</div></div>')
+
+    # ── Windows exe: silent auto-update ──────────────────────────────────────
+    if is_bundle and is_win and _LATEST_WIN_URL:
+        try:
+            tmp_dir  = _P(_tmp.gettempdir()) / "TranscriptAgent-update"
+            tmp_dir.mkdir(exist_ok=True)
+            zip_path = tmp_dir / "TranscriptAgent-win64.zip"
+
+            yield _bann("⬇️ Downloading update… 0%")
+
+            with _ur.urlopen(_LATEST_WIN_URL, timeout=300) as resp:
+                total      = int(resp.headers.get("Content-Length") or 0)
+                downloaded = 0
+                with open(zip_path, "wb") as fout:
+                    while True:
+                        chunk = resp.read(131_072)
+                        if not chunk:
+                            break
+                        fout.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            pct = int(downloaded * 100 / total)
+                            mb  = downloaded / 1_048_576
+                            tmb = total / 1_048_576
+                            yield _bann(
+                                f'⬇️ Downloading… {pct}%'
+                                f'<span style="opacity:0.65;margin-left:8px;">({mb:.1f} / {tmb:.1f} MB)</span>'
+                                f'<div style="margin-top:8px;height:6px;background:#dbeafe;border-radius:3px;">'
+                                f'<div style="width:{pct}%;height:100%;background:#3b82f6;'
+                                f'border-radius:3px;transition:width 0.4s;"></div></div>'
+                            )
+
+            yield _bann("✅ Download complete — preparing update…")
+
+            exe_path    = _sys.executable
+            install_dir = str(_P(exe_path).parent.parent)
+            pid         = _os.getpid()
+            ps_path     = tmp_dir / "ta_updater.ps1"
+
+            ps_path.write_text(
+                f"$zip = '{zip_path}'\n"
+                f"$dir = '{install_dir}'\n"
+                f"$exe = '{exe_path}'\n"
+                f"$pid = {pid}\n"
+                "while (Get-Process -Id $pid -ErrorAction SilentlyContinue)"
+                " { Start-Sleep -Milliseconds 500 }\n"
+                "Start-Sleep -Seconds 1\n"
+                "Expand-Archive -Path $zip -DestinationPath $dir -Force\n"
+                "Start-Process -FilePath $exe\n"
+                "Remove-Item -Path $zip -Force -ErrorAction SilentlyContinue\n"
+                "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path"
+                " -Force -ErrorAction SilentlyContinue\n",
+                encoding="utf-8",
+            )
+
+            _sp.Popen(
+                ["powershell", "-WindowStyle", "Hidden",
+                 "-ExecutionPolicy", "Bypass", "-File", str(ps_path)],
+                creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+                close_fds=True,
+            )
+
+            yield _bann(
+                "🚀 Done! The app will close and reopen automatically on the new version…",
+                color="#166534", bg="#f0fdf4", border="#86efac",
+            )
+
+            import time as _time
+            _time.sleep(2)
+            _os._exit(0)
+
+        except Exception as _e:
+            yield _bann(
+                f"⚠️ Auto-update failed: {_e}<br>"
+                "Download the latest installer manually from the release page.",
+                color="#991b1b", bg="#fef2f2", border="#fca5a5",
+            )
+            return
+
+    # ── Bundled but not Windows (Mac / Linux) ────────────────────────────────
     if is_bundle:
-        lines.append("ℹ Running as a packaged app — grab the latest version from the link above and reinstall. Takes 2 minutes!")
-        ok = False
-    else:
-        if is_git:
-            try:
-                r = _sp.run(["git", "-C", BASE, "pull"],
-                            capture_output=True, text=True, timeout=60)
-                if r.returncode == 0:
-                    msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
-                    lines.append(f"✓ Code: {msg}")
-                else:
-                    lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
-                    ok = False
-            except Exception as e:
-                lines.append(f"⚠ git not available — {e}")
-        else:
-            lines.append("ℹ No .git directory — skipping code pull (manual zip install).")
+        yield _bann(
+            "ℹ️ Grab the latest version from the link above and reinstall — takes 2 minutes!",
+            color="#92400e", bg="#fffbeb", border="#fcd34d",
+        )
+        return
 
-        req = os.path.join(BASE, "requirements.txt")
-        if os.path.exists(req):
-            try:
-                r = _sp.run(
-                    [_sys.executable, "-m", "pip", "install",
+    # ── Source install: git pull + pip upgrade ────────────────────────────────
+    BASE  = _os.path.dirname(_os.path.abspath(__file__))
+    lines = []
+    ok    = True
+
+    if _os.path.isdir(_os.path.join(BASE, ".git")):
+        try:
+            r = _sp.run(["git", "-C", BASE, "pull"],
+                        capture_output=True, text=True, timeout=60)
+            if r.returncode == 0:
+                msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
+                lines.append(f"✓ Code: {msg}")
+            else:
+                lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
+                ok = False
+        except Exception as e:
+            lines.append(f"⚠ git not available — {e}")
+    else:
+        lines.append("ℹ No .git directory — skipping code pull.")
+
+    req = _os.path.join(BASE, "requirements.txt")
+    if _os.path.exists(req):
+        try:
+            _sp.run([_sys.executable, "-m", "pip", "install",
                      "setuptools", "wheel", "--quiet"],
                     capture_output=True, text=True, timeout=60)
-                r2 = _sp.run(
-                    [_sys.executable, "-m", "pip", "install",
-                     "-r", req, "--upgrade", "--quiet"],
-                    capture_output=True, text=True, timeout=300)
-                if r2.returncode == 0:
-                    lines.append("✓ Python packages upgraded.")
-                else:
-                    lines.append(f"⚠ pip upgrade had warnings — {r2.stderr.strip()[:120]}")
-            except Exception as e:
-                lines.append(f"⚠ pip failed — {e}")
-                ok = False
+            r2 = _sp.run([_sys.executable, "-m", "pip", "install",
+                          "-r", req, "--upgrade", "--quiet"],
+                         capture_output=True, text=True, timeout=300)
+            if r2.returncode == 0:
+                lines.append("✓ Python packages upgraded.")
+            else:
+                lines.append(f"⚠ pip upgrade had warnings — {r2.stderr.strip()[:120]}")
+        except Exception as e:
+            lines.append(f"⚠ pip failed — {e}")
+            ok = False
 
-    status_color = "#166534" if ok else "#991b1b"
-    status_bg    = "#f0fdf4" if ok else "#fef2f2"
-    status_bdr   = "#86efac" if ok else "#fca5a5"
-    final_msg    = ("✅ Update applied! Close this window and reopen the app." if ok
-                    else "⚠ Update incomplete — see details above.")
-    items_html   = "".join(
-        f'<li style="margin:3px 0;">{l}</li>' for l in lines)
-    return f"""
-<div class="ta-update-banner" style="background:{status_bg};border-color:{status_bdr};">
-  <div style="font-weight:800;font-size:0.95em;color:{status_color};margin-bottom:6px;">
-    {final_msg}
-  </div>
-  <ul style="margin:0;padding-left:18px;font-size:0.82em;color:{status_color};">
-    {items_html}
-  </ul>
-</div>
-"""
+    color  = "#166534" if ok else "#991b1b"
+    bg     = "#f0fdf4" if ok else "#fef2f2"
+    border = "#86efac" if ok else "#fca5a5"
+    msg    = "✅ Update applied! Close this window and reopen the app." if ok else "⚠ Update incomplete."
+    items  = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+    yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+           f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">{msg}</div>'
+           f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
+           f'</div>')
 
 # ── Desktop download section ──────────────────────────────────────────────────
 _HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent-v2/resolve/main"
@@ -7923,7 +8011,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
-        _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner])
+        _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner], show_progress=False)
 
     # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 

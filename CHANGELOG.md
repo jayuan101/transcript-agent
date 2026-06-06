@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.6 — 2026-06-06
+- Auto-updater for Windows exe: clicking "Update Now" downloads the new version in the background, shows a live progress bar, then silently relaunches the app on the new version — no manual steps
+- Update writes a PowerShell helper script that waits for the app to close, extracts the new zip, and restarts automatically
+- History and transcripts in %APPDATA%\TranscriptAgent\ are never touched during updates
+- Mac and source installs retain previous update behaviour
+
 ## v2.3.5 — 2026-06-06
 - Replaced corporate-sounding UI messages with friendlier language
 - Update prompt now says "grab the latest version from the link above — takes 2 minutes!" instead of formal installer instructions

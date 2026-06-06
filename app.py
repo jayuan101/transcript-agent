@@ -1754,6 +1754,98 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 if defl: pdf.set_font("Helvetica", "B", 10); pdf.cell(W, 5, f"Deflection Rate: {defl}%", new_x="LMARGIN", new_y="NEXT")
                 _body(adv_reason)
 
+        # ── Coding Challenges section ─────────────────────────────────────────
+        _coding = ia.get("coding_challenges", []) if ia and not ia.get("parse_error") else []
+        if _coding:
+            _section_header("CODING CHALLENGE ANALYSIS", *_C["accent"])
+            _cs = ia.get("coding_score")
+            if _cs is not None and str(_cs) not in ("", "null"):
+                try:
+                    _cs_num = int(str(_cs))
+                    _cs_col = (_C["great"] if _cs_num >= 8 else _C["good"]
+                               if _cs_num >= 6 else _C["ni"] if _cs_num >= 4 else _C["missed"])
+                except Exception:
+                    _cs_col = _C["sub"]
+                pdf.set_fill_color(*_cs_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 13)
+                pdf.cell(W, 9, f"  Coding Score: {_cs} / 10", new_x="LMARGIN", new_y="NEXT", fill=True)
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(4)
+
+            _CS_COL = {"Great": _C["great"], "Good": _C["good"],
+                       "Needs Improvement": _C["ni"], "Missed": _C["missed"]}
+            for _ch in _coding:
+                _cid    = _ch.get("id", "")
+                _prob   = _ch.get("problem", "")
+                _ans    = _ch.get("candidate_answer", "")
+                _sc     = _ch.get("score", "")
+                _reason = _ch.get("score_reason", "")
+                _cappr  = _ch.get("candidate_approach", "")
+                _opt    = _ch.get("optimal_solution", "")
+                _oappr  = _ch.get("optimal_approach", "")
+                _tc     = _ch.get("time_complexity", "")
+                _spc    = _ch.get("space_complexity", "")
+                _tip    = _ch.get("coaching_tip", "")
+                _sc_col = _CS_COL.get(_sc, _C["sub"])
+
+                # Challenge header
+                pdf.ln(3)
+                pdf.set_fill_color(*_C["bg_grey"])
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(*_C["header"])
+                pdf.multi_cell(W, 6, f"Challenge {_s(str(_cid))}: {_s(_prob)}", fill=True)
+
+                # Score badge
+                pdf.set_fill_color(*_sc_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 8)
+                pdf.cell(50, 5, f" {_s(_sc).upper()} ", fill=True)
+                if _reason:
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.multi_cell(W - 50, 5, f"  {_s(_reason)}")
+                else:
+                    pdf.ln(5)
+                pdf.set_text_color(0, 0, 0)
+
+                if _cappr:
+                    _label_block("CANDIDATE'S APPROACH", _cappr, _C["bg_grey"], _C["sub"])
+                if _ans:
+                    _label_block("WHAT THEY SAID / DID", _ans, _C["bg_grey"], _C["sub"])
+
+                # Optimal solution — dark code block
+                if _opt:
+                    pdf.ln(3)
+                    pdf.set_fill_color(15, 23, 42)
+                    pdf.set_text_color(148, 163, 184)
+                    pdf.set_font("Helvetica", "B", 7)
+                    pdf.cell(W, 5, "  OPTIMAL SOLUTION", new_x="LMARGIN", new_y="NEXT", fill=True)
+                    pdf.set_font("Courier", "", 7.5)
+                    pdf.set_text_color(226, 232, 240)
+                    for _line in _opt.splitlines():
+                        pdf.set_fill_color(15, 23, 42)
+                        pdf.set_x(pdf.l_margin)
+                        pdf.multi_cell(W, 4.5, _s(_line) if _line.strip() else " ", fill=True)
+                    pdf.ln(2)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Helvetica", "", 9)
+
+                # Complexity + approach
+                if _oappr or _tc or _spc:
+                    pdf.ln(2)
+                    pdf.set_font("Helvetica", "", 8)
+                    pdf.set_text_color(*_C["sub"])
+                    parts = []
+                    if _oappr: parts.append(f"Approach: {_s(_oappr)}")
+                    if _tc:    parts.append(f"Time: {_s(_tc)}")
+                    if _spc:   parts.append(f"Space: {_s(_spc)}")
+                    pdf.multi_cell(W, 4.5, "  " + "   |   ".join(parts))
+                    pdf.set_text_color(0, 0, 0)
+
+                if _tip:
+                    _label_block("COACHING TIP (informational)", _tip, _C["bg_amber"], _C["ni"])
+
         # Video delivery section
         if va_result and not getattr(va_result, "error", None) and va_result.persons:
             _section_header("VIDEO DELIVERY ANALYSIS", 59, 130, 246)
@@ -2624,6 +2716,107 @@ def _build_interview_html(ia: dict) -> str:
             f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
             f'{ia.get("advance_reasoning","")}</div></div>'
         )
+
+    # ── Coding Challenges ────────────────────────────────────────────────────
+    _coding = ia.get("coding_challenges", [])
+    if _coding:
+        _cs = ia.get("coding_score")
+        _cs_disp = f"{_cs} / 10" if _cs is not None and str(_cs) not in ("", "null") else None
+        try:
+            _cs_num = int(str(_cs)) if _cs_disp else None
+            _cs_bg  = ("#166534" if _cs_num >= 8 else "#1d4ed8" if _cs_num >= 6
+                       else "#92400e" if _cs_num >= 4 else "#991b1b")
+        except Exception:
+            _cs_num, _cs_bg = None, "#1e293b"
+
+        html += '<div style="margin-top:24px;">'
+        if _cs_disp:
+            html += (
+                f'<div style="background:{_cs_bg};border-radius:14px;padding:16px 22px;'
+                f'margin-bottom:16px;display:flex;align-items:center;gap:16px;">'
+                f'<div style="background:rgba(255,255,255,0.18);border-radius:10px;'
+                f'padding:8px 16px;text-align:center;min-width:80px;">'
+                f'<div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1;">{_cs}</div>'
+                f'<div style="font-size:0.7em;font-weight:700;color:rgba(255,255,255,0.75);'
+                f'text-transform:uppercase;letter-spacing:.08em;">out of 10</div></div>'
+                f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.1em;color:rgba(255,255,255,0.7);">💻 Coding Score</div>'
+                f'</div>'
+            )
+
+        html += (
+            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:.1em;color:#64748b;margin-bottom:12px;">💻 Coding Challenges</div>'
+        )
+
+        _CC_COL = {"Great":"#22c55e","Good":"#3b82f6","Needs Improvement":"#f59e0b","Missed":"#ef4444"}
+        for _ch in _coding:
+            _sc     = _ch.get("score","")
+            _col    = _CC_COL.get(_sc,"#6b7280")
+            _prob   = _ch.get("problem","")
+            _ans    = _ch.get("candidate_answer","")
+            _cappr  = _ch.get("candidate_approach","")
+            _opt    = _ch.get("optimal_solution","").replace("<","&lt;").replace(">","&gt;")
+            _oappr  = _ch.get("optimal_approach","")
+            _tc     = _ch.get("time_complexity","")
+            _spc    = _ch.get("space_complexity","")
+            _tip    = _ch.get("coaching_tip","")
+            _reason = _ch.get("score_reason","")
+
+            html += (
+                f'<div class="ta-q-card" style="border:2px solid {_col};margin-bottom:14px;">'
+                f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;">'
+                f'<span style="background:{_col};color:#fff;font-size:0.78em;font-weight:800;'
+                f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">💻</span>'
+                f'<div class="ta-q-title">{_prob}</div></div>'
+                f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+                f'<span style="background:{_col};color:#fff;font-size:0.8em;font-weight:800;'
+                f'padding:4px 14px;border-radius:20px;">{_sc}</span>'
+                f'<span class="ta-q-reason">{_reason}</span></div>'
+            )
+            if _cappr:
+                html += (
+                    f'<div class="ta-q-said">'
+                    f'<div class="ta-q-said-label">🧠 Candidate\'s Approach</div>'
+                    f'<p class="ta-q-said-text">{_cappr}</p></div>'
+                )
+            if _ans:
+                html += (
+                    f'<div class="ta-q-said">'
+                    f'<div class="ta-q-said-label">📝 What they said / did</div>'
+                    f'<p class="ta-q-said-text">{_ans}</p></div>'
+                )
+            if _opt:
+                html += (
+                    f'<div style="margin:10px 0;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:#22d3ee;background:#0f172a;'
+                    f'padding:6px 14px;border-radius:8px 8px 0 0;">✅ Optimal Solution</div>'
+                    f'<pre style="background:#0f172a;color:#e2e8f0;font-size:0.8em;'
+                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
+                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_opt}</pre>'
+                    f'</div>'
+                )
+            if _oappr or _tc or _spc:
+                parts = []
+                if _oappr: parts.append(f"<b>Approach:</b> {_oappr}")
+                if _tc:    parts.append(f"<b>Time:</b> {_tc}")
+                if _spc:   parts.append(f"<b>Space:</b> {_spc}")
+                html += (
+                    f'<div style="font-size:0.82em;color:#475569;margin:6px 0;'
+                    f'padding:6px 10px;background:#f1f5f9;border-radius:6px;">'
+                    + "  ·  ".join(parts) + "</div>"
+                )
+            if _tip:
+                html += (
+                    f'<div class="ta-q-tip">'
+                    f'<div class="ta-q-tip-label">🏋️ Coaching Tip <span style="font-weight:400;font-size:0.85em;opacity:0.7;">(informational)</span></div>'
+                    f'<p class="ta-q-tip-text">{_tip}</p></div>'
+                )
+            html += '</div>'
+
+        html += '</div>'
+
     html += '</div>'
     return html
 
@@ -3468,7 +3661,9 @@ def process_file(
                     _generate_pdf(stem, combined_text, f_p_path,
                                  result=result, va_result=_va_res)
                     f_p = str(f_p_path)
-                except Exception:
+                except Exception as _pdf_err:
+                    import traceback as _tb
+                    print(f"[PDF ERROR] {_pdf_err}\n{_tb.format_exc()}", flush=True)
                     f_p = None
 
             # ── Translate transcript output if a different language was chosen ──

@@ -747,6 +747,111 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             dp = doc.add_paragraph(adv_reason)
             dp.runs[0].font.size = Pt(10)
 
+    # ── Coding Challenges ─────────────────────────────────────────────────────
+    coding_challenges = ia.get("coding_challenges", []) if ia and not ia.get("parse_error") else []
+    if coding_challenges:
+        _add_section_heading(doc, "Coding Challenge Analysis")
+
+        coding_score = ia.get("coding_score")
+        if coding_score is not None and str(coding_score) not in ("", "null"):
+            sp = doc.add_paragraph()
+            sp.add_run("Coding Score: ").bold = True
+            r_cs = sp.add_run(f"{coding_score} / 10")
+            r_cs.bold = True; r_cs.font.size = Pt(14)
+            try:
+                cs_num = int(str(coding_score))
+                r_cs.font.color.rgb = (_RGB["great"] if cs_num >= 8 else
+                                       _RGB["good"]  if cs_num >= 6 else
+                                       _RGB["ni"]    if cs_num >= 4 else _RGB["missed"])
+            except Exception:
+                pass
+            _set_para_spacing(sp, after=120)
+
+        _CS_RGB = {"Great": _RGB["great"], "Good": _RGB["good"],
+                   "Needs Improvement": _RGB["ni"], "Missed": _RGB["missed"]}
+
+        for c in coding_challenges:
+            cid     = c.get("id", "")
+            problem = c.get("problem", "")
+            ans     = c.get("candidate_answer", "")
+            sc      = c.get("score", "")
+            reason  = c.get("score_reason", "")
+            cappr   = c.get("candidate_approach", "")
+            optimal = c.get("optimal_solution", "")
+            oappr   = c.get("optimal_approach", "")
+            tc      = c.get("time_complexity", "")
+            sc2     = c.get("space_complexity", "")
+            tip     = c.get("coaching_tip", "")
+            sc_rgb  = _CS_RGB.get(sc, _RGB["muted"])
+
+            # Challenge header
+            ch = doc.add_paragraph()
+            _shade_paragraph(ch, "F1F5F9")
+            _set_para_spacing(ch, before=140, after=20)
+            r_id  = ch.add_run(f"Challenge {cid}  ")
+            r_id.bold = True; r_id.font.size = Pt(9); r_id.font.color.rgb = _RGB["muted"]
+            r_prob = ch.add_run(problem)
+            r_prob.bold = True; r_prob.font.size = Pt(10); r_prob.font.color.rgb = _RGB["header"]
+
+            # Score line
+            sp2 = doc.add_paragraph()
+            _set_para_spacing(sp2, before=0, after=20)
+            r_sc = sp2.add_run(f"  {sc.upper()}  ")
+            r_sc.bold = True; r_sc.font.size = Pt(9); r_sc.font.color.rgb = sc_rgb
+            if reason:
+                r_rs = sp2.add_run(f"  —  {reason}")
+                r_rs.font.size = Pt(9); r_rs.italic = True; r_rs.font.color.rgb = _RGB["muted"]
+
+            # Candidate approach + answer
+            if cappr:
+                _add_labelled_block(doc, "CANDIDATE'S APPROACH", cappr, "F8FAFC", _RGB["muted"])
+            if ans:
+                _add_labelled_block(doc, "WHAT THEY SAID / DID", ans, "F1F5F9", _RGB["header"])
+
+            # Optimal solution — monospace code block
+            if optimal:
+                lp = doc.add_paragraph()
+                _shade_paragraph(lp, "1E293B")
+                lp.paragraph_format.left_indent  = Cm(0.3)
+                lp.paragraph_format.space_before = Pt(6)
+                lp.paragraph_format.space_after  = Pt(0)
+                lr = lp.add_run("OPTIMAL SOLUTION")
+                lr.bold = True; lr.font.size = Pt(8)
+                lr.font.color.rgb = RGBColor(148, 163, 184)
+
+                for line in optimal.splitlines():
+                    cp = doc.add_paragraph()
+                    _shade_paragraph(cp, "0F172A")
+                    cp.paragraph_format.left_indent  = Cm(0.3)
+                    cp.paragraph_format.space_before = Pt(0)
+                    cp.paragraph_format.space_after  = Pt(0)
+                    cr = cp.add_run(line if line else " ")
+                    cr.font.name = "Courier New"; cr.font.size = Pt(8.5)
+                    cr.font.color.rgb = RGBColor(226, 232, 240)
+
+                ep = doc.add_paragraph()
+                _shade_paragraph(ep, "0F172A")
+                ep.paragraph_format.space_before = Pt(0)
+                ep.paragraph_format.space_after  = Pt(8)
+
+            # Complexity + approach explanation
+            if oappr or tc or sc2:
+                meta = doc.add_paragraph()
+                _set_para_spacing(meta, before=40, after=20)
+                if oappr:
+                    meta.add_run("Approach: ").bold = True
+                    meta.add_run(oappr + "  ")
+                if tc:
+                    meta.add_run("Time: ").bold = True
+                    meta.add_run(f"{tc}  ")
+                if sc2:
+                    meta.add_run("Space: ").bold = True
+                    meta.add_run(sc2)
+                for r in meta.runs: r.font.size = Pt(9)
+
+            if tip:
+                _add_labelled_block(doc, "COACHING TIP (informational)", tip, "FFFBEB", _RGB["amber"])
+
     # ── Video Delivery Analysis ───────────────────────────────────────────────
     if va_result and not getattr(va_result, "error", None) and getattr(va_result, "persons", None):
         _add_section_heading(doc, "Video Delivery Analysis")
@@ -2031,12 +2136,14 @@ def process_transcript(
 # ── Interview Mode ────────────────────────────────────────────────────────────
 
 _INTERVIEW_SYSTEM = """\
-You are an expert interview coach and communication analyst.
+You are an expert interview coach, communication analyst, and software engineer.
 Analyse the provided interview transcript and return a structured JSON object.
 Be specific, honest, and actionable. Use the exact keys shown below.
 When a candidate profile/resume is provided, every model_answer MUST be personalised to that
 specific person — draw on their real job titles, projects, companies, skills, and experiences.
 The suggested answer should sound exactly like THAT candidate speaking naturally, not a generic template.
+For coding challenges, always provide a complete, working code solution in the candidate's
+apparent language (default Python if unclear), with proper variable names and comments.
 """
 
 _INTERVIEW_PROMPT = """\
@@ -2078,17 +2185,40 @@ Rules for model_answer:
       "deflection": "<none|partial|full>",
       "deflection_note": "<one sentence explaining HOW they deflected, or empty string if none>",
       "score": "<Great|Good|Needs Improvement|Missed>",
-      "score_reason": "<one sentence why>",
+      "score_reason": "<one sentence why — coaching_tip does NOT affect this score>",
       "model_answer": "<first-person natural answer as if you are the candidate speaking — confident, no bullets>",
-      "coaching_tip": "<one specific, actionable piece of advice for this answer>"
+      "coaching_tip": "<one specific, actionable piece of advice — informational only, does not change the score>"
     }}
   ],
-  "overall_score": "<0-10>",
+  "coding_challenges": [
+    {{
+      "id": 1,
+      "problem": "<exact problem statement as given in the transcript>",
+      "candidate_answer": "<what the candidate described, coded, or attempted — be specific about their approach, any code they wrote, edge cases they mentioned>",
+      "score": "<Great|Good|Needs Improvement|Missed>",
+      "score_reason": "<one sentence why — based only on correctness, efficiency, and communication — coaching_tip does NOT affect this score>",
+      "candidate_approach": "<the algorithm or strategy the candidate used, e.g. 'brute force O(n²) nested loop'>",
+      "optimal_solution": "<complete working code solution with proper variable names — Python by default unless a different language is apparent>",
+      "optimal_approach": "<one sentence explaining the optimal algorithm and why it is better>",
+      "time_complexity": "<e.g. O(n log n)>",
+      "space_complexity": "<e.g. O(1)>",
+      "coaching_tip": "<one specific actionable tip — informational only, does not change the score>"
+    }}
+  ],
+  "coding_score": "<0-10 overall coding score if coding challenges were present, or null if none>",
+  "overall_score": "<0-10 — includes coding performance if coding was present>",
   "overall_verdict": "<Great|Good|Needs Improvement>",
   "strengths": ["<strength 1>", "<strength 2>"],
   "weaknesses": ["<weakness 1>", "<weakness 2>"],
   "prep_guide": ["<topic to study 1>", "<topic to study 2>"]
 }}
+
+CODING CHALLENGES RULES:
+- Only populate "coding_challenges" if the transcript contains actual algorithmic/coding problems (LeetCode-style, whiteboard coding, data structure questions, SQL queries, system design with code, etc.).
+- If no coding challenges were present, set "coding_challenges": [] and "coding_score": null.
+- The "optimal_solution" must be complete, runnable code — not pseudocode. Include a brief comment explaining key steps.
+- Score each challenge on: correctness of approach, time/space complexity awareness, edge case handling, and clarity of explanation.
+- Coaching tips are purely informational and must NOT change the score value.
 
 --- DEEP MODE (only fill if requested) ---
   "deflection_rate": "<0-100 % of questions deflected>",
@@ -2274,6 +2404,53 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                          f"  Deflection Rate   : {defl_pct}%" if (defl_pct := ia.get("deflection_rate","")) else "",
                          f"  Advance Likelihood: {adv_pct}%" if (adv_pct := ia.get("advance_likelihood","")) else "",
                          "", f"  {adv_reason}", ""]
+
+    # ── Coding Challenges ─────────────────────────────────────────────────────
+    challenges = ia.get("coding_challenges", []) if ia and not ia.get("parse_error") else []
+    if challenges:
+        coding_score = ia.get("coding_score", "")
+        sections += [divider, "CODING CHALLENGE ANALYSIS", divider]
+        if coding_score is not None and coding_score != "" and coding_score != "null":
+            sections.append(f"  Coding Score : {coding_score} / 10")
+            sections.append("")
+        _CS_ICON = {"Great": "★", "Good": "◑", "Needs Improvement": "△", "Missed": "✗"}
+        for c in challenges:
+            cid    = c.get("id", "")
+            prob   = c.get("problem", "")
+            ans    = c.get("candidate_answer", "")
+            sc     = c.get("score", "")
+            reason = c.get("score_reason", "")
+            cappr  = c.get("candidate_approach", "")
+            optimal= c.get("optimal_solution", "")
+            oappr  = c.get("optimal_approach", "")
+            tc     = c.get("time_complexity", "")
+            sc2    = c.get("space_complexity", "")
+            tip    = c.get("coaching_tip", "")
+            icon   = _CS_ICON.get(sc, "·")
+
+            sections.append(f"  Challenge {cid}: {prob}")
+            sections.append(f"    Score            : {icon} {sc}" + (f"  — {reason}" if reason else ""))
+            if cappr:
+                sections.append(f"    Candidate Approach: {cappr}")
+            if ans:
+                sections.append(f"    What they said:")
+                for line in ans.splitlines():
+                    sections.append(f"      {line}")
+            if optimal:
+                sections.append(f"    Optimal Solution:")
+                sections.append(f"    " + "-" * 40)
+                for line in optimal.splitlines():
+                    sections.append(f"      {line}")
+                sections.append(f"    " + "-" * 40)
+            if oappr:
+                sections.append(f"    Optimal Approach  : {oappr}")
+            if tc:
+                sections.append(f"    Time Complexity   : {tc}")
+            if sc2:
+                sections.append(f"    Space Complexity  : {sc2}")
+            if tip:
+                sections.append(f"    Coaching Tip      : {tip}")
+            sections.append("")
 
     return "\n".join(sections)
 

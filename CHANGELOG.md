@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.2.1 — 2026-06-06
+- Setup: AMD/Intel GPU auto-selects DirectML without prompting — no wrong choice possible
+- Setup: NVIDIA prompt now shows detected GPU model and driver CUDA version, tells you which option (1 or 2) is correct for your card, and defaults to the right one automatically
+- Setup: fixed `ModuleNotFoundError: No module named 'pkg_resources'` crash when installing openai-whisper — setuptools is now re-installed explicitly before requirements and no longer silenced
+
 ## v2.2.0 — 2026-06-06
 - GPU badge in sidebar: green card shows detected GPU name (NVIDIA/MPS/DirectML) or gray "CPU Mode" card when no GPU found
 - Auto-detect GPU at startup via nvidia-smi / WMIC — no torch import required; result passed to app via TA_GPU_DEVICE/TA_GPU_NAME env vars

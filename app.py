@@ -7166,7 +7166,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                     )
 
                     # Roles configured in Interview Mode sidebar; analysis runs via ▶ Analyze
-                    _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3","Late Joiner"]
+                    _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3"]
                     iv_role_0 = gr.Dropdown(choices=_IV_ROLES, value="Candidate",     label="Person 1 role", visible=False)
                     iv_role_1 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1", label="Person 2 role", visible=False)
                     iv_role_2 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2", label="Person 3 role", visible=False)

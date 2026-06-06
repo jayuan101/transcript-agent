@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent v2.2.1  |  macOS Installer
+#   Transcript Agent v2.2.2  |  macOS Installer
 #   Run once to install, then double-click the Desktop launcher.
-#   Run again at any time to update or repair.
+#   Run again at any time to update, repair, or fix GPU.
 # ============================================================
 
 set -euo pipefail
@@ -42,6 +42,21 @@ if [ -f "$VPYTHON" ]; then
     LATEST_VER=$(curl -sf "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
         | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/' || true)
 
+    # Detect GPU mismatch: Apple Silicon has MPS but torch is CPU-only
+    GPU_MISMATCH=0
+    _ARCH=$(uname -m)
+    if [ "$_ARCH" = "arm64" ]; then
+        if ! "$VPYTHON" -c "import torch; exit(0 if (hasattr(torch.backends,'mps') and torch.backends.mps.is_available()) else 1)" 2>/dev/null; then
+            GPU_MISMATCH=1
+        fi
+    fi
+
+    if [ "$GPU_MISMATCH" = "1" ]; then
+        echo -e "${YELLOW}  *** GPU MISMATCH: Apple Silicon detected but PyTorch MPS is not active ***"
+        echo -e "  *** Choose [5] to reinstall PyTorch with MPS support               ***${RESET}"
+        echo ""
+    fi
+
     if [ -n "$LATEST_VER" ] && [ "$LATEST_VER" != "$CURRENT_VERSION" ]; then
         echo -e "${YELLOW}  ★ UPDATE AVAILABLE: v${CURRENT_VERSION} → v${LATEST_VER}${RESET}"
         echo ""
@@ -49,23 +64,61 @@ if [ -f "$VPYTHON" ]; then
         echo -e "    [2]  ${BOLD}Update to v${LATEST_VER}${RESET}  ← new version available"
         echo "    [3]  Reinstall from scratch"
         echo "    [4]  Exit"
+        echo "    [5]  Fix GPU (reinstall PyTorch with MPS/correct build)"
     else
         echo "    [1]  Launch app"
         echo "    [2]  Check for updates"
         echo "    [3]  Reinstall from scratch"
         echo "    [4]  Exit"
+        echo "    [5]  Fix GPU (reinstall PyTorch with MPS/correct build)"
     fi
     echo ""
-    read -r -p "  Enter choice [1-4]: " CHOICE
+    read -r -p "  Enter choice [1-5]: " CHOICE
     echo ""
     case "${CHOICE:-1}" in
-        2) ACTION=update  ;;
-        3) ACTION=install ;;
-        4) exit 0         ;;
-        *) ACTION=launch  ;;
+        2) ACTION=update   ;;
+        3) ACTION=install  ;;
+        4) exit 0          ;;
+        5) ACTION=fix_gpu  ;;
+        *) ACTION=launch   ;;
     esac
 else
     ACTION=install
+fi
+
+# ── Fix GPU (reinstall PyTorch with correct build) ────────────────────────────
+if [ "$ACTION" = fix_gpu ]; then
+    header "Fix GPU — Reinstall PyTorch"
+    _ARCH=$(uname -m)
+
+    if [ "$_ARCH" = "arm64" ]; then
+        info "Apple Silicon (arm64) detected."
+        info "Uninstalling current PyTorch…"
+        "$PIP" uninstall torch torchvision torchaudio -y 2>/dev/null || true
+        info "Installing PyTorch with MPS GPU support…"
+        "$PIP" install torch torchvision torchaudio
+        echo ""
+        info "Verifying MPS is available…"
+        "$VPYTHON" -c "
+import torch
+mps = hasattr(torch.backends,'mps') and torch.backends.mps.is_available()
+print('  MPS available:', mps)
+print('  PyTorch:', torch.__version__)
+if not mps:
+    print('  Note: MPS not available — ensure macOS 12.3+ and run on Apple Silicon.')
+"
+    else
+        info "Intel Mac detected — CPU build is correct, no GPU acceleration available."
+        info "Current PyTorch version:"
+        "$VPYTHON" -c "import torch; print(' ', torch.__version__)"
+    fi
+
+    echo ""
+    success "Done! Restart the app to apply."
+    echo ""
+    read -r -p "  Launch app now? [Y/n]: " L
+    [[ "${L:-y}" =~ ^[Nn]$ ]] && exit 0
+    ACTION=launch
 fi
 
 # ── Update ────────────────────────────────────────────────────────────────────
@@ -260,7 +313,7 @@ PLISTEOF
     echo -e "    Setup complete!  v${CURRENT_VERSION}"
     echo ""
     echo -e "    • Double-click 'Transcript Agent' app on your Desktop to start"
-    echo -e "    • Or run:  bash \"${APPDIR}/setup_mac.sh\"  to update"
+    echo -e "    • Or run:  bash \"${APPDIR}/setup_mac.sh\"  to update or fix GPU"
     echo -e "  ============================================================${RESET}"
     echo ""
     read -r -p "  Launch Transcript Agent now? [Y/n]: " L

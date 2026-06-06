@@ -2746,7 +2746,7 @@ def _build_interview_html(ia: dict) -> str:
             f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
             f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
             f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'
-            f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
+            f'<div style="font-size:0.82em;margin-top:4px;color:var(--ta-card-sub,#475569);">'
             f'{ia.get("advance_reasoning","")}</div></div>'
         )
 
@@ -2882,8 +2882,9 @@ def _build_interview_html(ia: dict) -> str:
             if _role_ctx: _meta_parts.append(f"<b>Role context:</b> {_role_ctx}")
             if _meta_parts:
                 html += (
-                    f'<div style="font-size:0.82em;color:#475569;margin:6px 0;'
-                    f'padding:8px 12px;background:#f1f5f9;border-radius:6px;">'
+                    f'<div style="font-size:0.82em;color:var(--ta-card-text,#475569);margin:6px 0;'
+                    f'padding:8px 12px;background:var(--ta-card-bg,#f1f5f9);'
+                    f'border:1px solid var(--ta-card-border,#e2e8f0);border-radius:6px;">'
                     + "<br>".join(_meta_parts) + "</div>"
                 )
             if _tip:
@@ -2935,7 +2936,7 @@ def _build_unified_interview_html(ia: dict, va_result) -> str:
             delivery += (
                 '<div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:14px;'
                 'padding:16px;background:var(--ta-card-bg,#f8fafc);">'
-                '<div style="font-weight:800;color:#475569;margin-bottom:8px;font-size:0.9em;">'
+                '<div style="font-weight:800;color:var(--ta-card-text,#475569);margin-bottom:8px;font-size:0.9em;">'
                 'Emotion Timeline</div>'
                 + tl_html
                 + '</div>'

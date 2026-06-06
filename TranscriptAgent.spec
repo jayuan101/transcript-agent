@@ -21,6 +21,8 @@ HERE = Path(SPECPATH)
 _gradio_datas,    _gradio_bins,    _gradio_hidden    = collect_all('gradio')
 _safehttpx_datas, _safehttpx_bins, _safehttpx_hidden = collect_all('safehttpx')
 _groovy_datas,    _groovy_bins,    _groovy_hidden    = collect_all('groovy')
+_mediapipe_datas, _mediapipe_bins, _mediapipe_hidden = collect_all('mediapipe')
+_cv2_datas,       _cv2_bins,       _cv2_hidden       = collect_all('cv2')
 
 # Auto-discover version.txt files in all installed packages (handles any
 # remaining micro-deps that embed data files PyInstaller wouldn't otherwise find)
@@ -48,7 +50,7 @@ _auto_version_datas = _auto_version_datas()
 a = Analysis(
     [str(HERE / 'launcher.py')],
     pathex=[str(HERE)],
-    binaries=[] + _gradio_bins + _safehttpx_bins + _groovy_bins,
+    binaries=[] + _gradio_bins + _safehttpx_bins + _groovy_bins + _mediapipe_bins + _cv2_bins,
     datas=[
         # Bundle the main application files
         (str(HERE / 'app.py'),              '.'),
@@ -60,7 +62,7 @@ a = Analysis(
         (str(HERE / 'setup_windows.bat'),   '.'),
         (str(HERE / 'setup_mac.sh'),        '.'),
         (str(HERE / 'run.bat'),             '.'),
-    ] + _gradio_datas + _safehttpx_datas + _groovy_datas + _auto_version_datas,
+    ] + _gradio_datas + _safehttpx_datas + _groovy_datas + _mediapipe_datas + _cv2_datas + _auto_version_datas,
     hiddenimports=[
         # Gradio and web framework
         'gradio', 'gradio.themes', 'gradio.themes.soft',

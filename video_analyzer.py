@@ -47,7 +47,8 @@ except Exception:
 
 # ── Model URLs & cache ────────────────────────────────────────────────────────
 
-_MODEL_DIR = Path(__file__).parent / ".mediapipe_models"
+import os as _os
+_MODEL_DIR = Path(_os.environ.get("APPDATA") or _os.path.expanduser("~")) / ".transcriptagent" / "mediapipe_models"
 _FACE_LANDMARKER_URL = (
     "https://storage.googleapis.com/mediapipe-models/face_landmarker"
     "/face_landmarker/float16/1/face_landmarker.task"

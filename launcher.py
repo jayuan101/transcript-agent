@@ -10,11 +10,25 @@ import threading
 import time
 import webbrowser
 
-PORT = 7860
+def _find_free_port(preferred=7860):
+    import socket
+    for port in range(preferred, preferred + 20):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(("127.0.0.1", port))
+                return port
+        except OSError:
+            continue
+    # Last resort: let the OS pick
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+PORT = _find_free_port(7860)
 
 # ── Environment setup ─────────────────────────────────────────────────────────
 os.environ.setdefault("GRADIO_SERVER_NAME",        "127.0.0.1")
-os.environ.setdefault("GRADIO_SERVER_PORT",        str(PORT))
+os.environ["GRADIO_SERVER_PORT"] = str(PORT)  # always override to match found port
 os.environ.setdefault("GRADIO_ANALYTICS_ENABLED",  "False")
 os.environ.setdefault("GRADIO_TELEMETRY_ENABLED",  "False")
 os.environ.setdefault("PYTHONIOENCODING",           "utf-8:replace")

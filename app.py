@@ -7055,49 +7055,16 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                         value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see coaching results here.</p>'
                     )
 
-                    # ── Video Delivery section ────────────────────────────────────
-                    gr.HTML(
-                        '<div style="margin:20px 0 10px;border-top:2px solid var(--ta-card-border,#e2e8f0);'
-                        'padding-top:16px;">'
-                        '<div style="font-size:0.9em;font-weight:800;color:#1e293b;margin-bottom:3px;">'
-                        '🎥 Video Delivery Analysis</div>'
-                        '<div style="font-size:0.76em;color:#64748b;">'
-                        'Upload a video above — faces are auto-detected. Assign roles then click Analyze.</div></div>'
-                    )
-
-                    # Face thumbnails (shown after scan)
+                    # Roles configured in Interview Mode sidebar; analysis runs via ▶ Analyze
                     _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3","Late Joiner"]
-                    with gr.Row():
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_0 = gr.Image(label="Person 1", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_0  = gr.Dropdown(choices=_IV_ROLES, value="Candidate",
-                                                     label="Role", show_label=False, min_width=120)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_1 = gr.Image(label="Person 2", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_1  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1",
-                                                     label="Role", show_label=False, min_width=120)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_2 = gr.Image(label="Person 3", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_2  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2",
-                                                     label="Role", show_label=False, min_width=120,
-                                                     visible=False)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_3 = gr.Image(label="Person 4", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_3  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 3",
-                                                     label="Role", show_label=False, min_width=120,
-                                                     visible=False)
-
-                    iv_person_count = gr.State(value=2)   # updated by face scan
-                    iv_scan_status  = gr.HTML(value="")
-
-                    iv_analyze_btn = gr.Button(
-                        "🔍  Analyze Video", variant="primary", size="lg",
-                        elem_id="iv-analyze-btn", visible=True,
-                    )
+                    iv_role_0 = gr.Dropdown(choices=_IV_ROLES, value="Candidate",     label="Person 1 role", visible=False)
+                    iv_role_1 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1", label="Person 2 role", visible=False)
+                    iv_role_2 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2", label="Person 3 role", visible=False)
+                    iv_role_3 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 3", label="Person 4 role", visible=False)
+                    iv_person_count = gr.State(value=2)
+                    iv_scan_status  = gr.State(value=None)
+                    iv_analyze_btn  = gr.State(value=None)
+                    iv_thumb_0 = iv_thumb_1 = iv_thumb_2 = iv_thumb_3 = gr.State(value=None)
 
                     # ── Results ───────────────────────────────────────────────────
                     iv_progress     = gr.HTML(value="", elem_id="iv-progress")

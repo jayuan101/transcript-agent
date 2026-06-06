@@ -2193,7 +2193,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 def _net_panel_html(direction: str, received: int, total: int,
                     speed_bps: float = 0, done: bool = False) -> str:
     if done:
-        return ""
+        return gr.update()  # let JS keep rendering; never blank it out
     recv_mb  = received / 1_048_576
     speed_mb = speed_bps / 1_048_576
     pct      = min(100.0, received / total * 100) if total > 0 else 0
@@ -6580,22 +6580,35 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
             stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
             net_monitor = gr.HTML(
                 value=(
-                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
-                    '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-                    'border-radius:10px;padding:10px 14px;margin-top:8px;">'
-                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-                    'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
-                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-                    '<span>⬇️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Download</span>'
-                    '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
-                    '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
-                    'animation:tapulse 2s ease-in-out infinite;"></span>'
-                    '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connecting…</span>'
-                    '</span></div>'
-                    '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
-                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-                    '<span>⬆️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Upload</span>'
-                    '<span style="margin-left:auto;color:var(--ta-card-sub,#64748b);font-size:0.78em;">—</span>'
+                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+                    '<div style="margin-top:8px;">'
+                    '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+                    'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+                    '<div style="display:flex;gap:8px;">'
+                    # Download card
+                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
+                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
+                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬇ Download</span>'
+                    '</div>'
+                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
+                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
+                    '</div>'
+                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
+                    '</div>'
+                    # Upload card
+                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
+                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
+                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬆ Upload</span>'
+                    '</div>'
+                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
+                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
+                    '</div>'
+                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
+                    '</div>'
                     '</div></div>'
                 ),
                 elem_id="ta-net-monitor",

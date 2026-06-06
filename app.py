@@ -6662,8 +6662,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
 @media(prefers-color-scheme:dark){.ta-large-file-warn{background:#422006;border-color:#d97706;color:#fde68a;}}
 </style>
 <div class="ta-large-file-warn">
-  ⚠️ <strong>Large video? Don't upload — paste the file path below instead.</strong><br>
-  Uploads time out on files &gt; ~500 MB. Pasting the path reads directly from disk — instant and no timeout.
+  ⚠️ <strong>Large file? Paste the path below instead of uploading.</strong> Files &gt;500 MB will time out on upload.
 </div>""")
             path_input = gr.Textbox(
                 label="Paste file path or URL (large files — no upload, no timeout)",

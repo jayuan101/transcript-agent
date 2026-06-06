@@ -861,11 +861,14 @@ input[type="checkbox"]:checked::after {
 }
 html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
 
-/* ── Analyze button pulse animation ── */
+/* ── Analyze button pulse animation — vivid red, light + dark ── */
 @keyframes ta-pulse-ring {
-  0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0.55), 0 3px 12px rgba(220,38,38,0.35); }
-  60%  { box-shadow: 0 0 0 10px rgba(220,38,38,0), 0 3px 12px rgba(220,38,38,0.35); }
-  100% { box-shadow: 0 0 0 0 rgba(220,38,38,0), 0 3px 12px rgba(220,38,38,0.35); }
+  0%   { box-shadow: 0 0 0 0 rgba(220,38,38,0.75), 0 4px 18px rgba(220,38,38,0.55); }
+  60%  { box-shadow: 0 0 0 14px rgba(220,38,38,0), 0 4px 18px rgba(220,38,38,0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(220,38,38,0), 0 4px 18px rgba(220,38,38,0.45); }
+}
+html.dark button.ta-analyze-btn, html.dark #ta-float-analyze {
+  filter: brightness(1.15);
 }
 @keyframes ta-spin { to { transform: rotate(360deg); } }
 
@@ -4233,7 +4236,7 @@ window.taClickUpdateBtn = function(btn) {
         'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
         + 'background:linear-gradient(135deg,#b91c1c,#ef4444);color:#fff;'
         + 'font-size:1.5em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 24px rgba(220,38,38,0.55);outline:none;pointer-events:all;'
+        + 'box-shadow:0 4px 24px rgba(220,38,38,0.65);outline:none;pointer-events:all;'
         + 'position:relative;z-index:1;animation:ta-pulse-ring 1.8s ease-out infinite;'
       );
       fbtn.textContent = '⏺';

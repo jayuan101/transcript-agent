@@ -18,12 +18,27 @@ echo.
 
 :: -- Already installed? Show menu ---------------------------------------------
 if exist "!VPYTHON!" (
-    echo  Existing installation found.
+    echo  Existing installation found ^(v%CURRENT_VERSION%^).
     echo.
-    echo    [1]  Launch app
-    echo    [2]  Check for updates
-    echo    [3]  Reinstall from scratch
-    echo    [4]  Exit
+
+    :: Check GitHub for latest release version
+    set "LATEST_VER="
+    for /f "tokens=*" %%v in ('powershell -NoProfile -Command "(Invoke-RestMethod https://api.github.com/repos/jayuan101/transcript-agent/releases/latest 2>$null).tag_name" 2^>nul') do set "LATEST_VER=%%v"
+    set "LATEST_VER=!LATEST_VER:v=!"
+
+    if "!LATEST_VER!" neq "" if "!LATEST_VER!" neq "%CURRENT_VERSION%" (
+        echo  *** UPDATE AVAILABLE: v%CURRENT_VERSION% ^-^> v!LATEST_VER! ***
+        echo.
+        echo    [1]  Launch app
+        echo    [2]  Update to v!LATEST_VER!   ^<^- new version available
+        echo    [3]  Reinstall from scratch
+        echo    [4]  Exit
+    ) else (
+        echo    [1]  Launch app
+        echo    [2]  Check for updates
+        echo    [3]  Reinstall from scratch
+        echo    [4]  Exit
+    )
     echo.
     set /p "CHOICE= Enter choice [1-4]: "
     echo.

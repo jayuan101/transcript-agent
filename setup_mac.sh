@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent v2.1.5  |  macOS Installer
+#   Transcript Agent v2.2.1  |  macOS Installer
 #   Run once to install, then double-click the Desktop launcher.
 #   Run again at any time to update or repair.
 # ============================================================
@@ -11,8 +11,9 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="2.1.5"
+CURRENT_VERSION="2.2.1"
 APP_URL="http://localhost:7860"
+GITHUB_REPO="jayuan101/transcript-agent"
 
 # ── Colour helpers ─────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -35,10 +36,25 @@ echo ""
 if [ -f "$VPYTHON" ]; then
     info "Existing installation found (v${CURRENT_VERSION})."
     echo ""
-    echo "    [1]  Launch app"
-    echo "    [2]  Check for updates"
-    echo "    [3]  Reinstall from scratch"
-    echo "    [4]  Exit"
+
+    # Check GitHub for latest version
+    LATEST_VER=""
+    LATEST_VER=$(curl -sf "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" 2>/dev/null \
+        | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/' || true)
+
+    if [ -n "$LATEST_VER" ] && [ "$LATEST_VER" != "$CURRENT_VERSION" ]; then
+        echo -e "${YELLOW}  ★ UPDATE AVAILABLE: v${CURRENT_VERSION} → v${LATEST_VER}${RESET}"
+        echo ""
+        echo "    [1]  Launch app"
+        echo -e "    [2]  ${BOLD}Update to v${LATEST_VER}${RESET}  ← new version available"
+        echo "    [3]  Reinstall from scratch"
+        echo "    [4]  Exit"
+    else
+        echo "    [1]  Launch app"
+        echo "    [2]  Check for updates"
+        echo "    [3]  Reinstall from scratch"
+        echo "    [4]  Exit"
+    fi
     echo ""
     read -r -p "  Enter choice [1-4]: " CHOICE
     echo ""
@@ -54,22 +70,24 @@ fi
 
 # ── Update ────────────────────────────────────────────────────────────────────
 if [ "$ACTION" = update ]; then
-    header "Checking for updates…"
+    header "Updating Transcript Agent…"
 
     if command -v git &>/dev/null && [ -d "$APPDIR/.git" ]; then
         info "Pulling latest code via git…"
         GIT_OUT=$(git -C "$APPDIR" pull 2>&1)
         if echo "$GIT_OUT" | grep -q "Already up to date"; then
-            success "Already up to date — v${CURRENT_VERSION}"
+            success "Code already up to date."
         else
-            success "Updated!"; echo "  $GIT_OUT"
+            success "Code updated!"
+            echo "  $GIT_OUT"
         fi
     else
         warn "git not found — updating packages only."
     fi
 
     info "Upgrading Python packages…"
-    "$PIP" install --upgrade pip --quiet
+    "$PIP" install --upgrade pip setuptools wheel --quiet
+    "$PIP" install setuptools wheel --quiet
     "$PIP" install -r "$APPDIR/requirements.txt" --upgrade --quiet
     "$PIP" install imageio-ffmpeg --upgrade --quiet
     success "All packages up to date."
@@ -115,7 +133,11 @@ if [ "$ACTION" = install ]; then
         "$PY" -m venv "$VENV"
         success "Created."
     fi
-    "$PIP" install --upgrade pip --quiet
+    "$PIP" install --upgrade pip setuptools wheel
+    if [ $? -ne 0 ]; then
+        warn "Could not upgrade pip/setuptools — retrying…"
+        "$PIP" install setuptools wheel
+    fi
 
     # 3 — PyTorch (auto-detect Apple Silicon MPS vs Intel CPU) ─────────────────
     header "[3/6] Installing PyTorch…"
@@ -123,7 +145,6 @@ if [ "$ACTION" = install ]; then
     if [ "$_ARCH" = "arm64" ]; then
         info "Apple Silicon (M1/M2/M3/M4) detected — installing PyTorch with MPS GPU support."
         info "MPS acceleration makes Whisper 3-5x faster than CPU."
-        # Standard pip torch on arm64 macOS includes MPS automatically
         "$PIP" install torch torchvision torchaudio --quiet
         success "PyTorch installed with Apple MPS GPU support."
     else
@@ -139,6 +160,7 @@ if [ "$ACTION" = install ]; then
 
     # 4 — App requirements -----------------------------------------------------
     header "[4/6] Installing app requirements…"
+    "$PIP" install setuptools wheel --quiet
     "$PIP" install -r "$APPDIR/requirements.txt" --quiet
     "$PIP" install imageio-ffmpeg --quiet
     success "All Python packages installed."

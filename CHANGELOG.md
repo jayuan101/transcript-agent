@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.5 — 2026-06-06
+- Replaced corporate-sounding UI messages with friendlier language
+- Update prompt now says "grab the latest version from the link above — takes 2 minutes!" instead of formal installer instructions
+- No API key error now says "Add your API key at the top to get started"
+- No file error now says "Drop a file, paste a file path, or paste a URL above to get started"
+
 ## v2.3.4 — 2026-06-06
 - Stop button now fully resets the UI to initial state — no "Stopped" message, clears log, results, and downloads instantly
 - Fixed ffmpeg not found on Windows exe build — imageio-ffmpeg binary is now properly bundled in PyInstaller package

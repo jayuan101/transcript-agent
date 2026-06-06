@@ -172,47 +172,21 @@ if [ "$ACTION" = install ]; then
         fi
     fi
 
-    # 6 — Desktop launcher -----------------------------------------------------
+    # 6 — Desktop launcher (.app bundle with icon) --------------------------------
     header "[6/6] Creating desktop launcher…"
-    LAUNCHER="$HOME/Desktop/Transcript Agent.command"
-    # Use single-quoted heredoc so variables are literal in the output file,
-    # except APPDIR and VPYTHON which we expand now to bake in absolute paths.
     BAKED_APPDIR="$APPDIR"
     BAKED_VPYTHON="$VPYTHON"
-    cat > "$LAUNCHER" << CMDEOF
+
+    APP_BUNDLE="$HOME/Desktop/Transcript Agent.app"
+    rm -rf "$APP_BUNDLE"
+    mkdir -p "$APP_BUNDLE/Contents/MacOS"
+    mkdir -p "$APP_BUNDLE/Contents/Resources"
+
+    # Inner launch script
+    cat > "$APP_BUNDLE/Contents/MacOS/TranscriptAgent" << CMDEOF
 #!/usr/bin/env bash
-# Transcript Agent v${CURRENT_VERSION} — desktop launcher
 APPDIR="${BAKED_APPDIR}"
 VPYTHON="${BAKED_VPYTHON}"
-
-clear
-echo ""
-echo "  ============================================================"
-echo "    Transcript Agent v${CURRENT_VERSION}"
-echo "  ============================================================"
-echo ""
-
-# ── GPU detection at startup ─────────────────────────────────────────────────
-ARCH=\$(uname -m)
-GPU_INFO="CPU (no GPU acceleration)"
-export TA_GPU_DEVICE="cpu"
-
-if [ "\$ARCH" = "arm64" ]; then
-    # Apple Silicon — MPS is always available
-    GPU_INFO="Apple Silicon GPU (MPS) — 3-5x faster transcription"
-    export TA_GPU_DEVICE="mps"
-else
-    # Intel Mac — check for Metal or discrete GPU
-    GPUNAME=\$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed 's/.*: //')
-    if [ -n "\$GPUNAME" ]; then
-        GPU_INFO="\$GPUNAME (CPU mode — Intel Mac)"
-    fi
-fi
-
-echo "  GPU: \$GPU_INFO"
-echo "  Browser will open automatically at http://localhost:7860"
-echo "  Press Ctrl+C to stop."
-echo ""
 
 "\$VPYTHON" "\$APPDIR/app.py" &
 APP_PID=\$!
@@ -227,15 +201,43 @@ done
 
 wait \$APP_PID
 CMDEOF
-    chmod +x "$LAUNCHER"
-    success "Launcher created: ~/Desktop/Transcript Agent.command"
+    chmod +x "$APP_BUNDLE/Contents/MacOS/TranscriptAgent"
+
+    # Info.plist
+    cat > "$APP_BUNDLE/Contents/Info.plist" << PLISTEOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key><string>Transcript Agent</string>
+    <key>CFBundleDisplayName</key><string>Transcript Agent</string>
+    <key>CFBundleExecutable</key><string>TranscriptAgent</string>
+    <key>CFBundleIdentifier</key><string>com.transcriptagent.app</string>
+    <key>CFBundleVersion</key><string>${CURRENT_VERSION}</string>
+    <key>CFBundleIconFile</key><string>icon</string>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>LSUIElement</key><false/>
+</dict>
+</plist>
+PLISTEOF
+
+    # Generate icon.icns and copy into the bundle
+    "$PIP" install pillow --quiet 2>/dev/null || true
+    if "$VPYTHON" "$APPDIR/create_icon.py" --mac 2>/dev/null && [ -f "$APPDIR/icon.icns" ]; then
+        cp "$APPDIR/icon.icns" "$APP_BUNDLE/Contents/Resources/icon.icns"
+    fi
+
+    # Tell Finder to refresh the icon cache for this bundle
+    touch "$APP_BUNDLE"
+
+    success "Launcher created: ~/Desktop/Transcript Agent.app"
     info "Double-click it in Finder to start the app any time."
 
     echo ""
     echo -e "${GREEN}${BOLD}  ============================================================"
     echo -e "    Setup complete!  v${CURRENT_VERSION}"
     echo ""
-    echo -e "    • Double-click 'Transcript Agent' on your Desktop to start"
+    echo -e "    • Double-click 'Transcript Agent' app on your Desktop to start"
     echo -e "    • Or run:  bash \"${APPDIR}/setup_mac.sh\"  to update"
     echo -e "  ============================================================${RESET}"
     echo ""

@@ -3822,12 +3822,17 @@ def process_file(
         elif kind == "error":
             err_msg = str(msg[1])
             if "cancelled" in err_msg.lower():
-                stopped_elapsed = _elapsed()
-                log_text = _add_log("⏹ Stopped by user.", "warn")
                 yield _out(
-                    status=_status_compact("⏹", "Stopped.", stopped_elapsed),
+                    status=_IDLE_STATUS,
                     eta=_eta_panel_html("idle"),
-                    log=log_text,
+                    log=_IDLE_LOG,
+                    summary=gr.update(value=""), transcript=gr.update(value=""),
+                    dialogue=gr.update(value=""), profiles=gr.update(value=""),
+                    analytics=gr.update(value=""), combined=gr.update(value=""),
+                    interview=gr.update(value=""),
+                    dl_t=None, dl_s=None, dl_r=None, dl_c=None,
+                    dl_j=None, dl_p=None, dl_srt=None, dl_vtt=None, dl_docx=None,
+                    dl_acc=gr.update(open=False),
                 )
             else:
                 display_msg = _friendly_api_error(err_msg, provider_name, model_name)
@@ -5871,6 +5876,14 @@ _IDLE_STATUS = """
   </div>
 </div>
 """
+
+_IDLE_LOG = (
+    '<div id="ta-log-wrap" style="background:var(--ta-log-bg,#f8fafc);border:1px solid var(--ta-log-border,#cbd5e1);'
+    'border-radius:10px;padding:14px 18px;min-height:160px;max-height:320px;'
+    'overflow-y:auto;font-family:\'JetBrains Mono\',\'Courier New\',monospace;font-size:0.81em;line-height:1.75;">'
+    '<span style="color:var(--ta-log-text,#475569);">Progress and logs appear here…</span>'
+    '</div>'
+)
 
 _FORMATS = """
 <div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);

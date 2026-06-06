@@ -5292,42 +5292,54 @@ window.taDoUpdate = function(url, btn, platform) {
         .finally(function() { setTimeout(pingLoop, 3000); });
     })();
 
-    /* mini bar — 16 segments */
+    /* bar sparkline — 12 segments */
     function _bars(bps, color) {
-      var SEGS = 16, MAX = 5*1048576;
+      var SEGS = 12, MAX = 5*1048576;
       var fill = Math.min(SEGS, Math.round(bps / MAX * SEGS));
-      var out = '';
+      var out = '<div style="display:flex;align-items:flex-end;gap:2px;height:20px;">';
       for (var i = 0; i < SEGS; i++) {
-        out += '<span style="display:inline-block;width:3px;height:'
-             + (i < fill ? 12 : 4) + 'px;background:'
+        var h = i < fill ? Math.max(4, Math.round((i+1)/SEGS*20)) : 3;
+        out += '<div style="width:4px;height:' + h + 'px;background:'
              + (i < fill ? color : 'var(--ta-card-border,#e2e8f0)')
-             + ';border-radius:2px;margin:0 1px;vertical-align:middle;'
-             + 'transition:height 0.2s,background 0.2s;"></span>';
+             + ';border-radius:2px 2px 0 0;transition:height 0.25s,background 0.25s;"></div>';
       }
-      return out;
+      return out + '</div>';
     }
 
-    function _dot(color) {
-      return '<span style="width:7px;height:7px;background:' + color + ';border-radius:50%;'
-           + 'display:inline-block;box-shadow:0 0 4px ' + color + ';'
-           + 'animation:tapulse 2s ease-in-out infinite;"></span>';
+    function _dot(color, active) {
+      return '<span style="width:8px;height:8px;background:' + color + ';border-radius:50%;'
+           + 'display:inline-block;flex-shrink:0;box-shadow:0 0 6px ' + color + ';'
+           + (active ? 'animation:tapulse 1.4s ease-in-out infinite;' : 'opacity:0.3;')
+           + '"></span>';
     }
 
-    /* one row: icon | label | bars | dot+speed | session total */
-    function _row(icon, label, bps, total, color, extraDetail) {
-      var speedTxt = fmtSpeed(bps);
-      var totalTxt = fmtSize(total);
-      return '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-           + '<span style="font-size:1em;line-height:1;">' + icon + '</span>'
-           + '<span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">' + label + '</span>'
-           + '<span style="display:flex;align-items:center;gap:1px;">' + _bars(bps, color) + '</span>'
-           + '<span style="display:inline-flex;align-items:center;gap:4px;'
-               + 'font-weight:800;color:' + color + ';min-width:80px;justify-content:flex-end;">'
-             + _dot(color) + '&nbsp;' + speedTxt
-           + '</span>'
-           + '<span style="margin-left:auto;font-size:0.78em;color:var(--ta-card-sub,#64748b);'
-               + 'white-space:nowrap;">session:&nbsp;' + totalTxt + '</span>'
-           + (extraDetail || '')
+    /* card: icon | direction | big speed | bars | session total */
+    function _card(icon, label, bps, total, color, upDetail) {
+      var active = bps > 200;
+      var parts = fmtSpeed(bps).split(' ');
+      var num = parts[0], unit = parts[1] || '';
+      return '<div style="flex:1;min-width:0;background:var(--ta-card-bg,#f8fafc);'
+           + 'border:1px solid ' + (active ? color + '55' : 'var(--ta-card-border,#e2e8f0)') + ';'
+           + 'border-radius:12px;padding:10px 12px;transition:border-color 0.3s;">'
+           /* header row */
+           + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+           +   _dot(color, active)
+           +   '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+           +     'letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">' + icon + ' ' + label + '</span>'
+           + '</div>'
+           /* big speed number */
+           + '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+           +   '<span style="font-size:1.6em;font-weight:800;color:' + (active ? color : 'var(--ta-card-sub,#94a3b8)') + ';'
+           +     'line-height:1;transition:color 0.3s;">' + num + '</span>'
+           +   '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">' + unit + '</span>'
+           + '</div>'
+           /* sparkline bars */
+           + _bars(bps, color)
+           /* session total */
+           + '<div style="margin-top:6px;font-size:0.7em;color:var(--ta-card-sub,#64748b);">'
+           +   'Session&nbsp;<span style="font-weight:700;color:var(--ta-card-text,#475569);">' + fmtSize(total) + '</span>'
+           + '</div>'
+           + (upDetail || '')
            + '</div>';
     }
 
@@ -5338,57 +5350,55 @@ window.taDoUpdate = function(url, btn, platform) {
       var rxBps = _speed(_rxLog);
       var txBps = _speed(_txLog);
 
-      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#94a3b8';
-      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#7c3aed' : '#94a3b8';
+      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#64748b';
+      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#a855f7' : '#64748b';
 
       /* upload progress bar when active */
       var upDetail = '';
       if (_upActive && _upTotal > 0) {
         var pct = Math.min(100, _upLoaded / _upTotal * 100);
         var eta = txBps > 0 && _upTotal > _upLoaded ? Math.round((_upTotal - _upLoaded) / txBps) : 0;
-        upDetail = '<div style="margin-top:4px;padding-left:82px;">'
-          + '<div style="height:4px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
-          + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#7c3aed;border-radius:2px;transition:width 0.3s;"></div>'
+        upDetail = '<div style="margin-top:6px;">'
+          + '<div style="height:3px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
+          + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#a855f7;border-radius:2px;transition:width 0.3s;"></div>'
           + '</div>'
-          + '<span style="font-size:0.75em;color:var(--ta-card-sub,#64748b);">'
-          + (_upLoaded/1048576).toFixed(1) + ' / ' + (_upTotal/1048576).toFixed(1) + ' MB'
-          + ' · ' + pct.toFixed(0) + '%'
-          + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
+          + '<span style="font-size:0.68em;color:var(--ta-card-sub,#64748b);">'
+          + pct.toFixed(0) + '%' + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
       }
 
-      /* connection info when idle */
-      var pingNote = '';
-      if (rxBps < 512 && txBps < 512) {
-        var connInfo = '';
-        try {
-          var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-          if (nc) {
-            var et = nc.effectiveType || '';
-            var dl = nc.downlink;
-            if (et) connInfo += et.toUpperCase();
-            if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps est.';
-          }
-        } catch(ex) {}
-        if (_pingMs > 0 || connInfo) {
-          pingNote = '<div style="font-size:0.74em;color:var(--ta-card-sub,#64748b);padding-top:3px;">'
-            + (_pingMs > 0 ? '🏓 ' + _pingMs + ' ms' : '')
-            + (connInfo ? ((_pingMs > 0 ? '  ·  ' : '') + '📶 ' + connInfo) : '')
-            + '</div>';
+      /* ping + connection badge */
+      var footer = '';
+      var connInfo = '';
+      try {
+        var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (nc) {
+          var et = nc.effectiveType || '';
+          var dl = nc.downlink;
+          if (et) connInfo += et.toUpperCase();
+          if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps';
         }
+      } catch(ex) {}
+      if (_pingMs > 0 || connInfo) {
+        var pingColor = _pingMs < 80 ? '#22c55e' : _pingMs < 200 ? '#f59e0b' : '#ef4444';
+        footer = '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;'
+               + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);'
+               + 'font-size:0.72em;color:var(--ta-card-sub,#64748b);">'
+               + (_pingMs > 0 ?
+                   '<span>🏓 Ping&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>' : '')
+               + (connInfo ? '<span>📶 ' + connInfo + '</span>' : '')
+               + '</div>';
       }
 
       p.innerHTML = (
-        '<style>'
-        + '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.3}}'
-        + '</style>'
-        + '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-        + 'border-radius:10px;padding:10px 14px;margin-top:8px;">'
-        + '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-        + 'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
-        + _row('⬇️', 'Download', rxBps, _rxTotal, rxColor)
-        + '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
-        + _row('⬆️', 'Upload',   txBps, _txTotal, txColor, upDetail)
-        + pingNote
+        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+        + '<div style="margin-top:8px;">'
+        + '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+        + 'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+        + '<div style="display:flex;gap:8px;">'
+        + _card('⬇', 'Download', rxBps, _rxTotal, rxColor)
+        + _card('⬆', 'Upload',   txBps, _txTotal, txColor, upDetail)
+        + '</div>'
+        + footer
         + '</div>'
       );
     }

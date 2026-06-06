@@ -3,6 +3,7 @@
 ## v2.3.2 — 2026-06-06
 - Fixed "Could not auto-detect faces" error on video upload when GPU/EGL is unavailable — FaceLandmarker and PoseLandmarker now automatically retry with CPU delegate if GPU init fails (e.g. headless Linux, missing EGL)
 - Fixed a NameError in the frame processing loop where `use_gpu` was referenced but not passed through to the inner method
+- Fixed app startup crash: `AttributeError: 'State' object has no attribute 'click'` — removed dead event wiring for `iv_analyze_btn` after it was replaced with a stub
 
 ## v2.3.1 — 2026-06-06
 - Download Results section always open and visible below the Analyze button — no longer hidden in a collapsed accordion

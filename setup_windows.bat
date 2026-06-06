@@ -123,9 +123,32 @@ echo.
 set "NVIDIA_FOUND=0"
 set "AMD_FOUND=0"
 set "INTEL_FOUND=0"
+set "GPU_NAME="
+set "DRIVER_CUDA="
+set "CUDA_MAJOR=0"
 
 where nvidia-smi >nul 2>&1
-if %errorlevel%==0 ( nvidia-smi >nul 2>&1 & if !errorlevel!==0 set "NVIDIA_FOUND=1" )
+if %errorlevel%==0 (
+    nvidia-smi >nul 2>&1
+    if !errorlevel!==0 (
+        set "NVIDIA_FOUND=1"
+        :: Get GPU model name
+        for /f "tokens=*" %%g in ('nvidia-smi --query-gpu^=name --format^=csv,noheader 2^>nul') do (
+            if "!GPU_NAME!"=="" set "GPU_NAME=%%g"
+        )
+        :: Get max CUDA version the driver supports (shown in nvidia-smi header)
+        for /f "tokens=*" %%l in ('nvidia-smi 2^>nul') do (
+            echo %%l | findstr /i "CUDA Version" >nul 2>&1
+            if !errorlevel!==0 (
+                for /f "tokens=3" %%v in ("%%l") do set "DRIVER_CUDA=%%v"
+            )
+        )
+        :: Extract major version number (e.g. "12.2" -> "12")
+        if "!DRIVER_CUDA!" neq "" (
+            for /f "tokens=1 delims=." %%m in ("!DRIVER_CUDA!") do set "CUDA_MAJOR=%%m"
+        )
+    )
+)
 
 wmic path win32_VideoController get Name 2>nul | findstr /i "AMD Radeon\|RX " >nul 2>&1
 if %errorlevel%==0 set "AMD_FOUND=1"
@@ -138,20 +161,32 @@ echo.
 echo  ============================================================
 echo   GPU Detection
 echo  ============================================================
-if "!NVIDIA_FOUND!"=="1" echo   NVIDIA GPU detected ^(CUDA supported^)
+if "!NVIDIA_FOUND!"=="1" (
+    echo   Detected: !GPU_NAME!
+    if "!DRIVER_CUDA!" neq "" echo   Driver supports up to CUDA !DRIVER_CUDA!
+)
 if "!AMD_FOUND!"=="1"   echo   AMD GPU detected ^(DirectML supported on Windows^)
 if "!INTEL_FOUND!"=="1" echo   Intel GPU detected ^(DirectML supported on Windows^)
 if "!NVIDIA_FOUND!!AMD_FOUND!!INTEL_FOUND!"=="000" echo   No discrete GPU detected
 echo.
 echo  Choose PyTorch build:
-echo    [1]  NVIDIA GPU - CUDA 12.1  ^(Recommended for RTX/GTX cards^)
-echo    [2]  NVIDIA GPU - CUDA 11.8  ^(older GTX 10xx/16xx/20xx cards^)
-echo    [3]  AMD / Intel GPU - DirectML  ^(Windows 10/11, any DirectX 12 GPU^)
-echo    [4]  CPU only  ^(smaller ~1 GB download, no GPU^)
+echo    [1]  CUDA 12.1  — RTX 20xx/30xx/40xx, GTX 16xx  ^(most NVIDIA cards^)
+echo    [2]  CUDA 11.8  — GTX 10xx or older  ^(Maxwell/Pascal, pre-2018 cards^)
+echo    [3]  DirectML   — AMD / Intel GPU  ^(Windows 10/11, DirectX 12^)
+echo    [4]  CPU only   — no GPU  ^(~1 GB, slower^)
 echo.
 if "!NVIDIA_FOUND!"=="1" (
-    set /p "TORCH_CHOICE= Choose [1]: "
-    if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=1"
+    :: Auto-pick based on driver CUDA version; still let user override
+    set "DEFAULT_CUDA=1"
+    if !CUDA_MAJOR! LSS 12 if !CUDA_MAJOR! GTR 0 set "DEFAULT_CUDA=2"
+    if "!DEFAULT_CUDA!"=="1" (
+        echo   Your driver supports CUDA 12 — option 1 is correct for your card.
+    ) else (
+        echo   Your driver supports CUDA 11 only — option 2 is correct for your card.
+    )
+    echo.
+    set /p "TORCH_CHOICE= Choose [!DEFAULT_CUDA!]: "
+    if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=!DEFAULT_CUDA!"
 ) else if "!AMD_FOUND!!INTEL_FOUND!" neq "00" (
     set "TORCH_CHOICE=3"
     echo   Auto-selecting DirectML build for detected GPU.

@@ -483,9 +483,26 @@ _PROVIDERS = {
     },
 }
 
-OUT_DIR      = Path(__file__).parent / "outputs"
-OUT_DIR.mkdir(exist_ok=True)
+def _user_data_dir() -> Path:
+    import os, sys
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA") or Path.home())
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "TranscriptAgent"
+
+OUT_DIR      = _user_data_dir() / "outputs"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_PATH = OUT_DIR / "history.jsonl"
+
+# Migrate history from old bundle-relative path if present
+_old_history = Path(__file__).parent / "outputs" / "history.jsonl"
+if _old_history.exists() and not HISTORY_PATH.exists():
+    import shutil
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_old_history, HISTORY_PATH)
 
 _STT_CACHE_DIR = OUT_DIR / ".stt_cache"
 

@@ -2995,7 +2995,7 @@ def process_file(
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
     # API key not needed when transcription only — no AI call is made
     if not api_key and provider_name != "Ollama (Local)" and not transcription_only:
-        yield _err(f"Please enter your {provider_name} API key at the top of the page.")
+        yield _err(f"Add your {provider_name} API key at the top to get started.")
         return
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
@@ -3028,7 +3028,7 @@ def process_file(
     _file2 = (path_input_2 or "").strip().strip('"').strip("'")
 
     if not uploaded_file:
-        yield _err("Please drag a file, paste a file path, or paste a URL above.")
+        yield _err("Drop a file, paste a file path, or paste a URL above to get started.")
         return
 
     # ── Log helpers (must be defined before download section uses them) ────────
@@ -6500,8 +6500,7 @@ def _do_in_app_update() -> str:
     is_git    = os.path.isdir(os.path.join(BASE, ".git"))
 
     if is_bundle:
-        lines.append("ℹ Running as a bundled .exe / .app — can't self-update in place.")
-        lines.append("Please download the latest installer from the Release notes link above.")
+        lines.append("ℹ Running as a packaged app — grab the latest version from the link above and reinstall. Takes 2 minutes!")
         ok = False
     else:
         if is_git:

@@ -7,7 +7,7 @@ set "APPDIR=%~dp0"
 set "VENV=%APPDIR%venv"
 set "VPYTHON=%VENV%\Scripts\python.exe"
 set "PIP=%VENV%\Scripts\pip.exe"
-set "CURRENT_VERSION=2.1.5"
+set "CURRENT_VERSION=2.2.0"
 
 cls
 echo.
@@ -153,11 +153,11 @@ if "!NVIDIA_FOUND!"=="1" (
     set /p "TORCH_CHOICE= Choose [1]: "
     if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=1"
 ) else if "!AMD_FOUND!!INTEL_FOUND!" neq "00" (
-    set /p "TORCH_CHOICE= Choose [3]: "
-    if "!TORCH_CHOICE!"=="" set "TORCH_CHOICE=3"
+    set "TORCH_CHOICE=3"
+    echo   Auto-selecting DirectML build for detected GPU.
 ) else (
     set "TORCH_CHOICE=4"
-    echo   Defaulting to CPU build.
+    echo   No GPU detected — defaulting to CPU build.
 )
 
 if "!TORCH_CHOICE!"=="1" (

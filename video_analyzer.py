@@ -246,6 +246,25 @@ class VideoAnalyzer:
         except Exception:
             return _mp_tasks.BaseOptions.Delegate.CPU
 
+    def _safe_create_face_lm(self, model_path: str, use_gpu: bool, **kwargs):
+        """Create FaceLandmarker, automatically falling back to CPU if GPU/EGL init fails."""
+        delegates = [self._mp_delegate(use_gpu)]
+        if use_gpu:
+            delegates.append(_mp_tasks.BaseOptions.Delegate.CPU)
+        last_exc = None
+        for delegate in delegates:
+            try:
+                opts = _mp_vision.FaceLandmarkerOptions(
+                    base_options=_mp_tasks.BaseOptions(model_asset_path=model_path, delegate=delegate),
+                    **kwargs
+                )
+                return _mp_vision.FaceLandmarker.create_from_options(opts)
+            except Exception as e:
+                last_exc = e
+                if delegate != delegates[-1]:
+                    print(f"[VA] FaceLandmarker GPU init failed ({type(e).__name__}), retrying with CPU…")
+        raise last_exc
+
     # ── Public API: uploaded-video pipeline ───────────────────────────────────
 
     def scan_faces(self, video_path: str, progress_cb=None, use_gpu: bool = True) -> Tuple[Dict[int, str], float]:
@@ -258,15 +277,13 @@ class VideoAnalyzer:
         tot = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         dur = tot / fps
 
-        opts = _mp_vision.FaceLandmarkerOptions(
-            base_options=_mp_tasks.BaseOptions(model_asset_path=fl,
-                                               delegate=self._mp_delegate(use_gpu)),
+        lm = self._safe_create_face_lm(
+            fl, use_gpu,
             num_faces=5, output_face_blendshapes=False,
             output_facial_transformation_matrixes=False,
             min_face_detection_confidence=0.4, min_face_presence_confidence=0.4,
             min_tracking_confidence=0.4,
         )
-        lm  = _mp_vision.FaceLandmarker.create_from_options(opts)
         trk = _CentroidTracker(max_gone=int(fps * 3), max_dist=180)
         thumbs: Dict[int, str] = {}
         seen_count: Dict[int, int] = {}   # pid → frames seen
@@ -341,25 +358,31 @@ class VideoAnalyzer:
         dur  = tot / fps
         ivl  = max(1, int(fps / sample_fps))
 
-        _delegate = self._mp_delegate(use_gpu)
-        fl_opts = _mp_vision.FaceLandmarkerOptions(
-            base_options=_mp_tasks.BaseOptions(model_asset_path=fl, delegate=_delegate),
+        face_lm = self._safe_create_face_lm(
+            fl, use_gpu,
             num_faces=5, output_face_blendshapes=True,
             output_facial_transformation_matrixes=True,
             min_face_detection_confidence=0.4, min_face_presence_confidence=0.4,
             min_tracking_confidence=0.4,
         )
-        face_lm = _mp_vision.FaceLandmarker.create_from_options(fl_opts)
         pose_lm = None
         if pl:
-            pose_lm = _mp_vision.PoseLandmarker.create_from_options(
-                _mp_vision.PoseLandmarkerOptions(
-                    base_options=_mp_tasks.BaseOptions(model_asset_path=pl, delegate=_delegate),
-                    num_poses=4,
-                    min_pose_detection_confidence=0.4, min_pose_presence_confidence=0.4,
-                    min_tracking_confidence=0.4,
-                )
-            )
+            for _delegate in ([self._mp_delegate(use_gpu)] + ([_mp_tasks.BaseOptions.Delegate.CPU] if use_gpu else [])):
+                try:
+                    pose_lm = _mp_vision.PoseLandmarker.create_from_options(
+                        _mp_vision.PoseLandmarkerOptions(
+                            base_options=_mp_tasks.BaseOptions(model_asset_path=pl, delegate=_delegate),
+                            num_poses=4,
+                            min_pose_detection_confidence=0.4, min_pose_presence_confidence=0.4,
+                            min_tracking_confidence=0.4,
+                        )
+                    )
+                    break
+                except Exception as e:
+                    if _delegate == _mp_tasks.BaseOptions.Delegate.CPU:
+                        print(f"[VA] PoseLandmarker failed: {e}")
+                    else:
+                        print(f"[VA] PoseLandmarker GPU init failed, retrying with CPU…")
 
         trk        = _CentroidTracker(max_gone=int(fps * 3), max_dist=200)
         pitch_hist = deque(maxlen=8)
@@ -370,7 +393,7 @@ class VideoAnalyzer:
             ret, frame = cap.read()
             if not ret: break
             if idx % ivl == 0:
-                ffs = self._proc(frame, idx / fps, trk, face_lm, pose_lm, first_seen, pitch_hist)
+                ffs = self._proc(frame, idx / fps, trk, face_lm, pose_lm, first_seen, pitch_hist, use_gpu=use_gpu)
                 all_frames.append(ffs)
                 if progress_cb: progress_cb(min(0.72, 0.05 + idx / tot * 0.67))
             idx += 1
@@ -470,7 +493,7 @@ class VideoAnalyzer:
             out.append((bbox, bs, tm))
         return out
 
-    def _proc(self, frame, ts, trk, face_lm, pose_lm, first_seen, pitch_hist) -> List[FaceFrame]:
+    def _proc(self, frame, ts, trk, face_lm, pose_lm, first_seen, pitch_hist, use_gpu: bool = False) -> List[FaceFrame]:
         h, w  = frame.shape[:2]
         rgb   = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mpi   = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)

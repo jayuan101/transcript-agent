@@ -3453,14 +3453,16 @@ def process_file(
                     _va_combined_section = "\n".join(_lines)
                     combined_text = combined_text + _va_combined_section
 
-                # ── Regenerate DOCX with interview analysis included ──────────
-                if f_docx:
-                    try:
-                        from transcript_agent import generate_docx as _gen_docx
-                        _gen_docx(result, stem, f_docx)
-                    except Exception:
-                        pass
+                # ── Generate DOCX (always — includes all sections + video) ──────
+                f_docx_path = job_dir / f"{stem}_report.docx"
+                try:
+                    from transcript_agent import generate_docx as _gen_docx
+                    _gen_docx(result, stem, str(f_docx_path), va_result=_va_res)
+                    f_docx = str(f_docx_path) if f_docx_path.exists() else None
+                except Exception:
+                    f_docx = None
 
+                # ── Generate PDF (always — includes all sections + video) ────────
                 f_p_path = job_dir / f"{stem}_report.pdf"
                 try:
                     _generate_pdf(stem, combined_text, f_p_path,
@@ -6627,32 +6629,35 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
             with download_accordion:
                 gr.HTML(
                     '<div style="padding:4px 0 10px;font-size:0.78em;color:#64748b;">'
-                    'Files are generated automatically when analysis finishes. '
-                    'Click any button to download.</div>'
+                    'PDF and DOCX include full report with colors and formatting. '
+                    'All other formats are plain text. Click to download.</div>'
                 )
-                # ── Reports row ───────────────────────────────────────────────
+                # ── Reports row (PDF + DOCX — colored/formatted) ─────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">Reports</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">'
+                        'Reports — with color &amp; formatting</div>')
                 with gr.Row():
-                    dl_pdf   = gr.DownloadButton(label="📑 PDF Report",   value=None, visible=False,
-                                                 variant="secondary", size="sm", elem_id="ta-dl-pdf")
-                    dl_docx  = gr.DownloadButton(label="📝 DOCX Report",  value=None, visible=False,
-                                                 variant="secondary", size="sm", elem_id="ta-dl-docx")
-                    dl_report= gr.DownloadButton(label="📋 Markdown",     value=None, visible=False,
+                    dl_pdf   = gr.DownloadButton(label="📑 Download PDF",        value=None, visible=False,
+                                                 variant="primary", size="sm", elem_id="ta-dl-pdf")
+                    dl_docx  = gr.DownloadButton(label="📝 Download DOCX (Word)", value=None, visible=False,
+                                                 variant="primary", size="sm", elem_id="ta-dl-docx")
+                    dl_report= gr.DownloadButton(label="📋 Markdown (plain)",    value=None, visible=False,
                                                  variant="secondary", size="sm", elem_id="ta-dl-report")
                 # ── Transcripts row ───────────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Transcripts</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
+                        'Transcripts — plain text</div>')
                 with gr.Row():
-                    dl_transcript = gr.DownloadButton(label="📄 Transcript",      value=None, visible=False,
+                    dl_transcript = gr.DownloadButton(label="📄 Transcript .txt",      value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-transcript")
-                    dl_speakers   = gr.DownloadButton(label="🎙 Speaker Dialogue", value=None, visible=False,
+                    dl_speakers   = gr.DownloadButton(label="🎙 Speaker Dialogue .txt", value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-speakers")
-                    dl_combined   = gr.DownloadButton(label="📦 Combined",         value=None, visible=False,
+                    dl_combined   = gr.DownloadButton(label="📦 Combined .txt",         value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-combined")
                 # ── Subtitles & Data row ──────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Subtitles & Data</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
+                        'Subtitles &amp; Data — plain text</div>')
                 with gr.Row():
                     dl_srt  = gr.DownloadButton(label="🎬 SRT Subtitles", value=None, visible=False,
                                                 variant="secondary", size="sm", elem_id="ta-dl-srt")

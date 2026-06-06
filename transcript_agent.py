@@ -490,7 +490,7 @@ def generate_vtt(segments: list) -> str:
     return "\n".join(lines)
 
 
-def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bool:
+def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_result=None) -> bool:
     if not DOCX_AVAILABLE:
         return False
     from docx.shared import Pt, RGBColor, Inches, Cm
@@ -746,6 +746,84 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str) -> bo
             _add_section_heading(doc, "Deep Analysis", level=2)
             dp = doc.add_paragraph(adv_reason)
             dp.runs[0].font.size = Pt(10)
+
+    # ── Video Delivery Analysis ───────────────────────────────────────────────
+    if va_result and not getattr(va_result, "error", None) and getattr(va_result, "persons", None):
+        _add_section_heading(doc, "Video Delivery Analysis")
+
+        # Overall summary row
+        ovr = doc.add_paragraph()
+        ovr.add_run(f"Overall Score: {va_result.overall_score:.0f}/100").bold = True
+        ovr.runs[0].font.color.rgb = _RGB["header"]
+        ovr.add_run(f"   Duration: {int(va_result.duration_seconds//60)}m {int(va_result.duration_seconds%60)}s"
+                    f"   Participants: {va_result.person_count}")
+        _set_para_spacing(ovr, after=80)
+
+        for _pid, _p in va_result.persons.items():
+            sc_rgb = _SCORE_RGB.get(
+                "Great" if _p.overall >= 80 else "Good" if _p.overall >= 65 else
+                "Needs Improvement" if _p.overall >= 50 else "Missed", _RGB["muted"])
+
+            # Person header
+            ph = doc.add_paragraph()
+            _shade_paragraph(ph, "F1F5F9")
+            _set_para_spacing(ph, before=120, after=20)
+            r_role = ph.add_run(_p.role)
+            r_role.bold = True; r_role.font.size = Pt(11)
+            r_role.font.color.rgb = _RGB["header"]
+            r_sc = ph.add_run(f"   {_p.overall:.0f}/100")
+            r_sc.bold = True; r_sc.font.size = Pt(11)
+            r_sc.font.color.rgb = sc_rgb
+
+            # Metrics
+            mp = doc.add_paragraph()
+            mp.add_run("Confidence: ").bold = True
+            mp.add_run(f"{_p.confidence:.0f}   ")
+            mp.add_run("Composure: ").bold = True
+            mp.add_run(f"{_p.composure:.0f}   ")
+            mp.add_run("Eye Contact: ").bold = True
+            mp.add_run(f"{_p.eye_contact:.0f}   ")
+            mp.add_run("Engagement: ").bold = True
+            mp.add_run(f"{_p.engagement:.0f}   ")
+            mp.add_run("Energy: ").bold = True
+            mp.add_run(f"{_p.energy:.0f}")
+            for r in mp.runs: r.font.size = Pt(9)
+            _set_para_spacing(mp, after=20)
+
+            # Body language
+            bl = doc.add_paragraph()
+            bl.add_run("Open Posture: ").bold = True
+            bl.add_run(f"{_p.open_body_pct:.0f}%   ")
+            bl.add_run("Arms Crossed: ").bold = True
+            bl.add_run(f"{_p.arm_crossed_pct:.0f}%   ")
+            bl.add_run("Forward Lean: ").bold = True
+            bl.add_run(f"{_p.forward_lean_pct:.0f}%   ")
+            bl.add_run("Dominant Mood: ").bold = True
+            bl.add_run(_p.dominant_emotion)
+            for r in bl.runs: r.font.size = Pt(9)
+            _set_para_spacing(bl, after=20)
+
+            # Cultural scores
+            if _p.cultural:
+                cp = doc.add_paragraph()
+                cp.add_run("American Interview Standard: ").bold = True
+                cp.add_run(f"{_p.cultural.american_score:.0f}/100   ")
+                cp.add_run("Indian→American Adaptation: ").bold = True
+                cp.add_run(f"{_p.cultural.adaptation_score:.0f}/100")
+                for r in cp.runs: r.font.size = Pt(9)
+                _set_para_spacing(cp, after=10)
+                for tip in (_p.cultural.american_tips or [])[:3]:
+                    tp = doc.add_paragraph(style="List Bullet")
+                    tp.add_run(tip).font.size = Pt(9)
+                for tip in (_p.cultural.adaptation_tips or [])[:3]:
+                    tp = doc.add_paragraph(style="List Bullet")
+                    tp.add_run(f"→ {tip}").font.size = Pt(9)
+
+        if getattr(va_result, "observations", None):
+            _add_section_heading(doc, "Key Observations", level=2)
+            for obs in va_result.observations:
+                op = doc.add_paragraph(style="List Bullet")
+                op.add_run(obs).font.size = Pt(9)
 
     doc.save(output_path)
     return True

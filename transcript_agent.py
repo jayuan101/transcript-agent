@@ -213,7 +213,11 @@ import shutil as _shutil
 import numpy as _np
 
 def _resolve_ffmpeg() -> str:
-    # 1. imageio_ffmpeg bundles a binary — use it if the file actually exists
+    # 1. system ffmpeg on PATH (most reliable on Linux/Docker/Mac)
+    _sys_ffmpeg = _shutil.which("ffmpeg")
+    if _sys_ffmpeg:
+        return _sys_ffmpeg
+    # 2. imageio_ffmpeg bundled binary (reliable on Windows)
     try:
         import imageio_ffmpeg as _iff
         _candidate = _iff.get_ffmpeg_exe()
@@ -221,12 +225,7 @@ def _resolve_ffmpeg() -> str:
             return _candidate
     except Exception:
         pass
-    # 2. system ffmpeg on PATH
-    _sys_ffmpeg = _shutil.which("ffmpeg")
-    if _sys_ffmpeg:
-        return _sys_ffmpeg
-    # 3. bare name — last resort (will raise FileNotFoundError at call time
-    #    with a clear message rather than a silent WinError 2)
+    # 3. bare name — last resort (will raise FileNotFoundError at call time)
     return "ffmpeg"
 
 FFMPEG_EXE = _resolve_ffmpeg()
@@ -1378,9 +1377,13 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
                 on_log(f"Audio extracted for upload ({sz_mb:.1f} MB)", "info")
         except FileNotFoundError:
             if on_log:
+                _fix = (
+                    "Install ffmpeg: https://ffmpeg.org/download.html"
+                    if __import__("os").environ.get("SPACE_ID")
+                    else "Re-run setup_windows.bat (Windows) or setup_mac.sh (Mac) to install ffmpeg."
+                )
                 on_log(
-                    "ffmpeg not found — audio extraction skipped, uploading original. "
-                    "Re-run setup_windows.bat (or setup_mac.sh) to fix this.",
+                    f"ffmpeg not found — audio extraction skipped, uploading original. {_fix}",
                     "warn",
                 )
         except Exception as _e:

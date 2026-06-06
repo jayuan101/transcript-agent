@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.1 — 2026-06-06
+- Download Results section always open and visible below the Analyze button — no longer hidden in a collapsed accordion
+- Shows "Run an analysis to generate your reports" placeholder listing PDF · DOCX · Transcript · SRT · JSON before analysis runs; placeholder hides when buttons appear
+- HuggingFace sync now retries up to 5 times with 30s/60s/90s/120s backoff on 429 rate limit errors
+- Fixed garbled emoji in README YAML header for HuggingFace
+
 ## v2.3.0 — 2026-06-06
 - Coding Challenge Analysis: auto-detects coding/algorithm questions in any interview transcript
 - Per challenge: candidate's full answer, score, and a complete working optimal solution

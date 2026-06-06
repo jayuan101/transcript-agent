@@ -6376,11 +6376,12 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                             pass
                 except Exception:
                     pass
-                # Override with run.bat detection if available
+                # Override with launcher/run.bat detection if available
                 if not _gpu_available and _ta_gpu_env in ("cuda","mps","dml"):
                     _gpu_available = True
-                    _gpu_label = {"cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS",
-                                  "dml":"AMD/Intel DirectML"}.get(_ta_gpu_env, _ta_gpu_env)
+                    _gpu_label = os.environ.get("TA_GPU_NAME") or {
+                        "cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS","dml":"AMD/Intel DirectML"
+                    }.get(_ta_gpu_env, _ta_gpu_env)
                 gpu_toggle = gr.Checkbox(
                     label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper, DeepFace & Ollama"
                            if _gpu_available else

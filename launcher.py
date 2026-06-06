@@ -34,6 +34,66 @@ os.environ.setdefault("GRADIO_TELEMETRY_ENABLED",  "False")
 os.environ.setdefault("PYTHONIOENCODING",           "utf-8:replace")
 os.environ.setdefault("PYTHONUTF8",                "1")
 
+# ── GPU auto-detection (no torch needed) ─────────────────────────────────────
+def _detect_gpu():
+    import platform, subprocess
+    machine = platform.machine().lower()
+    system  = platform.system()
+
+    # Skip detection inside known VMs / hypervisors
+    try:
+        if system == "Windows":
+            r = subprocess.run(
+                ["wmic", "computersystem", "get", "model"],
+                capture_output=True, text=True, timeout=3
+            )
+            vm_keywords = ("virtualbox","vmware","hyper-v","qemu","xen","kvm","parallels","virtual machine")
+            if any(k in r.stdout.lower() for k in vm_keywords):
+                return "cpu", "VM detected — using CPU"
+        elif system == "Linux":
+            r = subprocess.run(["systemd-detect-virt"], capture_output=True, text=True, timeout=2)
+            if r.returncode == 0 and r.stdout.strip() not in ("none", ""):
+                return "cpu", "VM detected — using CPU"
+    except Exception:
+        pass
+
+    # Apple Silicon — MPS always available
+    if system == "Darwin" and machine == "arm64":
+        return "mps", "Apple Silicon MPS"
+
+    # NVIDIA — try nvidia-smi
+    if system in ("Windows", "Linux"):
+        try:
+            r = subprocess.run(
+                ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                capture_output=True, text=True, timeout=5
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                return "cuda", f"NVIDIA CUDA — {r.stdout.strip().splitlines()[0]}"
+        except Exception:
+            pass
+
+    # AMD / Intel on Windows — DirectML
+    if system == "Windows":
+        try:
+            r = subprocess.run(
+                ["wmic", "path", "win32_VideoController", "get", "Name"],
+                capture_output=True, text=True, timeout=3
+            )
+            out = r.stdout.lower()
+            if any(k in out for k in ("amd", "radeon", "rx ")):
+                return "dml", "AMD DirectML"
+            if any(k in out for k in ("intel", "arc", "iris", "uhd")):
+                return "dml", "Intel DirectML"
+        except Exception:
+            pass
+
+    return "cpu", "CPU only"
+
+_gpu_device, _gpu_name = _detect_gpu()
+os.environ.setdefault("TA_GPU_DEVICE",  _gpu_device)
+os.environ.setdefault("TA_GPU_NAME",    _gpu_name)
+
 # ── Path resolution ───────────────────────────────────────────────────────────
 if getattr(sys, "frozen", False):
     # Running inside a PyInstaller bundle

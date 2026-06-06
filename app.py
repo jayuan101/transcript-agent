@@ -952,6 +952,7 @@ html.dark .ta-update-banner {
 .ta-upd-mac { background: #1f2937; color: #fff; }
 .ta-upd-mac:hover { background: #111827; transform: translateY(-1px); }
 .ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+#ta-hidden-update-btn { position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden; }
 
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
@@ -3844,7 +3845,7 @@ window.taClickUpdateBtn = function(btn) {
   var prog = document.getElementById('ta-update-progress');
   if (prog) prog.style.display = 'block';
   /* Trigger the hidden Gradio update button */
-  var hidden = document.querySelector('#ta-hidden-update-btn button');
+  var hidden = document.getElementById('ta-hidden-update-btn');
   if (hidden) hidden.click();
 };
 
@@ -6317,7 +6318,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
-    _hidden_update_btn = gr.Button("_upd", visible=False, elem_id="ta-hidden-update-btn")
+    _hidden_update_btn = gr.Button("_upd", elem_id="ta-hidden-update-btn")
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)

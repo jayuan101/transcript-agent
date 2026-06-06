@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.2.2 — 2026-06-06
+- Setup: both Windows and Mac scripts now check GitHub on launch and show "UPDATE AVAILABLE: vX → vY" with a direct update button when a newer version exists
+- Synced all version strings (run.bat, build scripts, spec, README) to current version
+
 ## v2.2.1 — 2026-06-06
 - Setup: AMD/Intel GPU auto-selects DirectML without prompting — no wrong choice possible
 - Setup: NVIDIA prompt now shows detected GPU model and driver CUDA version, tells you which option (1 or 2) is correct for your card, and defaults to the right one automatically

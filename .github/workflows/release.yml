@@ -24,10 +24,8 @@ jobs:
           echo "$NOTES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Build distribution packages
-        run: |
-          python build_win_zip.py
-          python build_mac_zip.py
+      - name: Build Mac zip
+        run: python build_mac_zip.py
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -38,22 +36,20 @@ jobs:
 
             ---
 
-            ### 🪟 Windows
-            1. Download **TranscriptAgent-Windows.zip**
-            2. Extract the zip
-            3. Double-click **setup_windows.bat** — installs Python packages + creates Desktop shortcut
-            4. Double-click **run.bat** every time after
+            ### 🪟 Windows — Install
+            1. Download **both** `TranscriptAgent-win64.zip` and `Install-TranscriptAgent.bat` into the **same folder**
+            2. Double-click `Install-TranscriptAgent.bat` — extracts, creates Desktop shortcut, launches automatically
 
-            ### 🍎 Mac
+            **To launch after install:** Double-click **Transcript Agent** on your Desktop
+
+            ### 🍎 Mac — Install
             1. Download **TranscriptAgent-Mac.zip**
             2. Extract the zip
             3. Open Terminal in the folder and run: **bash setup_mac.sh**
             4. Double-click **Transcript Agent** on your Desktop every time after
 
-            > First-time install downloads ~2–3 GB (Python packages + Whisper model).
             > Your API keys are stored locally only — never sent to any server.
           files: |
-            dist/TranscriptAgent-Windows.zip
             dist/TranscriptAgent-Mac.zip
           draft: false
           prerelease: false

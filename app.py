@@ -2859,10 +2859,16 @@ def _build_interview_html(ia: dict) -> str:
                     f'<p class="ta-q-said-text">{_cappr}</p></div>'
                 )
             if _ans:
+                _ans_escaped = _ans.replace("<","&lt;").replace(">","&gt;")
                 html += (
-                    f'<div class="ta-q-said">'
-                    f'<div class="ta-q-said-label">📝 What they said / did</div>'
-                    f'<p class="ta-q-said-text">{_ans}</p></div>'
+                    f'<div style="margin:10px 0;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:#fbbf24;background:#1c1917;'
+                    f'padding:6px 14px;border-radius:8px 8px 0 0;">📝 Candidate\'s Answer</div>'
+                    f'<pre style="background:#1c1917;color:#fef3c7;font-size:0.8em;'
+                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
+                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_ans_escaped}</pre>'
+                    f'</div>'
                 )
             if _opt:
                 html += (
@@ -6384,7 +6390,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3.7"
+APP_VERSION = "2.3.8"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

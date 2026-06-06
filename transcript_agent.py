@@ -2218,7 +2218,7 @@ Rules for model_answer — FULL DETAILED RESPONSE, NOT SUMMARISED:
       "id": 1,
       "problem": "<exact problem statement as given in the transcript>",
       "language_requested": "<the language/framework explicitly asked for in the question, or 'not specified' if none was asked>",
-      "candidate_answer": "<FULL reproduction of everything the candidate described, coded, or attempted — every step of their reasoning, all code they wrote or sketched, edge cases they mentioned, mistakes they made — NO summarising>",
+      "candidate_answer": "<FULL verbatim reproduction of everything the candidate said, wrote, or attempted — include every line of code they wrote or sketched, their exact reasoning, every edge case they mentioned, every mistake — preserve code formatting with newlines — DO NOT summarise, paraphrase, or shorten — if they wrote code, reproduce it exactly as written>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why — score ONLY on the language/tech that was asked; if none was specified, score on approach and algorithm correctness only — coaching_tip does NOT affect this score>",
       "candidate_approach": "<the algorithm or strategy the candidate used, e.g. 'brute force O(n²) nested loop'>",

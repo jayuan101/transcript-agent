@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3.8 — 2026-06-06
+- Coding challenge candidate answer now shown in a full code block (amber/dark theme) — no more plain text, preserves every line of code and reasoning exactly as written
+- Approach/Time/Space/Role context text now visible in dark mode — switched from hardcoded colors to CSS variables
+- AI prompt updated to reproduce candidate code verbatim with newlines preserved, never summarise
+
 ## v2.3.7 — 2026-06-06
 - Fixed "Cannot find empty port" crash on Windows exe — app now kills the stale process holding port 7860, waits 1 second, then falls back to ports 7861–7869 if still busy
 - Fixed hidden update button showing "_upd" text in the UI — now fully invisible with display:none

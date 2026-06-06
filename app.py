@@ -7404,13 +7404,6 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
             gr.update(value=status_html, visible=True),
         )
 
-    iv_analyze_btn.click(
-        fn=_iv_analyze_video,
-        inputs=[file_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
-        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
-        queue=True,
-    )
-
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):
         cfg = _PROVIDERS.get(provider, _PROVIDERS["Claude (Anthropic)"])

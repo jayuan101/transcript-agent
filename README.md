@@ -216,4 +216,4 @@ GET  /docs                  â€” Swagger UI
 
 ## Version history
 
-See [CHANGELOG.md](CHANGELOG.md) for full history. Current: **v2.2.2**
+See [CHANGELOG.md](CHANGELOG.md) for full history. Current: **v2.2.3**

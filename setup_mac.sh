@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent v2.2.2  |  macOS Installer
+#   Transcript Agent v2.2.3  |  macOS Installer
 #   Run once to install, then double-click the Desktop launcher.
 #   Run again at any time to update, repair, or fix GPU.
 # ============================================================

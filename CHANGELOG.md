@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.0 — 2026-06-06
+- GPU badge in sidebar: green card shows detected GPU name (NVIDIA/MPS/DirectML) or gray "CPU Mode" card when no GPU found
+- Auto-detect GPU at startup via nvidia-smi / WMIC — no torch import required; result passed to app via TA_GPU_DEVICE/TA_GPU_NAME env vars
+- Network monitor redesigned: side-by-side upload/download cards with large speed numbers, visible from page load in idle state
+- Analyze button pulses red while running; Stop button is now clickable and cancels analysis immediately
+- History and outputs now persist to user data dir instead of the bundle _internal/ folder — survives app updates
+- MediaPipe and OpenCV binaries bundled; model cache persisted outside the bundle
+- Mac: proper .app bundle on Desktop instead of a .command file
+- App icon (.ico / .icns) added and wired into Windows/Mac shortcuts
+- Free port finder at launch: automatically picks an available port if 7860 is in use
+- CI: auto-build triggered on every push to main
+
 ## v2.1.4 — 2026-06-05
 - Always-on sleep prevention: machine stays awake the entire time the app is running (not just during jobs)
   - Windows: SetThreadExecutionState blocks idle sleep + lid-close blocked from app startup

@@ -229,4 +229,4 @@ jobs:
             artifacts/mac/TranscriptAgent.dmg
           draft: false
           prerelease: false
-          overwrite: true
+          overwrite_files: true

@@ -1,5 +1,20 @@
 # Changelog
 
+## v2.3.0 — 2026-06-06
+- Coding Challenge Analysis: auto-detects coding/algorithm questions in any interview transcript
+- Per challenge: candidate's full answer, score, and a complete working optimal solution
+- Language detection: if Java/Kotlin/Python/SQL/Swift/Go/etc. was requested, solution uses ONLY that language
+- Library detection: PySpark, Pandas, NumPy, TensorFlow, PyTorch, Jetpack Compose, Spring Boot, React, etc. used when asked
+- Role detection: infers Data Engineer / Gen AI / Android / iOS / Backend / Frontend / DevOps / ML Engineer from the interview and picks the right default tech stack when no language was specified
+- Scoring is based ONLY on the language/tech that was asked — no penalty for language choice when none was specified
+- Coding score (0-10) shown separately from behavioral score
+- Shown in Interview Mode tab (dark code block), PDF (dark code block with language header), DOCX (Courier New code block), and plain text exports
+- Coaching tips explicitly marked informational — never affect any score
+- No more summarising: answer_said now reproduces everything the candidate said verbatim; model_answer is a full detailed complete response, not a brief summary
+- DOCX always generated (was silently skipped before); Video Delivery Analysis included in DOCX
+- PDF and DOCX download buttons styled as primary with clear labels
+- Build scripts (spec, zip builders) fixed for UTF-8 encoding on Windows CI runners
+
 ## v2.2.4 — 2026-06-06
 - Single version source of truth: all build scripts, setup installers, run.bat, and CI now read the version directly from app.py — no more version drift across files
 - setup_windows.bat and run.bat read version via findstr at runtime

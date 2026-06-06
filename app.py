@@ -3838,6 +3838,16 @@ window.taDoUpdate = function(url, btn, platform) {
   }, 1800);
 };
 
+window.taClickUpdateBtn = function(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Updating…';
+  var prog = document.getElementById('ta-update-progress');
+  if (prog) prog.style.display = 'block';
+  /* Trigger the hidden Gradio update button */
+  var hidden = document.querySelector('#ta-hidden-update-btn button');
+  if (hidden) hidden.click();
+};
+
 (function(){
   window.__taThemeRan = true;
   var _dark = false;
@@ -6157,8 +6167,6 @@ def _check_github_update() -> str:
 
 
 def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
-    we = win_url.replace("'", "\\'")
-    me = mac_url.replace("'", "\\'")
     notes_html = (f'<div style="font-size:0.78em;color:var(--ta-card-sub);margin-top:3px;">'
                   f'{notes}</div>') if notes else ""
     return f"""
@@ -6172,11 +6180,8 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
       {notes_html}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button onclick="taDoUpdate('{we}',this,'win')" class="ta-upd-btn ta-upd-win">
-        🪟 Update Windows
-      </button>
-      <button onclick="taDoUpdate('{me}',this,'mac')" class="ta-upd-btn ta-upd-mac">
-        🍎 Update Mac
+      <button onclick="taClickUpdateBtn(this)" class="ta-upd-btn ta-upd-win" id="ta-upd-now-btn">
+        ⬆ Update Now
       </button>
       <a href="{html_url}" target="_blank"
          style="font-size:0.78em;color:#3b82f6;white-space:nowrap;font-weight:600;">
@@ -6184,6 +6189,78 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
       </a>
     </div>
   </div>
+  <div id="ta-update-progress" style="display:none;margin-top:10px;font-size:0.84em;
+       background:rgba(255,255,255,0.6);border-radius:8px;padding:10px 14px;">
+    <span id="ta-update-progress-text">⏳ Updating…</span>
+  </div>
+</div>
+"""
+
+
+def _do_in_app_update() -> str:
+    """Pull latest code + upgrade packages from within the running app."""
+    import subprocess as _sp, sys as _sys
+    BASE = os.path.dirname(os.path.abspath(__file__))
+    lines = []
+    ok = True
+
+    is_bundle = getattr(_sys, "frozen", False)
+    is_git    = os.path.isdir(os.path.join(BASE, ".git"))
+
+    if is_bundle:
+        lines.append("ℹ Running as a bundled .exe / .app — can't self-update in place.")
+        lines.append("Please download the latest installer from the Release notes link above.")
+        ok = False
+    else:
+        if is_git:
+            try:
+                r = _sp.run(["git", "-C", BASE, "pull"],
+                            capture_output=True, text=True, timeout=60)
+                if r.returncode == 0:
+                    msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
+                    lines.append(f"✓ Code: {msg}")
+                else:
+                    lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
+                    ok = False
+            except Exception as e:
+                lines.append(f"⚠ git not available — {e}")
+        else:
+            lines.append("ℹ No .git directory — skipping code pull (manual zip install).")
+
+        req = os.path.join(BASE, "requirements.txt")
+        if os.path.exists(req):
+            try:
+                r = _sp.run(
+                    [_sys.executable, "-m", "pip", "install",
+                     "setuptools", "wheel", "--quiet"],
+                    capture_output=True, text=True, timeout=60)
+                r2 = _sp.run(
+                    [_sys.executable, "-m", "pip", "install",
+                     "-r", req, "--upgrade", "--quiet"],
+                    capture_output=True, text=True, timeout=300)
+                if r2.returncode == 0:
+                    lines.append("✓ Python packages upgraded.")
+                else:
+                    lines.append(f"⚠ pip upgrade had warnings — {r2.stderr.strip()[:120]}")
+            except Exception as e:
+                lines.append(f"⚠ pip failed — {e}")
+                ok = False
+
+    status_color = "#166534" if ok else "#991b1b"
+    status_bg    = "#f0fdf4" if ok else "#fef2f2"
+    status_bdr   = "#86efac" if ok else "#fca5a5"
+    final_msg    = ("✅ Update applied! Close this window and reopen the app." if ok
+                    else "⚠ Update incomplete — see details above.")
+    items_html   = "".join(
+        f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+    return f"""
+<div class="ta-update-banner" style="background:{status_bg};border-color:{status_bdr};">
+  <div style="font-weight:800;font-size:0.95em;color:{status_color};margin-bottom:6px;">
+    {final_msg}
+  </div>
+  <ul style="margin:0;padding-left:18px;font-size:0.82em;color:{status_color};">
+    {items_html}
+  </ul>
 </div>
 """
 
@@ -6240,6 +6317,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
+    _hidden_update_btn = gr.Button("_upd", visible=False, elem_id="ta-hidden-update-btn")
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)
@@ -7559,6 +7637,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
+        _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner])
 
     # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 

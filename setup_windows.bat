@@ -305,6 +305,7 @@ set "PSSCRIPT=%TEMP%\ta_shortcut_%RANDOM%.ps1"
     echo $lnk.TargetPath = '!APPDIR!run.bat'
     echo $lnk.WorkingDirectory = '!APPDIR!'
     echo $lnk.WindowStyle = 1
+    echo $lnk.IconLocation = '!APPDIR!icon.ico'
     echo $lnk.Save^(^)
 ) > "!PSSCRIPT!"
 powershell -NoProfile -ExecutionPolicy Bypass -File "!PSSCRIPT!" >nul 2>&1

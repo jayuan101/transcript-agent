@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.4.0 — 2026-06-06
+- OTA auto-update built into every installer from day one — Desktop shortcut now launches a launcher that checks GitHub on every startup, downloads and installs any newer version silently, then starts the app
+- Users never need to manually download again — every launch is an update check
+- Added "Check for Updates" button in the app UI for manual on-demand update checks
+- Installer now ships ta_launcher.ps1 and Launch-TranscriptAgent.bat alongside the zip
+
 ## v2.3.9 — 2026-06-06
 - History tab: deleted records now go to Trash instead of being permanently removed
 - Trash accordion at the bottom of History tab — select a row and click Restore to bring it back

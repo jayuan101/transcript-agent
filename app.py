@@ -957,6 +957,9 @@ html.dark .ta-update-banner {
 .ta-upd-mac:hover { background: #111827; transform: translateY(-1px); }
 .ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
 #ta-hidden-update-btn,#ta-hidden-update-btn button { display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important; width:0 !important; height:0 !important; overflow:hidden !important; position:fixed !important; left:-9999px !important; }
+#ta-check-update-btn { margin:4px 0 8px 0 !important; }
+#ta-check-update-btn button { font-size:0.78em !important; padding:4px 12px !important; opacity:0.7; }
+#ta-check-update-btn button:hover { opacity:1; }
 
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
@@ -6394,7 +6397,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3.9"
+APP_VERSION = "2.4.0"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -6708,6 +6711,7 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
     _hidden_update_btn = gr.Button("_upd", elem_id="ta-hidden-update-btn")
+    _check_update_btn  = gr.Button("🔄 Check for Updates", size="sm", variant="secondary", elem_id="ta-check-update-btn")
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)
@@ -8083,6 +8087,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
         _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner], show_progress=False)
+        _check_update_btn.click(fn=_check_github_update, outputs=[update_banner], queue=False)
 
     # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 

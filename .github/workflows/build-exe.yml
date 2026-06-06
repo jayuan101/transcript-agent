@@ -56,43 +56,77 @@ jobs:
           Compress-Archive -Path TranscriptAgent -DestinationPath TranscriptAgent-win64.zip -Force
           cd ..
 
-      - name: Create installer batch file
+      - name: Create installer and OTA launcher
         shell: pwsh
         run: |
-          $lines = @(
+          # ── OTA launcher PowerShell script ──────────────────────────────────
+          # Runs on every launch: checks GitHub, updates silently, starts app.
+          $launcher = @'
+$installDir = "$env:LOCALAPPDATA\TranscriptAgent"
+$exePath    = "$installDir\TranscriptAgent\TranscriptAgent.exe"
+$verFile    = "$installDir\version.txt"
+$currentVer = if (Test-Path $verFile) { (Get-Content $verFile -Raw).Trim() } else { "0.0.0" }
+
+try {
+    $rel     = Invoke-RestMethod "https://api.github.com/repos/jayuan101/transcript-agent/releases/latest" -TimeoutSec 8
+    $latest  = $rel.tag_name.TrimStart("v")
+    $asset   = $rel.assets | Where-Object { $_.name -eq "TranscriptAgent-win64.zip" } | Select-Object -First 1
+    if ($asset -and $latest -ne $currentVer) {
+        $zip = "$env:TEMP\ta_update.zip"
+        Write-Host "Updating Transcript Agent $currentVer -> $latest ..."
+        Invoke-WebRequest $asset.browser_download_url -OutFile $zip -UseBasicParsing
+        Expand-Archive $zip -DestinationPath $installDir -Force
+        Set-Content $verFile $latest -Encoding UTF8
+        Remove-Item $zip -Force -ErrorAction SilentlyContinue
+        Write-Host "Update complete."
+    }
+} catch {
+    # No internet or GitHub unreachable — skip update, launch anyway
+}
+
+if (Test-Path $exePath) { Start-Process $exePath } else { Write-Host "ERROR: App not found at $exePath" }
+'@
+          $launcher | Out-File -FilePath dist\ta_launcher.ps1 -Encoding UTF8
+
+          # ── Launcher wrapper .bat (handles PS execution policy) ──────────────
+          $launchBat = @'
+@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%LOCALAPPDATA%\TranscriptAgent\ta_launcher.ps1"
+'@
+          $launchBat | Out-File -FilePath dist\Launch-TranscriptAgent.bat -Encoding ASCII
+
+          # ── Installer .bat ───────────────────────────────────────────────────
+          $installer = @(
             '@echo off',
             'setlocal',
             'echo ============================================',
             'echo  Transcript Agent Installer',
             'echo ============================================',
             'echo.',
-            ':: -- OneDrive check: DLLs fail to load when run from OneDrive folders --',
             'echo %~dp0 | findstr /i "OneDrive" >nul 2>&1',
             'if not errorlevel 1 (',
-            '  echo.',
-            '  echo  WARNING: You are running the installer from a OneDrive folder.',
-            '  echo  Windows cannot load DLLs from OneDrive-synced locations.',
-            '  echo.',
-            '  echo  The installer will place Transcript Agent in:',
-            '  echo    %%LOCALAPPDATA%%\TranscriptAgent  ^(outside OneDrive^)',
-            '  echo  which is safe. Click OK or press Enter to continue.',
-            '  echo.',
-            '  pause',
+            '  echo  WARNING: OneDrive folder detected.',
+            '  echo  Move this folder to C:\TranscriptAgent\ first.',
+            '  pause & exit /b 1',
             ')',
             'set INSTALL_DIR=%LOCALAPPDATA%\TranscriptAgent',
             'echo Installing to: %INSTALL_DIR%',
             'echo.',
             'powershell -NoProfile -Command "Expand-Archive -Path ''%~dp0TranscriptAgent-win64.zip'' -DestinationPath ''%INSTALL_DIR%'' -Force"',
-            'if errorlevel 1 ( echo ERROR: Extraction failed. ^& pause ^& exit /b 1 )',
+            'if errorlevel 1 ( echo ERROR: Extraction failed. & pause & exit /b 1 )',
+            'echo.',
+            'copy /Y "%~dp0ta_launcher.ps1" "%INSTALL_DIR%\ta_launcher.ps1" >nul',
+            'copy /Y "%~dp0Launch-TranscriptAgent.bat" "%INSTALL_DIR%\Launch-TranscriptAgent.bat" >nul',
+            'powershell -NoProfile -Command "''${{ github.ref_name }}''.TrimStart(''v'')" > "%INSTALL_DIR%\version.txt"',
             'echo.',
             'echo Creating Desktop shortcut...',
-            'powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Transcript Agent.lnk''); $s.TargetPath=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe''; $s.WorkingDirectory=''%INSTALL_DIR%\TranscriptAgent''; $s.IconLocation=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe,0''; $s.Save()"',
+            'powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Transcript Agent.lnk''); $s.TargetPath=''%INSTALL_DIR%\Launch-TranscriptAgent.bat''; $s.WorkingDirectory=''%INSTALL_DIR%''; $s.IconLocation=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe,0''; $s.WindowStyle=7; $s.Save()"',
             'echo.',
             'echo Done! Launching Transcript Agent...',
-            'start "" "%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe"',
+            'start "" "%INSTALL_DIR%\Launch-TranscriptAgent.bat"',
             'exit /b 0'
           )
-          $lines | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
+          $installer | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -102,6 +136,8 @@ jobs:
             dist/TranscriptAgent-win64.zip
             dist/TranscriptAgent/TranscriptAgent.exe
             dist/Install-TranscriptAgent.bat
+            dist/ta_launcher.ps1
+            dist/Launch-TranscriptAgent.bat
 
   # ── Mac .dmg ────────────────────────────────────────────────────────────────
   build-mac:
@@ -238,6 +274,8 @@ jobs:
             artifacts/windows/TranscriptAgent-win64.zip
             artifacts/windows/TranscriptAgent/TranscriptAgent.exe
             artifacts/windows/Install-TranscriptAgent.bat
+            artifacts/windows/ta_launcher.ps1
+            artifacts/windows/Launch-TranscriptAgent.bat
             artifacts/mac/TranscriptAgent.dmg
           draft: false
           prerelease: false

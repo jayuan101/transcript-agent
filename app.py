@@ -952,7 +952,7 @@ html.dark .ta-update-banner {
 .ta-upd-mac { background: #1f2937; color: #fff; }
 .ta-upd-mac:hover { background: #111827; transform: translateY(-1px); }
 .ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
-#ta-hidden-update-btn { position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;overflow:hidden; }
+#ta-hidden-update-btn,#ta-hidden-update-btn button { display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important; width:0 !important; height:0 !important; overflow:hidden !important; position:fixed !important; left:-9999px !important; }
 
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }

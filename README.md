@@ -206,7 +206,7 @@ requirements.txt     — Python dependencies
 
 If this tool saves you time, consider buying me a coffee ☕
 
-[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.com/donate/?business=2GF475PGDZJLL&no_recurring=0&currency_code=USD)
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-0070ba?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/jay247616)
 
 ---
 

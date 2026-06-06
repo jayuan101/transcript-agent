@@ -7139,7 +7139,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
       {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
     </div>
     <div style="text-align:center;padding:8px 0 20px;">
-      <a href="https://www.paypal.com/donate/?business=2GF475PGDZJLL&no_recurring=0&currency_code=USD"
+      <a href="https://paypal.me/jay247616"
          target="_blank"
          style="display:inline-flex;align-items:center;gap:8px;background:#0070ba;color:#fff;font-size:0.85em;font-weight:600;padding:9px 20px;border-radius:20px;text-decoration:none;">
         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white">

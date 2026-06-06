@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.2.4 — 2026-06-06
+- Single version source of truth: all build scripts, setup installers, run.bat, and CI now read the version directly from app.py — no more version drift across files
+- setup_windows.bat and run.bat read version via findstr at runtime
+- setup_mac.sh reads version via grep/sed at runtime
+- build_win_zip.py, build_mac_zip.py, TranscriptAgent.spec read via regex at build time
+- build-exe.yml fallback reads from app.py in CI shell step
+
 ## v2.2.3 — 2026-06-06
 - In-app one-click update button: clicking "⬆ Update Now" in the browser runs git pull + pip install automatically — no terminal needed
 - GPU mismatch detection: app shows orange "⚠️ GPU Mismatch" badge when NVIDIA/Apple Silicon GPU is present but PyTorch CPU-only build is installed

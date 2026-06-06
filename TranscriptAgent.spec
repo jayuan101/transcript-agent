@@ -24,6 +24,7 @@ _safehttpx_datas, _safehttpx_bins, _safehttpx_hidden = collect_all('safehttpx')
 _groovy_datas,    _groovy_bins,    _groovy_hidden    = collect_all('groovy')
 _mediapipe_datas, _mediapipe_bins, _mediapipe_hidden = collect_all('mediapipe')
 _cv2_datas,       _cv2_bins,       _cv2_hidden       = collect_all('cv2')
+_imageio_datas,   _imageio_bins,   _imageio_hidden   = collect_all('imageio_ffmpeg')
 
 # Auto-discover version.txt files in all installed packages (handles any
 # remaining micro-deps that embed data files PyInstaller wouldn't otherwise find)
@@ -51,7 +52,7 @@ _auto_version_datas = _auto_version_datas()
 a = Analysis(
     [str(HERE / 'launcher.py')],
     pathex=[str(HERE)],
-    binaries=[] + _gradio_bins + _safehttpx_bins + _groovy_bins + _mediapipe_bins + _cv2_bins,
+    binaries=[] + _gradio_bins + _safehttpx_bins + _groovy_bins + _mediapipe_bins + _cv2_bins + _imageio_bins,
     datas=[
         # Bundle the main application files
         (str(HERE / 'app.py'),              '.'),
@@ -63,7 +64,7 @@ a = Analysis(
         (str(HERE / 'setup_windows.bat'),   '.'),
         (str(HERE / 'setup_mac.sh'),        '.'),
         (str(HERE / 'run.bat'),             '.'),
-    ] + _gradio_datas + _safehttpx_datas + _groovy_datas + _mediapipe_datas + _cv2_datas + _auto_version_datas,
+    ] + _gradio_datas + _safehttpx_datas + _groovy_datas + _mediapipe_datas + _cv2_datas + _imageio_datas + _auto_version_datas,
     hiddenimports=[
         # Gradio and web framework
         'gradio', 'gradio.themes', 'gradio.themes.soft',
@@ -92,6 +93,7 @@ a = Analysis(
         'gradio_client',
         'safehttpx',
         'PIL', 'PIL.Image', 'requests', 'urllib3',
+        'imageio_ffmpeg',
         'packaging', 'typing_extensions',
         'orjson', 'anyio', 'sniffio',
         'multiprocessing',

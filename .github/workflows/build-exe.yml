@@ -40,6 +40,7 @@ jobs:
           pip install fastapi uvicorn[standard] python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
           pip install opencv-python-headless mediapipe
+          pip install imageio-ffmpeg
 
       - name: Generate app icon
         run: |
@@ -127,6 +128,7 @@ jobs:
           pip install fastapi "uvicorn[standard]" python-multipart aiofiles httpx orjson
           pip install requests packaging typing_extensions
           pip install opencv-python-headless mediapipe
+          pip install imageio-ffmpeg
 
       - name: Generate app icon
         run: |

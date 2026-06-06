@@ -6382,16 +6382,41 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
                     _gpu_label = os.environ.get("TA_GPU_NAME") or {
                         "cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS","dml":"AMD/Intel DirectML"
                     }.get(_ta_gpu_env, _ta_gpu_env)
+                # ── GPU badge ─────────────────────────────────────────────────
+                _badge_bg    = "#dcfce7" if _gpu_available else "#f1f5f9"
+                _badge_bdr   = "#22c55e" if _gpu_available else "#cbd5e1"
+                _badge_clr   = "#15803d" if _gpu_available else "#475569"
+                _badge_icon  = "⚡" if _gpu_available else "🖥"
+                _badge_title = "GPU Active" if _gpu_available else "CPU Mode"
+                _dark_bg     = "#052e16" if _gpu_available else "#1e293b"
+                _dark_bdr    = "#16a34a" if _gpu_available else "#334155"
+                _dark_clr    = "#4ade80" if _gpu_available else "#94a3b8"
+                gr.HTML(f"""
+<style>
+.ta-gpu-badge{{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-radius:10px;margin-bottom:8px;
+  background:{_badge_bg};border:1px solid {_badge_bdr};}}
+html.dark .ta-gpu-badge{{background:{_dark_bg}!important;border-color:{_dark_bdr}!important;}}
+.ta-gpu-badge-icon{{font-size:1.4em;line-height:1;}}
+.ta-gpu-badge-title{{font-size:0.72em;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.07em;color:{_badge_clr};}}
+html.dark .ta-gpu-badge-title{{color:{_dark_clr}!important;}}
+.ta-gpu-badge-name{{font-size:0.85em;font-weight:700;color:#111827;margin-top:1px;}}
+html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
+</style>
+<div class="ta-gpu-badge">
+  <span class="ta-gpu-badge-icon">{_badge_icon}</span>
+  <div>
+    <div class="ta-gpu-badge-title">{_badge_title}</div>
+    <div class="ta-gpu-badge-name">{_gpu_label}</div>
+  </div>
+</div>""")
                 gpu_toggle = gr.Checkbox(
-                    label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper, DeepFace & Ollama"
-                           if _gpu_available else
-                           "⚡ Use GPU when available (no GPU detected on this machine)"),
+                    label="Enable GPU acceleration",
                     value=_gpu_available,
-                    info=("GPU acceleration active — Whisper 5-10x faster, DeepFace emotion analysis on GPU, "
-                          "Ollama LLM uses all GPU layers. Uncheck to force CPU."
+                    info=("Whisper 5-10x faster, DeepFace & Ollama on GPU. Uncheck to force CPU."
                           if _gpu_available else
-                          "No GPU found. Supports: NVIDIA (CUDA), AMD/Intel (DirectML on Windows), "
-                          "Apple Silicon (MPS). Install the right PyTorch build to enable."),
+                          "No GPU found. Supports NVIDIA (CUDA), AMD/Intel (DirectML), Apple Silicon (MPS)."),
                     elem_id="ta-gpu-toggle",
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)

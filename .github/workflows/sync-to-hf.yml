@@ -14,11 +14,27 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      - name: Push to HuggingFace Space
+      - name: Push to HuggingFace Space (with retry)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git config user.email "noreply@anthropic.com"
           git config user.name "Claude"
           git remote add hf https://Coastline6:${HF_TOKEN}@huggingface.co/spaces/Coastline6/transcript-agent-v2
-          git push hf main --force
+
+          for attempt in 1 2 3 4 5; do
+            echo "Push attempt $attempt of 5..."
+            if git push hf main --force; then
+              echo "Push succeeded on attempt $attempt."
+              exit 0
+            fi
+            EXIT_CODE=$?
+            if [ $attempt -lt 5 ]; then
+              WAIT=$((attempt * 30))
+              echo "Push failed (exit $EXIT_CODE). Waiting ${WAIT}s before retry..."
+              sleep $WAIT
+            fi
+          done
+
+          echo "All 5 push attempts failed."
+          exit 1

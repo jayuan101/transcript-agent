@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.3.9 — 2026-06-06
+- History tab: deleted records now go to Trash instead of being permanently removed
+- Trash accordion at the bottom of History tab — select a row and click Restore to bring it back
+- Empty Trash button for permanent deletion when you're sure
+- Removed Export and Import buttons from History tab
+
 ## v2.3.8 — 2026-06-06
 - Coding challenge candidate answer now shown in a full code block (amber/dark theme) — no more plain text, preserves every line of code and reasoning exactly as written
 - Approach/Time/Space/Role context text now visible in dark mode — switched from hardcoded colors to CSS variables

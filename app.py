@@ -496,6 +496,7 @@ def _user_data_dir() -> Path:
 OUT_DIR      = _user_data_dir() / "outputs"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_PATH = OUT_DIR / "history.jsonl"
+TRASH_PATH   = OUT_DIR / "trash.jsonl"
 
 # Migrate history from old bundle-relative path if present
 _old_history = Path(__file__).parent / "outputs" / "history.jsonl"
@@ -6390,7 +6391,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3.8"
+APP_VERSION = "2.3.9"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7194,15 +7195,6 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
-                        history_export_btn  = gr.DownloadButton(
-                            "⬇ Export", value=None, visible=True,
-                            variant="secondary", size="sm", scale=1,
-                            elem_id="ta-history-export",
-                        )
-                        history_import_file = gr.File(
-                            label="⬆ Import (.jsonl)", file_types=[".jsonl",".json"],
-                            visible=True, scale=2, height=50,
-                        )
                         history_delete_btn  = gr.Button(
                             "🗑 Delete Selected", variant="stop", size="sm", scale=1,
                             interactive=False, elem_id="ta-history-delete",
@@ -7212,7 +7204,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                             elem_id="ta-history-clear",
                         )
                     history_action_status = gr.HTML(value="", visible=False)
-                    history_selected_id   = gr.State(value=None)   # id of selected row
+                    history_selected_id   = gr.State(value=None)
                     history_table = gr.Dataframe(
                         headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Tokens", "Cost", "Score", "Verdict"],
                         datatype=["str","str","str","number","str","str","str","str","str"],
@@ -7220,6 +7212,20 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                         wrap=True,
                     )
                     history_selected_summary = gr.Markdown(value="", label="Session Summary")
+
+                    with gr.Accordion("🗑 Trash", open=False):
+                        with gr.Row():
+                            trash_refresh_btn  = gr.Button("🔄 Refresh Trash", size="sm", scale=1)
+                            trash_restore_btn  = gr.Button("♻️ Restore Selected", variant="secondary", size="sm", scale=1, interactive=False)
+                            trash_empty_btn    = gr.Button("🗑 Empty Trash", variant="stop", size="sm", scale=1)
+                        trash_action_status = gr.HTML(value="", visible=False)
+                        trash_selected_id   = gr.State(value=None)
+                        trash_table = gr.Dataframe(
+                            headers=["Deleted", "File", "STT Engine", "Provider", "Score", "Verdict"],
+                            datatype=["str","str","str","str","str","str"],
+                            interactive=False,
+                            wrap=True,
+                        )
 
                 with gr.TabItem("Copy All"):
                     combined_out = gr.Textbox(
@@ -7661,63 +7667,55 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
     )
 
     # ── History export ────────────────────────────────────────────────────────
-    def _export_history():
-        """Return the history JSONL file path for download; create if empty."""
-        HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        if not HISTORY_PATH.exists():
-            HISTORY_PATH.write_text("", encoding="utf-8")
-        return gr.update(value=str(HISTORY_PATH), visible=True)
-
-    history_export_btn.click(fn=_export_history, outputs=history_export_btn)
-
-    # ── History import ────────────────────────────────────────────────────────
-    def _import_history(upload):
-        """Merge uploaded history JSONL into current history, deduplicating by id."""
-        if not upload:
-            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No file uploaded.</p>", visible=True), refresh_history()
-        try:
-            uploaded = Path(upload.name) if hasattr(upload, "name") else Path(str(upload))
-            existing = load_history(HISTORY_PATH)
-            existing_ids = {e.get("id") for e in existing if e.get("id")}
-            added = 0
-            with open(uploaded, encoding="utf-8", errors="replace") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
+    # ── Trash helpers ─────────────────────────────────────────────────────────
+    def _load_trash():
+        if not TRASH_PATH.exists():
+            return []
+        entries = []
+        with open(TRASH_PATH, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if line:
                     try:
-                        entry = json.loads(line)
-                        if entry.get("id") not in existing_ids:
-                            save_history_entry(entry, HISTORY_PATH)
-                            existing_ids.add(entry.get("id"))
-                            added += 1
+                        entries.append(json.loads(line))
                     except Exception:
                         pass
-            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Imported {added} new session(s) into history.</p>"
-            return gr.update(value=msg, visible=True), refresh_history()
-        except Exception as ex:
-            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Import failed: {ex}</p>", visible=True), refresh_history()
+        return list(reversed(entries))
 
-    history_import_file.change(
-        fn=_import_history,
-        inputs=[history_import_file],
-        outputs=[history_action_status, history_table],
-        queue=True,
-    )
+    def _append_to_trash(entry):
+        import datetime as _dt2
+        entry["deleted_at"] = _dt2.datetime.now().isoformat(timespec="seconds")
+        with open(TRASH_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
 
-    # ── Delete selected entry ─────────────────────────────────────────────────
+    def _refresh_trash():
+        rows = []
+        for e in _load_trash():
+            rows.append([
+                e.get("deleted_at", "")[:16],
+                Path(e.get("filename","")).name if e.get("filename") else e.get("file",""),
+                e.get("stt_engine",""),
+                e.get("provider",""),
+                str(e.get("interview_score","")) if e.get("interview_score") is not None else "",
+                e.get("verdict",""),
+            ])
+        return rows if rows else [["","","","","",""]]
+
+    # ── Delete selected → move to trash ──────────────────────────────────────
     def _delete_history_entry(entry_id):
         if not entry_id:
             return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No entry selected.</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
         try:
             entries = load_history(HISTORY_PATH)
-            kept = [e for e in entries if e.get("id") != entry_id]
-            # Rewrite the file with the remaining entries (oldest first)
+            kept    = [e for e in entries if e.get("id") != entry_id]
+            deleted = [e for e in entries if e.get("id") == entry_id]
+            for e in deleted:
+                _append_to_trash(e)
             HISTORY_PATH.write_text(
                 "\n".join(json.dumps(e, ensure_ascii=False, default=str) for e in reversed(kept)) + ("\n" if kept else ""),
                 encoding="utf-8",
             )
-            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Entry deleted.</p>"
+            msg = "<p style='color:#22c55e;font-size:0.82em;'>🗑 Moved to Trash — restore anytime from the Trash section below.</p>"
             return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
         except Exception as ex:
             return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Delete failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
@@ -7729,11 +7727,14 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
         queue=True,
     )
 
-    # ── Clear all history ─────────────────────────────────────────────────────
+    # ── Clear all → move all to trash ────────────────────────────────────────
     def _clear_all_history():
         try:
+            entries = load_history(HISTORY_PATH)
+            for e in entries:
+                _append_to_trash(e)
             HISTORY_PATH.write_text("", encoding="utf-8")
-            msg = "<p style='color:#22c55e;font-size:0.82em;'>✅ All history cleared.</p>"
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>🗑 {len(entries)} session(s) moved to Trash — restore anytime below.</p>"
             return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
         except Exception as ex:
             return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Clear failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
@@ -7741,6 +7742,66 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
     history_clear_btn.click(
         fn=_clear_all_history,
         outputs=[history_action_status, history_table, history_selected_id, history_delete_btn],
+        queue=True,
+    )
+
+    # ── Trash: load table ────────────────────────────────────────────────────
+    trash_refresh_btn.click(fn=_refresh_trash, outputs=[trash_table], queue=False)
+
+    # ── Trash: select row ────────────────────────────────────────────────────
+    def _select_trash_row(evt: gr.SelectData):
+        trash_entries = _load_trash()
+        idx = evt.index[0] if hasattr(evt, "index") else None
+        if idx is None or idx >= len(trash_entries):
+            return None, gr.update(interactive=False)
+        return trash_entries[idx].get("id"), gr.update(interactive=True)
+
+    trash_table.select(
+        fn=_select_trash_row,
+        outputs=[trash_selected_id, trash_restore_btn],
+        queue=False,
+    )
+
+    # ── Trash: restore selected ──────────────────────────────────────────────
+    def _restore_trash_entry(entry_id):
+        if not entry_id:
+            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No entry selected.</p>", visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+        try:
+            trash_entries = _load_trash()
+            to_restore    = [e for e in trash_entries if e.get("id") == entry_id]
+            remaining     = [e for e in trash_entries if e.get("id") != entry_id]
+            for e in to_restore:
+                e.pop("deleted_at", None)
+                save_history_entry(e, HISTORY_PATH)
+            TRASH_PATH.write_text(
+                "\n".join(json.dumps(e, ensure_ascii=False, default=str) for e in reversed(remaining)) + ("\n" if remaining else ""),
+                encoding="utf-8",
+            )
+            msg = "<p style='color:#22c55e;font-size:0.82em;'>♻️ Session restored to History.</p>"
+            return gr.update(value=msg, visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Restore failed: {ex}</p>", visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+
+    trash_restore_btn.click(
+        fn=_restore_trash_entry,
+        inputs=[trash_selected_id],
+        outputs=[trash_action_status, history_table, trash_table, trash_selected_id, trash_restore_btn],
+        queue=True,
+    )
+
+    # ── Trash: empty permanently ─────────────────────────────────────────────
+    def _empty_trash():
+        try:
+            count = len(_load_trash())
+            TRASH_PATH.write_text("", encoding="utf-8")
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>🗑 Trash emptied — {count} session(s) permanently deleted.</p>"
+            return gr.update(value=msg, visible=True), _refresh_trash()
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Failed: {ex}</p>", visible=True), _refresh_trash()
+
+    trash_empty_btn.click(
+        fn=_empty_trash,
+        outputs=[trash_action_status, trash_table],
         queue=True,
     )
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.3.7 — 2026-06-06
+- Fixed "Cannot find empty port" crash on Windows exe — app now kills the stale process holding port 7860, waits 1 second, then falls back to ports 7861–7869 if still busy
+- Fixed hidden update button showing "_upd" text in the UI — now fully invisible with display:none
+- Fixed TranscriptAgent-Windows.zip reappearing in every release — removed from release.yml workflow permanently
+
 ## v2.3.6 — 2026-06-06
 - Auto-updater for Windows exe: clicking "Update Now" downloads the new version in the background, shows a live progress bar, then silently relaunches the app on the new version — no manual steps
 - Update writes a PowerShell helper script that waits for the app to close, extracts the new zip, and restarts automatically

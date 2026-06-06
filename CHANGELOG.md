@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.3.4 — 2026-06-06
+- Stop button now fully resets the UI to initial state — no "Stopped" message, clears log, results, and downloads instantly
+- Fixed ffmpeg not found on Windows exe build — imageio-ffmpeg binary is now properly bundled in PyInstaller package
+- Fixed ffmpeg detection order: system ffmpeg checked first (better for Docker/Mac), imageio-ffmpeg as fallback (Windows)
+- Added PayPal donation button to app footer (paypal.me/jay247616)
+- Modernized README with badges, clean layout, and updated install/launch instructions
+- HuggingFace space is now public
+- Remotes consolidated — single `git push origin main` deploys to both GitHub and HuggingFace
+- Shortened large file warning text
+- Clarified Windows/Mac zip launch instructions: Desktop shortcut is the primary launch method after install
+
 ## v2.3.3 — 2026-06-06
 - Removed standalone Video Delivery card (role dropdowns + Analyze Video button) from Interview Analysis tab — it was appearing before analysis ran and triggering the kGpuService/EGL error on CPU-only HuggingFace Spaces
 - Video analysis now runs automatically as part of the main Analyze flow; role assignments are handled as hidden components

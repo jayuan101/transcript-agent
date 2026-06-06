@@ -6383,7 +6383,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.3.3"
+APP_VERSION = "2.3.4"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

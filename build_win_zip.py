@@ -1,6 +1,9 @@
 """Rebuild the Windows distribution zip with latest source files."""
-import zipfile
+import re, zipfile
 from pathlib import Path
+
+# Single source of truth — read version from app.py
+APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', Path("app.py").read_text()).group(1)
 
 out_zip = Path("dist/TranscriptAgent-Windows.zip")
 out_zip.parent.mkdir(exist_ok=True)
@@ -19,7 +22,7 @@ files = {
 }
 
 readme = (
-    "Transcript Agent v2.2.3 - Windows Package\n"
+    f"Transcript Agent v{APP_VERSION} - Windows Package\n"
     "==========================================\n\n"
     "QUICK START\n"
     "-----------\n"
@@ -51,6 +54,7 @@ readme = (
     "-----\n"
     "* Your API keys are stored only in .env - never sent to any server.\n"
     "* To update: run setup_windows.bat and choose [2] Check for updates.\n"
+    "* To fix GPU: run setup_windows.bat and choose [5] Fix GPU.\n"
     "* Video Analysis models (~9 MB) download automatically on first use.\n"
     "* For Ollama: install from https://ollama.ai then run: ollama pull gemma3:27b\n"
 )
@@ -62,4 +66,4 @@ with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     zf.writestr("TranscriptAgent/README.txt", readme)
     print("  + TranscriptAgent/README.txt")
 
-print(f"\nBuilt: {out_zip}  ({out_zip.stat().st_size / 1024:.0f} KB)")
+print(f"\nBuilt: {out_zip}  ({out_zip.stat().st_size / 1024:.0f} KB)  [v{APP_VERSION}]")

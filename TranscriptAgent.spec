@@ -7,14 +7,15 @@ Output: dist/TranscriptAgent/  (onedir — fast startup, no extraction delay)
 Version: bump APP_VERSION here — it propagates to Mac .app bundle info.
 """
 
-import sys
+import re, sys
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files, collect_all
 
-APP_VERSION = "2.2.3"
+# Single source of truth — read version from app.py
+HERE = Path(SPECPATH)
+APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', (HERE / "app.py").read_text()).group(1)
 
 block_cipher = None
-HERE = Path(SPECPATH)
 
 # Collect data files from Gradio and all its micro-dependencies that embed
 # version.txt or other data files at runtime

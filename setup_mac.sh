@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-#   Transcript Agent v2.2.3  |  macOS Installer
+#   Transcript Agent  |  macOS Installer  (version read from app.py)
 #   Run once to install, then double-click the Desktop launcher.
 #   Run again at any time to update, repair, or fix GPU.
 # ============================================================
@@ -11,7 +11,10 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="2.2.3"
+
+# Read version from app.py — single source of truth
+CURRENT_VERSION=$(grep -m1 '^APP_VERSION = ' "$APPDIR/app.py" 2>/dev/null | sed 's/.*"\([^"]*\)".*/\1/')
+[ -z "$CURRENT_VERSION" ] && CURRENT_VERSION="2.2.3"
 APP_URL="http://localhost:7860"
 GITHUB_REPO="jayuan101/transcript-agent"
 

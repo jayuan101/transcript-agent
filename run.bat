@@ -4,10 +4,16 @@ title Transcript Agent
 
 set "APPDIR=%~dp0"
 
+:: Read version from app.py — single source of truth
+set "APP_VER=2.2.3"
+for /f "tokens=*" %%l in ('findstr "^APP_VERSION = " "%APPDIR%app.py" 2^>nul') do (
+    for /f "tokens=3 delims= ^"" %%v in ("%%l") do set "APP_VER=%%v"
+)
+
 cls
 echo.
 echo  ============================================================
-echo    Transcript Agent v2.2.3
+echo    Transcript Agent v!APP_VER!
 echo  ============================================================
 echo.
 

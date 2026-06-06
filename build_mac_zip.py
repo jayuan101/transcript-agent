@@ -1,8 +1,9 @@
 """Build the Mac distribution zip with latest source files."""
-import zipfile
+import re, zipfile
 from pathlib import Path
 
-APP_VERSION = "2.2.3"
+# Single source of truth — read version from app.py
+APP_VERSION = re.search(r'APP_VERSION\s*=\s*"([^"]+)"', Path("app.py").read_text()).group(1)
 
 out_zip = Path("dist/TranscriptAgent-Mac.zip")
 out_zip.parent.mkdir(exist_ok=True)
@@ -61,4 +62,4 @@ with zipfile.ZipFile(out_zip, "w", compression=zipfile.ZIP_DEFLATED) as zf:
     zf.writestr("TranscriptAgent/README.txt", readme)
     print("  + TranscriptAgent/README.txt")
 
-print(f"\nBuilt: {out_zip}  ({out_zip.stat().st_size / 1024:.0f} KB)")
+print(f"\nBuilt: {out_zip}  ({out_zip.stat().st_size / 1024:.0f} KB)  [v{APP_VERSION}]")

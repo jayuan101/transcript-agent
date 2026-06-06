@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag (e.g. v2.2.3)'
+        description: 'Version tag (e.g. v2.2.3) — leave blank to read from app.py'
         required: false
-        default: 'v2.2.3'
+        default: ''
 
 permissions:
   contents: write
@@ -182,12 +182,13 @@ jobs:
       - name: Get version tag
         id: version
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.version }}" ]]; then
             echo "tag=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           elif [[ "${{ github.ref_type }}" == "tag" ]]; then
             echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=v2.2.3" >> $GITHUB_OUTPUT
+            VER=$(grep -m1 '^APP_VERSION' app.py | sed 's/.*"\([^"]*\)".*/\1/')
+            echo "tag=v${VER}" >> $GITHUB_OUTPUT
           fi
 
       - name: Publish Release

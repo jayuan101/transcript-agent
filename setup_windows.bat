@@ -7,7 +7,12 @@ set "APPDIR=%~dp0"
 set "VENV=%APPDIR%venv"
 set "VPYTHON=%VENV%\Scripts\python.exe"
 set "PIP=%VENV%\Scripts\pip.exe"
+
+:: Read version from app.py — single source of truth
 set "CURRENT_VERSION=2.2.3"
+for /f "tokens=*" %%l in ('findstr "^APP_VERSION = " "%APPDIR%app.py" 2^>nul') do (
+    for /f "tokens=3 delims= ^"" %%v in ("%%l") do set "CURRENT_VERSION=%%v"
+)
 
 cls
 echo.

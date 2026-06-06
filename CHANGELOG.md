@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.2.3 — 2026-06-06
+- In-app one-click update button: clicking "⬆ Update Now" in the browser runs git pull + pip install automatically — no terminal needed
+- GPU mismatch detection: app shows orange "⚠️ GPU Mismatch" badge when NVIDIA/Apple Silicon GPU is present but PyTorch CPU-only build is installed
+- Windows setup: new [5] Fix GPU option — uninstalls CPU torch, reinstalls correct CUDA 12.1/11.8 build based on driver version, verifies CUDA after
+- Mac setup: new [5] Fix GPU option — detects Apple Silicon + CPU torch mismatch, reinstalls PyTorch with MPS support, verifies MPS after
+- Mac setup: menu extended to [1-5], GPU mismatch warning shown automatically at launch
+- All version strings synced to v2.2.3 (build scripts, spec, README, run.bat, CI workflow)
+
 ## v2.2.2 — 2026-06-06
 - Setup: both Windows and Mac scripts now check GitHub on launch and show "UPDATE AVAILABLE: vX → vY" with a direct update button when a newer version exists
 - Synced all version strings (run.bat, build scripts, spec, README) to current version

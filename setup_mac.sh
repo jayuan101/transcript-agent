@@ -11,7 +11,7 @@ APPDIR="$(cd "$(dirname "$0")" && pwd)"
 VENV="$APPDIR/venv"
 VPYTHON="$VENV/bin/python"
 PIP="$VENV/bin/pip"
-CURRENT_VERSION="2.2.2"
+CURRENT_VERSION="2.2.3"
 APP_URL="http://localhost:7860"
 GITHUB_REPO="jayuan101/transcript-agent"
 

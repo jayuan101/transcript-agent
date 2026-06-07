@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.4.2 — 2026-06-06
+- Installer now checks for 64-bit Windows 10+ before installing — clear error message for unsupported systems
+- OTA launcher shows Windows toast notification when downloading an update so user knows what is happening
+- OTA launcher shows error dialog if app exe is missing rather than silently failing
+- Fixed shortcut WindowStyle (was minimized, now normal)
+- Fixed version.txt write — no trailing spaces, UTF-8 clean
+- Installer shows cleaner progress messages and confirms success at end
+
 ## v2.4.1 — 2026-06-06
 - Fixed Check for Updates button throwing error — was wired only on desktop, now hidden on HuggingFace and handler wired correctly on all platforms
 

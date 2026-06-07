@@ -6397,7 +6397,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.0"
+APP_VERSION = "2.4.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -6711,7 +6711,8 @@ with gr.Blocks(title=f"Transcript Agent v{APP_VERSION}") as demo:
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
     _hidden_update_btn = gr.Button("_upd", elem_id="ta-hidden-update-btn")
-    _check_update_btn  = gr.Button("🔄 Check for Updates", size="sm", variant="secondary", elem_id="ta-check-update-btn")
+    _on_hf_space = bool(os.environ.get("SPACE_ID"))
+    _check_update_btn  = gr.Button("🔄 Check for Updates", size="sm", variant="secondary", elem_id="ta-check-update-btn", visible=not _on_hf_space)
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)
@@ -8084,10 +8085,10 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
 
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
+    _check_update_btn.click(fn=_check_github_update, outputs=[update_banner], queue=False)
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
         _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner], show_progress=False)
-        _check_update_btn.click(fn=_check_github_update, outputs=[update_banner], queue=False)
 
     # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 

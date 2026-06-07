@@ -1,5 +1,8 @@
 # Changelog
 
+## v2.4.1 — 2026-06-06
+- Fixed Check for Updates button throwing error — was wired only on desktop, now hidden on HuggingFace and handler wired correctly on all platforms
+
 ## v2.4.0 — 2026-06-06
 - OTA auto-update built into every installer from day one — Desktop shortcut now launches a launcher that checks GitHub on every startup, downloads and installs any newer version silently, then starts the app
 - Users never need to manually download again — every launch is an update check

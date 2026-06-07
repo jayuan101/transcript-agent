@@ -159,7 +159,7 @@ jobs:
             'copy /Y "%~dp0ta_launcher.ps1" "%INSTALL_DIR%\ta_launcher.ps1" >nul 2>&1',
             'copy /Y "%~dp0Launch-TranscriptAgent.bat" "%INSTALL_DIR%\Launch-TranscriptAgent.bat" >nul 2>&1',
             ":: Write version",
-            "powershell -NoProfile -Command \"Set-Content -Path '%INSTALL_DIR%\\version.txt' -Value '$ver' -Encoding UTF8\"",
+            "echo $ver> `"%INSTALL_DIR%\version.txt`"",
             ':: Desktop shortcut',
             'echo  Creating Desktop shortcut...',
             'powershell -NoProfile -ExecutionPolicy Bypass -Command "$ws=New-Object -ComObject WScript.Shell; $s=$ws.CreateShortcut([Environment]::GetFolderPath(''Desktop'')+''\Transcript Agent.lnk''); $s.TargetPath=''%INSTALL_DIR%\Launch-TranscriptAgent.bat''; $s.WorkingDirectory=''%INSTALL_DIR%''; $s.IconLocation=''%INSTALL_DIR%\TranscriptAgent\TranscriptAgent.exe,0''; $s.WindowStyle=1; $s.Description=''Transcript Agent — AI transcription and interview analysis''; $s.Save()"',

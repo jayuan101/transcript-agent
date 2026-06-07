@@ -771,6 +771,24 @@ html.dark span, html.dark p, html.dark div, html.dark h1, html.dark h2,
 html.dark h3, html.dark h4, html.dark li, html.dark td { color: var(--ta-text) !important; }
 html.dark .label-wrap span, html.dark .block-label, html.dark label span,
 html.dark .info, html.dark .file-name { color: var(--ta-sub) !important; }
+
+/* ── Fix Gradio blue label badges — light + dark ── */
+.block-label, label > span, .label-wrap span,
+span.svelte-1b6s6s, .svelte-1b6s6s > span {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #374151 !important;
+  font-size: 0.82em !important;
+  font-weight: 600 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+html.dark .block-label, html.dark label > span, html.dark .label-wrap span,
+html.dark span.svelte-1b6s6s, html.dark .svelte-1b6s6s > span {
+  color: #94a3b8 !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
 html.dark .tabs > .tab-nav button {
   color: var(--ta-sub) !important; background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
 }
@@ -4588,7 +4606,9 @@ window.taClickUpdateBtn = function(btn) {
     'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container,html.dark .padded{background:#1e293b!important;border-color:#334155!important}',
     /* text — !important so Gradio's inline color= can't override */
     'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th,html.dark strong,html.dark em{color:#e2e8f0!important}',
-    /* labels */
+    /* labels — remove blue badge, plain text only */
+    '.block-label,label>span,.label-wrap span{background:transparent!important;background-color:transparent!important;color:#374151!important;font-size:0.82em!important;font-weight:600!important;padding:0!important;border-radius:0!important}',
+    'html.dark .block-label,html.dark label>span,html.dark .label-wrap span{color:#94a3b8!important;background:transparent!important;background-color:transparent!important}',
     'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#94a3b8!important}',
     /* inputs */
     'html.dark input,html.dark textarea,html.dark select,[role=combobox]{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',

@@ -230,11 +230,57 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller TranscriptAgent.spec
 
+      - name: Create OTA launcher for Mac
+        run: |
+          VER=$(grep -m1 '^APP_VERSION' app.py | sed 's/.*"\([^"]*\)".*/\1/')
+          mkdir -p dist/mac_launcher
+          # ta_launcher.sh — runs on every launch, checks GitHub, updates if needed
+          cat > dist/mac_launcher/ta_launcher.sh << 'LAUNCHER'
+#!/bin/bash
+INSTALL_DIR="$HOME/Applications/TranscriptAgent"
+APP_PATH="$INSTALL_DIR/TranscriptAgent.app"
+VER_FILE="$INSTALL_DIR/version.txt"
+CURRENT_VER=$(cat "$VER_FILE" 2>/dev/null || echo "0.0.0")
+REPO="jayuan101/transcript-agent"
+API="https://api.github.com/repos/$REPO/releases/latest"
+
+LATEST=$(curl -sf --max-time 8 "$API" | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+ASSET_URL=$(curl -sf --max-time 8 "$API" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a['browser_download_url'] for a in d.get('assets',[]) if a['name']=='TranscriptAgent-Mac.zip'),''))" 2>/dev/null)
+
+if [ -n "$LATEST" ] && [ "$LATEST" != "$CURRENT_VER" ] && [ -n "$ASSET_URL" ]; then
+  osascript -e "display notification \"Updating Transcript Agent to v$LATEST...\" with title \"Transcript Agent\""
+  ZIP="/tmp/ta_mac_update.zip"
+  curl -L "$ASSET_URL" -o "$ZIP" --silent
+  mkdir -p "$INSTALL_DIR"
+  unzip -o "$ZIP" -d "$INSTALL_DIR" -x "__MACOSX/*" > /dev/null 2>&1
+  echo "$LATEST" > "$VER_FILE"
+  rm -f "$ZIP"
+  osascript -e "display notification \"Updated to v$LATEST — launching now!\" with title \"Transcript Agent\""
+fi
+
+if [ -d "$APP_PATH" ]; then
+  open "$APP_PATH"
+else
+  osascript -e "display dialog \"Transcript Agent not found at: $APP_PATH\n\nPlease reinstall from GitHub.\" with title \"Launch Error\" buttons {\"OK\"} default button 1"
+fi
+LAUNCHER
+          chmod +x dist/mac_launcher/ta_launcher.sh
+          # .command wrapper — double-clickable in Finder
+          cat > dist/mac_launcher/"Launch Transcript Agent.command" << 'CMD'
+#!/bin/bash
+bash "$HOME/Applications/TranscriptAgent/ta_launcher.sh"
+CMD
+          chmod +x dist/mac_launcher/"Launch Transcript Agent.command"
+          echo "$VER" > dist/mac_launcher/version.txt
+
       - name: Create .dmg
         run: |
           brew install create-dmg || true
           mkdir -p dist/dmg_staging
           cp -r dist/TranscriptAgent.app dist/dmg_staging/
+          cp dist/mac_launcher/ta_launcher.sh dist/dmg_staging/
+          cp dist/mac_launcher/"Launch Transcript Agent.command" dist/dmg_staging/
+          cp dist/mac_launcher/version.txt dist/dmg_staging/
           create-dmg \
             --volname "Transcript Agent" \
             --window-pos 200 120 \
@@ -246,7 +292,7 @@ jobs:
             "dist/TranscriptAgent.dmg" \
             "dist/dmg_staging/" \
           || hdiutil create -volname "TranscriptAgent" \
-               -srcfolder dist/TranscriptAgent.app \
+               -srcfolder dist/dmg_staging \
                -ov -format UDZO dist/TranscriptAgent.dmg
 
       - name: Upload Mac artifacts

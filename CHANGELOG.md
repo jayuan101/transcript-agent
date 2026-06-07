@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.4.4 — 2026-06-07
+- Check for Updates now shows "You're up to date!" when already on latest version
+- Mac dmg now includes OTA launcher (ta_launcher.sh + Launch Transcript Agent.command) — same auto-update on launch as Windows
+- Mac OTA shows macOS notification when downloading update and when done
+
 ## v2.4.3 — 2026-06-07
 - Windows now ships as a single TranscriptAgent-Setup.exe installer — no zip, no bat files, just download and run
 - Inno Setup installer handles extraction, shortcuts, version.txt, and GPU detection in one click

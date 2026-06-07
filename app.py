@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Transcript Agent — Gradio UI with drag-and-drop | v2.1"""
 
 import os
@@ -458,29 +458,29 @@ _PROVIDERS = {
             # ── DEFAULT (best balance) ────────────────────────────────
             "gemma3:27b",         # Google Gemma 3 27B — best quality/size ratio ★ default
             # ── Best quality (48 GB+ RAM) ─────────────────────────────
-            "llama4:maverick",    # Meta Llama 4 Maverick — top MoE, long context
-            "llama4:scout",       # Meta Llama 4 Scout — fast MoE, 10M context
-            "llama3.3",           # Meta Llama 3.3 70B — proven instruction-following
-            "qwen3:235b-a22b",    # Alibaba Qwen 3 235B MoE — exceptional analysis
-            "qwen2.5:72b",        # Alibaba Qwen 2.5 72B — long context, multilingual
+            "llama4:maverick",    # Meta Llama 4 Maverick
+            "llama4:scout",       # Meta Llama 4 Scout
+            "llama3.3",           # Meta Llama 3.3 70B
+            "qwen3:235b-a22b",    # Qwen 3 235B MoE
+            "qwen2.5:72b",        # Alibaba Qwen 2.5 72B
             "deepseek-r1:70b",    # Strong reasoning + analysis
             # ── Best balance (16–24 GB RAM) ───────────────────────────
-            "qwen3:32b",          # Alibaba Qwen 3 32B — great reasoning + structured output
-            "qwen3:30b-a3b",      # Alibaba Qwen 3 30B MoE — fast, low RAM
-            "qwen2.5:32b",        # Alibaba Qwen 2.5 32B — solid baseline
+            "qwen3:32b",          # Qwen 3 32B
+            "qwen3:30b-a3b",      # Qwen 3 30B MoE
+            "qwen2.5:32b",        # Alibaba 32B
             "deepseek-r1:32b",    # Reasoning at 32B
             # ── Fast + capable (8–16 GB RAM) ─────────────────────────
-            "qwen3:14b",          # Alibaba Qwen 3 14B — best in class at size
-            "phi4",               # Microsoft Phi-4 14B — punches above its weight
-            "phi4-mini",          # Microsoft Phi-4 Mini — very fast, low RAM
-            "gemma3:12b",         # Google Gemma 3 12B — solid transcript work
-            "qwen3:8b",           # Alibaba Qwen 3 8B — fast JSON output
-            "qwen2.5:14b",        # Alibaba Qwen 2.5 14B — reliable structured output
-            "llama3.2",           # Meta 3B/11B — fastest option
+            "qwen3:14b",          # Qwen 3 14B
+            "phi4",               # Microsoft Phi-4 14B
+            "phi4-mini",          # Phi-4 Mini — fast
+            "gemma3:12b",         # Google Gemma 3 12B
+            "qwen3:8b",           # Qwen 3 8B
+            "qwen2.5:14b",        # Alibaba 14B
+            "llama3.2",           # Meta 3B/11B — fastest
             # ── Alternatives ─────────────────────────────────────────
-            "devstral",           # Mistral Devstral — strong reasoning/analysis
-            "mistral-small3.1",   # Mistral 22B — good multilingual
-            "mistral",            # Mistral 7B — lightweight baseline
+            "devstral",           # Mistral Devstral
+            "mistral-small3.1",   # Mistral 22B
+            "mistral",            # Mistral 7B
         ],
         # In Docker (GRADIO_SERVER_NAME=0.0.0.0) localhost refers to the
         # container — use host.docker.internal to reach Ollama on the host machine.
@@ -491,80 +491,58 @@ _PROVIDERS = {
         ),
     },
     "xAI (Grok)": {
-        "type": "openai_compat",
-        "placeholder": "xai-…",
-        "info": "console.x.ai → API keys · 🔒 Saved in your browser only — never on this server",
-        "models": [
-            "grok-4.3",            # Flagship — best balance of speed + reasoning
-            "grok-4-heavy",        # Most powerful — deep multi-step reasoning
-            "grok-4-fast",         # Fast variant — great for long transcripts
-            "grok-4.20-reasoning", # Extended thinking mode
-        ],
+        "type": "openai_compat", "placeholder": "xai-…",
+        "info": "console.x.ai → API keys · 🔒 Saved in your browser only",
+        "models": ["grok-4.3","grok-4-heavy","grok-4-fast","grok-4.20-reasoning"],
         "base_url": "https://api.x.ai/v1",
     },
     "DeepSeek": {
-        "type": "openai_compat",
-        "placeholder": "sk-…",
-        "info": "platform.deepseek.com → API keys · 🔒 Saved in your browser only — never on this server",
-        "models": [
-            "deepseek-v4-pro",    # 1.6T MoE flagship — best reasoning
-            "deepseek-v4-flash",  # 284B MoE — fast, cost-efficient
-            "deepseek-chat",      # Legacy alias → deepseek-v4-flash (non-thinking)
-            "deepseek-reasoner",  # Legacy alias → deepseek-v4-flash (thinking)
-        ],
+        "type": "openai_compat", "placeholder": "sk-…",
+        "info": "platform.deepseek.com → API keys · 🔒 Saved in your browser only",
+        "models": ["deepseek-v4-pro","deepseek-v4-flash","deepseek-chat","deepseek-reasoner"],
         "base_url": "https://api.deepseek.com/v1",
     },
     "OpenRouter": {
-        "type": "openai_compat",
-        "placeholder": "sk-or-…",
-        "info": "openrouter.ai → Keys · Access 400+ models with one key · 🔒 Saved in your browser only — never on this server",
-        "models": [
-            "anthropic/claude-opus-4-8",
-            "anthropic/claude-sonnet-4-6",
-            "openai/gpt-5.5",
-            "openai/gpt-4.1",
-            "google/gemini-3.5-flash",
-            "google/gemini-2.5-pro-preview",
-            "meta-llama/llama-4-maverick",
-            "deepseek/deepseek-r1",
-            "x-ai/grok-4.3",
-            "mistralai/mistral-large-2411",
-        ],
+        "type": "openai_compat", "placeholder": "sk-or-…",
+        "info": "openrouter.ai → Keys · 400+ models · 🔒 Saved in your browser only",
+        "models": ["anthropic/claude-opus-4-8","anthropic/claude-sonnet-4-6","openai/gpt-5.5","openai/gpt-4.1","google/gemini-3.5-flash","google/gemini-2.5-pro-preview","meta-llama/llama-4-maverick","deepseek/deepseek-r1","x-ai/grok-4.3","mistralai/mistral-large-2411"],
         "base_url": "https://openrouter.ai/api/v1",
     },
     "Cerebras": {
-        "type": "openai_compat",
-        "placeholder": "csk-…",
-        "info": "cloud.cerebras.ai → API keys · Ultra-fast ~1000 tok/s · 🔒 Saved in your browser only — never on this server",
-        "models": [
-            "gpt-oss-120b",            # 120B reasoning flagship
-            "zai-glm-4.7",             # GLM-4.7 — strong multilingual
-            "llama4-maverick",         # Meta Llama 4 Maverick
-            "llama4-scout",            # Meta Llama 4 Scout — 10M context
-            "llama-3.3-70b",           # Llama 3.3 70B — proven, reliable
-            "qwen-3-32b",              # Qwen 3 32B — great structured output
-            "deepseek-r1-distill-70b", # DeepSeek R1 distilled reasoning
-        ],
+        "type": "openai_compat", "placeholder": "csk-…",
+        "info": "cloud.cerebras.ai → API keys · ~1000 tok/s · 🔒 Saved in your browser only",
+        "models": ["gpt-oss-120b","zai-glm-4.7","llama4-maverick","llama4-scout","llama-3.3-70b","qwen-3-32b","deepseek-r1-distill-70b"],
         "base_url": "https://api.cerebras.ai/v1",
     },
     "Cohere": {
-        "type": "openai_compat",
-        "placeholder": "…",
-        "info": "dashboard.cohere.com → API keys · 🔒 Saved in your browser only — never on this server",
-        "models": [
-            "command-a-plus-05-2026",  # Latest — 218B MoE, vision, 48 languages
-            "command-a-03-2025",       # Previous flagship — strong analysis
-            "command-r-plus-08-2024",  # RAG-optimized, long context
-            "command-r-08-2024",       # Balanced — good for summaries
-            "command-r7b-12-2024",     # Lightweight — fast + cheap
-        ],
+        "type": "openai_compat", "placeholder": "…",
+        "info": "dashboard.cohere.com → API keys · 🔒 Saved in your browser only",
+        "models": ["command-a-plus-05-2026","command-a-03-2025","command-r-plus-08-2024","command-r-08-2024","command-r7b-12-2024"],
         "base_url": "https://api.cohere.com/compatibility/v1",
     },
 }
 
-OUT_DIR      = Path(__file__).parent / "outputs"
-OUT_DIR.mkdir(exist_ok=True)
+def _user_data_dir() -> Path:
+    import os, sys
+    if sys.platform == "win32":
+        base = Path(os.environ.get("APPDATA") or Path.home())
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "TranscriptAgent"
+
+OUT_DIR      = _user_data_dir() / "outputs"
+OUT_DIR.mkdir(parents=True, exist_ok=True)
 HISTORY_PATH = OUT_DIR / "history.jsonl"
+TRASH_PATH   = OUT_DIR / "trash.jsonl"
+
+# Migrate history from old bundle-relative path if present
+_old_history = Path(__file__).parent / "outputs" / "history.jsonl"
+if _old_history.exists() and not HISTORY_PATH.exists():
+    import shutil
+    HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(_old_history, HISTORY_PATH)
 
 _STT_CACHE_DIR = OUT_DIR / ".stt_cache"
 
@@ -833,9 +811,9 @@ html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !
   box-shadow: 0 4px 24px rgba(0,0,0,0.2);
   transition: background 0.3s ease, box-shadow 0.3s ease;
 }
-/* ── Light mode topbar — vibrant royal blue ── */
+/* ── Light mode topbar — consistent blue ── */
 html:not(.dark) .ta-topbar {
-  background: linear-gradient(135deg, #1e40af 0%, #2563eb 45%, #4f46e5 100%);
+  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
   box-shadow: 0 4px 24px rgba(37,99,235,0.3), 0 1px 6px rgba(37,99,235,0.15);
 }
 html:not(.dark) .ta-topbar::after {
@@ -922,37 +900,72 @@ input[type="checkbox"]:checked::after {
 }
 html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
 
-/* ── Analyze button ── */
+/* ── Analyze button pulse animation — blue-to-red ── */
+@keyframes ta-pulse-ring {
+  0%   { box-shadow: 0 0 0 0 rgba(99,60,220,0.75), 0 4px 18px rgba(99,60,220,0.55); }
+  60%  { box-shadow: 0 0 0 14px rgba(99,60,220,0), 0 4px 18px rgba(99,60,220,0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(99,60,220,0), 0 4px 18px rgba(99,60,220,0.45); }
+}
+html.dark button.ta-analyze-btn, html.dark #ta-float-analyze {
+  filter: brightness(1.1);
+}
+@keyframes ta-spin { to { transform: rotate(360deg); } }
+
+/* ── Analyze button — blue to red gradient ── */
 button.ta-analyze-btn, #ta-analyze-btn {
-  background: linear-gradient(135deg,#1d4ed8,#3b82f6) !important;
+  background: linear-gradient(135deg,#1d4ed8,#ef4444) !important;
   color: #fff !important; font-size: 0.92em !important; font-weight: 700 !important;
   border: none !important; border-radius: 9px !important;
   padding: 10px 20px !important; width: 100% !important;
-  box-shadow: 0 3px 12px rgba(29,78,216,0.3) !important;
-  letter-spacing: 0.02em !important; transition: all 0.18s !important;
+  letter-spacing: 0.02em !important; cursor: pointer !important;
+  animation: ta-pulse-ring 1.8s ease-out infinite !important;
+  transition: background 0.18s, transform 0.18s !important;
 }
-button.ta-analyze-btn:hover, #ta-analyze-btn:hover { transform: translateY(-1px) !important; box-shadow: 0 5px 18px rgba(29,78,216,0.45) !important; }
-html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn { background: linear-gradient(135deg,#1e40af,#3b82f6) !important; color: #fff !important; border: none !important; }
+button.ta-analyze-btn:hover, #ta-analyze-btn:hover {
+  background: linear-gradient(135deg,#1e40af,#dc2626) !important;
+  transform: translateY(-1px) !important;
+}
+button.ta-analyze-btn:active, #ta-analyze-btn:active {
+  transform: translateY(1px) !important;
+  animation: none !important;
+}
+button.ta-analyze-btn.ta-running, #ta-analyze-btn.ta-running {
+  background: linear-gradient(135deg,#1e3a8a,#b91c1c) !important;
+  animation: none !important;
+  cursor: default !important;
+  opacity: 0.85 !important;
+}
+html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn {
+  background: linear-gradient(135deg,#1e3a8a,#ef4444) !important;
+  color: #fff !important; border: none !important;
+}
 
 /* ── Stop / Cancel button ── */
 .ta-cancel-btn { flex: 0 0 auto !important; min-width: 80px !important; }
 .ta-cancel-btn button {
-  background: linear-gradient(135deg,#dc2626,#ef4444) !important;
+  background: #dc2626 !important;
   color: #fff !important;
-  border: none !important;
+  border: 2px solid #fca5a5 !important;
   border-radius: 8px !important;
   font-size: 0.85em !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: 0.03em !important;
   padding: 7px 14px !important;
-  box-shadow: 0 2px 8px rgba(220,38,38,0.35) !important;
-  transition: all 0.15s !important;
+  box-shadow: 0 3px 12px rgba(220,38,38,0.5), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  transition: all 0.12s !important;
   width: 100% !important;
+  cursor: pointer !important;
 }
 .ta-cancel-btn button:hover {
-  background: linear-gradient(135deg,#b91c1c,#dc2626) !important;
+  background: #b91c1c !important;
+  border-color: #f87171 !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(220,38,38,0.5) !important;
+  box-shadow: 0 5px 18px rgba(220,38,38,0.65) !important;
+}
+.ta-cancel-btn button:active {
+  transform: translateY(2px) !important;
+  box-shadow: 0 1px 4px rgba(220,38,38,0.4) !important;
+  background: #991b1b !important;
 }
 .ta-cancel-btn button:active { transform: translateY(0) !important; }
 html.dark .ta-cancel-btn button { box-shadow: 0 2px 10px rgba(239,68,68,0.4) !important; }
@@ -982,6 +995,10 @@ html.dark .ta-update-banner {
 .ta-upd-mac { background: #1f2937; color: #fff; }
 .ta-upd-mac:hover { background: #111827; transform: translateY(-1px); }
 .ta-upd-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none !important; }
+#ta-hidden-update-btn,#ta-hidden-update-btn button { display:none !important; visibility:hidden !important; opacity:0 !important; pointer-events:none !important; width:0 !important; height:0 !important; overflow:hidden !important; position:fixed !important; left:-9999px !important; }
+#ta-check-update-btn { margin:4px 0 8px 0 !important; }
+#ta-check-update-btn button { font-size:0.78em !important; padding:4px 12px !important; opacity:0.7; }
+#ta-check-update-btn button:hover { opacity:1; }
 
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
@@ -1783,6 +1800,129 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 if defl: pdf.set_font("Helvetica", "B", 10); pdf.cell(W, 5, f"Deflection Rate: {defl}%", new_x="LMARGIN", new_y="NEXT")
                 _body(adv_reason)
 
+        # ── Coding Challenges section ─────────────────────────────────────────
+        _coding = ia.get("coding_challenges", []) if ia and not ia.get("parse_error") else []
+        if _coding:
+            _section_header("CODING CHALLENGE ANALYSIS", *_C["accent"])
+            _det_role = (ia or {}).get("detected_role", "")
+            if _det_role and _det_role.lower() not in ("", "unknown"):
+                pdf.set_font("Helvetica", "I", 9)
+                pdf.set_text_color(*_C["sub"])
+                pdf.cell(W, 5, f"  Detected Role: {_s(_det_role)}", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
+
+            _cs = (ia or {}).get("coding_score")
+            if _cs is not None and str(_cs) not in ("", "null"):
+                try:
+                    _cs_num = int(str(_cs))
+                    _cs_col = (_C["great"] if _cs_num >= 8 else _C["good"]
+                               if _cs_num >= 6 else _C["ni"] if _cs_num >= 4 else _C["missed"])
+                except Exception:
+                    _cs_col = _C["sub"]
+                pdf.set_fill_color(*_cs_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 13)
+                pdf.cell(W, 9, f"  Coding Score: {_s(str(_cs))} / 10", new_x="LMARGIN", new_y="NEXT", fill=True)
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(4)
+
+            _CS_COL = {"Great": _C["great"], "Good": _C["good"],
+                       "Needs Improvement": _C["ni"], "Missed": _C["missed"]}
+            for _ch in _coding:
+                _cid      = _ch.get("id", "")
+                _prob     = _ch.get("problem", "")
+                _ans      = _ch.get("candidate_answer", "")
+                _sc       = _ch.get("score", "")
+                _reason   = _ch.get("score_reason", "")
+                _cappr    = _ch.get("candidate_approach", "")
+                _lang_req = _ch.get("language_requested", "")
+                _lang_used= _ch.get("language_used", "")
+                _libs     = _ch.get("libraries_used", "")
+                _opt      = _ch.get("optimal_solution", "")
+                _oappr    = _ch.get("optimal_approach", "")
+                _tc       = _ch.get("time_complexity", "")
+                _spc      = _ch.get("space_complexity", "")
+                _role_ctx = _ch.get("role_context", "")
+                _tip      = _ch.get("coaching_tip", "")
+                _sc_col   = _CS_COL.get(_sc, _C["sub"])
+
+                # Challenge header
+                pdf.ln(3)
+                pdf.set_fill_color(*_C["bg_grey"])
+                pdf.set_font("Helvetica", "B", 9)
+                pdf.set_text_color(*_C["header"])
+                pdf.multi_cell(W, 6, f"Challenge {_s(str(_cid))}: {_s(_prob)}", fill=True)
+
+                # Language / library line
+                _lang_line_parts = []
+                if _lang_req and _lang_req.lower() not in ("", "not specified"):
+                    _lang_line_parts.append(f"Asked in: {_lang_req}")
+                if _lang_used and _lang_used.lower() not in ("", "not specified"):
+                    _lang_line_parts.append(f"Solution: {_lang_used}")
+                if _libs and _libs.lower() not in ("", "none", "not specified"):
+                    _lang_line_parts.append(f"Libraries: {_libs}")
+                if _lang_line_parts:
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.cell(W, 4, "  " + "   |   ".join(_lang_line_parts), new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.ln(1)
+
+                # Score badge
+                pdf.set_fill_color(*_sc_col)
+                pdf.set_text_color(*_C["white"])
+                pdf.set_font("Helvetica", "B", 8)
+                pdf.cell(50, 5, f" {_s(_sc).upper()} ", fill=True)
+                if _reason:
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.set_font("Helvetica", "I", 8)
+                    pdf.multi_cell(W - 50, 5, f"  {_s(_reason)}")
+                else:
+                    pdf.ln(5)
+                pdf.set_text_color(0, 0, 0)
+
+                if _cappr:
+                    _label_block("CANDIDATE'S APPROACH", _cappr, _C["bg_grey"], _C["sub"])
+                if _ans:
+                    _label_block("WHAT THEY SAID / DID", _ans, _C["bg_grey"], _C["sub"])
+
+                # Optimal solution — dark code block
+                if _opt:
+                    pdf.ln(3)
+                    pdf.set_fill_color(15, 23, 42)
+                    pdf.set_text_color(148, 163, 184)
+                    pdf.set_font("Helvetica", "B", 7)
+                    _sol_hdr = "  OPTIMAL SOLUTION"
+                    if _lang_used: _sol_hdr += f" — {_lang_used}"
+                    if _libs and _libs.lower() not in ("", "none"): _sol_hdr += f" ({_libs})"
+                    pdf.cell(W, 5, _s(_sol_hdr), new_x="LMARGIN", new_y="NEXT", fill=True)
+                    pdf.set_font("Courier", "", 7.5)
+                    pdf.set_text_color(226, 232, 240)
+                    for _line in _opt.splitlines():
+                        pdf.set_fill_color(15, 23, 42)
+                        pdf.set_x(pdf.l_margin)
+                        pdf.multi_cell(W, 4.5, _s(_line) if _line.strip() else " ", fill=True)
+                    pdf.ln(2)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Helvetica", "", 9)
+
+                # Complexity + approach + role context
+                _pdf_parts = []
+                if _oappr:    _pdf_parts.append(f"Approach: {_s(_oappr)}")
+                if _tc:       _pdf_parts.append(f"Time: {_s(_tc)}")
+                if _spc:      _pdf_parts.append(f"Space: {_s(_spc)}")
+                if _role_ctx: _pdf_parts.append(f"Role context: {_s(_role_ctx)}")
+                if _pdf_parts:
+                    pdf.ln(2)
+                    pdf.set_font("Helvetica", "", 8)
+                    pdf.set_text_color(*_C["sub"])
+                    pdf.multi_cell(W, 4.5, "  " + "   |   ".join(_pdf_parts))
+                    pdf.set_text_color(0, 0, 0)
+
+                if _tip:
+                    _label_block("COACHING TIP (informational)", _tip, _C["bg_amber"], _C["ni"])
+
         # Video delivery section
         if va_result and not getattr(va_result, "error", None) and va_result.persons:
             _section_header("VIDEO DELIVERY ANALYSIS", 59, 130, 246)
@@ -1868,7 +2008,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 28   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 29   # yield this to keep connection alive without changes
 
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
@@ -1879,7 +2019,8 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
          net=gr.update(), stats=gr.update(), rs=None,
          iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
-         iv_vid=gr.update(), iv_prog=gr.update()):
+         iv_vid=gr.update(), iv_prog=gr.update(),
+         dl_wait=gr.update()):
     def _dl(v):
         if isinstance(v, gr.update().__class__): return v
         return gr.update(value=v, visible=bool(v)) if v else gr.update(visible=False)
@@ -1888,7 +2029,8 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
             _dl(dl_t), _dl(dl_s), _dl(dl_r), _dl(dl_c), _dl(dl_j), _dl(dl_p),
             _dl(dl_srt), _dl(dl_vtt), _dl(dl_docx),
             dl_acc, log, eta, net, stats, rs,
-            iv_scores, iv_tl, iv_sum, iv_vid, iv_prog)
+            iv_scores, iv_tl, iv_sum, iv_vid, iv_prog,
+            dl_wait)
 
 
 # Pricing: (input $/MTok, output $/MTok)
@@ -1913,17 +2055,14 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gemini-2.5-flash":             ( 0.15,  0.60),
     "gemini-2.0-flash":             ( 0.075, 0.30),
     "gemini-2.0-flash-lite":        ( 0.019, 0.075),
-    # xAI Grok
     "grok-4.3":                     ( 1.25,  2.50),
     "grok-4-heavy":                 ( 3.00, 15.00),
     "grok-4-fast":                  ( 1.25,  2.50),
     "grok-4.20-reasoning":          ( 1.25,  2.50),
-    # DeepSeek
     "deepseek-v4-pro":              ( 0.55,  2.19),
     "deepseek-v4-flash":            ( 0.27,  1.10),
     "deepseek-chat":                ( 0.27,  1.10),
     "deepseek-reasoner":            ( 0.55,  2.19),
-    # Cerebras (ultra-fast, flat input=output pricing)
     "gpt-oss-120b":                 ( 0.60,  0.60),
     "zai-glm-4.7":                  ( 0.60,  0.60),
     "llama4-maverick":              ( 0.80,  0.80),
@@ -1931,7 +2070,6 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "llama-3.3-70b":                ( 0.60,  0.60),
     "qwen-3-32b":                   ( 0.60,  0.60),
     "deepseek-r1-distill-70b":      ( 0.60,  0.60),
-    # Cohere
     "command-a-plus-05-2026":       ( 2.50, 10.00),
     "command-a-03-2025":            ( 2.50, 10.00),
     "command-r-plus-08-2024":       ( 2.50, 10.00),
@@ -2247,7 +2385,7 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
 def _net_panel_html(direction: str, received: int, total: int,
                     speed_bps: float = 0, done: bool = False) -> str:
     if done:
-        return ""
+        return gr.update()  # let JS keep rendering; never blank it out
     recv_mb  = received / 1_048_576
     speed_mb = speed_bps / 1_048_576
     pct      = min(100.0, received / total * 100) if total > 0 else 0
@@ -2674,9 +2812,164 @@ def _build_interview_html(ia: dict) -> str:
             f'<div style="font-weight:700;margin-bottom:4px;">🔬 Deep Analysis</div>'
             f'<div>Deflection rate: <b>{ia.get("deflection_rate","—")}%</b> · '
             f'Advance likelihood: <b>{ia.get("advance_likelihood","—")}%</b></div>'
-            f'<div style="font-size:0.82em;margin-top:4px;color:#475569;">'
+            f'<div style="font-size:0.82em;margin-top:4px;color:var(--ta-card-sub,#475569);">'
             f'{ia.get("advance_reasoning","")}</div></div>'
         )
+
+    # ── Coding Challenges ────────────────────────────────────────────────────
+    _coding = ia.get("coding_challenges", [])
+    if _coding:
+        _cs = ia.get("coding_score")
+        _cs_disp = f"{_cs} / 10" if _cs is not None and str(_cs) not in ("", "null") else None
+        try:
+            _cs_num = int(str(_cs)) if _cs_disp else None
+            _cs_bg  = ("#166534" if _cs_num >= 8 else "#1d4ed8" if _cs_num >= 6
+                       else "#92400e" if _cs_num >= 4 else "#991b1b")
+        except Exception:
+            _cs_num, _cs_bg = None, "#1e293b"
+
+        html += '<div style="margin-top:24px;">'
+        if _cs_disp:
+            html += (
+                f'<div style="background:{_cs_bg};border-radius:14px;padding:16px 22px;'
+                f'margin-bottom:16px;display:flex;align-items:center;gap:16px;">'
+                f'<div style="background:rgba(255,255,255,0.18);border-radius:10px;'
+                f'padding:8px 16px;text-align:center;min-width:80px;">'
+                f'<div style="font-size:2.2em;font-weight:900;color:#fff;line-height:1;">{_cs}</div>'
+                f'<div style="font-size:0.7em;font-weight:700;color:rgba(255,255,255,0.75);'
+                f'text-transform:uppercase;letter-spacing:.08em;">out of 10</div></div>'
+                f'<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.1em;color:rgba(255,255,255,0.7);">💻 Coding Score</div>'
+                f'</div>'
+            )
+
+        html += (
+            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:.1em;color:#64748b;margin-bottom:12px;">💻 Coding Challenges</div>'
+        )
+
+        # Show detected role badge
+        _role = ia.get("detected_role", "")
+        if _role and _role.lower() not in ("", "unknown"):
+            html += (
+                f'<div style="display:inline-flex;align-items:center;gap:8px;'
+                f'background:#0f172a;border-radius:20px;padding:5px 14px;margin-bottom:12px;">'
+                f'<span style="font-size:0.75em;color:#94a3b8;">🎯 Role detected:</span>'
+                f'<span style="font-size:0.82em;font-weight:700;color:#38bdf8;">{_role}</span>'
+                f'</div>'
+            )
+
+        _CC_COL = {"Great":"#22c55e","Good":"#3b82f6","Needs Improvement":"#f59e0b","Missed":"#ef4444"}
+        for _ch in _coding:
+            _sc      = _ch.get("score","")
+            _col     = _CC_COL.get(_sc,"#6b7280")
+            _prob    = _ch.get("problem","")
+            _ans     = _ch.get("candidate_answer","")
+            _cappr   = _ch.get("candidate_approach","")
+            _lang_req= _ch.get("language_requested","")
+            _lang_used=_ch.get("language_used","")
+            _libs    = _ch.get("libraries_used","")
+            _role_ctx= _ch.get("role_context","")
+            _opt     = _ch.get("optimal_solution","").replace("<","&lt;").replace(">","&gt;")
+            _oappr   = _ch.get("optimal_approach","")
+            _tc      = _ch.get("time_complexity","")
+            _spc     = _ch.get("space_complexity","")
+            _tip     = _ch.get("coaching_tip","")
+            _reason  = _ch.get("score_reason","")
+
+            # Build language/library badges
+            _lang_badges = ""
+            if _lang_req and _lang_req.lower() not in ("", "not specified"):
+                _lang_badges += (
+                    f'<span style="background:#1e3a5f;color:#60a5fa;font-size:0.75em;font-weight:700;'
+                    f'padding:3px 10px;border-radius:20px;border:1px solid #3b82f6;">Asked in: {_lang_req}</span> '
+                )
+            if _lang_used and _lang_used.lower() not in ("", "not specified"):
+                _lang_badges += (
+                    f'<span style="background:#052e16;color:#86efac;font-size:0.75em;font-weight:700;'
+                    f'padding:3px 10px;border-radius:20px;border:1px solid #22c55e;">{_lang_used}</span> '
+                )
+            if _libs and _libs.lower() not in ("", "none", "not specified"):
+                for _lib in _libs.split(","):
+                    _lib = _lib.strip()
+                    if _lib:
+                        _lang_badges += (
+                            f'<span style="background:#1c1917;color:#fdba74;font-size:0.75em;font-weight:700;'
+                            f'padding:3px 10px;border-radius:20px;border:1px solid #f97316;">{_lib}</span> '
+                        )
+
+            # Optimal solution header — shows language
+            _sol_header = "✅ Optimal Solution"
+            if _lang_used:
+                _sol_header += f" — {_lang_used}"
+            if _libs and _libs.lower() not in ("", "none", "not specified"):
+                _sol_header += f" ({_libs})"
+
+            html += (
+                f'<div class="ta-q-card" style="border:2px solid {_col};margin-bottom:14px;">'
+                f'<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;">'
+                f'<span style="background:{_col};color:#fff;font-size:0.78em;font-weight:800;'
+                f'padding:3px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0;margin-top:2px;">💻</span>'
+                f'<div class="ta-q-title">{_prob}</div></div>'
+                + (f'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">{_lang_badges}</div>'
+                   if _lang_badges else '')
+                + f'<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center;">'
+                f'<span style="background:{_col};color:#fff;font-size:0.8em;font-weight:800;'
+                f'padding:4px 14px;border-radius:20px;">{_sc}</span>'
+                f'<span class="ta-q-reason">{_reason}</span></div>'
+            )
+            if _cappr:
+                html += (
+                    f'<div class="ta-q-said">'
+                    f'<div class="ta-q-said-label">🧠 Candidate\'s Approach</div>'
+                    f'<p class="ta-q-said-text">{_cappr}</p></div>'
+                )
+            if _ans:
+                _ans_escaped = _ans.replace("<","&lt;").replace(">","&gt;")
+                html += (
+                    f'<div style="margin:10px 0;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:#fbbf24;background:#1c1917;'
+                    f'padding:6px 14px;border-radius:8px 8px 0 0;">📝 Candidate\'s Answer</div>'
+                    f'<pre style="background:#1c1917;color:#fef3c7;font-size:0.8em;'
+                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
+                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_ans_escaped}</pre>'
+                    f'</div>'
+                )
+            if _opt:
+                html += (
+                    f'<div style="margin:10px 0;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:#22d3ee;background:#0f172a;'
+                    f'padding:6px 14px;border-radius:8px 8px 0 0;">{_sol_header}</div>'
+                    f'<pre style="background:#0f172a;color:#e2e8f0;font-size:0.8em;'
+                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
+                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_opt}</pre>'
+                    f'</div>'
+                )
+            _meta_parts = []
+            if _oappr:    _meta_parts.append(f"<b>Approach:</b> {_oappr}")
+            if _tc:       _meta_parts.append(f"<b>Time:</b> {_tc}")
+            if _spc:      _meta_parts.append(f"<b>Space:</b> {_spc}")
+            if _role_ctx: _meta_parts.append(f"<b>Role context:</b> {_role_ctx}")
+            if _meta_parts:
+                html += (
+                    f'<div style="font-size:0.82em;color:var(--ta-card-text,#475569);margin:6px 0;'
+                    f'padding:8px 12px;background:var(--ta-card-bg,#f1f5f9);'
+                    f'border:1px solid var(--ta-card-border,#e2e8f0);border-radius:6px;">'
+                    + "<br>".join(_meta_parts) + "</div>"
+                )
+            if _tip:
+                html += (
+                    f'<div class="ta-q-tip">'
+                    f'<div class="ta-q-tip-label">🏋️ Coaching Tip '
+                    f'<span style="font-weight:400;font-size:0.85em;opacity:0.7;">(informational — does not affect score)</span></div>'
+                    f'<p class="ta-q-tip-text">{_tip}</p></div>'
+                )
+            html += '</div>'
+
+        html += '</div>'
+
     html += '</div>'
     return html
 
@@ -2715,7 +3008,7 @@ def _build_unified_interview_html(ia: dict, va_result) -> str:
             delivery += (
                 '<div style="margin-top:16px;border:1px solid #e2e8f0;border-radius:14px;'
                 'padding:16px;background:var(--ta-card-bg,#f8fafc);">'
-                '<div style="font-weight:800;color:#475569;margin-bottom:8px;font-size:0.9em;">'
+                '<div style="font-weight:800;color:var(--ta-card-text,#475569);margin-bottom:8px;font-size:0.9em;">'
                 'Emotion Timeline</div>'
                 + tl_html
                 + '</div>'
@@ -2775,7 +3068,7 @@ def process_file(
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
     # API key not needed when transcription only — no AI call is made
     if not api_key and provider_name != "Ollama (Local)" and not transcription_only:
-        yield _err(f"Please enter your {provider_name} API key at the top of the page.")
+        yield _err(f"Add your {provider_name} API key at the top to get started.")
         return
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
@@ -2808,7 +3101,7 @@ def process_file(
     _file2 = (path_input_2 or "").strip().strip('"').strip("'")
 
     if not uploaded_file:
-        yield _err("Please drag a file, paste a file path, or paste a URL above.")
+        yield _err("Drop a file, paste a file path, or paste a URL above to get started.")
         return
 
     # ── Log helpers (must be defined before download section uses them) ────────
@@ -3457,8 +3750,8 @@ def process_file(
                 log_text = _add_log(f"🎤 {eng_label} — {result.stt_seconds:.1f}s", "done")
 
             _f_t_path = job_dir / f"{stem}_transcript.txt"
+            _f_t_path.write_text(result.clean_transcript, encoding="utf-8")
             if transcription_only:
-                _f_t_path.write_text(result.clean_transcript, encoding="utf-8")
                 f_t = str(_f_t_path)
                 f_s = f_r = f_c = f_j = f_p = None
                 f_srt = f_vtt = f_docx = None
@@ -3506,20 +3799,24 @@ def process_file(
                     _va_combined_section = "\n".join(_lines)
                     combined_text = combined_text + _va_combined_section
 
-                # ── Regenerate DOCX with interview analysis included ──────────
-                if f_docx:
-                    try:
-                        from transcript_agent import generate_docx as _gen_docx
-                        _gen_docx(result, stem, f_docx)
-                    except Exception:
-                        pass
+                # ── Generate DOCX (always — includes all sections + video) ──────
+                f_docx_path = job_dir / f"{stem}_report.docx"
+                try:
+                    from transcript_agent import generate_docx as _gen_docx
+                    _gen_docx(result, stem, str(f_docx_path), va_result=_va_res)
+                    f_docx = str(f_docx_path) if f_docx_path.exists() else None
+                except Exception:
+                    f_docx = None
 
+                # ── Generate PDF (always — includes all sections + video) ────────
                 f_p_path = job_dir / f"{stem}_report.pdf"
                 try:
                     _generate_pdf(stem, combined_text, f_p_path,
                                  result=result, va_result=_va_res)
                     f_p = str(f_p_path)
-                except Exception:
+                except Exception as _pdf_err:
+                    import traceback as _tb
+                    print(f"[PDF ERROR] {_pdf_err}\n{_tb.format_exc()}", flush=True)
                     f_p = None
 
             # ── Translate transcript output if a different language was chosen ──
@@ -3565,6 +3862,7 @@ def process_file(
                 dl_t=f_t, dl_s=f_s, dl_r=f_r, dl_c=f_c, dl_j=f_j, dl_p=f_p,
                 dl_srt=f_srt, dl_vtt=f_vtt, dl_docx=f_docx,
                 dl_acc=gr.update(open=True),
+                dl_wait=gr.update(visible=False),
 
                 stats=_stats_panel_html(total_elapsed, _tok_in, _tok_out,
                                         _total_dl_mb, _peak_dl_speed, done=True,
@@ -3597,12 +3895,17 @@ def process_file(
         elif kind == "error":
             err_msg = str(msg[1])
             if "cancelled" in err_msg.lower():
-                stopped_elapsed = _elapsed()
-                log_text = _add_log("⏹ Stopped by user.", "warn")
                 yield _out(
-                    status=_status_compact("⏹", "Stopped.", stopped_elapsed),
+                    status=_IDLE_STATUS,
                     eta=_eta_panel_html("idle"),
-                    log=log_text,
+                    log=_IDLE_LOG,
+                    summary=gr.update(value=""), transcript=gr.update(value=""),
+                    dialogue=gr.update(value=""), profiles=gr.update(value=""),
+                    analytics=gr.update(value=""), combined=gr.update(value=""),
+                    interview=gr.update(value=""),
+                    dl_t=None, dl_s=None, dl_r=None, dl_c=None,
+                    dl_j=None, dl_p=None, dl_srt=None, dl_vtt=None, dl_docx=None,
+                    dl_acc=gr.update(open=False),
                 )
             else:
                 display_msg = _friendly_api_error(err_msg, provider_name, model_name)
@@ -3892,6 +4195,16 @@ window.taDoUpdate = function(url, btn, platform) {
   }, 1800);
 };
 
+window.taClickUpdateBtn = function(btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Updating…';
+  var prog = document.getElementById('ta-update-progress');
+  if (prog) prog.style.display = 'block';
+  /* Trigger the hidden Gradio update button */
+  var hidden = document.getElementById('ta-hidden-update-btn');
+  if (hidden) hidden.click();
+};
+
 (function(){
   window.__taThemeRan = true;
   var _dark = false;
@@ -3947,7 +4260,7 @@ window.taDoUpdate = function(url, btn, platform) {
         '@keyframes ta-spin{to{transform:rotate(360deg)}}'
         + '#ta-float-analyze{transition:background 0.3s,box-shadow 0.3s,transform 0.15s!important}'
         + '#ta-float-ring{position:absolute;width:62px;height:62px;border-radius:50%;'
-        + 'border:3px solid transparent;border-top-color:#ef4444;border-right-color:#ef4444;'
+        + 'border:3px solid transparent;border-top-color:#3b82f6;border-right-color:#3b82f6;'
         + 'pointer-events:none;animation:ta-spin 0.9s linear infinite;display:none;'
         + 'top:-3px;left:-3px;}'
       );
@@ -3983,12 +4296,12 @@ window.taDoUpdate = function(url, btn, platform) {
       fbtn.id = 'ta-float-analyze';
       fbtn.style.cssText = (
         'width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;'
-        + 'background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;'
+        + 'background:linear-gradient(135deg,#1d4ed8,#ef4444);color:#fff;'
         + 'font-size:1.5em;display:flex;align-items:center;justify-content:center;'
-        + 'box-shadow:0 4px 24px rgba(29,78,216,0.5);outline:none;pointer-events:all;'
-        + 'position:relative;z-index:1;'
+        + 'box-shadow:0 4px 24px rgba(99,60,220,0.65);outline:none;pointer-events:all;'
+        + 'position:relative;z-index:1;animation:ta-pulse-ring 1.8s ease-out infinite;'
       );
-      fbtn.textContent = '▶';
+      fbtn.textContent = '⏺';
 
       fbtn.addEventListener('mouseenter', function() {
         if (fbtn.dataset.mode !== 'stop') this.style.transform = 'scale(1.1)';
@@ -4016,22 +4329,28 @@ window.taDoUpdate = function(url, btn, platform) {
       var flabel = document.getElementById('ta-float-label');
       var fring  = document.getElementById('ta-float-ring');
       if (!fbtn) return;
+      /* also update the main sidebar analyze button */
+      var mainBtn = document.querySelector('#ta-analyze-btn button, button.ta-analyze-btn');
       if (mode === 'stop') {
         fbtn.textContent = '⏹';
-        fbtn.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
-        fbtn.style.boxShadow = '0 4px 20px rgba(239,68,68,0.55)';
+        fbtn.style.background = 'linear-gradient(135deg,#7f1d1d,#b91c1c)';
+        fbtn.style.boxShadow = '0 4px 20px rgba(127,29,29,0.7)';
+        fbtn.style.animation = 'none';
         fbtn.dataset.mode = 'stop';
         flabel.textContent = 'Stop';
-        flabel.style.background = 'rgba(185,28,28,0.85)';
+        flabel.style.background = 'rgba(127,29,29,0.9)';
         if (fring) fring.style.display = 'block';
+        if (mainBtn) { mainBtn.classList.add('ta-running'); mainBtn.textContent = '⏸  Running…'; }
       } else {
-        fbtn.textContent = '▶';
-        fbtn.style.background = 'linear-gradient(135deg,#1d4ed8,#3b82f6)';
-        fbtn.style.boxShadow = '0 4px 20px rgba(29,78,216,0.5)';
+        fbtn.textContent = '⏺';
+        fbtn.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
+        fbtn.style.boxShadow = '0 4px 24px rgba(220,38,38,0.55)';
+        fbtn.style.animation = 'ta-pulse-ring 1.8s ease-out infinite';
         fbtn.dataset.mode = 'analyze';
         flabel.textContent = 'Analyze';
-        flabel.style.background = 'rgba(29,78,216,0.85)';
+        flabel.style.background = 'rgba(185,28,28,0.85)';
         if (fring) fring.style.display = 'none';
+        if (mainBtn) { mainBtn.classList.remove('ta-running'); mainBtn.textContent = '⏺  Analyze'; }
       }
     }
 
@@ -4114,12 +4433,15 @@ window.taDoUpdate = function(url, btn, platform) {
       '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important;background:transparent!important}',
       /* ── Accordions ── */
       '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
-      /* ── Analyze button — compact, pill style ── */
-      'button.ta-analyze-btn,#ta-analyze-btn{background:linear-gradient(135deg,#1d4ed8,#3b82f6)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;box-shadow:0 3px 12px rgba(29,78,216,0.35)!important;letter-spacing:0.02em!important;transition:all 0.18s!important;width:100%!important}',
-      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(29,78,216,0.48)!important}',
+      /* ── Analyze button — pulsing red ── */
+      '@keyframes ta-pulse-ring{0%{box-shadow:0 0 0 0 rgba(220,38,38,0.55),0 3px 12px rgba(220,38,38,0.35)}60%{box-shadow:0 0 0 10px rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}}',
+      'button.ta-analyze-btn,#ta-analyze-btn,#ta-float-analyze{background:linear-gradient(135deg,#1d4ed8,#ef4444)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;letter-spacing:0.02em!important;cursor:pointer!important;width:100%!important;animation:ta-pulse-ring 1.8s ease-out infinite!important;box-shadow:0 3px 12px rgba(99,60,220,0.35)!important}',
+      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{background:linear-gradient(135deg,#991b1b,#dc2626)!important;transform:translateY(-1px)!important}',
+      'button.ta-analyze-btn.ta-running,#ta-analyze-btn.ta-running{background:linear-gradient(135deg,#7f1d1d,#b91c1c)!important;animation:none!important;opacity:0.85!important;cursor:default!important}',
       /* ── Stop / Cancel button ── */
-      '#ta-cancel-btn button,.ta-cancel-btn button{background:linear-gradient(135deg,#dc2626,#ef4444)!important;color:#fff!important;border:none!important;border-radius:8px!important;font-size:0.85em!important;font-weight:700!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 2px 8px rgba(220,38,38,0.35)!important;transition:all 0.15s!important;width:100%!important}',
-      '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:linear-gradient(135deg,#b91c1c,#dc2626)!important;transform:translateY(-1px)!important;box-shadow:0 4px 14px rgba(220,38,38,0.5)!important}',
+      '#ta-cancel-btn button,.ta-cancel-btn button{background:#dc2626!important;color:#fff!important;border:2px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:800!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 3px 12px rgba(220,38,38,0.5),inset 0 1px 0 rgba(255,255,255,0.15)!important;transition:all 0.12s!important;width:100%!important;cursor:pointer!important}',
+      '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:#b91c1c!important;border-color:#f87171!important;transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(220,38,38,0.65)!important}',
+      '#ta-cancel-btn button:active,.ta-cancel-btn button:active{transform:translateY(2px)!important;box-shadow:0 1px 4px rgba(220,38,38,0.4)!important;background:#991b1b!important}',
       /* ── Scrollable dropdowns ── */
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
@@ -4293,7 +4615,7 @@ window.taDoUpdate = function(url, btn, platform) {
     /* buttons */
     'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
     'html.dark button.selected{background:#334155!important}',
-    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1e40af,#3b82f6)!important;color:#fff!important;border:none!important;box-shadow:0 3px 12px rgba(29,78,216,0.5)!important}',
+    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#991b1b,#ef4444)!important;color:#fff!important;border:none!important}',
     /* theme toggle — restore correct colors */
     'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
     'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
@@ -4353,54 +4675,6 @@ window.taDoUpdate = function(url, btn, platform) {
     'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
     'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
-    /* large file banner dark */
-    'html.dark .ta-large-file-banner{background:#1c1207!important;border-color:#78350f!important}',
-    'html.dark .ta-large-file-banner,html.dark .ta-large-file-banner strong{color:#fbbf24!important}',
-  ].join('');
-
-  var LIGHT_RULES = [
-    /* Gradio vars + base */
-    'html:not(.dark){color-scheme:light;color:#0d1b2e!important;background:#f0f4fb!important}',
-    'html:not(.dark) body,html:not(.dark) .gradio-container,html:not(.dark) .main,html:not(.dark) .contain{background:#f0f4fb!important;color:#0d1b2e!important}',
-    /* blocks */
-    'html:not(.dark) .block,html:not(.dark) .form,html:not(.dark) .wrap,html:not(.dark) .panel-full-width,html:not(.dark) .compact,html:not(.dark) .padded{background:#ffffff!important;border-color:#dde3ef!important;box-shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 16px rgba(0,0,0,0.04)!important}',
-    /* inputs */
-    'html:not(.dark) input,html:not(.dark) textarea,html:not(.dark) select,[role=combobox]{background:#ffffff!important;color:#0d1b2e!important;border-color:#dde3ef!important}',
-    'html:not(.dark) input::placeholder,html:not(.dark) textarea::placeholder{color:#94a3b8!important;opacity:1!important}',
-    'html:not(.dark) input[type=text]:focus,html:not(.dark) input[type=password]:focus,html:not(.dark) textarea:focus{border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,0.12)!important}',
-    /* tabs */
-    'html:not(.dark) .tabs>.tab-nav{border-bottom-color:#e8edf4!important}',
-    'html:not(.dark) .tabs>.tab-nav button{color:#5a6a83!important;background:transparent!important;border-color:transparent!important}',
-    'html:not(.dark) .tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom-color:#2563eb!important;background:transparent!important}',
-    'html:not(.dark) .tabitem{background:#f0f4fb!important}',
-    /* text */
-    'html:not(.dark) .label-wrap span,html:not(.dark) .block-label,html:not(.dark) label>span{color:#5a6a83!important}',
-    'html:not(.dark) .info{color:#6b7280!important}',
-    'html:not(.dark) .prose,html:not(.dark) .markdown{color:#0d1b2e!important;background:transparent!important}',
-    'html:not(.dark) .prose *,html:not(.dark) .markdown *{color:#0d1b2e!important}',
-    'html:not(.dark) .prose a,html:not(.dark) .markdown a{color:#2563eb!important}',
-    /* dropdowns */
-    'html:not(.dark) [role=listbox]{background:#ffffff!important;border-color:#dde3ef!important;box-shadow:0 8px 24px rgba(0,0,0,0.08)!important}',
-    'html:not(.dark) [role=option]{color:#0d1b2e!important;background:#ffffff!important}',
-    'html:not(.dark) [role=option]:hover,html:not(.dark) [role=option][aria-selected=true]{background:#dbeafe!important;color:#1d4ed8!important}',
-    /* accordion */
-    'html:not(.dark) .accordion,html:not(.dark) details{background:#ffffff!important;border-color:#dde3ef!important}',
-    'html:not(.dark) .accordion .label-wrap,html:not(.dark) details summary{color:#0d1b2e!important}',
-    /* buttons */
-    'html:not(.dark) button{background:#ffffff!important;border-color:#dde3ef!important;color:#0d1b2e!important}',
-    /* upload */
-    'html:not(.dark) .upload-container{border-color:#cbd5e1!important;background:#ffffff!important}',
-    'html:not(.dark) .file-preview{background:#ffffff!important;color:#0d1b2e!important}',
-    /* theme toggle */
-    'html:not(.dark) #ta-btn-light{background:#2563eb!important;color:#fff!important}',
-    'html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5a6a83!important}',
-    /* scrollbars */
-    'html:not(.dark) ::-webkit-scrollbar-track{background:#f0f4fb!important}',
-    'html:not(.dark) ::-webkit-scrollbar-thumb{background:#cbd5e1!important}',
-    'html:not(.dark) ::-webkit-scrollbar-thumb:hover{background:#94a3b8!important}',
-    /* large file banner */
-    'html:not(.dark) .ta-large-file-banner{background:#fffbeb!important;border-color:#f59e0b!important}',
-    'html:not(.dark) .ta-large-file-banner,html:not(.dark) .ta-large-file-banner strong{color:#92400e!important}',
   ].join('');
 
   /* ── DOM patcher ─────────────────────────────────────────────────────────────
@@ -4500,43 +4774,10 @@ window.taDoUpdate = function(url, btn, platform) {
     '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.5)',
   };
 
-  var LIGHT_VARS = {
-    '--body-background-fill':      '#f0f4fb',
-    '--background-fill-primary':   '#f0f4fb',
-    '--background-fill-secondary': '#ffffff',
-    '--block-background-fill':     '#ffffff',
-    '--input-background-fill':     '#ffffff',
-    '--panel-background-fill':     '#ffffff',
-    '--chatbot-background-fill':   '#ffffff',
-    '--body-text-color':           '#0d1b2e',
-    '--block-label-text-color':    '#5a6a83',
-    '--block-title-text-color':    '#0d1b2e',
-    '--block-info-text-color':     '#6b7280',
-    '--block-border-color':        '#dde3ef',
-    '--block-border-width':        '1px',
-    '--input-border-color':        '#dde3ef',
-    '--border-color-primary':      '#dde3ef',
-    '--border-color-accent':       '#2563eb',
-    '--neutral-100':               '#f8fafc',
-    '--neutral-200':               '#e8edf4',
-    '--neutral-300':               '#dde3ef',
-    '--neutral-400':               '#94a3b8',
-    '--neutral-500':               '#64748b',
-    '--neutral-600':               '#475569',
-    '--neutral-700':               '#1e293b',
-    '--neutral-800':               '#0f172a',
-    '--neutral-900':               '#0d1b2e',
-    '--color-accent':              '#2563eb',
-    '--link-text-color':           '#2563eb',
-    '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.06)',
-  };
-
+  var LIGHT_VARS={"--body-background-fill":"#f0f4fb","--background-fill-primary":"#f0f4fb","--background-fill-secondary":"#ffffff","--block-background-fill":"#ffffff","--input-background-fill":"#ffffff","--panel-background-fill":"#ffffff","--body-text-color":"#0d1b2e","--block-label-text-color":"#5a6a83","--block-border-color":"#dde3ef","--input-border-color":"#dde3ef","--border-color-primary":"#dde3ef","--color-accent":"#2563eb","--link-text-color":"#2563eb","--shadow-drop":"0 1px 3px rgba(0,0,0,0.06)"};
   function setGradioVars(dark) {
     var root = document.documentElement;
-    /* Clear both sets first so no leftover vars bleed across modes */
-    [DARK_VARS, LIGHT_VARS].forEach(function(set) {
-      Object.keys(set).forEach(function(k) { root.style.removeProperty(k); });
-    });
+    [DARK_VARS,LIGHT_VARS].forEach(function(s){Object.keys(s).forEach(function(k){root.style.removeProperty(k);});});
     var vars = dark ? DARK_VARS : LIGHT_VARS;
     Object.keys(vars).forEach(function(k) { root.style.setProperty(k, vars[k]); });
   }
@@ -4555,6 +4796,28 @@ window.taDoUpdate = function(url, btn, platform) {
     /* 3. Re-append override sheet last in <head> */
     if (st.parentNode) st.parentNode.removeChild(st);
     document.head.appendChild(st);
+  var LIGHT_RULES=[
+    "html:not(.dark){color-scheme:light;color:#0d1b2e!important;background:#f0f4fb!important}",
+    "html:not(.dark) body,html:not(.dark) .gradio-container,html:not(.dark) .main{background:#f0f4fb!important;color:#0d1b2e!important}",
+    "html:not(.dark) .block,html:not(.dark) .form,html:not(.dark) .wrap,html:not(.dark) .padded{background:#ffffff!important;border-color:#dde3ef!important}",
+    "html:not(.dark) input,html:not(.dark) textarea,html:not(.dark) select{background:#ffffff!important;color:#0d1b2e!important;border-color:#dde3ef!important}",
+    "html:not(.dark) .tabs>.tab-nav button{color:#374151!important;background:transparent!important;font-weight:600!important}",
+    "html:not(.dark) .tabs>.tab-nav button.selected{color:#1d4ed8!important;border-bottom-color:#1d4ed8!important;font-weight:700!important}",
+    "html:not(.dark) .tabitem{background:#f0f4fb!important}",
+    "html:not(.dark) [role=listbox]{background:#ffffff!important;border-color:#94a3b8!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}",
+    "html:not(.dark) [role=option]{color:#0d1b2e!important;background:#ffffff!important}",
+    "html:not(.dark) [role=option]:hover,html:not(.dark) [role=option][aria-selected=true]{background:#bfdbfe!important;color:#1e3a8a!important}",
+    "html:not(.dark) .accordion,html:not(.dark) details{background:#ffffff!important;border-color:#dde3ef!important}",
+    "html:not(.dark) button{background:#ffffff!important;border-color:#dde3ef!important;color:#0d1b2e!important}",
+    "html:not(.dark) #ta-btn-light{background:#2563eb!important;color:#fff!important}",
+    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5a6a83!important}",
+    "html:not(.dark) .upload-container{border-color:#cbd5e1!important;background:#ffffff!important}",
+    "html:not(.dark) .label-wrap span,html:not(.dark) .block-label,html:not(.dark) label>span{color:#374151!important}",
+    "html:not(.dark) .info{color:#4b5563!important}",
+    "html:not(.dark) .prose a,html:not(.dark) .markdown a{color:#1d4ed8!important;font-weight:600!important}",
+    "html:not(.dark) .ta-large-file-banner{background:#fffbeb!important;border-color:#f59e0b!important}",
+    "html:not(.dark) .ta-large-file-banner,html:not(.dark) .ta-large-file-banner strong{color:#92400e!important}",
+  ].join("");
     st.textContent = dark ? DARK_RULES : LIGHT_RULES;
 
     /* 4. Patch inline styles (handles elements Gradio styles inline) */
@@ -4576,11 +4839,11 @@ window.taDoUpdate = function(url, btn, platform) {
     var fb = document.getElementById('ta-float-analyze');
     if (fb) {
       fb.style.background  = dark
-        ? 'linear-gradient(135deg,#1e3a8a,#2563eb)'
-        : 'linear-gradient(135deg,#1d4ed8,#3b82f6)';
+        ? 'linear-gradient(135deg,#1e3a8a,#ef4444)'
+        : 'linear-gradient(135deg,#1d4ed8,#ef4444)';
       fb.style.boxShadow   = dark
-        ? '0 4px 20px rgba(37,99,235,0.7)'
-        : '0 4px 20px rgba(29,78,216,0.5)';
+        ? '0 4px 20px rgba(99,60,220,0.7)'
+        : '0 4px 20px rgba(99,60,220,0.5)';
     }
 
     /* API banner */
@@ -5418,42 +5681,54 @@ window.taDoUpdate = function(url, btn, platform) {
         .finally(function() { setTimeout(pingLoop, 3000); });
     })();
 
-    /* mini bar — 16 segments */
+    /* bar sparkline — 12 segments */
     function _bars(bps, color) {
-      var SEGS = 16, MAX = 5*1048576;
+      var SEGS = 12, MAX = 5*1048576;
       var fill = Math.min(SEGS, Math.round(bps / MAX * SEGS));
-      var out = '';
+      var out = '<div style="display:flex;align-items:flex-end;gap:2px;height:20px;">';
       for (var i = 0; i < SEGS; i++) {
-        out += '<span style="display:inline-block;width:3px;height:'
-             + (i < fill ? 12 : 4) + 'px;background:'
+        var h = i < fill ? Math.max(4, Math.round((i+1)/SEGS*20)) : 3;
+        out += '<div style="width:4px;height:' + h + 'px;background:'
              + (i < fill ? color : 'var(--ta-card-border,#e2e8f0)')
-             + ';border-radius:2px;margin:0 1px;vertical-align:middle;'
-             + 'transition:height 0.2s,background 0.2s;"></span>';
+             + ';border-radius:2px 2px 0 0;transition:height 0.25s,background 0.25s;"></div>';
       }
-      return out;
+      return out + '</div>';
     }
 
-    function _dot(color) {
-      return '<span style="width:7px;height:7px;background:' + color + ';border-radius:50%;'
-           + 'display:inline-block;box-shadow:0 0 4px ' + color + ';'
-           + 'animation:tapulse 2s ease-in-out infinite;"></span>';
+    function _dot(color, active) {
+      return '<span style="width:8px;height:8px;background:' + color + ';border-radius:50%;'
+           + 'display:inline-block;flex-shrink:0;box-shadow:0 0 6px ' + color + ';'
+           + (active ? 'animation:tapulse 1.4s ease-in-out infinite;' : 'opacity:0.3;')
+           + '"></span>';
     }
 
-    /* one row: icon | label | bars | dot+speed | session total */
-    function _row(icon, label, bps, total, color, extraDetail) {
-      var speedTxt = fmtSpeed(bps);
-      var totalTxt = fmtSize(total);
-      return '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-           + '<span style="font-size:1em;line-height:1;">' + icon + '</span>'
-           + '<span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">' + label + '</span>'
-           + '<span style="display:flex;align-items:center;gap:1px;">' + _bars(bps, color) + '</span>'
-           + '<span style="display:inline-flex;align-items:center;gap:4px;'
-               + 'font-weight:800;color:' + color + ';min-width:80px;justify-content:flex-end;">'
-             + _dot(color) + '&nbsp;' + speedTxt
-           + '</span>'
-           + '<span style="margin-left:auto;font-size:0.78em;color:var(--ta-card-sub,#64748b);'
-               + 'white-space:nowrap;">session:&nbsp;' + totalTxt + '</span>'
-           + (extraDetail || '')
+    /* card: icon | direction | big speed | bars | session total */
+    function _card(icon, label, bps, total, color, upDetail) {
+      var active = bps > 200;
+      var parts = fmtSpeed(bps).split(' ');
+      var num = parts[0], unit = parts[1] || '';
+      return '<div style="flex:1;min-width:0;background:var(--ta-card-bg,#f8fafc);'
+           + 'border:1px solid ' + (active ? color + '55' : 'var(--ta-card-border,#e2e8f0)') + ';'
+           + 'border-radius:12px;padding:10px 12px;transition:border-color 0.3s;">'
+           /* header row */
+           + '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+           +   _dot(color, active)
+           +   '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+           +     'letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">' + icon + ' ' + label + '</span>'
+           + '</div>'
+           /* big speed number */
+           + '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+           +   '<span style="font-size:1.6em;font-weight:800;color:' + (active ? color : 'var(--ta-card-sub,#94a3b8)') + ';'
+           +     'line-height:1;transition:color 0.3s;">' + num + '</span>'
+           +   '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">' + unit + '</span>'
+           + '</div>'
+           /* sparkline bars */
+           + _bars(bps, color)
+           /* session total */
+           + '<div style="margin-top:6px;font-size:0.7em;color:var(--ta-card-sub,#64748b);">'
+           +   'Session&nbsp;<span style="font-weight:700;color:var(--ta-card-text,#475569);">' + fmtSize(total) + '</span>'
+           + '</div>'
+           + (upDetail || '')
            + '</div>';
     }
 
@@ -5464,57 +5739,55 @@ window.taDoUpdate = function(url, btn, platform) {
       var rxBps = _speed(_rxLog);
       var txBps = _speed(_txLog);
 
-      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#94a3b8';
-      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#7c3aed' : '#94a3b8';
+      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#64748b';
+      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#a855f7' : '#64748b';
 
       /* upload progress bar when active */
       var upDetail = '';
       if (_upActive && _upTotal > 0) {
         var pct = Math.min(100, _upLoaded / _upTotal * 100);
         var eta = txBps > 0 && _upTotal > _upLoaded ? Math.round((_upTotal - _upLoaded) / txBps) : 0;
-        upDetail = '<div style="margin-top:4px;padding-left:82px;">'
-          + '<div style="height:4px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
-          + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#7c3aed;border-radius:2px;transition:width 0.3s;"></div>'
+        upDetail = '<div style="margin-top:6px;">'
+          + '<div style="height:3px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
+          + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#a855f7;border-radius:2px;transition:width 0.3s;"></div>'
           + '</div>'
-          + '<span style="font-size:0.75em;color:var(--ta-card-sub,#64748b);">'
-          + (_upLoaded/1048576).toFixed(1) + ' / ' + (_upTotal/1048576).toFixed(1) + ' MB'
-          + ' · ' + pct.toFixed(0) + '%'
-          + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
+          + '<span style="font-size:0.68em;color:var(--ta-card-sub,#64748b);">'
+          + pct.toFixed(0) + '%' + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
       }
 
-      /* connection info when idle */
-      var pingNote = '';
-      if (rxBps < 512 && txBps < 512) {
-        var connInfo = '';
-        try {
-          var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-          if (nc) {
-            var et = nc.effectiveType || '';
-            var dl = nc.downlink;
-            if (et) connInfo += et.toUpperCase();
-            if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps est.';
-          }
-        } catch(ex) {}
-        if (_pingMs > 0 || connInfo) {
-          pingNote = '<div style="font-size:0.74em;color:var(--ta-card-sub,#64748b);padding-top:3px;">'
-            + (_pingMs > 0 ? '🏓 ' + _pingMs + ' ms' : '')
-            + (connInfo ? ((_pingMs > 0 ? '  ·  ' : '') + '📶 ' + connInfo) : '')
-            + '</div>';
+      /* ping + connection badge */
+      var footer = '';
+      var connInfo = '';
+      try {
+        var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (nc) {
+          var et = nc.effectiveType || '';
+          var dl = nc.downlink;
+          if (et) connInfo += et.toUpperCase();
+          if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps';
         }
+      } catch(ex) {}
+      if (_pingMs > 0 || connInfo) {
+        var pingColor = _pingMs < 80 ? '#22c55e' : _pingMs < 200 ? '#f59e0b' : '#ef4444';
+        footer = '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;'
+               + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);'
+               + 'font-size:0.72em;color:var(--ta-card-sub,#64748b);">'
+               + (_pingMs > 0 ?
+                   '<span>🏓 Ping&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>' : '')
+               + (connInfo ? '<span>📶 ' + connInfo + '</span>' : '')
+               + '</div>';
       }
 
       p.innerHTML = (
-        '<style>'
-        + '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.3}}'
-        + '</style>'
-        + '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-        + 'border-radius:10px;padding:10px 14px;margin-top:8px;">'
-        + '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-        + 'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
-        + _row('⬇️', 'Download', rxBps, _rxTotal, rxColor)
-        + '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
-        + _row('⬆️', 'Upload',   txBps, _txTotal, txColor, upDetail)
-        + pingNote
+        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+        + '<div style="margin-top:8px;">'
+        + '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+        + 'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+        + '<div style="display:flex;gap:8px;">'
+        + _card('⬇', 'Download', rxBps, _rxTotal, rxColor)
+        + _card('⬆', 'Upload',   txBps, _txTotal, txColor, upDetail)
+        + '</div>'
+        + footer
         + '</div>'
       );
     }
@@ -5698,6 +5971,14 @@ _IDLE_STATUS = """
   </div>
 </div>
 """
+
+_IDLE_LOG = (
+    '<div id="ta-log-wrap" style="background:var(--ta-log-bg,#f8fafc);border:1px solid var(--ta-log-border,#cbd5e1);'
+    'border-radius:10px;padding:14px 18px;min-height:160px;max-height:320px;'
+    'overflow-y:auto;font-family:\'JetBrains Mono\',\'Courier New\',monospace;font-size:0.81em;line-height:1.75;">'
+    '<span style="color:var(--ta-log-text,#475569);">Progress and logs appear here…</span>'
+    '</div>'
+)
 
 _FORMATS = """
 <div style="background:var(--ta-card-bg);border:1px solid var(--ta-card-border);
@@ -6197,7 +6478,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.1.4"
+APP_VERSION = "2.4.4"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -6236,9 +6517,12 @@ _CHANGELOG_HTML = _build_changelog()
 
 # ── GitHub OTA update checker ─────────────────────────────────────────────────
 _GH_RELEASES_REPO = "jayuan101/transcript-agent"
+_LATEST_WIN_URL   = ""   # set by _check_github_update, read by _do_in_app_update
+_LATEST_VERSION   = ""
 
 def _check_github_update() -> str:
     """Poll GitHub releases API; return update banner HTML or empty string."""
+    global _LATEST_WIN_URL, _LATEST_VERSION
     import urllib.request as _ur, json as _json
     try:
         req = _ur.Request(
@@ -6257,7 +6541,13 @@ def _check_github_update() -> str:
         except Exception:
             newer = latest_tag > APP_VERSION
         if not newer:
-            return ""
+            return (
+                '<div class="ta-update-banner" style="background:#f0fdf4;border-color:#86efac;">'
+                '<div style="display:flex;align-items:center;gap:10px;font-size:0.88em;color:#166534;">'
+                '<span style="font-size:1.3em;">✅</span>'
+                f'<span><strong>You\'re up to date!</strong> &nbsp; v{APP_VERSION} is the latest version.</span>'
+                '</div></div>'
+            )
         assets   = {a["name"]: a["browser_download_url"] for a in data.get("assets", [])}
         win_url  = (assets.get("TranscriptAgent-win64.zip")
                     or assets.get("TranscriptAgent.exe")
@@ -6267,14 +6557,14 @@ def _check_github_update() -> str:
                             f"https://github.com/{_GH_RELEASES_REPO}/releases/latest")
         body     = (data.get("body") or "")[:180]
         notes    = body + ("…" if len(data.get("body") or "") > 180 else "")
+        _LATEST_WIN_URL = win_url
+        _LATEST_VERSION = latest_tag
         return _build_update_banner(latest_tag, win_url, mac_url, html_url, notes)
     except Exception:
         return ""
 
 
 def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
-    we = win_url.replace("'", "\\'")
-    me = mac_url.replace("'", "\\'")
     notes_html = (f'<div style="font-size:0.78em;color:var(--ta-card-sub);margin-top:3px;">'
                   f'{notes}</div>') if notes else ""
     return f"""
@@ -6288,11 +6578,8 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
       {notes_html}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <button onclick="taDoUpdate('{we}',this,'win')" class="ta-upd-btn ta-upd-win">
-        🪟 Update Windows
-      </button>
-      <button onclick="taDoUpdate('{me}',this,'mac')" class="ta-upd-btn ta-upd-mac">
-        🍎 Update Mac
+      <button onclick="taClickUpdateBtn(this)" class="ta-upd-btn ta-upd-win" id="ta-upd-now-btn">
+        ⬆ Update Now
       </button>
       <a href="{html_url}" target="_blank"
          style="font-size:0.78em;color:#3b82f6;white-space:nowrap;font-weight:600;">
@@ -6300,8 +6587,162 @@ def _build_update_banner(latest_tag, win_url, mac_url, html_url, notes=""):
       </a>
     </div>
   </div>
+  <div id="ta-update-progress" style="display:none;margin-top:10px;font-size:0.84em;
+       background:rgba(255,255,255,0.6);border-radius:8px;padding:10px 14px;">
+    <span id="ta-update-progress-text">⏳ Updating…</span>
+  </div>
 </div>
 """
+
+
+def _do_in_app_update():
+    """
+    Windows exe  → download new zip, write a PowerShell updater, launch it detached, exit.
+    Source install → git pull + pip upgrade (existing behaviour).
+    """
+    import sys as _sys, os as _os, tempfile as _tmp
+    import urllib.request as _ur, subprocess as _sp
+    from pathlib import Path as _P
+
+    is_bundle = getattr(_sys, "frozen", False)
+    is_win    = _sys.platform == "win32"
+
+    def _bann(body, color="#1e40af", bg="#eff6ff", border="#93c5fd"):
+        return (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+                f'<div style="font-size:0.88em;color:{color};">{body}</div></div>')
+
+    # ── Windows exe: silent auto-update ──────────────────────────────────────
+    if is_bundle and is_win and _LATEST_WIN_URL:
+        try:
+            tmp_dir  = _P(_tmp.gettempdir()) / "TranscriptAgent-update"
+            tmp_dir.mkdir(exist_ok=True)
+            zip_path = tmp_dir / "TranscriptAgent-win64.zip"
+
+            yield _bann("⬇️ Downloading update… 0%")
+
+            with _ur.urlopen(_LATEST_WIN_URL, timeout=300) as resp:
+                total      = int(resp.headers.get("Content-Length") or 0)
+                downloaded = 0
+                with open(zip_path, "wb") as fout:
+                    while True:
+                        chunk = resp.read(131_072)
+                        if not chunk:
+                            break
+                        fout.write(chunk)
+                        downloaded += len(chunk)
+                        if total:
+                            pct = int(downloaded * 100 / total)
+                            mb  = downloaded / 1_048_576
+                            tmb = total / 1_048_576
+                            yield _bann(
+                                f'⬇️ Downloading… {pct}%'
+                                f'<span style="opacity:0.65;margin-left:8px;">({mb:.1f} / {tmb:.1f} MB)</span>'
+                                f'<div style="margin-top:8px;height:6px;background:#dbeafe;border-radius:3px;">'
+                                f'<div style="width:{pct}%;height:100%;background:#3b82f6;'
+                                f'border-radius:3px;transition:width 0.4s;"></div></div>'
+                            )
+
+            yield _bann("✅ Download complete — preparing update…")
+
+            exe_path    = _sys.executable
+            install_dir = str(_P(exe_path).parent.parent)
+            pid         = _os.getpid()
+            ps_path     = tmp_dir / "ta_updater.ps1"
+
+            ps_path.write_text(
+                f"$zip = '{zip_path}'\n"
+                f"$dir = '{install_dir}'\n"
+                f"$exe = '{exe_path}'\n"
+                f"$pid = {pid}\n"
+                "while (Get-Process -Id $pid -ErrorAction SilentlyContinue)"
+                " { Start-Sleep -Milliseconds 500 }\n"
+                "Start-Sleep -Seconds 1\n"
+                "Expand-Archive -Path $zip -DestinationPath $dir -Force\n"
+                "Start-Process -FilePath $exe\n"
+                "Remove-Item -Path $zip -Force -ErrorAction SilentlyContinue\n"
+                "Remove-Item -LiteralPath $MyInvocation.MyCommand.Path"
+                " -Force -ErrorAction SilentlyContinue\n",
+                encoding="utf-8",
+            )
+
+            _sp.Popen(
+                ["powershell", "-WindowStyle", "Hidden",
+                 "-ExecutionPolicy", "Bypass", "-File", str(ps_path)],
+                creationflags=_sp.DETACHED_PROCESS | _sp.CREATE_NEW_PROCESS_GROUP,
+                close_fds=True,
+            )
+
+            yield _bann(
+                "🚀 Done! The app will close and reopen automatically on the new version…",
+                color="#166534", bg="#f0fdf4", border="#86efac",
+            )
+
+            import time as _time
+            _time.sleep(2)
+            _os._exit(0)
+
+        except Exception as _e:
+            yield _bann(
+                f"⚠️ Auto-update failed: {_e}<br>"
+                "Download the latest installer manually from the release page.",
+                color="#991b1b", bg="#fef2f2", border="#fca5a5",
+            )
+            return
+
+    # ── Bundled but not Windows (Mac / Linux) ────────────────────────────────
+    if is_bundle:
+        yield _bann(
+            "ℹ️ Grab the latest version from the link above and reinstall — takes 2 minutes!",
+            color="#92400e", bg="#fffbeb", border="#fcd34d",
+        )
+        return
+
+    # ── Source install: git pull + pip upgrade ────────────────────────────────
+    BASE  = _os.path.dirname(_os.path.abspath(__file__))
+    lines = []
+    ok    = True
+
+    if _os.path.isdir(_os.path.join(BASE, ".git")):
+        try:
+            r = _sp.run(["git", "-C", BASE, "pull"],
+                        capture_output=True, text=True, timeout=60)
+            if r.returncode == 0:
+                msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
+                lines.append(f"✓ Code: {msg}")
+            else:
+                lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
+                ok = False
+        except Exception as e:
+            lines.append(f"⚠ git not available — {e}")
+    else:
+        lines.append("ℹ No .git directory — skipping code pull.")
+
+    req = _os.path.join(BASE, "requirements.txt")
+    if _os.path.exists(req):
+        try:
+            _sp.run([_sys.executable, "-m", "pip", "install",
+                     "setuptools", "wheel", "--quiet"],
+                    capture_output=True, text=True, timeout=60)
+            r2 = _sp.run([_sys.executable, "-m", "pip", "install",
+                          "-r", req, "--upgrade", "--quiet"],
+                         capture_output=True, text=True, timeout=300)
+            if r2.returncode == 0:
+                lines.append("✓ Python packages upgraded.")
+            else:
+                lines.append(f"⚠ pip upgrade had warnings — {r2.stderr.strip()[:120]}")
+        except Exception as e:
+            lines.append(f"⚠ pip failed — {e}")
+            ok = False
+
+    color  = "#166534" if ok else "#991b1b"
+    bg     = "#f0fdf4" if ok else "#fef2f2"
+    border = "#86efac" if ok else "#fca5a5"
+    msg    = "✅ Update applied! Close this window and reopen the app." if ok else "⚠ Update incomplete."
+    items  = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+    yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+           f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">{msg}</div>'
+           f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
+           f'</div>')
 
 # ── Desktop download section ──────────────────────────────────────────────────
 _HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent-v2/resolve/main"
@@ -6371,6 +6812,9 @@ with gr.Blocks(title=_title) as demo:
     gr.HTML(_HERO)
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
+    _hidden_update_btn = gr.Button("_upd", elem_id="ta-hidden-update-btn")
+    _on_hf_space = bool(os.environ.get("SPACE_ID"))
+    _check_update_btn  = gr.Button("🔄 Check for Updates", size="sm", variant="secondary", elem_id="ta-check-update-btn", visible=not _on_hf_space)
     # Theme toggle pill — rendered as static HTML, styled to fixed top-right.
     # Click handlers wired below via .click(fn=None, js=...) which IS executed by Gradio 6.x.
     gr.HTML(_THEME_TOGGLE)
@@ -6430,10 +6874,13 @@ with gr.Blocks(title=_title) as demo:
                 type="filepath",
             )
             gr.HTML("""
-<div class="ta-large-file-banner" style="margin:6px 0 2px;padding:8px 10px;background:#fffbeb;border:1px solid #f59e0b;
-     border-radius:8px;font-size:0.78em;color:#92400e;line-height:1.5;">
-  ⚠️ <strong>Large video? Don't upload — paste the file path below instead.</strong><br>
-  Uploads time out on files &gt; ~500 MB. Pasting the path reads directly from disk — instant and no timeout.
+<style>
+.ta-large-file-warn{margin:6px 0 2px;padding:8px 10px;border-radius:8px;font-size:0.78em;line-height:1.5;
+  background:#fefdf4;border:1px solid #fde68a;color:#a16207;}
+html.dark .ta-large-file-warn{background:#422006;border-color:#d97706;color:#fde68a;}
+</style>
+<div class="ta-large-file-warn">
+  ⚠️ <strong>Large file? Paste the path below instead of uploading.</strong> Files &gt;500 MB will time out on upload.
 </div>""")
             path_input = gr.Textbox(
                 label="Paste file path or URL (large files — no upload, no timeout)",
@@ -6484,6 +6931,7 @@ with gr.Blocks(title=_title) as demo:
                 _ta_gpu_env    = os.environ.get("TA_GPU_DEVICE", "")
                 _gpu_available = False
                 _gpu_label     = "no GPU detected"
+                _gpu_mismatch  = False  # True = GPU present but wrong torch build
                 try:
                     import torch as _torch_chk
                     if _torch_chk.cuda.is_available():
@@ -6501,23 +6949,66 @@ with gr.Blocks(title=_title) as demo:
                             _gpu_label = "AMD/Intel DirectML"
                         except ImportError:
                             pass
+                        # Check if NVIDIA GPU exists but torch is CPU build
+                        if not _gpu_available and "+cpu" in getattr(_torch_chk, "__version__", ""):
+                            try:
+                                import subprocess as _sp
+                                _smi = _sp.run(
+                                    ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                                    capture_output=True, text=True, timeout=3)
+                                if _smi.returncode == 0 and _smi.stdout.strip():
+                                    _gpu_mismatch = True
+                                    _gpu_label = f"NVIDIA GPU found ({_smi.stdout.strip().splitlines()[0]}) — wrong PyTorch build"
+                            except Exception:
+                                pass
                 except Exception:
                     pass
-                # Override with run.bat detection if available
+                # Override with launcher/run.bat detection if available
                 if not _gpu_available and _ta_gpu_env in ("cuda","mps","dml"):
                     _gpu_available = True
-                    _gpu_label = {"cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS",
-                                  "dml":"AMD/Intel DirectML"}.get(_ta_gpu_env, _ta_gpu_env)
+                    _gpu_label = os.environ.get("TA_GPU_NAME") or {
+                        "cuda":"NVIDIA CUDA","mps":"Apple Silicon MPS","dml":"AMD/Intel DirectML"
+                    }.get(_ta_gpu_env, _ta_gpu_env)
+                # ── GPU badge ─────────────────────────────────────────────────
+                if _gpu_available:
+                    _badge_bg, _badge_bdr, _badge_clr = "#dcfce7", "#22c55e", "#15803d"
+                    _badge_icon, _badge_title         = "⚡", "GPU Active"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#052e16", "#16a34a", "#4ade80"
+                elif _gpu_mismatch:
+                    _badge_bg, _badge_bdr, _badge_clr = "#fff7ed", "#f97316", "#9a3412"
+                    _badge_icon, _badge_title         = "⚠️", "GPU Mismatch"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#431407", "#ea580c", "#fdba74"
+                else:
+                    _badge_bg, _badge_bdr, _badge_clr = "#f1f5f9", "#cbd5e1", "#475569"
+                    _badge_icon, _badge_title         = "🖥", "CPU Mode"
+                    _dark_bg, _dark_bdr, _dark_clr    = "#1e293b", "#334155", "#94a3b8"
+                gr.HTML(f"""
+<style>
+.ta-gpu-badge{{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-radius:10px;margin-bottom:8px;
+  background:{_badge_bg};border:1px solid {_badge_bdr};}}
+html.dark .ta-gpu-badge{{background:{_dark_bg}!important;border-color:{_dark_bdr}!important;}}
+.ta-gpu-badge-icon{{font-size:1.4em;line-height:1;}}
+.ta-gpu-badge-title{{font-size:0.72em;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.07em;color:{_badge_clr};}}
+html.dark .ta-gpu-badge-title{{color:{_dark_clr}!important;}}
+.ta-gpu-badge-name{{font-size:0.85em;font-weight:700;color:#111827;margin-top:1px;}}
+html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
+</style>
+<div class="ta-gpu-badge">
+  <span class="ta-gpu-badge-icon">{_badge_icon}</span>
+  <div>
+    <div class="ta-gpu-badge-title">{_badge_title}</div>
+    <div class="ta-gpu-badge-name">{_gpu_label}</div>
+    {'<div style="font-size:0.75em;margin-top:4px;color:#9a3412;">PyTorch CPU build installed — run setup_windows.bat → Fix GPU (option 5) to enable CUDA.</div>' if _gpu_mismatch else ''}
+  </div>
+</div>""")
                 gpu_toggle = gr.Checkbox(
-                    label=(f"⚡ Use GPU — {_gpu_label} — faster Whisper, DeepFace & Ollama"
-                           if _gpu_available else
-                           "⚡ Use GPU when available (no GPU detected on this machine)"),
+                    label="Enable GPU acceleration",
                     value=_gpu_available,
-                    info=("GPU acceleration active — Whisper 5-10x faster, DeepFace emotion analysis on GPU, "
-                          "Ollama LLM uses all GPU layers. Uncheck to force CPU."
+                    info=("Whisper 5-10x faster, DeepFace & Ollama on GPU. Uncheck to force CPU."
                           if _gpu_available else
-                          "No GPU found. Supports: NVIDIA (CUDA), AMD/Intel (DirectML on Windows), "
-                          "Apple Silicon (MPS). Install the right PyTorch build to enable."),
+                          "No GPU found. Supports NVIDIA (CUDA), AMD/Intel (DirectML), Apple Silicon (MPS)."),
                     elem_id="ta-gpu-toggle",
                 )
                 panel_toggle = gr.Checkbox(value=False, visible=False)
@@ -6543,11 +7034,6 @@ with gr.Blocks(title=_title) as demo:
                     type="filepath",
                 )
                 profile_text_state = gr.State(value="")
-                reanalyze_btn = gr.Button(
-                    "🔄  Re-analyze with Profile",
-                    variant="secondary", size="sm", visible=False,
-                    elem_id="ta-reanalyze-btn",
-                )
 
             with gr.Accordion("Language", open=False):
                 language_input = gr.Dropdown(
@@ -6624,7 +7110,7 @@ with gr.Blocks(title=_title) as demo:
                 elem_id="ta-transcription-only",
             )
             process_btn = gr.Button(
-                "▶  Analyze",
+                "⏺  Analyze",
                 variant="primary", size="sm",
                 elem_classes=["ta-analyze-btn"],
                 elem_id="ta-analyze-btn",
@@ -6632,36 +7118,43 @@ with gr.Blocks(title=_title) as demo:
 
             result_state = gr.State(value=None)
 
-            download_accordion = gr.Accordion("⬇  Download Results", open=False, elem_id="ta-dl-accordion")
+            download_accordion = gr.Accordion("⬇  Download Results", open=True, elem_id="ta-dl-accordion")
             with download_accordion:
-                gr.HTML(
-                    '<div style="padding:4px 0 10px;font-size:0.78em;color:#64748b;">'
-                    'Files are generated automatically when analysis finishes. '
-                    'Click any button to download.</div>'
+                dl_waiting = gr.HTML(
+                    '<div style="padding:10px 4px;text-align:center;">'
+                    '<div style="font-size:1.5em;margin-bottom:6px;">📂</div>'
+                    '<div style="font-size:0.85em;font-weight:600;color:#475569;">Run an analysis to generate your reports</div>'
+                    '<div style="font-size:0.78em;color:#94a3b8;margin-top:4px;">'
+                    'PDF · DOCX · Transcript · SRT · JSON — all appear here when done</div>'
+                    '</div>',
+                    elem_id="ta-dl-waiting"
                 )
-                # ── Reports row ───────────────────────────────────────────────
+                # ── Reports row (PDF + DOCX — colored/formatted) ─────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;">Reports</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin-bottom:6px;" id="ta-dl-hdr-reports">'
+                        '📄 Reports — with color &amp; formatting</div>')
                 with gr.Row():
-                    dl_pdf   = gr.DownloadButton(label="📑 PDF Report",   value=None, visible=False,
-                                                 variant="secondary", size="sm", elem_id="ta-dl-pdf")
-                    dl_docx  = gr.DownloadButton(label="📝 DOCX Report",  value=None, visible=False,
-                                                 variant="secondary", size="sm", elem_id="ta-dl-docx")
-                    dl_report= gr.DownloadButton(label="📋 Markdown",     value=None, visible=False,
+                    dl_pdf   = gr.DownloadButton(label="📑 Download PDF",        value=None, visible=False,
+                                                 variant="primary", size="sm", elem_id="ta-dl-pdf")
+                    dl_docx  = gr.DownloadButton(label="📝 Download DOCX (Word)", value=None, visible=False,
+                                                 variant="primary", size="sm", elem_id="ta-dl-docx")
+                    dl_report= gr.DownloadButton(label="📋 Markdown (plain)",    value=None, visible=False,
                                                  variant="secondary", size="sm", elem_id="ta-dl-report")
                 # ── Transcripts row ───────────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Transcripts</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
+                        '🎙 Transcripts — plain text</div>')
                 with gr.Row():
-                    dl_transcript = gr.DownloadButton(label="📄 Transcript",      value=None, visible=False,
+                    dl_transcript = gr.DownloadButton(label="📄 Transcript .txt",      value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-transcript")
-                    dl_speakers   = gr.DownloadButton(label="🎙 Speaker Dialogue", value=None, visible=False,
+                    dl_speakers   = gr.DownloadButton(label="🎙 Speaker Dialogue .txt", value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-speakers")
-                    dl_combined   = gr.DownloadButton(label="📦 Combined",         value=None, visible=False,
+                    dl_combined   = gr.DownloadButton(label="📦 Combined .txt",         value=None, visible=False,
                                                       variant="secondary", size="sm", elem_id="ta-dl-combined")
                 # ── Subtitles & Data row ──────────────────────────────────────
                 gr.HTML('<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">Subtitles & Data</div>')
+                        'letter-spacing:.08em;color:#94a3b8;margin:10px 0 6px;">'
+                        '🎬 Subtitles &amp; Data — plain text</div>')
                 with gr.Row():
                     dl_srt  = gr.DownloadButton(label="🎬 SRT Subtitles", value=None, visible=False,
                                                 variant="secondary", size="sm", elem_id="ta-dl-srt")
@@ -6712,22 +7205,35 @@ with gr.Blocks(title=_title) as demo:
             stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
             net_monitor = gr.HTML(
                 value=(
-                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.35}}</style>'
-                    '<div style="background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);'
-                    'border-radius:10px;padding:10px 14px;margin-top:8px;">'
-                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-                    'color:var(--ta-card-sub,#64748b);margin-bottom:6px;">🌐 Network — Live</div>'
-                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-                    '<span>⬇️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Download</span>'
-                    '<span style="margin-left:auto;display:flex;align-items:center;gap:5px;">'
-                    '<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;'
-                    'animation:tapulse 2s ease-in-out infinite;"></span>'
-                    '<span style="color:#22c55e;font-weight:600;font-size:0.82em;">Connecting…</span>'
-                    '</span></div>'
-                    '<div style="height:1px;background:var(--ta-card-border,#e2e8f0);margin:4px 0;"></div>'
-                    '<div style="display:flex;align-items:center;gap:6px;font-size:0.82em;padding:3px 0;">'
-                    '<span>⬆️</span><span style="font-weight:700;color:var(--ta-card-text,#1e293b);min-width:72px;">Upload</span>'
-                    '<span style="margin-left:auto;color:var(--ta-card-sub,#64748b);font-size:0.78em;">—</span>'
+                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+                    '<div style="margin-top:8px;">'
+                    '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
+                    'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+                    '<div style="display:flex;gap:8px;">'
+                    # Download card
+                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
+                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
+                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬇ Download</span>'
+                    '</div>'
+                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
+                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
+                    '</div>'
+                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
+                    '</div>'
+                    # Upload card
+                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
+                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
+                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
+                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬆ Upload</span>'
+                    '</div>'
+                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
+                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
+                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
+                    '</div>'
+                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
+                    '</div>'
                     '</div></div>'
                 ),
                 elem_id="ta-net-monitor",
@@ -6766,49 +7272,16 @@ with gr.Blocks(title=_title) as demo:
                         value='<p style="color:#94a3b8;padding:12px;">Enable <b>Interview Mode</b> in the sidebar and click <b>▶ Analyze</b> to see coaching results here.</p>'
                     )
 
-                    # ── Video Delivery section ────────────────────────────────────
-                    gr.HTML(
-                        '<div style="margin:20px 0 10px;border-top:2px solid var(--ta-card-border,#e2e8f0);'
-                        'padding-top:16px;">'
-                        '<div style="font-size:0.9em;font-weight:800;color:#1e293b;margin-bottom:3px;">'
-                        '🎥 Video Delivery Analysis</div>'
-                        '<div style="font-size:0.76em;color:#64748b;">'
-                        'Upload a video above — faces are auto-detected. Assign roles then click Analyze.</div></div>'
-                    )
-
-                    # Face thumbnails (shown after scan)
-                    _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3","Late Joiner"]
-                    with gr.Row():
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_0 = gr.Image(label="Person 1", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_0  = gr.Dropdown(choices=_IV_ROLES, value="Candidate",
-                                                     label="Role", show_label=False, min_width=120)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_1 = gr.Image(label="Person 2", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_1  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1",
-                                                     label="Role", show_label=False, min_width=120)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_2 = gr.Image(label="Person 3", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_2  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2",
-                                                     label="Role", show_label=False, min_width=120,
-                                                     visible=False)
-                        with gr.Column(min_width=100, scale=0):
-                            iv_thumb_3 = gr.Image(label="Person 4", height=90, width=80,
-                                                  interactive=False, show_label=True, visible=False)
-                            iv_role_3  = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 3",
-                                                     label="Role", show_label=False, min_width=120,
-                                                     visible=False)
-
-                    iv_person_count = gr.State(value=2)   # updated by face scan
-                    iv_scan_status  = gr.HTML(value="")
-
-                    iv_analyze_btn = gr.Button(
-                        "🔍  Analyze Video", variant="primary", size="lg",
-                        elem_id="iv-analyze-btn", visible=True,
-                    )
+                    # Roles configured in Interview Mode sidebar; analysis runs via ▶ Analyze
+                    _IV_ROLES = ["Candidate","Interviewer 1","Interviewer 2","Interviewer 3"]
+                    iv_role_0 = gr.Dropdown(choices=_IV_ROLES, value="Candidate",     label="Person 1 role", visible=False)
+                    iv_role_1 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 1", label="Person 2 role", visible=False)
+                    iv_role_2 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 2", label="Person 3 role", visible=False)
+                    iv_role_3 = gr.Dropdown(choices=_IV_ROLES, value="Interviewer 3", label="Person 4 role", visible=False)
+                    iv_person_count = gr.State(value=2)
+                    iv_scan_status  = gr.State(value=None)
+                    iv_analyze_btn  = gr.State(value=None)
+                    iv_thumb_0 = iv_thumb_1 = iv_thumb_2 = iv_thumb_3 = gr.State(value=None)
 
                     # ── Results ───────────────────────────────────────────────────
                     iv_progress     = gr.HTML(value="", elem_id="iv-progress")
@@ -6832,15 +7305,6 @@ with gr.Blocks(title=_title) as demo:
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
-                        history_export_btn  = gr.DownloadButton(
-                            "⬇ Export", value=None, visible=True,
-                            variant="secondary", size="sm", scale=1,
-                            elem_id="ta-history-export",
-                        )
-                        history_import_file = gr.File(
-                            label="⬆ Import (.jsonl)", file_types=[".jsonl",".json"],
-                            visible=True, scale=2, height=50,
-                        )
                         history_delete_btn  = gr.Button(
                             "🗑 Delete Selected", variant="stop", size="sm", scale=1,
                             interactive=False, elem_id="ta-history-delete",
@@ -6850,7 +7314,7 @@ with gr.Blocks(title=_title) as demo:
                             elem_id="ta-history-clear",
                         )
                     history_action_status = gr.HTML(value="", visible=False)
-                    history_selected_id   = gr.State(value=None)   # id of selected row
+                    history_selected_id   = gr.State(value=None)
                     history_table = gr.Dataframe(
                         headers=["Date", "File", "STT Engine", "STT (s)", "Provider", "Tokens", "Cost", "Score", "Verdict"],
                         datatype=["str","str","str","number","str","str","str","str","str"],
@@ -6858,6 +7322,20 @@ with gr.Blocks(title=_title) as demo:
                         wrap=True,
                     )
                     history_selected_summary = gr.Markdown(value="", label="Session Summary")
+
+                    with gr.Accordion("🗑 Trash", open=False):
+                        with gr.Row():
+                            trash_refresh_btn  = gr.Button("🔄 Refresh Trash", size="sm", scale=1)
+                            trash_restore_btn  = gr.Button("♻️ Restore Selected", variant="secondary", size="sm", scale=1, interactive=False)
+                            trash_empty_btn    = gr.Button("🗑 Empty Trash", variant="stop", size="sm", scale=1)
+                        trash_action_status = gr.HTML(value="", visible=False)
+                        trash_selected_id   = gr.State(value=None)
+                        trash_table = gr.Dataframe(
+                            headers=["Deleted", "File", "STT Engine", "Provider", "Score", "Verdict"],
+                            datatype=["str","str","str","str","str","str"],
+                            interactive=False,
+                            wrap=True,
+                        )
 
                 with gr.TabItem("Copy All"):
                     combined_out = gr.Textbox(
@@ -6876,11 +7354,33 @@ with gr.Blocks(title=_title) as demo:
     )
 
     gr.HTML(f"""
-    <div style="text-align:center;padding:20px 0 4px;font-size:0.76em;color:#94a3b8;">
+<style>
+.ta-footer-txt{{text-align:center;padding:20px 0 4px;font-size:0.76em;}}
+html:not(.dark) .ta-footer-txt{{color:#64748b;}}
+html.dark .ta-footer-txt{{color:#94a3b8;}}
+.ta-paypal-btn{{display:inline-flex!important;align-items:center!important;gap:8px!important;
+  background:#0070ba!important;color:#fff!important;font-size:0.85em!important;
+  font-weight:700!important;padding:9px 22px!important;border-radius:20px!important;
+  text-decoration:none!important;border:none!important;
+  box-shadow:0 2px 8px rgba(0,112,186,0.35)!important;
+  transition:background 0.18s,box-shadow 0.18s!important;}}
+.ta-paypal-btn:hover{{background:#005ea6!important;box-shadow:0 4px 14px rgba(0,112,186,0.5)!important;}}
+.ta-paypal-btn span{{color:#fff!important;}}
+html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
+</style>
+    <div class="ta-footer-txt">
       Transcript Agent &nbsp;&bull;&nbsp; Transcription by OpenAI Whisper
       &nbsp;&bull;&nbsp; Analysis by Anthropic Claude
       &nbsp;&bull;&nbsp; Files processed privately on your machine
       {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
+    </div>
+    <div style="text-align:center;padding:8px 0 20px;">
+      <a href="https://paypal.me/jay247616" target="_blank" class="ta-paypal-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white" style="flex-shrink:0;">
+          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z"/>
+        </svg>
+        <span>Donate via PayPal</span>
+      </a>
     </div>
     """)
 
@@ -7148,13 +7648,6 @@ with gr.Blocks(title=_title) as demo:
             gr.update(value=status_html, visible=True),
         )
 
-    iv_analyze_btn.click(
-        fn=_iv_analyze_video,
-        inputs=[file_input, iv_person_count, iv_role_0, iv_role_1, iv_role_2, iv_role_3],
-        outputs=[iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress],
-        queue=True,
-    )
-
     # ── event wiring ──────────────────────────────────────────────────────────
     def on_provider_change(provider):
         cfg = _PROVIDERS.get(provider, _PROVIDERS["Claude (Anthropic)"])
@@ -7296,63 +7789,55 @@ with gr.Blocks(title=_title) as demo:
     )
 
     # ── History export ────────────────────────────────────────────────────────
-    def _export_history():
-        """Return the history JSONL file path for download; create if empty."""
-        HISTORY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        if not HISTORY_PATH.exists():
-            HISTORY_PATH.write_text("", encoding="utf-8")
-        return gr.update(value=str(HISTORY_PATH), visible=True)
-
-    history_export_btn.click(fn=_export_history, outputs=history_export_btn)
-
-    # ── History import ────────────────────────────────────────────────────────
-    def _import_history(upload):
-        """Merge uploaded history JSONL into current history, deduplicating by id."""
-        if not upload:
-            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No file uploaded.</p>", visible=True), refresh_history()
-        try:
-            uploaded = Path(upload.name) if hasattr(upload, "name") else Path(str(upload))
-            existing = load_history(HISTORY_PATH)
-            existing_ids = {e.get("id") for e in existing if e.get("id")}
-            added = 0
-            with open(uploaded, encoding="utf-8", errors="replace") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
+    # ── Trash helpers ─────────────────────────────────────────────────────────
+    def _load_trash():
+        if not TRASH_PATH.exists():
+            return []
+        entries = []
+        with open(TRASH_PATH, encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if line:
                     try:
-                        entry = json.loads(line)
-                        if entry.get("id") not in existing_ids:
-                            save_history_entry(entry, HISTORY_PATH)
-                            existing_ids.add(entry.get("id"))
-                            added += 1
+                        entries.append(json.loads(line))
                     except Exception:
                         pass
-            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Imported {added} new session(s) into history.</p>"
-            return gr.update(value=msg, visible=True), refresh_history()
-        except Exception as ex:
-            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Import failed: {ex}</p>", visible=True), refresh_history()
+        return list(reversed(entries))
 
-    history_import_file.change(
-        fn=_import_history,
-        inputs=[history_import_file],
-        outputs=[history_action_status, history_table],
-        queue=True,
-    )
+    def _append_to_trash(entry):
+        import datetime as _dt2
+        entry["deleted_at"] = _dt2.datetime.now().isoformat(timespec="seconds")
+        with open(TRASH_PATH, "a", encoding="utf-8") as f:
+            f.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
 
-    # ── Delete selected entry ─────────────────────────────────────────────────
+    def _refresh_trash():
+        rows = []
+        for e in _load_trash():
+            rows.append([
+                e.get("deleted_at", "")[:16],
+                Path(e.get("filename","")).name if e.get("filename") else e.get("file",""),
+                e.get("stt_engine",""),
+                e.get("provider",""),
+                str(e.get("interview_score","")) if e.get("interview_score") is not None else "",
+                e.get("verdict",""),
+            ])
+        return rows if rows else [["","","","","",""]]
+
+    # ── Delete selected → move to trash ──────────────────────────────────────
     def _delete_history_entry(entry_id):
         if not entry_id:
             return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No entry selected.</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
         try:
             entries = load_history(HISTORY_PATH)
-            kept = [e for e in entries if e.get("id") != entry_id]
-            # Rewrite the file with the remaining entries (oldest first)
+            kept    = [e for e in entries if e.get("id") != entry_id]
+            deleted = [e for e in entries if e.get("id") == entry_id]
+            for e in deleted:
+                _append_to_trash(e)
             HISTORY_PATH.write_text(
                 "\n".join(json.dumps(e, ensure_ascii=False, default=str) for e in reversed(kept)) + ("\n" if kept else ""),
                 encoding="utf-8",
             )
-            msg = f"<p style='color:#22c55e;font-size:0.82em;'>✅ Entry deleted.</p>"
+            msg = "<p style='color:#22c55e;font-size:0.82em;'>🗑 Moved to Trash — restore anytime from the Trash section below.</p>"
             return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
         except Exception as ex:
             return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Delete failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
@@ -7364,11 +7849,14 @@ with gr.Blocks(title=_title) as demo:
         queue=True,
     )
 
-    # ── Clear all history ─────────────────────────────────────────────────────
+    # ── Clear all → move all to trash ────────────────────────────────────────
     def _clear_all_history():
         try:
+            entries = load_history(HISTORY_PATH)
+            for e in entries:
+                _append_to_trash(e)
             HISTORY_PATH.write_text("", encoding="utf-8")
-            msg = "<p style='color:#22c55e;font-size:0.82em;'>✅ All history cleared.</p>"
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>🗑 {len(entries)} session(s) moved to Trash — restore anytime below.</p>"
             return gr.update(value=msg, visible=True), refresh_history(), None, gr.update(interactive=False)
         except Exception as ex:
             return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Clear failed: {ex}</p>", visible=True), refresh_history(), None, gr.update(interactive=False)
@@ -7376,6 +7864,66 @@ with gr.Blocks(title=_title) as demo:
     history_clear_btn.click(
         fn=_clear_all_history,
         outputs=[history_action_status, history_table, history_selected_id, history_delete_btn],
+        queue=True,
+    )
+
+    # ── Trash: load table ────────────────────────────────────────────────────
+    trash_refresh_btn.click(fn=_refresh_trash, outputs=[trash_table], queue=False)
+
+    # ── Trash: select row ────────────────────────────────────────────────────
+    def _select_trash_row(evt: gr.SelectData):
+        trash_entries = _load_trash()
+        idx = evt.index[0] if hasattr(evt, "index") else None
+        if idx is None or idx >= len(trash_entries):
+            return None, gr.update(interactive=False)
+        return trash_entries[idx].get("id"), gr.update(interactive=True)
+
+    trash_table.select(
+        fn=_select_trash_row,
+        outputs=[trash_selected_id, trash_restore_btn],
+        queue=False,
+    )
+
+    # ── Trash: restore selected ──────────────────────────────────────────────
+    def _restore_trash_entry(entry_id):
+        if not entry_id:
+            return gr.update(value="<p style='color:#f59e0b;font-size:0.82em;'>No entry selected.</p>", visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+        try:
+            trash_entries = _load_trash()
+            to_restore    = [e for e in trash_entries if e.get("id") == entry_id]
+            remaining     = [e for e in trash_entries if e.get("id") != entry_id]
+            for e in to_restore:
+                e.pop("deleted_at", None)
+                save_history_entry(e, HISTORY_PATH)
+            TRASH_PATH.write_text(
+                "\n".join(json.dumps(e, ensure_ascii=False, default=str) for e in reversed(remaining)) + ("\n" if remaining else ""),
+                encoding="utf-8",
+            )
+            msg = "<p style='color:#22c55e;font-size:0.82em;'>♻️ Session restored to History.</p>"
+            return gr.update(value=msg, visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Restore failed: {ex}</p>", visible=True), refresh_history(), _refresh_trash(), None, gr.update(interactive=False)
+
+    trash_restore_btn.click(
+        fn=_restore_trash_entry,
+        inputs=[trash_selected_id],
+        outputs=[trash_action_status, history_table, trash_table, trash_selected_id, trash_restore_btn],
+        queue=True,
+    )
+
+    # ── Trash: empty permanently ─────────────────────────────────────────────
+    def _empty_trash():
+        try:
+            count = len(_load_trash())
+            TRASH_PATH.write_text("", encoding="utf-8")
+            msg = f"<p style='color:#22c55e;font-size:0.82em;'>🗑 Trash emptied — {count} session(s) permanently deleted.</p>"
+            return gr.update(value=msg, visible=True), _refresh_trash()
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.82em;'>Failed: {ex}</p>", visible=True), _refresh_trash()
+
+    trash_empty_btn.click(
+        fn=_empty_trash,
+        outputs=[trash_action_status, trash_table],
         queue=True,
     )
 
@@ -7414,61 +7962,28 @@ with gr.Blocks(title=_title) as demo:
             stats_panel,
             result_state,
             iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress,
+            dl_waiting,
         ],
     )
     cancel_btn.click(fn=None, cancels=[process_event], queue=False)
 
-    # ── Profile upload — parse file → store text, show re-analyze button ─────
+    # ── Profile upload — parse file → store text ─────────────────────────────
     def _parse_profile(file_path):
         if not file_path:
-            return "", gr.update(visible=False)
+            return ""
         try:
             text = extract_profile_text(file_path)
             if text and text.strip():
-                return text, gr.update(visible=True)
+                return text
         except Exception:
             pass
-        return "", gr.update(visible=False)
+        return ""
 
     profile_upload.change(
         fn=_parse_profile,
         inputs=[profile_upload],
-        outputs=[profile_text_state, reanalyze_btn],
+        outputs=[profile_text_state],
         queue=False,
-    )
-
-    # ── Re-analyze with Profile — skips STT, re-runs coaching on cached transcript
-    def reanalyze_with_profile(result, profile_text, deep, api_key, provider_name, model_name, use_gpu=True):
-        # result_state is a dict — use .get() not getattr
-        transcript = (result.get("clean_transcript", "") if isinstance(result, dict)
-                      else getattr(result, "clean_transcript", ""))
-        if not result or not transcript:
-            yield '<p style="color:#ef4444;padding:12px;">Run Analyze first to load a transcript.</p>'
-            return
-        api_key = (api_key or "").strip()
-        if not api_key and provider_name != "Ollama (Local)":
-            yield f'<p style="color:#ef4444;padding:12px;">Please enter your {provider_name} API key.</p>'
-            return
-        provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
-        client = LLMClient(
-            provider=provider_cfg["type"], api_key=api_key,
-            model=model_name, base_url=provider_cfg["base_url"],
-            use_gpu=bool(use_gpu),
-        )
-        yield ('<div style="padding:14px;color:#94a3b8;font-style:italic;">'
-               '⏳ Re-analyzing with your profile — this takes about 30 seconds…</div>')
-        ia = run_interview_analysis(
-            transcript, client,
-            deep_mode=bool(deep),
-            candidate_profile=profile_text or "",
-        )
-        yield _build_interview_html(ia)
-
-    reanalyze_btn.click(
-        fn=reanalyze_with_profile,
-        inputs=[result_state, profile_text_state, interview_deep,
-                user_api_key, provider_dropdown, model_dropdown, gpu_toggle],
-        outputs=[interview_out],
     )
 
     def _regen_and_show(rs, target_lang, api_key, provider_name, model_name):
@@ -7684,8 +8199,10 @@ with gr.Blocks(title=_title) as demo:
 
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)
+    _check_update_btn.click(fn=_check_github_update, outputs=[update_banner], queue=False)
     if not bool(os.environ.get("SPACE_ID")):
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
+        _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner], show_progress=False)
 
     # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 
@@ -7700,6 +8217,36 @@ if __name__ == "__main__":
     _host   = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
     _port   = int(os.environ.get("GRADIO_SERVER_PORT", 7860))
     _docker = _host == "0.0.0.0"
+
+    # Kill any stale process holding port 7860 (e.g. previous instance still closing)
+    import socket as _sock
+    def _port_free(p):
+        with _sock.socket(_sock.AF_INET, _sock.SOCK_STREAM) as s:
+            return s.connect_ex(("127.0.0.1", p)) != 0
+    if not _port_free(_port):
+        try:
+            if os.name == "nt":
+                import subprocess as _sp2
+                _r = _sp2.run(
+                    ["netstat", "-ano"], capture_output=True, text=True
+                )
+                for _ln in _r.stdout.splitlines():
+                    if f":{_port} " in _ln and "LISTENING" in _ln:
+                        _pid = int(_ln.strip().split()[-1])
+                        _sp2.run(["taskkill", "/F", "/PID", str(_pid)],
+                                 capture_output=True)
+                        break
+        except Exception:
+            pass
+        import time as _t2
+        _t2.sleep(1)
+        # If still busy, find next free port
+        if not _port_free(_port):
+            for _p in range(_port + 1, _port + 10):
+                if _port_free(_p):
+                    _port = _p
+                    break
+
     demo.queue(max_size=5, default_concurrency_limit=4)
     import inspect as _inspect
     _launch_sig = _inspect.signature(demo.launch).parameters

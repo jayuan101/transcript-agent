@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.4.3 — 2026-06-07
+- Windows now ships as a single TranscriptAgent-Setup.exe installer — no zip, no bat files, just download and run
+- Inno Setup installer handles extraction, shortcuts, version.txt, and GPU detection in one click
+- GPU auto-detected on install (NVIDIA CUDA / AMD DirectML / CPU fallback) stored in gpu_hint.txt
+- Supports Windows 10/11 x64 and ARM64 (via x64 emulation)
+- Uninstaller included
+- OTA background updates still use TranscriptAgent-win64.zip for silent extraction
+
 ## v2.4.2 — 2026-06-06
 - Installer now checks for 64-bit Windows 10+ before installing — clear error message for unsupported systems
 - OTA launcher shows Windows toast notification when downloading an update so user knows what is happening

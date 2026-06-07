@@ -176,16 +176,24 @@ jobs:
           )
           $inst | Out-File -FilePath dist\Install-TranscriptAgent.bat -Encoding utf8
 
+      - name: Build single-exe installer with Inno Setup
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.appver.outputs.ver }}"
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = (Get-Command ISCC -ErrorAction SilentlyContinue)?.Source }
+          if (-not $iscc) { choco install innosetup -y --no-progress; $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+          & $iscc /DAppVersion=$ver installer_windows.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed" }
+          Write-Host "Built: dist\TranscriptAgent-Setup.exe"
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
           path: |
+            dist/TranscriptAgent-Setup.exe
             dist/TranscriptAgent-win64.zip
-            dist/TranscriptAgent/TranscriptAgent.exe
-            dist/Install-TranscriptAgent.bat
-            dist/ta_launcher.ps1
-            dist/Launch-TranscriptAgent.bat
 
   # ── Mac .dmg ────────────────────────────────────────────────────────────────
   build-mac:
@@ -291,15 +299,13 @@ jobs:
             ---
 
             ### 🪟 Windows — Install
-            1. Download **both** `TranscriptAgent-win64.zip` and `Install-TranscriptAgent.bat` into the **same folder**
-            2. Double-click `Install-TranscriptAgent.bat`
-            3. It extracts, creates a **Desktop shortcut**, and launches automatically
+            1. Download **`TranscriptAgent-Setup.exe`**
+            2. Double-click it — that's it
+            3. Click through the installer, app launches automatically
 
-            **To launch after install:**
-            - Double-click **Transcript Agent** on your Desktop ← easiest
-            - Or navigate to `%LOCALAPPDATA%\TranscriptAgent\TranscriptAgent\` and run `TranscriptAgent.exe`
-
-            > ⚠️ Do NOT run `TranscriptAgent.exe` directly from inside the zip — always use the installer first.
+            ✅ Works on Windows 10/11 (x64 and ARM64)
+            ✅ GPU auto-detected (NVIDIA CUDA / AMD / CPU)
+            ✅ Updates automatically on every launch — no manual downloads ever again
 
             ---
 
@@ -319,11 +325,8 @@ jobs:
 
             > Full changelog: [CHANGELOG.md](https://github.com/jayuan101/transcript-agent/blob/main/CHANGELOG.md)
           files: |
+            artifacts/windows/TranscriptAgent-Setup.exe
             artifacts/windows/TranscriptAgent-win64.zip
-            artifacts/windows/TranscriptAgent/TranscriptAgent.exe
-            artifacts/windows/Install-TranscriptAgent.bat
-            artifacts/windows/ta_launcher.ps1
-            artifacts/windows/Launch-TranscriptAgent.bat
             artifacts/mac/TranscriptAgent.dmg
           draft: false
           prerelease: false

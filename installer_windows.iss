@@ -1,8 +1,9 @@
-#define AppName "Transcript Agent"
-#define AppVersion "1.1.82"
+#define AppName      "Transcript Agent"
 #define AppPublisher "Coastline6"
-#define AppURL "https://huggingface.co/spaces/Coastline6/transcript-agent-v2"
-#define AppExeName "run.bat"
+#define AppURL       "https://github.com/jayuan101/transcript-agent"
+#ifndef AppVersion
+  #define AppVersion "2.4.2"
+#endif
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -10,40 +11,97 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
 AppPublisherURL={#AppURL}
+AppSupportURL={#AppURL}/issues
 DefaultDirName={localappdata}\TranscriptAgent
+DisableDirPage=yes
 DefaultGroupName={#AppName}
-AllowNoIcons=yes
+DisableProgramGroupPage=yes
 OutputDir=dist
-OutputBaseFilename=TranscriptAgent-Windows-Setup
+OutputBaseFilename=TranscriptAgent-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
-DisableProgramGroupPage=yes
-UninstallDisplayIcon={app}\run.bat
-CloseApplications=no
+CloseApplications=yes
+UninstallDisplayIcon={app}\TranscriptAgent\TranscriptAgent.exe
+; Supports x64 and Windows ARM64 (runs via x64 emulation on ARM)
+ArchitecturesAllowed=x64compatible arm64
+ArchitecturesInstallIn64BitMode=x64compatible arm64
+MinVersion=10.0.17763
+SetupIconFile=icon.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
+Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription: "Additional icons:"; Flags: checked
 
 [Files]
-Source: "app.py";              DestDir: "{app}"; Flags: ignoreversion
-Source: "transcript_agent.py"; DestDir: "{app}"; Flags: ignoreversion
-Source: "requirements.txt";    DestDir: "{app}"; Flags: ignoreversion
-Source: "setup_windows.bat";   DestDir: "{app}"; Flags: ignoreversion
-Source: "run.bat";             DestDir: "{app}"; Flags: ignoreversion
-Source: "launcher.py";         DestDir: "{app}"; Flags: ignoreversion
-Source: "CHANGELOG.md";        DestDir: "{app}"; Flags: ignoreversion
+; App bundle (PyInstaller onedir output)
+Source: "dist\TranscriptAgent\*"; DestDir: "{app}\TranscriptAgent"; Flags: ignoreversion recursesubdirs createallsubdirs
+; OTA launcher files
+Source: "dist\ta_launcher.ps1";            DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\Launch-TranscriptAgent.bat"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\setup_windows.bat"; WorkingDir: "{app}"; Tasks: desktopicon; Comment: "Launch Transcript Agent"
+Name: "{autodesktop}\{#AppName}"; \
+  Filename: "{app}\Launch-TranscriptAgent.bat"; \
+  WorkingDir: "{app}"; \
+  IconFilename: "{app}\TranscriptAgent\TranscriptAgent.exe"; \
+  Comment: "Transcript Agent — AI transcription and interview analysis"; \
+  Tasks: desktopicon
+Name: "{group}\{#AppName}"; \
+  Filename: "{app}\Launch-TranscriptAgent.bat"; \
+  WorkingDir: "{app}"; \
+  IconFilename: "{app}\TranscriptAgent\TranscriptAgent.exe"
+
+[UninstallDelete]
+Type: files; Name: "{app}\version.txt"
+Type: files; Name: "{app}\ta_launcher.ps1"
+Type: files; Name: "{app}\Launch-TranscriptAgent.bat"
 
 [Run]
-Filename: "{app}\setup_windows.bat"; WorkingDir: "{app}"; Description: "Run setup (installs Python dependencies)"; Flags: postinstall shellexec skipifsilent
+Filename: "{app}\Launch-TranscriptAgent.bat"; \
+  Description: "Launch {#AppName} now"; \
+  Flags: postinstall shellexec skipifsilent nowait
 
 [Messages]
-WelcomeLabel1=Welcome to Transcript Agent v{#AppVersion} Setup
-WelcomeLabel2=This will install Transcript Agent on your computer.%n%nOn first launch, setup will download Python dependencies (~2 GB). Make sure you have a working internet connection.%n%nClick Next to continue.
+WelcomeLabel1=Welcome to {#AppName} Setup
+WelcomeLabel2=This will install Transcript Agent {#AppVersion} on your computer.%n%nThe app opens in your browser at http://localhost:7860.%n%nUpdates are automatic — the app checks for new versions each time you launch it.%n%nClick Next to continue.
+FinishedLabel=Transcript Agent has been installed.%n%nClick Finish to launch it now.
+
+[Code]
+{ Write version.txt and detect GPU on install }
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  VersionFile: string;
+  WbemLocator, WbemServices, WbemObjectSet, WbemObject: Variant;
+  GpuName, GpuHint: string;
+  i: Integer;
+begin
+  if CurStep = ssPostInstall then
+  begin
+    { Write version.txt }
+    VersionFile := ExpandConstant('{app}\version.txt');
+    SaveStringToFile(VersionFile, '{#AppVersion}', False);
+
+    { GPU detection — store hint for the app }
+    GpuHint := 'cpu';
+    try
+      WbemLocator  := CreateOleObject('WbemScripting.SWbemLocator');
+      WbemServices := WbemLocator.ConnectServer('.', 'root\cimv2');
+      WbemObjectSet := WbemServices.ExecQuery('SELECT Name FROM Win32_VideoController');
+      for i := 0 to WbemObjectSet.Count - 1 do
+      begin
+        WbemObject := WbemObjectSet.ItemIndex(i);
+        GpuName := WbemObject.Name;
+        if (Pos('NVIDIA', UpperCase(GpuName)) > 0) then
+          GpuHint := 'cuda'
+        else if (Pos('AMD', UpperCase(GpuName)) > 0) or (Pos('RADEON', UpperCase(GpuName)) > 0) then
+          GpuHint := 'directml';
+      end;
+    except
+    end;
+    SaveStringToFile(ExpandConstant('{app}\gpu_hint.txt'), GpuHint, False);
+  end;
+end;

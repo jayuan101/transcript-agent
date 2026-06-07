@@ -231,42 +231,7 @@ jobs:
         run: pyinstaller TranscriptAgent.spec
 
       - name: Create OTA launcher for Mac
-        run: |
-          VER=$(grep -m1 '^APP_VERSION' app.py | sed 's/.*"\([^"]*\)".*/\1/')
-          mkdir -p dist/mac_launcher
-          python3 - <<'PYEOF'
-import os, stat
-lines = [
-    "#!/bin/bash",
-    'INSTALL_DIR="$HOME/Applications/TranscriptAgent"',
-    'APP_PATH="$INSTALL_DIR/TranscriptAgent.app"',
-    'VER_FILE="$INSTALL_DIR/version.txt"',
-    'CURRENT_VER=$(cat "$VER_FILE" 2>/dev/null || echo "0.0.0")',
-    'API="https://api.github.com/repos/jayuan101/transcript-agent/releases/latest"',
-    'LATEST=$(curl -sf --max-time 8 "$API" | grep \'"tag_name"\' | sed \'s/.*"v\([^"]*\)".*/\\1/\')',
-    'ASSET_URL=$(curl -sf --max-time 8 "$API" | python3 -c "import sys,json; d=json.load(sys.stdin); print(next((a[\'browser_download_url\'] for a in d.get(\'assets\',[]) if a[\'name\']==\'TranscriptAgent-Mac.zip\'),\'\'))" 2>/dev/null)',
-    'if [ -n "$LATEST" ] && [ "$LATEST" != "$CURRENT_VER" ] && [ -n "$ASSET_URL" ]; then',
-    '  osascript -e "display notification \\"Updating to v$LATEST...\\" with title \\"Transcript Agent\\""',
-    '  ZIP="/tmp/ta_mac_update.zip"',
-    '  curl -L "$ASSET_URL" -o "$ZIP" --silent',
-    '  mkdir -p "$INSTALL_DIR"',
-    '  unzip -o "$ZIP" -d "$INSTALL_DIR" -x "__MACOSX/*" > /dev/null 2>&1',
-    '  echo "$LATEST" > "$VER_FILE"',
-    '  rm -f "$ZIP"',
-    '  osascript -e "display notification \\"Updated to v$LATEST!\\" with title \\"Transcript Agent\\""',
-    "fi",
-    'if [ -d "$APP_PATH" ]; then open "$APP_PATH"',
-    'else osascript -e "display dialog \\"App not found. Reinstall from GitHub.\\" with title \\"Error\\" buttons {\\"OK\\"} default button 1"; fi',
-]
-with open("dist/mac_launcher/ta_launcher.sh", "w") as f:
-    f.write("\n".join(lines) + "\n")
-os.chmod("dist/mac_launcher/ta_launcher.sh", stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-with open("dist/mac_launcher/Launch Transcript Agent.command", "w") as f:
-    f.write('#!/bin/bash\nbash "$HOME/Applications/TranscriptAgent/ta_launcher.sh"\n')
-os.chmod("dist/mac_launcher/Launch Transcript Agent.command", stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
-print("Mac OTA launcher files created.")
-PYEOF
-          echo "$VER" > dist/mac_launcher/version.txt
+        run: python3 build_mac_launcher.py
 
       - name: Create .dmg
         run: |

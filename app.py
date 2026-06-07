@@ -6460,7 +6460,13 @@ def _check_github_update() -> str:
         except Exception:
             newer = latest_tag > APP_VERSION
         if not newer:
-            return ""
+            return (
+                '<div class="ta-update-banner" style="background:#f0fdf4;border-color:#86efac;">'
+                '<div style="display:flex;align-items:center;gap:10px;font-size:0.88em;color:#166534;">'
+                '<span style="font-size:1.3em;">✅</span>'
+                f'<span><strong>You\'re up to date!</strong> &nbsp; v{APP_VERSION} is the latest version.</span>'
+                '</div></div>'
+            )
         assets   = {a["name"]: a["browser_download_url"] for a in data.get("assets", [])}
         win_url  = (assets.get("TranscriptAgent-win64.zip")
                     or assets.get("TranscriptAgent.exe")

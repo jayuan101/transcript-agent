@@ -24,8 +24,8 @@ WizardStyle=modern
 PrivilegesRequired=lowest
 CloseApplications=yes
 UninstallDisplayIcon={app}\TranscriptAgent\TranscriptAgent.exe
-ArchitecturesAllowed=x64compatible arm64
-ArchitecturesInstallIn64BitMode=x64compatible arm64
+ArchitecturesAllowed=x64 arm64
+ArchitecturesInstallIn64BitMode=x64 arm64
 MinVersion=10.0.17763
 SetupIconFile=icon.ico
 
@@ -36,7 +36,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
-Source: "dist\TranscriptAgent\*"; DestDir: "{app}\TranscriptAgent"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\TranscriptAgent\*"; DestDir: "{app}\TranscriptAgent"; Flags: ignoreversion recursesubdirs
 Source: "dist\ta_launcher.ps1"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\Launch-TranscriptAgent.bat"; DestDir: "{app}"; Flags: ignoreversion
 

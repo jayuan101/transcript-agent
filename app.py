@@ -801,8 +801,6 @@ html.dark button:not(#ta-float-analyze) { background: var(--ta-surface) !importa
 html.dark ::-webkit-scrollbar-track { background: var(--ta-bg) !important; }
 html.dark ::-webkit-scrollbar-thumb { background: var(--ta-border) !important; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
-html.dark #ta-btn-light { background: transparent !important; color: var(--ta-sub) !important; }
-html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !important; }
 
 /* ── Light mode — explicit overrides so Gradio Soft theme gaps don't hurt contrast ── */
 html:not(.dark) body, html:not(.dark) .gradio-container,
@@ -859,8 +857,6 @@ html:not(.dark) .block span, html:not(.dark) .form span,
 html:not(.dark) .block p, html:not(.dark) .form p { color: #1e293b !important; }
 html:not(.dark) .info, html:not(.dark) .info-text, html:not(.dark) .info span,
 html:not(.dark) [class*="info-text"] { color: #374151 !important; font-weight: 600 !important; }
-html:not(.dark) #ta-btn-light { background: var(--ta-accent) !important; color: #fff !important; border: none !important; }
-html:not(.dark) #ta-btn-dark  { background: transparent !important; color: var(--ta-sub) !important; }
 
 /* ── Top bar — Google Material 3 ── */
 .ta-topbar {
@@ -4241,6 +4237,9 @@ _HERO = """
 </div>
 """
 
+_THEME_TOGGLE_BAR = ""  # toggle injected fixed-position via _THEME_JS
+
+
 _API_BANNER = """
 <div id="api-banner" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1.5px solid #f59e0b;border-radius:10px;
      padding:10px 16px;display:flex;align-items:center;gap:10px;margin-top:6px;font-family:sans-serif;
@@ -4305,45 +4304,52 @@ window.taClickUpdateBtn = function(btn) {
   /* ── Inject toggle widget directly into <body> so Gradio can never remove it ─
      We do NOT use gr.HTML() for the buttons — Gradio 6 re-renders those
      components and strips IDs/styles. Injecting via JS is permanent.           */
-  /* Sync button visuals to current _dark state — called after every inject */
+  /* Sync button visuals to current _dark state — uses setProperty('important') to beat CSS !important */
   function _syncToggleUI() {
     var bl = document.getElementById('ta-btn-light');
     var bd = document.getElementById('ta-btn-dark');
-    var wg = document.getElementById('ta-widget');
+    var tt = document.getElementById('ta-theme-toggle');
     if (!bl || !bd) return;
-    var _base = 'display:flex;align-items:center;gap:5px;padding:6px 14px;border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;transition:all 0.22s;';
-    bl.style.cssText = _base + (_dark
-      ? 'background:transparent;color:#64748b;box-shadow:none;'
-      : 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);');
-    bd.style.cssText = _base + (_dark
-      ? 'background:#3b82f6;color:#fff;box-shadow:0 2px 6px rgba(59,130,246,0.4);'
-      : 'background:transparent;color:#64748b;box-shadow:none;');
-    if (wg) {
-      wg.style.background  = _dark ? 'rgba(15,23,42,0.96)' : 'rgba(255,255,255,0.96)';
-      wg.style.borderColor = _dark ? '#334155' : '#e2e8f0';
+    function sp(el, prop, val) { el.style.setProperty(prop, val, 'important'); }
+    if (_dark) {
+      if (tt) sp(tt, 'background', '#3c4043');
+      sp(bl, 'background', 'transparent'); sp(bl, 'color', '#9aa0a6'); sp(bl, 'box-shadow', 'none');
+      sp(bd, 'background', '#5f6368');     sp(bd, 'color', '#e8eaed'); sp(bd, 'box-shadow', '0 1px 3px rgba(0,0,0,0.4)');
+    } else {
+      if (tt) sp(tt, 'background', '#e8eaed');
+      sp(bl, 'background', '#fff');         sp(bl, 'color', '#1a73e8'); sp(bl, 'box-shadow', '0 1px 3px rgba(0,0,0,0.15)');
+      sp(bd, 'background', 'transparent'); sp(bd, 'color', '#5f6368'); sp(bd, 'box-shadow', 'none');
     }
   }
 
+  /* Global toggle function called by button onclick handlers */
+  window._taToggle = function(dark) {
+    _dark = dark;
+    var h = document.documentElement, b = document.body;
+    if (dark) { h.classList.add('dark'); if (b) b.classList.add('dark'); }
+    else       { h.classList.remove('dark'); if (b) b.classList.remove('dark'); }
+    localStorage.setItem('ta-dark', dark ? 'true' : 'false');
+    patchDOM(dark);
+    _syncToggleUI();
+  };
+
   function _injectToggle() {
-    if (!document.getElementById('ta-widget')) {
-      var w = document.createElement('div');
-      w.id = 'ta-widget';
-      w.style.cssText = (
-        'position:fixed;top:14px;right:18px;z-index:9999;display:flex;align-items:center;'
-        + 'background:rgba(255,255,255,0.96);backdrop-filter:blur(12px);'
-        + 'border:1px solid #e2e8f0;border-radius:30px;padding:4px;'
-        + 'box-shadow:0 2px 14px rgba(0,0,0,0.13);gap:2px;'
+    /* Fixed-position toggle pill — always top-right, Gradio layout can't bury it */
+    if (!document.getElementById('ta-theme-toggle')) {
+      var pill = document.createElement('div');
+      pill.id = 'ta-theme-toggle';
+      pill.style.cssText = (
+        'position:fixed;top:14px;right:18px;z-index:9999;'
+        + 'display:inline-flex;align-items:center;background:#e8eaed;'
+        + 'border-radius:20px;padding:2px;'
+        + 'box-shadow:0 1px 6px rgba(0,0,0,0.18);'
       );
-      /* Both buttons start neutral — _syncToggleUI() will set correct active state */
-      w.innerHTML = (
-        '<button id="ta-btn-light" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;">☀️ Light</button>'
-        + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:5px;padding:6px 14px;'
-        + 'border-radius:24px;border:none;cursor:pointer;font-size:0.82em;font-weight:700;">🌙 Dark</button>'
+      pill.innerHTML = (
+        '<button id="ta-btn-light" style="display:flex;align-items:center;gap:4px;padding:4px 12px;border-radius:18px;border:none;cursor:pointer;font-size:0.78em;font-weight:700;background:#fff;color:#1a73e8;box-shadow:0 1px 3px rgba(0,0,0,0.15);transition:all 0.18s;">☀️ Light</button>'
+        + '<button id="ta-btn-dark" style="display:flex;align-items:center;gap:4px;padding:4px 12px;border-radius:18px;border:none;cursor:pointer;font-size:0.78em;font-weight:700;background:transparent;color:#5f6368;transition:all 0.18s;">🌙 Dark</button>'
       );
-      document.documentElement.appendChild(w);
+      document.body.appendChild(pill);
     }
-    /* Always sync after inject — fixes re-injection resetting wrong button active */
     _syncToggleUI();
     /* Inject pulse-ring keyframe once */
     if (!document.getElementById('ta-float-css')) {
@@ -4778,12 +4784,9 @@ window.taClickUpdateBtn = function(btn) {
     'html.dark .file-preview{background:#292a2d!important;color:#e8eaed!important}',
     'html.dark .dropdown-arrow svg{fill:#9aa0a6!important}',
     /* buttons */
-    'html.dark button{background:#35363a!important;border-color:#5f6368!important;color:#e8eaed!important;border-radius:8px!important}',
+    'html.dark button:not(#ta-btn-light):not(#ta-btn-dark){background:#35363a!important;border-color:#5f6368!important;color:#e8eaed!important;border-radius:8px!important}',
     'html.dark button.selected{background:#3c4043!important}',
     'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1a73e8,#ea4335)!important;color:#fff!important;border:none!important;border-radius:24px!important}',
-    /* theme toggle */
-    'html.dark #ta-btn-light{background:transparent!important;color:#9aa0a6!important}',
-    'html.dark #ta-btn-dark{background:#8ab4f8!important;color:#202124!important}',
     /* block card shadow */
     'html.dark .block,html.dark .form,html.dark .padded{box-shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.25)!important}',
     /* inputs — focus */
@@ -5017,9 +5020,7 @@ window.taClickUpdateBtn = function(btn) {
     "html:not(.dark) .accordion,html:not(.dark) details{background:#ffffff!important;border-color:#dadce0!important;border-radius:8px!important}",
     "html:not(.dark) .accordion .label-wrap,html:not(.dark) details summary{color:#202124!important}",
     /* buttons */
-    "html:not(.dark) button:not(#ta-float-analyze):not(.ta-analyze-btn):not([id=ta-analyze-btn]){background:#ffffff!important;border-color:#dadce0!important;color:#202124!important;border-radius:8px!important}",
-    "html:not(.dark) #ta-btn-light{background:#1a73e8!important;color:#fff!important;border:none!important}",
-    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5f6368!important}",
+    "html:not(.dark) button:not(#ta-float-analyze):not(.ta-analyze-btn):not([id=ta-analyze-btn]):not(#ta-btn-light):not(#ta-btn-dark){background:#ffffff!important;border-color:#dadce0!important;color:#202124!important;border-radius:8px!important}",
     /* labels */
     "html:not(.dark) .label-wrap span,html:not(.dark) .block-label,html:not(.dark) label>span{color:#1e293b!important;font-weight:700!important}",
     "html:not(.dark) .info,html:not(.dark) .info-text,html:not(.dark) .info span,html:not(.dark) [class*=info-text]{color:#374151!important;font-weight:600!important}",
@@ -5049,9 +5050,6 @@ window.taClickUpdateBtn = function(btn) {
     /* banner */
     "html:not(.dark) .ta-large-file-banner{background:#fef7e0!important;border-color:#f9ab00!important}",
     "html:not(.dark) .ta-large-file-banner,html:not(.dark) .ta-large-file-banner strong{color:#7b5800!important}",
-    /* theme toggle */
-    "html:not(.dark) #ta-btn-light{background:#1a73e8!important;color:#fff!important}",
-    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5f6368!important}",
   ].join("");
     st.textContent = dark ? DARK_RULES : LIGHT_RULES;
 
@@ -7077,6 +7075,7 @@ with gr.Blocks(title=_title) as demo:
     if _DEV_MODE:
         gr.HTML(_DEV_BANNER)
     gr.HTML(_HERO)
+    gr.HTML(_THEME_TOGGLE_BAR)
     gr.HTML(_API_BANNER)
     update_banner = gr.HTML(value="", elem_id="ta-update-banner-wrap")
     _hidden_update_btn = gr.Button("_upd", elem_id="ta-hidden-update-btn")
@@ -8477,7 +8476,6 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
         demo.load(fn=_check_github_update, outputs=[update_banner], queue=False)
         _hidden_update_btn.click(fn=_do_in_app_update, outputs=[update_banner], show_progress=False)
 
-    # _THEME_JS is injected via demo.launch(js=_THEME_JS) below — no second injection needed
 
 
 
@@ -8526,7 +8524,7 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
-        js=_THEME_JS,
+        head=f"<script>{_THEME_JS}</script>",
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

@@ -50,8 +50,10 @@ try:
     from video_analyzer import VideoAnalyzer as _VideoAnalyzer
     _video_analyzer = _VideoAnalyzer()
     _HAS_VIDEO_ANALYZER = True
-except Exception:
+except Exception as _va_import_err:
+    _video_analyzer = None
     _HAS_VIDEO_ANALYZER = False
+    _va_import_err_msg = str(_va_import_err)
 
 
 
@@ -599,27 +601,28 @@ a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
   display: none !important;
 }
 
-/* ── Design tokens ── */
+/* ── Design tokens — Google Material Design 3 ── */
 :root {
-  --ta-bg:            #f0f4fb;
+  --ta-bg:            #f8f9fa;
   --ta-surface:       #ffffff;
-  --ta-border:        #dde3ef;
-  --ta-text:          #0d1b2e;
-  --ta-sub:           #5a6a83;
-  --ta-accent:        #2563eb;
-  --ta-accent-h:      #1d4ed8;
-  --ta-accent-lt:     #dbeafe;
-  --ta-green:         #16a34a;
-  --ta-green-lt:      #dcfce7;
-  --ta-amber:         #d97706;
-  --ta-amber-lt:      #fef3c7;
+  --ta-border:        #dadce0;
+  --ta-text:          #202124;
+  --ta-sub:           #5f6368;
+  --ta-accent:        #1a73e8;
+  --ta-accent-h:      #1765cc;
+  --ta-accent-lt:     #e8f0fe;
+  --ta-green:         #34a853;
+  --ta-green-lt:      #e6f4ea;
+  --ta-amber:         #f9ab00;
+  --ta-amber-lt:      #fef7e0;
   --ta-radius:        12px;
+  --ta-font:          "Google Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
   /* legacy aliases used throughout */
   --ta-card-bg:       #ffffff;
-  --ta-card-border:   #dde3ef;
-  --ta-card-text:     #0d1b2e;
-  --ta-card-sub:      #5a6a83;
-  --ta-card-val:      #0d1b2e;
+  --ta-card-border:   #dadce0;
+  --ta-card-text:     #202124;
+  --ta-card-sub:      #5f6368;
+  --ta-card-val:      #202124;
   --ta-step-done-bg:  #dcfce7;
   --ta-step-done-bdr: #22c55e;
   --ta-step-done-clr: #166534;
@@ -627,10 +630,12 @@ a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
   --ta-step-act-bdr:  #2563eb;
   --ta-step-act-clr:  #1d4ed8;
   --ta-step-wait-bg:  #f1f5f9;
-  --ta-step-wait-bdr: #dde3ef;
-  --ta-step-wait-clr: #94a3b8;
+  --ta-step-wait-bdr: #94a3b8;
+  --ta-step-wait-clr: #475569;
   --ta-conn-line-done:#22c55e;
-  --ta-conn-line-wait:#dde3ef;
+  --ta-conn-line-wait:#94a3b8;
+  --ta-purple:        #7c3aed;
+  --ta-purple-lt:     #ede9fe;
   --ta-stat-bg:       rgba(255,255,255,0.8);
   --ta-stat-label:    #1e40af;
   --ta-stat-val:      #1d4ed8;
@@ -644,45 +649,47 @@ a[href*="gradio.app"], a[href*="huggingface.co/spaces"]:not([id]) {
   --ta-err-text:      #b91c1c;
 }
 html.dark {
-  --ta-bg:            #080f1c;
-  --ta-surface:       #111827;
-  --ta-border:        #1e2d45;
-  --ta-text:          #e2e8f0;
-  --ta-sub:           #7a8fa6;
-  --ta-accent:        #3b82f6;
-  --ta-accent-h:      #60a5fa;
-  --ta-accent-lt:     #1e3a5f;
-  --ta-green:         #4ade80;
-  --ta-green-lt:      #14532d;
-  --ta-amber:         #fbbf24;
-  --ta-amber-lt:      #78350f;
-  --ta-card-bg:       #111827;
-  --ta-card-border:   #1e2d45;
-  --ta-card-text:     #e2e8f0;
-  --ta-card-sub:      #7a8fa6;
-  --ta-card-val:      #f1f5f9;
-  --ta-step-done-bg:  #14532d;
-  --ta-step-done-bdr: #4ade80;
-  --ta-step-done-clr: #4ade80;
-  --ta-step-act-bg:   #1e3a5f;
-  --ta-step-act-bdr:  #60a5fa;
-  --ta-step-act-clr:  #93c5fd;
-  --ta-step-wait-bg:  #080f1c;
-  --ta-step-wait-bdr: #1e2d45;
-  --ta-step-wait-clr: #475569;
-  --ta-conn-line-done:#4ade80;
-  --ta-conn-line-wait:#1e2d45;
-  --ta-stat-bg:       rgba(8,15,28,0.7);
-  --ta-stat-label:    #93c5fd;
-  --ta-stat-val:      #e2e8f0;
-  --ta-log-bg:        #0a0f1e;
-  --ta-log-border:    #1e3a5f;
-  --ta-log-text:      #94a3b8;
-  --ta-log-ts:        #64748b;
-  --ta-err-bg:        #1a0505;
-  --ta-err-border:    #7f1d1d;
-  --ta-err-title:     #fca5a5;
-  --ta-err-text:      #fecaca;
+  --ta-bg:            #202124;
+  --ta-surface:       #292a2d;
+  --ta-border:        #3c4043;
+  --ta-text:          #e8eaed;
+  --ta-sub:           #9aa0a6;
+  --ta-accent:        #8ab4f8;
+  --ta-accent-h:      #aecbfa;
+  --ta-accent-lt:     #1a2e4a;
+  --ta-green:         #81c995;
+  --ta-green-lt:      #1e3a27;
+  --ta-amber:         #fdd663;
+  --ta-amber-lt:      #3d2e00;
+  --ta-card-bg:       #292a2d;
+  --ta-card-border:   #3c4043;
+  --ta-card-text:     #e8eaed;
+  --ta-card-sub:      #9aa0a6;
+  --ta-card-val:      #f8f9fa;
+  --ta-step-done-bg:  #1e3a27;
+  --ta-step-done-bdr: #81c995;
+  --ta-step-done-clr: #81c995;
+  --ta-step-act-bg:   #1a2e4a;
+  --ta-step-act-bdr:  #8ab4f8;
+  --ta-step-act-clr:  #aecbfa;
+  --ta-step-wait-bg:  #202124;
+  --ta-step-wait-bdr: #3c4043;
+  --ta-step-wait-clr: #9aa0a6;
+  --ta-conn-line-done:#81c995;
+  --ta-conn-line-wait:#3c4043;
+  --ta-purple:        #c4b5fd;
+  --ta-purple-lt:     #2e1065;
+  --ta-stat-bg:       rgba(41,42,45,0.9);
+  --ta-stat-label:    #aecbfa;
+  --ta-stat-val:      #e8eaed;
+  --ta-log-bg:        #202124;
+  --ta-log-border:    #3c4043;
+  --ta-log-text:      #9aa0a6;
+  --ta-log-ts:        #5f6368;
+  --ta-err-bg:        #2d0a0a;
+  --ta-err-border:    #ea4335;
+  --ta-err-title:     #f28b82;
+  --ta-err-text:      #f6aea9;
 }
 
 /* ── Error card ── */
@@ -769,26 +776,9 @@ html.dark input, html.dark textarea, html.dark select {
 }
 html.dark span, html.dark p, html.dark div, html.dark h1, html.dark h2,
 html.dark h3, html.dark h4, html.dark li, html.dark td { color: var(--ta-text) !important; }
-html.dark .label-wrap span, html.dark .block-label, html.dark label span,
-html.dark .info, html.dark .file-name { color: var(--ta-sub) !important; }
-
-/* ── Fix Gradio blue label badges — light + dark ── */
-.block-label, label > span, .label-wrap span,
-span.svelte-1b6s6s, .svelte-1b6s6s > span {
-  background: transparent !important;
-  background-color: transparent !important;
-  color: #374151 !important;
-  font-size: 0.82em !important;
-  font-weight: 600 !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-}
-html.dark .block-label, html.dark label > span, html.dark .label-wrap span,
-html.dark span.svelte-1b6s6s, html.dark .svelte-1b6s6s > span {
-  color: #94a3b8 !important;
-  background: transparent !important;
-  background-color: transparent !important;
-}
+html.dark .label-wrap span, html.dark .block-label, html.dark label span { color: #e8eaed !important; font-weight: 700 !important; }
+html.dark .info, html.dark .info-text, html.dark [class*="info-text"],
+html.dark .file-name { color: #9aa0a6 !important; }
 html.dark .tabs > .tab-nav button {
   color: var(--ta-sub) !important; background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
 }
@@ -807,49 +797,109 @@ html.dark .accordion .label-wrap, html.dark details summary { color: var(--ta-te
 html.dark .checkbox-group label span, html.dark .radio-group label span { color: #cbd5e1 !important; }
 html.dark .file-preview { background: var(--ta-surface) !important; color: var(--ta-text) !important; }
 html.dark .dropdown-arrow svg { fill: var(--ta-sub) !important; }
-html.dark button { background: var(--ta-surface) !important; border-color: var(--ta-border) !important; color: var(--ta-text) !important; }
+html.dark button:not(#ta-float-analyze) { background: var(--ta-surface) !important; border-color: var(--ta-border) !important; color: var(--ta-text) !important; }
 html.dark ::-webkit-scrollbar-track { background: var(--ta-bg) !important; }
 html.dark ::-webkit-scrollbar-thumb { background: var(--ta-border) !important; }
 html.dark ::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
 html.dark #ta-btn-light { background: transparent !important; color: var(--ta-sub) !important; }
 html.dark #ta-btn-dark  { background: var(--ta-accent) !important; color: #fff !important; }
 
-/* ── Top bar ── */
+/* ── Light mode — explicit overrides so Gradio Soft theme gaps don't hurt contrast ── */
+html:not(.dark) body, html:not(.dark) .gradio-container,
+html:not(.dark) .main, html:not(.dark) .contain {
+  background: var(--ta-bg) !important; color: var(--ta-text) !important;
+}
+html:not(.dark) .block, html:not(.dark) .form, html:not(.dark) .panel-full-width,
+html:not(.dark) .compact, html:not(.dark) .wrap {
+  background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
+}
+html:not(.dark) input, html:not(.dark) textarea, html:not(.dark) select {
+  background: var(--ta-surface) !important; color: var(--ta-text) !important;
+  border-color: var(--ta-border) !important;
+}
+html:not(.dark) .label-wrap span, html:not(.dark) .block-label,
+html:not(.dark) label span { color: #1e293b !important; font-weight: 700 !important; }
+html:not(.dark) .info { color: #475569 !important; }
+html:not(.dark) .tabs > .tab-nav button {
+  color: #374151 !important; background: transparent !important;
+  font-weight: 600 !important;
+}
+html:not(.dark) .tabs > .tab-nav button.selected {
+  color: var(--ta-text) !important; border-bottom-color: var(--ta-accent) !important;
+  background: var(--ta-bg) !important;
+}
+html:not(.dark) .tabitem { background: var(--ta-bg) !important; }
+html:not(.dark) [role="listbox"] {
+  background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
+}
+html:not(.dark) [role="option"] {
+  color: var(--ta-text) !important; background: var(--ta-surface) !important;
+}
+html:not(.dark) [role="option"]:hover, html:not(.dark) [role="option"][aria-selected="true"] {
+  background: var(--ta-accent-lt) !important; color: var(--ta-accent) !important;
+}
+html:not(.dark) .accordion, html:not(.dark) details {
+  background: var(--ta-surface) !important; border-color: var(--ta-border) !important;
+}
+html:not(.dark) .accordion .label-wrap, html:not(.dark) details summary {
+  color: var(--ta-text) !important;
+}
+html:not(.dark) .checkbox-group label span, html:not(.dark) .radio-group label span {
+  color: var(--ta-text) !important;
+}
+html:not(.dark) .file-preview {
+  background: var(--ta-surface) !important; color: var(--ta-text) !important;
+}
+html:not(.dark) .prose *, html:not(.dark) .markdown * { color: var(--ta-text) !important; }
+html:not(.dark) .upload-container span,
+html:not(.dark) .upload-container p,
+html:not(.dark) .upload-container .wrap,
+html:not(.dark) .upload-container label { color: #1e293b !important; }
+html:not(.dark) .block span, html:not(.dark) .form span,
+html:not(.dark) .block p, html:not(.dark) .form p { color: #1e293b !important; }
+html:not(.dark) .info, html:not(.dark) .info-text, html:not(.dark) .info span,
+html:not(.dark) [class*="info-text"] { color: #374151 !important; font-weight: 600 !important; }
+html:not(.dark) #ta-btn-light { background: var(--ta-accent) !important; color: #fff !important; border: none !important; }
+html:not(.dark) #ta-btn-dark  { background: transparent !important; color: var(--ta-sub) !important; }
+
+/* ── Top bar — Google Material 3 ── */
 .ta-topbar {
-  /* dark mode default — deep navy */
-  background: linear-gradient(135deg,#050e20 0%,#0c1f42 45%,#142e6e 100%);
+  background: linear-gradient(135deg,#1a73e8 0%,#1557b0 100%);
   border-radius: 16px;
-  padding: 18px 26px;
+  padding: 18px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.2);
-  transition: background 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1), 0 4px 16px rgba(26,115,232,0.25);
+  transition: all 0.2s ease;
 }
-/* ── Light mode topbar — consistent blue ── */
 html:not(.dark) .ta-topbar {
-  background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-  box-shadow: 0 4px 24px rgba(37,99,235,0.3), 0 1px 6px rgba(37,99,235,0.15);
+  background: linear-gradient(135deg,#1a73e8 0%,#1557b0 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1), 0 4px 16px rgba(26,115,232,0.3);
+}
+html.dark .ta-topbar {
+  background: linear-gradient(135deg,#1a2e4a 0%,#1e3a5f 100%);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 4px 16px rgba(138,180,248,0.1);
 }
 html:not(.dark) .ta-topbar::after {
-  background: radial-gradient(circle, rgba(165,180,252,0.3) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 65%);
 }
 html:not(.dark) .ta-topbar-tag {
-  color: rgba(219,234,254,0.92) !important;
+  color: rgba(255,255,255,0.75) !important;
 }
 html:not(.dark) .ta-pill {
-  background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.28);
-  color: #fff;
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.25);
+  color: rgba(255,255,255,0.95);
 }
 html:not(.dark) .ta-topbar-icon {
-  background: rgba(255,255,255,0.28);
-  border-color: rgba(255,255,255,0.5);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.4);
-  font-size: 1.5em;
+  background: rgba(255,255,255,0.18);
+  border-color: rgba(255,255,255,0.3);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  font-size: 1.4em;
 }
 .ta-topbar::after {
   content: '';
@@ -869,26 +919,36 @@ html:not(.dark) .ta-topbar-icon {
 }
 .ta-topbar-body { flex: 1; min-width: 0; position: relative; z-index: 1; }
 .ta-topbar-name {
-  font-size: 1.2em; font-weight: 800; letter-spacing: -0.02em;
-  color: #fff; display: block; line-height: 1.15;
+  font-size: 1.25em; font-weight: 500; letter-spacing: 0;
+  color: #fff; display: block; line-height: 1.2;
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
 }
 .ta-topbar-tag {
-  font-size: 0.76em; color: rgba(148,163,184,0.9);
-  display: block; margin-top: 2px;
+  font-size: 0.76em; color: rgba(255,255,255,0.7);
+  display: block; margin-top: 2px; letter-spacing: 0.01em;
+  font-family: Roboto, Arial, sans-serif;
 }
 .ta-topbar-pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; position: relative; z-index: 1; }
 .ta-pill {
-  font-size: 0.69em; font-weight: 600; padding: 3px 10px;
-  border-radius: 20px; background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.14); color: #cbd5e1; white-space: nowrap;
+  font-size: 0.69em; font-weight: 500; padding: 3px 10px;
+  border-radius: 16px; background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.2); color: rgba(255,255,255,0.9); white-space: nowrap;
 }
 
-/* ── Section label ── */
+/* ── Section label — Material step header ── */
 .ta-section-label {
-  font-size: 0.65em; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.13em; color: var(--ta-sub);
-  padding: 14px 0 6px; display: block;
-  border-bottom: 1px solid var(--ta-border); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 18px 0 10px; margin-bottom: 10px;
+  font-size: 0.82em; font-weight: 600; color: var(--ta-text);
+  border-bottom: 2px solid var(--ta-accent);
+  font-family: "Google Sans", Roboto, Arial, sans-serif;
+  letter-spacing: 0.01em;
+}
+.ta-section-step {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--ta-accent); color: #fff;
+  font-size: 0.75em; font-weight: 700; flex-shrink: 0;
 }
 
 /* ── Stat cells ── */
@@ -1018,6 +1078,14 @@ html.dark .ta-update-banner {
 #ta-check-update-btn button { font-size:0.78em !important; padding:4px 12px !important; opacity:0.7; }
 #ta-check-update-btn button:hover { opacity:1; }
 
+/* ── API banner dark mode ── */
+html.dark #api-banner {
+  background: linear-gradient(135deg,#451a03,#78350f) !important;
+  border-color: #d97706 !important;
+}
+html.dark #api-banner-title { color: #fde68a !important; }
+html.dark #api-banner-sub   { color: #fcd34d !important; }
+
 /* ── Banner text fix ── */
 #api-banner strong, #api-banner b { color: inherit !important; font-weight: 700; }
 
@@ -1060,6 +1128,18 @@ html.dark .ta-update-banner {
   .ta-section-head { font-size: 0.72em !important; }
 }
 
+/* ── Pace chips ── */
+.ta-pace-ref { background:var(--ta-card-bg);border:1px solid var(--ta-card-border); }
+.ta-pace-label { color:var(--ta-card-sub); }
+.ta-chip-slow   { background:#f1f5f9;border:1px solid #cbd5e1;color:#475569; }
+.ta-chip-normal { background:#dbeafe;border:1px solid #93c5fd;color:#1d4ed8; }
+.ta-chip-fast   { background:#fef9c3;border:1px solid #fde047;color:#a16207; }
+.ta-chip-vfast  { background:#fee2e2;border:1px solid #fca5a5;color:#dc2626; }
+html.dark .ta-chip-slow   { background:#1e293b !important;border-color:#334155 !important;color:#94a3b8 !important; }
+html.dark .ta-chip-normal { background:var(--ta-step-act-bg) !important;border-color:var(--ta-step-act-bdr) !important;color:var(--ta-step-act-clr) !important; }
+html.dark .ta-chip-fast   { background:var(--ta-amber-lt) !important;border-color:var(--ta-amber) !important;color:var(--ta-amber) !important; }
+html.dark .ta-chip-vfast  { background:#450a0a !important;border-color:#f87171 !important;color:#fca5a5 !important; }
+
 @media (max-width: 480px) {
   /* Extra small phones */
   .ta-topbar { padding: 10px 10px !important; }
@@ -1073,7 +1153,7 @@ html.dark .ta-update-banner {
 """
 
 _SB = (
-    "background:#ffffff;border:3px solid #2563eb;border-radius:10px;"
+    "background:var(--ta-card-bg);border:3px solid var(--ta-step-act-bdr);border-radius:10px;"
     "padding:16px 20px;font-size:1.05em;font-family:sans-serif;"
     "min-height:60px;box-shadow:0 2px 10px rgba(37,99,235,0.15);"
 )
@@ -1093,7 +1173,7 @@ def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
     """Minimal one-line status — used when eta_panel carries the detail."""
     elap = (f'<span style="color:var(--ta-card-sub);font-size:.85em;margin-left:10px;">'
             f'elapsed: {elapsed}</span>') if elapsed else ""
-    return (f'<div style="background:var(--ta-card-bg);border:3px solid #2563eb;border-radius:10px;'
+    return (f'<div style="background:var(--ta-card-bg);border:3px solid var(--ta-step-act-bdr);border-radius:10px;'
             f'padding:16px 20px;font-size:1.05em;font-family:sans-serif;min-height:60px;'
             f'box-shadow:0 2px 10px rgba(37,99,235,0.15);">'
             f'<div style="color:var(--ta-card-text);font-weight:700;font-size:1em;">'
@@ -1105,12 +1185,12 @@ def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
     import datetime as _dt
 
     elap = (
-        f'<span style="color:#6b7280;font-size:.88em;margin-left:12px;font-weight:400;">'
+        f'<span style="color:var(--ta-card-sub);font-size:.88em;margin-left:12px;font-weight:400;">'
         f'elapsed: {elapsed}</span>'
     ) if elapsed else ""
 
     sub = (
-        f'<div style="color:#374151;font-size:.93em;margin-top:5px;">{subtitle}</div>'
+        f'<div style="color:var(--ta-card-text);font-size:.93em;margin-top:5px;">{subtitle}</div>'
     ) if subtitle else ""
 
     eta_html = ""
@@ -1118,33 +1198,33 @@ def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
         finish_str = (_dt.datetime.now() + _dt.timedelta(seconds=eta_secs)).strftime("%I:%M %p").lstrip("0")
         eta_html = (
             f'<div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">'
-            f'<span style="background:#dbeafe;border-radius:6px;padding:4px 12px;'
-            f'color:#1d4ed8;font-weight:700;">⏱ ETA {_fmt_eta(eta_secs)}</span>'
-            f'<span style="background:#f0fdf4;border-radius:6px;padding:4px 12px;'
-            f'color:#15803d;font-weight:700;">🕐 Done by {finish_str}</span>'
+            f'<span style="background:var(--ta-step-act-bg);border-radius:6px;padding:4px 12px;'
+            f'color:var(--ta-step-act-clr);font-weight:700;">⏱ ETA {_fmt_eta(eta_secs)}</span>'
+            f'<span style="background:var(--ta-step-done-bg);border-radius:6px;padding:4px 12px;'
+            f'color:var(--ta-step-done-clr);font-weight:700;">🕐 Done by {finish_str}</span>'
             f'</div>'
         )
 
     if pct is not None:
         fill = f"{pct*100:.0f}%"
         bar_html = (
-            f'<div style="margin-top:10px;background:#dbeafe;border-radius:8px;height:18px;overflow:hidden;">'
-            f'<div style="width:{fill};height:100%;background:#2563eb;border-radius:8px;'
+            f'<div style="margin-top:10px;background:var(--ta-step-act-bg);border-radius:8px;height:18px;overflow:hidden;">'
+            f'<div style="width:{fill};height:100%;background:var(--ta-step-act-bdr);border-radius:8px;'
             f'transition:width 0.6s ease;"></div></div>'
-            f'<div style="color:#1d4ed8;font-weight:700;font-size:.95em;margin-top:4px;">{fill} complete</div>'
+            f'<div style="color:var(--ta-step-act-clr);font-weight:700;font-size:.95em;margin-top:4px;">{fill} complete</div>'
         )
     else:
         bar_html = (
             f'{_ANIM}'
-            f'<div style="margin-top:10px;background:#dbeafe;border-radius:8px;height:18px;'
+            f'<div style="margin-top:10px;background:var(--ta-step-act-bg);border-radius:8px;height:18px;'
             f'overflow:hidden;position:relative;">'
-            f'<div style="position:absolute;width:45%;height:100%;background:#2563eb;'
+            f'<div style="position:absolute;width:45%;height:100%;background:var(--ta-step-act-bdr);'
             f'border-radius:8px;animation:pgslide 1.4s ease-in-out infinite;"></div></div>'
         )
 
     return (
         f'<div style="{_SB}">'
-        f'<div style="color:#111827;font-weight:700;font-size:1.1em;">{icon} {title}{elap}</div>'
+        f'<div style="color:var(--ta-card-text);font-weight:700;font-size:1.1em;">{icon} {title}{elap}</div>'
         f'{sub}{eta_html}{bar_html}'
         f'</div>'
     )
@@ -1495,18 +1575,17 @@ def stats_to_markdown(speaker_stats) -> str:
         return "_No speech analytics available. Upload an audio or video file to see speaker stats._"
     lines = [
         '<div class="ta-pace-ref" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;'
-        'margin-bottom:14px;padding:10px 14px;background:#f8fafc;'
-        'border:1px solid #e2e8f0;border-radius:10px;">'
+        'margin-bottom:14px;padding:10px 14px;border-radius:10px;">'
         '<span class="ta-pace-label" style="font-size:0.75em;font-weight:700;text-transform:uppercase;'
-        'letter-spacing:0.08em;color:#64748b;margin-right:4px;">Pace&nbsp;reference</span>'
-        '<span class="ta-chip ta-chip-slow" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;'
-        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#475569;">🐢 Slow &lt;120 wpm</span>'
-        '<span class="ta-chip ta-chip-normal" style="background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;'
-        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#1d4ed8;">🚶 Normal 120–150</span>'
-        '<span class="ta-chip ta-chip-fast" style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;'
-        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#a16207;">🏃 Fast 150–180</span>'
-        '<span class="ta-chip ta-chip-vfast" style="background:#fee2e2;border:1px solid #fca5a5;border-radius:6px;'
-        'padding:3px 10px;font-size:0.8em;font-weight:600;color:#dc2626;">⚡ Very Fast &gt;180</span>'
+        'letter-spacing:0.08em;margin-right:4px;">Pace&nbsp;reference</span>'
+        '<span class="ta-chip ta-chip-slow" style="border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;">🐢 Slow &lt;120 wpm</span>'
+        '<span class="ta-chip ta-chip-normal" style="border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;">🚶 Normal 120–150</span>'
+        '<span class="ta-chip ta-chip-fast" style="border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;">🏃 Fast 150–180</span>'
+        '<span class="ta-chip ta-chip-vfast" style="border-radius:6px;'
+        'padding:3px 10px;font-size:0.8em;font-weight:600;">⚡ Very Fast &gt;180</span>'
         '</div>',
         "",
     ]
@@ -2316,25 +2395,25 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
         )
 
     if done:
-        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
-        p2_state = "done"; p2_hint = "AI analysis complete"
+        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Audio read ✓"
+        p2_state = "done"; p2_hint = "Report ready ✓"
         p3_state = "done"; p3_hint = "All done!"
         conn1 = conn2 = "var(--ta-conn-line-done)"
     elif stage in ("loading",):
-        p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Loading file…"
-        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
+        p1_steps = ["active","waiting","waiting"]; p1_state = "active"; p1_hint = "Opening file…"
+        p2_state = "waiting"; p2_hint = "Up next"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage == "extracting":
-        p1_steps = ["done","active","waiting"]; p1_state = "active"; p1_hint = "Extracting audio…"
-        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
+        p1_steps = ["done","active","waiting"]; p1_state = "active"; p1_hint = "Getting audio…"
+        p2_state = "waiting"; p2_hint = "Up next"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage == "whisper":
-        p1_steps = ["done","done","active"]; p1_state = "active"; p1_hint = "Converting speech…"
-        p2_state = "waiting"; p2_hint = "Waiting"; p3_state = "waiting"; p3_hint = ""
+        p1_steps = ["done","done","active"]; p1_state = "active"; p1_hint = "Listening…"
+        p2_state = "waiting"; p2_hint = "Up next"; p3_state = "waiting"; p3_hint = ""
         conn1 = conn2 = "var(--ta-conn-line-wait)"
     elif stage in ("claude","interview"):
-        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Transcription complete"
-        hint = "Reading & analyzing…" if stage == "claude" else "Scoring interview responses…"
+        p1_steps = ["done","done","done"]; p1_state = "done"; p1_hint = "Audio read ✓"
+        hint = "Writing your report…" if stage == "claude" else "Scoring responses…"
         p2_state = "active"; p2_hint = hint; p3_state = "waiting"; p3_hint = ""
         conn1 = "var(--ta-conn-line-done)"; conn2 = "var(--ta-conn-line-wait)"
     elif stage == "idle":
@@ -2371,9 +2450,9 @@ def _step_tracker_html(stage: str, done: bool = False) -> str:
             lc = "var(--ta-conn-line-done)" if p1_steps[i] == "done" and p1_steps[i + 1] == "done" else "var(--ta-conn-line-wait)"
             p1_nodes += _hline(lc, "20px")
 
-    p1_col = _phase_col("Step 1 · Transcription", p1_nodes, p1_hint, p1_state)
-    p2_col = _phase_col("Step 2 · AI Analysis",   _node("🤖", p2_state), p2_hint, p2_state)
-    p3_col = _phase_col("Step 3 · Complete",       _node("✅", p3_state), p3_hint, p3_state)
+    p1_col = _phase_col("1 · Hear It", p1_nodes, p1_hint, p1_state)
+    p2_col = _phase_col("2 · Write It",   _node("🤖", p2_state), p2_hint, p2_state)
+    p3_col = _phase_col("3 · Done",       _node("✅", p3_state), p3_hint, p3_state)
 
     def _phase_box_wrap(col_html, state):
         bb, bd, _ = _step_vars(state)
@@ -2419,12 +2498,12 @@ def _net_panel_html(direction: str, received: int, total: int,
         size_str += f" / {total/1_048_576:.1f} MB"
 
     bar = (
-        f'<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;margin:6px 0;">'
+        f'<div style="height:6px;background:var(--ta-step-wait-bg);border-radius:4px;overflow:hidden;margin:6px 0;">'
         f'<div style="width:{pct:.0f}%;height:100%;background:{color};'
         f'border-radius:4px;transition:width 0.4s ease;"></div></div>'
     ) if total > 0 else (
         f'<style>@keyframes netslide{{0%{{left:-40%}}100%{{left:110%}}}}</style>'
-        f'<div style="height:6px;background:#e2e8f0;border-radius:4px;overflow:hidden;'
+        f'<div style="height:6px;background:var(--ta-step-wait-bg);border-radius:4px;overflow:hidden;'
         f'position:relative;margin:6px 0;">'
         f'<div style="position:absolute;width:40%;height:100%;background:{color};'
         f'border-radius:4px;animation:netslide 1.2s ease-in-out infinite;"></div></div>'
@@ -2432,9 +2511,9 @@ def _net_panel_html(direction: str, received: int, total: int,
 
     stats = f'<span style="color:{color};font-weight:700;">{speed_mb:.1f} MB/s</span>'
     if eta_str:
-        stats += f' &nbsp;·&nbsp; <span style="color:#64748b;">ETA {eta_str}</span>'
+        stats += f' &nbsp;·&nbsp; <span style="color:var(--ta-card-sub);">ETA {eta_str}</span>'
     if total > 0:
-        stats += f' &nbsp;·&nbsp; <span style="color:#64748b;">{pct:.0f}%</span>'
+        stats += f' &nbsp;·&nbsp; <span style="color:var(--ta-card-sub);">{pct:.0f}%</span>'
 
     return (
         f'<div style="background:var(--ta-card-bg);border:1px solid {color}33;'
@@ -2442,7 +2521,7 @@ def _net_panel_html(direction: str, received: int, total: int,
         f'<div style="display:flex;align-items:center;gap:8px;font-size:0.82em;">'
         f'<span>{icon}</span>'
         f'<span style="font-weight:700;color:var(--ta-card-text);">{direction.title()}</span>'
-        f'<span style="color:#64748b;">{size_str}</span>'
+        f'<span style="color:var(--ta-card-sub);">{size_str}</span>'
         f'<span style="margin-left:auto;font-size:0.78em;">{stats}</span>'
         f'</div>'
         f'{bar}'
@@ -2503,7 +2582,7 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
             'letter-spacing:0.1em;color:var(--ta-step-act-clr);margin-bottom:12px;">'
-            'Step 1 of 2 &nbsp;&mdash;&nbsp; Transcribing Audio</div>'
+            'Step 1 of 2 &nbsp;&mdash;&nbsp; Listening to Audio</div>'
             '<div style="display:flex;align-items:flex-end;gap:20px;margin-bottom:14px;flex-wrap:wrap;">'
             '<div style="display:flex;align-items:flex-end;gap:4px;">'
             f'<div style="font-size:4.5em;font-weight:900;color:var(--ta-step-act-clr);'
@@ -2529,11 +2608,11 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
 
     # ── Other stages (loading / extracting / claude / whisper indeterminate) ──
     stage_cfg = {
-        "loading":    ("var(--ta-step-act-bdr)",  "Starting up…",              "Step 0 of 3", "var(--ta-step-act-clr)"),
-        "extracting": ("var(--ta-step-done-bdr)", "Extracting audio…",         "Step 1 of 3", "var(--ta-step-done-clr)"),
-        "whisper":    ("var(--ta-step-act-bdr)",  "Transcribing audio…",       "Step 1 of 3", "var(--ta-step-act-clr)"),
-        "stt_cloud":  ("var(--ta-step-act-bdr)",  "Uploading & transcribing…", "Step 1 of 3", "var(--ta-step-act-clr)"),
-        "claude":     ("#a855f7",                 "Analyzing with AI…",        "Step 2 of 3", "#c4b5fd"),
+        "loading":    ("var(--ta-step-act-bdr)",  "Opening your file…",        "Getting ready", "var(--ta-step-act-clr)"),
+        "extracting": ("var(--ta-step-done-bdr)", "Getting the audio…",        "Step 1 of 2",   "var(--ta-step-done-clr)"),
+        "whisper":    ("var(--ta-step-act-bdr)",  "Listening to audio…",       "Step 1 of 2",   "var(--ta-step-act-clr)"),
+        "stt_cloud":  ("var(--ta-step-act-bdr)",  "Sending & listening…",      "Step 1 of 2",   "var(--ta-step-act-clr)"),
+        "claude":     ("var(--ta-purple)",          "Writing your report…",      "Step 2 of 2",   "var(--ta-purple)"),
     }
     color, label, step, text_clr = stage_cfg.get(
         stage, ("var(--ta-card-border)", "Processing…", "", "var(--ta-card-sub)")
@@ -2558,32 +2637,32 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
             _sub_label = "🤖 Reading transcript and writing your report…"
 
         return tracker + (
-            '<div style="background:var(--ta-card-bg);border:2px solid #a855f7;'
+            '<div style="background:var(--ta-card-bg);border:2px solid var(--ta-purple);'
             'border-radius:16px;padding:24px 28px;font-family:sans-serif;">'
             '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.1em;color:#c4b5fd;margin-bottom:12px;">'
-            f'Step 2 of 3 &nbsp;&mdash;&nbsp; Analyzing with AI</div>'
+            'letter-spacing:0.1em;color:var(--ta-purple);margin-bottom:12px;">'
+            f'Step 2 of 2 &nbsp;&mdash;&nbsp; Writing Your Report</div>'
             '<div style="display:flex;align-items:flex-end;gap:20px;margin-bottom:14px;flex-wrap:wrap;">'
             '<div style="display:flex;align-items:flex-end;gap:4px;">'
-            f'<div style="font-size:4.5em;font-weight:900;color:#c4b5fd;'
+            f'<div style="font-size:4.5em;font-weight:900;color:var(--ta-purple);'
             f'font-family:monospace;line-height:1;letter-spacing:-0.04em;">{ai_pct}</div>'
-            '<div style="font-size:2em;font-weight:700;color:#a855f7;margin-bottom:6px;">%</div>'
+            '<div style="font-size:2em;font-weight:700;color:var(--ta-purple);margin-bottom:6px;">%</div>'
             '</div>'
             '<div style="display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:4px;">'
             '<div style="font-size:0.65em;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:0.08em;color:#c4b5fd;">⏱ Time Left</div>'
-            f'<div style="font-size:2.8em;font-weight:900;color:#c4b5fd;'
+            'letter-spacing:0.08em;color:var(--ta-purple);">⏱ Time Left</div>'
+            f'<div style="font-size:2.8em;font-weight:900;color:var(--ta-purple);'
             f'font-family:monospace;line-height:1;letter-spacing:-0.03em;">{eta_str}</div>'
             '</div></div>'
             '<div style="background:var(--ta-step-wait-bg);border-radius:8px;height:14px;'
             'overflow:hidden;margin-bottom:12px;">'
             f'<div style="width:{ai_pct}%;height:100%;'
-            'background:linear-gradient(90deg,#a855f7,#c4b5fd);'
+            'background:var(--ta-purple);'
             'border-radius:8px;transition:width 0.6s ease;"></div></div>'
             '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
             + _stat_card("Elapsed", elapsed) +
             '</div>'
-            f'<div style="font-size:0.82em;color:#c4b5fd;margin-top:10px;">'
+            f'<div style="font-size:0.82em;color:var(--ta-purple);margin-top:10px;">'
             f'{_sub_label}</div>'
             '</div>'
         )
@@ -3091,27 +3170,6 @@ def process_file(
     provider_type = provider_cfg["type"]
     base_url      = provider_cfg["base_url"]
 
-    # ── Auto-pull Ollama model if not already downloaded ─────────────────────
-    if provider_name == "Ollama (Local)" and model_name:
-        import subprocess as _sp, urllib.request as _ur, json as _json
-        def _ollama_has_model(m):
-            try:
-                r = _ur.urlopen("http://localhost:11434/api/tags", timeout=3)
-                tags = _json.loads(r.read())
-                return any(t.get("name","").split(":")[0] == m.split(":")[0]
-                           for t in tags.get("models", []))
-            except Exception:
-                return False
-        if not _ollama_has_model(model_name):
-            yield _out(log=_add_log(f"⬇️ Downloading {model_name} via Ollama — this may take a few minutes…", "info"),
-                       status=_status_compact("⬇️", f"Pulling {model_name}…"))
-            try:
-                _sp.run(["ollama", "pull", model_name], check=True, timeout=1800)
-                yield _out(log=_add_log(f"✅ {model_name} downloaded successfully", "done"))
-            except Exception as _pe:
-                yield _err(f"Failed to download {model_name}: {_pe}\nMake sure Ollama is running: ollama serve")
-                return
-
     # prefer pasted path/URL (no upload wait) over drag-and-drop
     pasted = (path_input or "").strip().strip('"').strip("'")
     if pasted:
@@ -3122,7 +3180,7 @@ def process_file(
         yield _err("Drop a file, paste a file path, or paste a URL above to get started.")
         return
 
-    # ── Log helpers (must be defined before download section uses them) ────────
+    # ── Log helpers (must be defined before Ollama and download sections use them) ──
     start_time    = time.time()
     log_entries   = []
     _total_dl_mb  = 0.0   # must be initialised before the URL-download section
@@ -3186,6 +3244,27 @@ def process_file(
     def _add_header(text):
         log_entries.append(('header', _ts(), text))
         return _render_log()
+
+    # ── Auto-pull Ollama model if not already downloaded ─────────────────────
+    if provider_name == "Ollama (Local)" and model_name:
+        import subprocess as _sp, urllib.request as _ur, json as _json
+        def _ollama_has_model(m):
+            try:
+                r = _ur.urlopen("http://localhost:11434/api/tags", timeout=3)
+                tags = _json.loads(r.read())
+                return any(t.get("name","").split(":")[0] == m.split(":")[0]
+                           for t in tags.get("models", []))
+            except Exception:
+                return False
+        if not _ollama_has_model(model_name):
+            yield _out(log=_add_log(f"⬇️ Downloading {model_name} via Ollama — this may take a few minutes…", "info"),
+                       status=_status_compact("⬇️", f"Pulling {model_name}…"))
+            try:
+                _sp.run(["ollama", "pull", model_name], check=True, timeout=1800)
+                yield _out(log=_add_log(f"✅ {model_name} downloaded successfully", "done"))
+            except Exception as _pe:
+                yield _err(f"Failed to download {model_name}: {_pe}\nMake sure Ollama is running: ollama serve")
+                return
 
     # ── Download remote URL (threaded so we can stream progress to the log) ───
     if isinstance(uploaded_file, str) and (
@@ -3602,17 +3681,17 @@ def process_file(
                 ".mp4", ".mov", ".avi", ".mkv", ".webm", ".m4v",
                 ".flv", ".wmv", ".ts", ".mts", ".vob", ".ogv",
             }
-            if (interview_mode and _is_video_file and _HAS_VIDEO_ANALYZER
+            if (_is_video_file and not transcription_only and not _cancel_ev.is_set()):
+                if not _HAS_VIDEO_ANALYZER or _video_analyzer is None:
+                    log_text = _add_log(f"⚠️ VideoAnalyzer not available — skipping delivery analysis. ({globals().get('_va_import_err_msg','missing module')})", "warn")
+                    yield _out(log=log_text)
+            if (_is_video_file and _HAS_VIDEO_ANALYZER and _video_analyzer is not None
                     and not transcription_only and not _cancel_ev.is_set()):
                 log_text = _add_log("━━━ Step 3 of 3 — Video Delivery Analysis ━━━", "info")
                 log_text = _add_log("🎥 Scanning faces and analysing delivery — this may take a minute…", "ai")
                 yield _out(
                     status=_status_compact("🎥", "Step 3 of 3 — Video delivery…", _elapsed()),
                     log=log_text,
-                    iv_prog=gr.update(
-                        value='<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Scanning video frames…</p>',
-                        visible=True,
-                    ),
                 )
                 _va_q: Q.Queue = Q.Queue()
 
@@ -3648,10 +3727,6 @@ def process_file(
                         yield _out(
                             status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
                             log=log_text,
-                            iv_prog=gr.update(
-                                value=f'<p style="color:#3b82f6;font-size:0.84em;padding:4px 0;">🎥 Analysing frames… {_pct}%</p>',
-                                visible=True,
-                            ),
                         )
                     elif _va_msg[0] == "done":
                         _va_res = _va_msg[1]
@@ -3901,7 +3976,7 @@ def process_file(
                     value=_va_timeline_html,
                     visible=bool(_va_timeline_html)),
                 iv_sum=gr.update(
-                    value=("<ul style='margin:0;padding-left:18px;'>" + "".join(f"<li style='font-size:0.88em;color:#374151;margin-bottom:6px;'>{o}</li>" for o in getattr(_va_res,'observations',[])) + "</ul>") if _va_res and getattr(_va_res,'observations',None) else "",
+                    value=("<ul style='margin:0;padding-left:18px;'>" + "".join(f"<li style='font-size:0.88em;color:var(--ta-card-text);margin-bottom:6px;'>{o}</li>" for o in getattr(_va_res,'observations',[])) + "</ul>") if _va_res and getattr(_va_res,'observations',None) else "",
                     visible=bool(_va_res and getattr(_va_res,'observations',None))),
                 iv_vid=gr.update(value=None, visible=False),
                 iv_prog=gr.update(
@@ -4302,7 +4377,7 @@ window.taClickUpdateBtn = function(btn) {
       flabel.style.cssText = (
         'font-size:0.7em;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;'
         + 'color:#fff;backdrop-filter:blur(6px);'
-        + 'padding:3px 10px;border-radius:12px;opacity:0;transition:opacity 0.2s,background 0.3s;'
+        + 'padding:4px 12px;border-radius:12px;opacity:0;transition:opacity 0.2s,background 0.3s;'
         + 'pointer-events:none;white-space:nowrap;background:rgba(29,78,216,0.85);'
       );
       flabel.textContent = 'Analyze';
@@ -4361,12 +4436,12 @@ window.taClickUpdateBtn = function(btn) {
         if (mainBtn) { mainBtn.classList.add('ta-running'); mainBtn.textContent = '⏸  Running…'; }
       } else {
         fbtn.textContent = '⏺';
-        fbtn.style.background = 'linear-gradient(135deg,#b91c1c,#ef4444)';
-        fbtn.style.boxShadow = '0 4px 24px rgba(220,38,38,0.55)';
+        fbtn.style.background = 'linear-gradient(135deg,#1d4ed8,#ef4444)';
+        fbtn.style.boxShadow = '0 4px 24px rgba(99,60,220,0.65)';
         fbtn.style.animation = 'ta-pulse-ring 1.8s ease-out infinite';
         fbtn.dataset.mode = 'analyze';
         flabel.textContent = 'Analyze';
-        flabel.style.background = 'rgba(185,28,28,0.85)';
+        flabel.style.background = 'rgba(29,78,216,0.85)';
         if (fring) fring.style.display = 'none';
         if (mainBtn) { mainBtn.classList.remove('ta-running'); mainBtn.textContent = '⏺  Analyze'; }
       }
@@ -4401,7 +4476,68 @@ window.taClickUpdateBtn = function(btn) {
   }
   /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */
   document.body ? _injectToggle() : document.addEventListener('DOMContentLoaded', _injectToggle);
-  setInterval(_injectToggle, 2000);
+  setInterval(function(){ _injectToggle(); patchDOM(_dark); }, 2000);
+
+  /* ── Drop zone enhancer — adds icon + text overlay to Step 1 file upload ── */
+  function _enhanceDropZone() {
+    var wrap = document.getElementById('ta-file-drop');
+    if (!wrap || wrap.dataset.dzEnhanced) return;
+    var uc = wrap.querySelector('.upload-container');
+    if (!uc) return;
+    wrap.dataset.dzEnhanced = '1';
+
+    /* Inject custom visual inside the upload container */
+    var overlay = document.createElement('div');
+    overlay.id = 'ta-dz-overlay';
+    overlay.style.cssText = (
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;'
+      + 'gap:6px;pointer-events:none;position:absolute;inset:0;'
+    );
+    overlay.innerHTML = (
+      '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" '
+      + 'stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '
+      + 'style="color:#1a73e8;opacity:0.75;">'
+      + '<polyline points="16 16 12 12 8 16"/>'
+      + '<line x1="12" y1="12" x2="12" y2="21"/>'
+      + '<path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>'
+      + '</svg>'
+      + '<div style="font-size:0.95em;font-weight:600;color:#202124;font-family:\'Google Sans\',Roboto,Arial,sans-serif;">'
+      + 'Drag &amp; drop your file here</div>'
+      + '<div style="font-size:0.78em;color:#5f6368;font-family:Roboto,Arial,sans-serif;">'
+      + 'Audio · Video · PDF · DOCX · SRT · TXT</div>'
+    );
+    uc.style.position = 'relative';
+    uc.appendChild(overlay);
+
+    /* Update overlay colors on theme change */
+    function _syncDzTheme() {
+      var dark = document.documentElement.classList.contains('dark');
+      var icon = overlay.querySelector('svg');
+      var title = overlay.querySelectorAll('div')[0];
+      var sub   = overlay.querySelectorAll('div')[1];
+      if (icon)  icon.style.color  = dark ? '#8ab4f8' : '#1a73e8';
+      if (title) title.style.color = dark ? '#e8eaed' : '#202124';
+      if (sub)   sub.style.color   = dark ? '#9aa0a6' : '#5f6368';
+    }
+    _syncDzTheme();
+    new MutationObserver(_syncDzTheme).observe(document.documentElement, {attributes:true, attributeFilter:['class']});
+
+    /* Drag-over visual feedback */
+    uc.addEventListener('dragover', function() {
+      uc.style.borderColor = '#1a73e8';
+      uc.style.background  = document.documentElement.classList.contains('dark') ? '#1a2e4a' : '#e8f0fe';
+    });
+    uc.addEventListener('dragleave', function() {
+      uc.style.borderColor = '';
+      uc.style.background  = '';
+    });
+    uc.addEventListener('drop', function() {
+      uc.style.borderColor = '';
+      uc.style.background  = '';
+    });
+  }
+  document.body ? _enhanceDropZone() : document.addEventListener('DOMContentLoaded', _enhanceDropZone);
+  setInterval(_enhanceDropZone, 1500);
 
   /* ── PERMANENT static CSS injected directly into <head> ─────────────────────
      Gradio 6 embeds css=CSS as JSON data in <script> tags and injects it later
@@ -4411,51 +4547,52 @@ window.taClickUpdateBtn = function(btn) {
     var ps = document.createElement('style');
     ps.id = 'ta-static';
     ps.textContent = [
-      /* Custom checkboxes — visible in both modes */
-      'input[type=checkbox]{-webkit-appearance:none!important;appearance:none!important;width:18px!important;height:18px!important;min-width:18px!important;border:2px solid #2563eb!important;border-radius:4px!important;background:#fff!important;cursor:pointer!important;position:relative!important;vertical-align:middle!important;flex-shrink:0!important}',
-      'input[type=checkbox]:checked{background:#2563eb!important;border-color:#2563eb!important}',
+      /* Custom checkboxes — Material blue */
+      'input[type=checkbox]{-webkit-appearance:none!important;appearance:none!important;width:18px!important;height:18px!important;min-width:18px!important;border:2px solid #1a73e8!important;border-radius:4px!important;background:#fff!important;cursor:pointer!important;position:relative!important;vertical-align:middle!important;flex-shrink:0!important}',
+      'input[type=checkbox]:checked{background:#1a73e8!important;border-color:#1a73e8!important}',
       'input[type=checkbox]:checked::after{content:""!important;position:absolute!important;left:4px!important;top:1px!important;width:6px!important;height:10px!important;border:2px solid #fff!important;border-top:none!important;border-left:none!important;transform:rotate(45deg)!important;display:block!important}',
-      'html.dark input[type=checkbox]{background:#1e293b!important;border-color:#60a5fa!important}',
-      'html.dark input[type=checkbox]:checked{background:#3b82f6!important;border-color:#3b82f6!important}',
+      'html.dark input[type=checkbox]{background:#35363a!important;border-color:#8ab4f8!important}',
+      'html.dark input[type=checkbox]:checked{background:#1a73e8!important;border-color:#1a73e8!important}',
       '.checkbox-wrap{align-items:center!important;gap:8px!important}',
-      /* CSS vars — light defaults for step tracker + ETA panel */
-      ':root{--ta-card-bg:#f8fafc;--ta-card-border:#e2e8f0;--ta-card-text:#1e293b;--ta-card-sub:#64748b;--ta-card-val:#111827;',
-      '--ta-step-done-bg:#dcfce7;--ta-step-done-bdr:#22c55e;--ta-step-done-clr:#166534;',
-      '--ta-step-act-bg:#dbeafe;--ta-step-act-bdr:#2563eb;--ta-step-act-clr:#1d4ed8;',
-      '--ta-step-wait-bg:#f1f5f9;--ta-step-wait-bdr:#e2e8f0;--ta-step-wait-clr:#94a3b8;',
-      '--ta-conn-line-done:#22c55e;--ta-conn-line-wait:#e2e8f0;--ta-stat-bg:rgba(255,255,255,0.7);',
-      '--ta-stat-label:#1e40af;--ta-stat-val:#1d4ed8}',
-      /* CSS vars — dark overrides */
-      'html.dark{--ta-card-bg:#1e293b;--ta-card-border:#334155;--ta-card-text:#e2e8f0;--ta-card-sub:#94a3b8;--ta-card-val:#f1f5f9;',
-      '--ta-step-done-bg:#14532d;--ta-step-done-bdr:#4ade80;--ta-step-done-clr:#4ade80;',
-      '--ta-step-act-bg:#1e3a5f;--ta-step-act-bdr:#60a5fa;--ta-step-act-clr:#93c5fd;',
-      '--ta-step-wait-bg:#0f172a;--ta-step-wait-bdr:#334155;--ta-step-wait-clr:#475569;',
-      '--ta-conn-line-done:#4ade80;--ta-conn-line-wait:#334155;--ta-stat-bg:rgba(15,23,42,0.6);',
-      '--ta-stat-label:#93c5fd;--ta-stat-val:#e2e8f0}',
+      /* CSS vars — Material light defaults */
+      ':root{--ta-card-bg:#ffffff;--ta-card-border:#dadce0;--ta-card-text:#202124;--ta-card-sub:#5f6368;--ta-card-val:#202124;',
+      '--ta-step-done-bg:#e6f4ea;--ta-step-done-bdr:#34a853;--ta-step-done-clr:#1e7e34;',
+      '--ta-step-act-bg:#e8f0fe;--ta-step-act-bdr:#1a73e8;--ta-step-act-clr:#1a73e8;',
+      '--ta-step-wait-bg:#f1f5f9;--ta-step-wait-bdr:#94a3b8;--ta-step-wait-clr:#475569;',
+      '--ta-conn-line-done:#34a853;--ta-conn-line-wait:#94a3b8;--ta-stat-bg:rgba(255,255,255,0.9);',
+      '--ta-stat-label:#1a73e8;--ta-stat-val:#202124}',
+      /* CSS vars — Material dark overrides */
+      'html.dark{--ta-card-bg:#292a2d;--ta-card-border:#3c4043;--ta-card-text:#e8eaed;--ta-card-sub:#9aa0a6;--ta-card-val:#f8f9fa;',
+      '--ta-step-done-bg:#1e3a27;--ta-step-done-bdr:#81c995;--ta-step-done-clr:#81c995;',
+      '--ta-step-act-bg:#1a2e4a;--ta-step-act-bdr:#8ab4f8;--ta-step-act-clr:#aecbfa;',
+      '--ta-step-wait-bg:#202124;--ta-step-wait-bdr:#3c4043;--ta-step-wait-clr:#9aa0a6;',
+      '--ta-conn-line-done:#81c995;--ta-conn-line-wait:#3c4043;--ta-stat-bg:rgba(41,42,45,0.9);',
+      '--ta-stat-label:#aecbfa;--ta-stat-val:#e8eaed}',
       /* ── Floating analyze button — always on top, always viewport-pinned ── */
       '#ta-float-wrap{z-index:2147483647!important;pointer-events:all!important}',
       /* ── Global typography ── */
-      '.gradio-container,.contain,.main{font-family:"Inter",system-ui,-apple-system,sans-serif!important}',
-      'body{background:#f4f6fb!important}',
-      /* ── Cards / blocks — elevated, consistent radius ── */
-      '.block,.form,.padded{border-radius:16px!important;box-shadow:0 1px 3px rgba(0,0,0,0.05),0 4px 16px rgba(0,0,0,0.04)!important;border:1px solid #e8edf4!important;transition:box-shadow 0.2s!important}',
-      /* ── Inputs — cleaner focus ring ── */
-      'input[type=text],input[type=password],input:not([type]),textarea,select{border-radius:10px!important;border:1.5px solid #e2e8f0!important;transition:border-color 0.18s,box-shadow 0.18s!important;font-family:inherit!important}',
-      'input[type=text]:focus,input[type=password]:focus,input:not([type]):focus,textarea:focus{border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,0.12)!important;outline:none!important}',
+      '.gradio-container,.contain,.main{font-family:"Google Sans",Roboto,"Helvetica Neue",Arial,sans-serif!important}',
+      'body{background:#f8f9fa!important}',
+      /* ── Cards / blocks — Material elevation ── */
+      '.block,.form,.padded{border-radius:12px!important;box-shadow:0 1px 2px rgba(0,0,0,0.05),0 2px 6px rgba(0,0,0,0.05)!important;border:1px solid #dadce0!important;transition:box-shadow 0.2s!important}',
+      '.block:hover,.form:hover{box-shadow:0 1px 3px rgba(0,0,0,0.1),0 4px 12px rgba(0,0,0,0.08)!important}',
+      /* ── Inputs — Material outlined style ── */
+      'input[type=text],input[type=password],input:not([type]),textarea,select{border-radius:8px!important;border:1.5px solid #dadce0!important;transition:border-color 0.18s,box-shadow 0.18s!important;font-family:inherit!important;background:#ffffff!important}',
+      'input[type=text]:focus,input[type=password]:focus,input:not([type]):focus,textarea:focus{border-color:#1a73e8!important;border-width:2px!important;box-shadow:none!important;outline:none!important}',
       /* ── Labels ── */
-      'label>span:first-child,.block-label{font-size:0.82em!important;font-weight:600!important;color:#475569!important;letter-spacing:0.01em!important}',
-      '.info{font-size:0.74em!important;color:#6b7280!important}',
-      /* ── Tabs — refined underline style ── */
-      '.tabs>.tab-nav{border-bottom:2px solid #e8edf4!important;gap:2px!important}',
-      '.tabs>.tab-nav button{font-weight:600!important;font-size:0.84em!important;padding:10px 16px!important;border-radius:8px 8px 0 0!important;letter-spacing:0.01em!important;transition:all 0.15s!important;color:#475569!important;background:transparent!important}',
-      '.tabs>.tab-nav button.selected{color:#2563eb!important;border-bottom:2px solid #2563eb!important;margin-bottom:-2px!important;background:transparent!important}',
+      'label>span:first-child,.block-label{font-size:0.85em!important;font-weight:700!important;color:#1e293b!important;letter-spacing:0.01em!important;font-family:"Google Sans",Roboto,Arial,sans-serif!important}',
+      '.info{font-size:0.75em!important}',
+      /* ── Tabs — Material style ── */
+      '.tabs>.tab-nav{border-bottom:1px solid #dadce0!important;gap:0!important}',
+      '.tabs>.tab-nav button{font-weight:600!important;font-size:0.8em!important;padding:12px 20px!important;border-radius:0!important;letter-spacing:0.01em!important;transition:all 0.15s!important;background:transparent!important;text-transform:uppercase!important}',
+      '.tabs>.tab-nav button.selected{color:#1a73e8!important;border-bottom:3px solid #1a73e8!important;margin-bottom:-1px!important;font-weight:600!important;background:transparent!important}',
       /* ── Accordions ── */
-      '.accordion,.details{border-radius:12px!important;border:1px solid #e8edf4!important}',
+      '.accordion,.details{border-radius:8px!important;border:1px solid #dadce0!important}',
       /* ── Analyze button — pulsing red ── */
       '@keyframes ta-pulse-ring{0%{box-shadow:0 0 0 0 rgba(220,38,38,0.55),0 3px 12px rgba(220,38,38,0.35)}60%{box-shadow:0 0 0 10px rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}100%{box-shadow:0 0 0 0 rgba(220,38,38,0),0 3px 12px rgba(220,38,38,0.35)}}',
-      'button.ta-analyze-btn,#ta-analyze-btn,#ta-float-analyze{background:linear-gradient(135deg,#1d4ed8,#ef4444)!important;color:#fff!important;font-size:0.9em!important;font-weight:700!important;border:none!important;border-radius:8px!important;padding:8px 18px!important;letter-spacing:0.02em!important;cursor:pointer!important;width:100%!important;animation:ta-pulse-ring 1.8s ease-out infinite!important;box-shadow:0 3px 12px rgba(99,60,220,0.35)!important}',
-      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{background:linear-gradient(135deg,#991b1b,#dc2626)!important;transform:translateY(-1px)!important}',
-      'button.ta-analyze-btn.ta-running,#ta-analyze-btn.ta-running{background:linear-gradient(135deg,#7f1d1d,#b91c1c)!important;animation:none!important;opacity:0.85!important;cursor:default!important}',
+      'button.ta-analyze-btn,#ta-analyze-btn,#ta-float-analyze{background:linear-gradient(135deg,#1a73e8,#ea4335)!important;color:#fff!important;font-size:0.875em!important;font-weight:500!important;border:none!important;border-radius:24px!important;padding:10px 24px!important;letter-spacing:0.01em!important;cursor:pointer!important;width:100%!important;animation:ta-pulse-ring 1.8s ease-out infinite!important;box-shadow:0 1px 3px rgba(0,0,0,0.2),0 4px 12px rgba(26,115,232,0.3)!important;font-family:"Google Sans",Roboto,Arial,sans-serif!important}',
+      'button.ta-analyze-btn:hover,#ta-analyze-btn:hover{background:linear-gradient(135deg,#1765cc,#c5221f)!important;transform:translateY(-1px)!important;box-shadow:0 2px 6px rgba(0,0,0,0.2),0 6px 16px rgba(26,115,232,0.4)!important}',
+      'button.ta-analyze-btn.ta-running,#ta-analyze-btn.ta-running{background:linear-gradient(135deg,#1a73e8,#ea4335)!important;animation:none!important;opacity:0.75!important;cursor:default!important}',
       /* ── Stop / Cancel button ── */
       '#ta-cancel-btn button,.ta-cancel-btn button{background:#dc2626!important;color:#fff!important;border:2px solid #fca5a5!important;border-radius:8px!important;font-size:0.85em!important;font-weight:800!important;letter-spacing:0.03em!important;padding:7px 14px!important;box-shadow:0 3px 12px rgba(220,38,38,0.5),inset 0 1px 0 rgba(255,255,255,0.15)!important;transition:all 0.12s!important;width:100%!important;cursor:pointer!important}',
       '#ta-cancel-btn button:hover,.ta-cancel-btn button:hover{background:#b91c1c!important;border-color:#f87171!important;transform:translateY(-1px)!important;box-shadow:0 5px 18px rgba(220,38,38,0.65)!important}',
@@ -4464,8 +4601,17 @@ window.taClickUpdateBtn = function(btn) {
       '[role=listbox]{max-height:220px!important;overflow-y:auto!important;border-radius:12px!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}',
       '#provider-sel [role=listbox],#model-sel [role=listbox]{max-height:280px!important;overflow-y:auto!important}',
       /* ── File upload area ── */
-      '.upload-container{border-radius:14px!important;border:2px dashed #cbd5e1!important;transition:border-color 0.2s!important}',
-      '.upload-container:hover{border-color:#3b82f6!important}',
+      /* ── Upload drop zone — Material Design ── */
+      '#ta-file-drop{border-radius:16px!important}',
+      '#ta-file-drop .upload-container,#ta-file-drop>.upload-container{border-radius:16px!important;border:2px dashed #dadce0!important;background:#fafafa!important;transition:all 0.2s!important;min-height:160px!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;width:100%!important;box-sizing:border-box!important;position:relative!important}',
+      '#ta-file-drop .upload-container:hover{border-color:#1a73e8!important;background:#e8f0fe!important}',
+      '#ta-file-drop .upload-container *{cursor:pointer!important;color:#1e293b!important}',
+      '#ta-file-drop .upload-container label{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:160px!important;cursor:pointer!important;gap:4px!important;padding:24px 20px!important;text-align:center!important}',
+      '#ta-file-drop .upload-container .wrap{display:flex!important;flex-direction:column!important;align-items:center!important;gap:6px!important}',
+      '#ta-file-drop .upload-container svg{width:40px!important;height:40px!important;color:#1a73e8!important;opacity:0.7!important}',
+      '#ta-file-drop .upload-container .label-wrap{display:none!important}',
+      '#ta-file-drop .upload-container button{background:#1a73e8!important;color:#fff!important;border:none!important;border-radius:24px!important;padding:8px 20px!important;font-size:0.85em!important;font-weight:500!important;margin-top:8px!important;box-shadow:0 1px 3px rgba(26,115,232,0.3)!important;font-family:"Google Sans",Roboto,Arial,sans-serif!important}',
+      '#ta-file-drop .upload-container button:hover{background:#1765cc!important;box-shadow:0 2px 6px rgba(26,115,232,0.4)!important}',
       /* ── Hero — all text uses !important so Gradio light-theme can't override ── */
       '.ta-hero{background:linear-gradient(145deg,#040c1e 0%,#0a1628 30%,#0f2044 60%,#162d6b 100%);border-radius:22px;padding:36px 44px 30px;color:#fff!important;margin-bottom:6px;position:relative;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.32),0 2px 8px rgba(0,0,0,0.2)}',
       '.ta-hero-blob-tr{position:absolute;top:-70px;right:-50px;width:320px;height:320px;background:radial-gradient(circle,rgba(59,130,246,0.22) 0%,transparent 68%);pointer-events:none}',
@@ -4496,7 +4642,7 @@ window.taClickUpdateBtn = function(btn) {
       '.ta-status-bar{flex:1 1 auto!important;min-width:0!important}',
       /* ── Network monitor panel ── */
       '#ta-net-monitor{transition:all 0.3s}',
-      'html.dark #ta-net-monitor .ta-net-card{background:#1e293b!important;border-color:rgba(59,130,246,0.25)!important}',
+      'html.dark #ta-net-monitor .ta-net-card{background:#292a2d!important;border-color:rgba(138,180,248,0.2)!important}',
       '#live-log,#live-log>*{background:var(--ta-log-bg)!important;border-color:var(--ta-log-border)!important}',
       /* ── Download section ── */
       '.ta-dl-wrap{padding:4px 2px}',
@@ -4591,75 +4737,75 @@ window.taClickUpdateBtn = function(btn) {
      so Gradio inline styles can't win. */
   var DARK_RULES = [
     /* CSS variables — set on html.dark so they cascade into all Gradio components */
-    'html.dark{color-scheme:dark;color:#e2e8f0!important;background:#0f172a!important;'
-      +'--body-background-fill:#0f172a;--background-fill-primary:#0f172a;'
-      +'--background-fill-secondary:#1e293b;--block-background-fill:#1e293b;'
-      +'--block-border-color:#334155;--block-label-text-color:#94a3b8;'
-      +'--input-background-fill:#0f172a;--input-border-color:#475569;'
-      +'--panel-background-fill:#1e293b;--panel-border-color:#334155;'
-      +'--border-color-primary:#334155;--body-text-color:#e2e8f0;'
-      +'--body-text-color-subdued:#94a3b8;--neutral-100:#1e293b;--neutral-200:#334155;'
-      +'--neutral-700:#94a3b8;--neutral-800:#cbd5e1;--neutral-900:#e2e8f0;}',
-    /* page & containers */
-    'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain{background:#0f172a!important;color:#e2e8f0!important}',
-    /* blocks */
-    'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container,html.dark .padded{background:#1e293b!important;border-color:#334155!important}',
-    /* text — !important so Gradio's inline color= can't override */
-    'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th,html.dark strong,html.dark em{color:#e2e8f0!important}',
-    /* labels — remove blue badge, plain text only */
-    '.block-label,label>span,.label-wrap span{background:transparent!important;background-color:transparent!important;color:#374151!important;font-size:0.82em!important;font-weight:600!important;padding:0!important;border-radius:0!important}',
-    'html.dark .block-label,html.dark label>span,html.dark .label-wrap span{color:#94a3b8!important;background:transparent!important;background-color:transparent!important}',
-    'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#94a3b8!important}',
+    'html.dark{color-scheme:dark;color:#e8eaed!important;background:#202124!important;'
+      +'--body-background-fill:#202124;--background-fill-primary:#202124;'
+      +'--background-fill-secondary:#292a2d;--block-background-fill:#292a2d;'
+      +'--block-border-color:#3c4043;--block-label-text-color:#9aa0a6;'
+      +'--input-background-fill:#35363a;--input-border-color:#5f6368;'
+      +'--panel-background-fill:#292a2d;--panel-border-color:#3c4043;'
+      +'--border-color-primary:#3c4043;--body-text-color:#e8eaed;'
+      +'--body-text-color-subdued:#9aa0a6;--neutral-100:#292a2d;--neutral-200:#35363a;'
+      +'--neutral-700:#9aa0a6;--neutral-800:#bdc1c6;--neutral-900:#e8eaed;}',
+    /* Material dark — Google dark surface */
+    'html.dark body,html.dark .gradio-container,html.dark .main,html.dark .contain{background:#202124!important;color:#e8eaed!important}',
+    /* blocks — Material dark elevation */
+    'html.dark .block,html.dark .form,html.dark .wrap,html.dark .panel-full-width,html.dark .compact,html.dark .upload-container,html.dark .padded{background:#292a2d!important;border-color:#3c4043!important;border-radius:12px!important;box-shadow:0 1px 2px rgba(0,0,0,0.3),0 2px 6px rgba(0,0,0,0.2)!important}',
+    /* text */
+    'html.dark span,html.dark p,html.dark div,html.dark h1,html.dark h2,html.dark h3,html.dark h4,html.dark li,html.dark td,html.dark th,html.dark strong,html.dark em{color:#e8eaed!important}',
+    /* labels */
+    'html.dark .label-wrap span,html.dark .block-label,html.dark label>span,html.dark .info,html.dark .file-name{color:#9aa0a6!important}',
     /* inputs */
-    'html.dark input,html.dark textarea,html.dark select,[role=combobox]{background:#0f172a!important;color:#e2e8f0!important;border-color:#475569!important}',
-    'html.dark input::placeholder,html.dark textarea::placeholder{color:#64748b!important;opacity:1!important}',
+    'html.dark input,html.dark textarea,html.dark select,[role=combobox]{background:#35363a!important;color:#e8eaed!important;border-color:#5f6368!important;border-radius:8px!important}',
+    'html.dark input::placeholder,html.dark textarea::placeholder{color:#5f6368!important;opacity:1!important}',
     /* tabs */
-    'html.dark .tabs>.tab-nav button{color:#94a3b8!important;background:#1e293b!important;border-color:#334155!important}',
-    'html.dark .tabs>.tab-nav button.selected{color:#e2e8f0!important;border-bottom-color:#3b82f6!important;background:#0f172a!important}',
-    'html.dark .tabitem{background:#0f172a!important}',
+    'html.dark .tabs>.tab-nav{border-bottom-color:#3c4043!important}',
+    'html.dark .tabs>.tab-nav button{color:#9aa0a6!important;background:transparent!important;border-color:transparent!important}',
+    'html.dark .tabs>.tab-nav button.selected{color:#8ab4f8!important;border-bottom-color:#8ab4f8!important;background:transparent!important;font-weight:600!important}',
+    'html.dark .tabitem{background:#202124!important}',
     /* markdown */
-    'html.dark .prose,html.dark .markdown{color:#e2e8f0!important;background:transparent!important}',
-    'html.dark .prose *,html.dark .markdown *{color:#e2e8f0!important}',
-    'html.dark .prose a,html.dark .markdown a{color:#60a5fa!important}',
-    'html.dark .prose code,html.dark .markdown code{background:#0f172a!important;color:#86efac!important}',
+    'html.dark .prose,html.dark .markdown{color:#e8eaed!important;background:transparent!important}',
+    'html.dark .prose *,html.dark .markdown *{color:#e8eaed!important}',
+    'html.dark .prose a,html.dark .markdown a{color:#8ab4f8!important}',
+    'html.dark .prose code,html.dark .markdown code{background:#35363a!important;color:#81c995!important}',
     /* dropdowns */
-    'html.dark [role=listbox]{background:#1e293b!important;border-color:#334155!important}',
-    'html.dark [role=option]{color:#e2e8f0!important;background:#1e293b!important}',
-    'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#334155!important;color:#fff!important}',
+    'html.dark [role=listbox]{background:#292a2d!important;border-color:#3c4043!important;border-radius:8px!important;box-shadow:0 4px 16px rgba(0,0,0,0.5)!important}',
+    'html.dark [role=option]{color:#e8eaed!important;background:#292a2d!important}',
+    'html.dark [role=option]:hover,html.dark [role=option][aria-selected=true]{background:#35363a!important;color:#fff!important}',
     /* accordion */
-    'html.dark .accordion,html.dark details{background:#1e293b!important;border-color:#334155!important}',
-    'html.dark .accordion .label-wrap,html.dark details summary{color:#e2e8f0!important}',
-    'html.dark .checkbox-group label span,html.dark .radio-group label span{color:#cbd5e1!important}',
-    'html.dark .file-preview{background:#1e293b!important;color:#e2e8f0!important}',
-    'html.dark .dropdown-arrow svg{fill:#94a3b8!important}',
+    'html.dark .accordion,html.dark details{background:#292a2d!important;border-color:#3c4043!important;border-radius:8px!important}',
+    'html.dark .accordion .label-wrap,html.dark details summary{color:#e8eaed!important}',
+    'html.dark .checkbox-group label span,html.dark .radio-group label span{color:#e8eaed!important}',
+    'html.dark .file-preview{background:#292a2d!important;color:#e8eaed!important}',
+    'html.dark .dropdown-arrow svg{fill:#9aa0a6!important}',
     /* buttons */
-    'html.dark button{background:#1e293b!important;border-color:#334155!important;color:#e2e8f0!important}',
-    'html.dark button.selected{background:#334155!important}',
-    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#991b1b,#ef4444)!important;color:#fff!important;border:none!important}',
-    /* theme toggle — restore correct colors */
-    'html.dark #ta-btn-light{background:transparent!important;color:#94a3b8!important}',
-    'html.dark #ta-btn-dark{background:#3b82f6!important;color:#fff!important}',
-    /* ── New redesign: block/card shadow in dark ── */
-    'html.dark .block,html.dark .form,html.dark .padded{box-shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.2)!important;border-color:#2d3a4e!important}',
-    /* ── Inputs — dark border + focus ring ── */
-    'html.dark input[type=text],html.dark input[type=password],html.dark input:not([type]),html.dark textarea,html.dark select{border:1.5px solid #334155!important;background:#0f172a!important;color:#e2e8f0!important}',
-    'html.dark input[type=text]:focus,html.dark input[type=password]:focus,html.dark input:not([type]):focus,html.dark textarea:focus{border-color:#3b82f6!important;box-shadow:0 0 0 3px rgba(59,130,246,0.18)!important}',
-    /* ── Tab nav divider ── */
-    'html.dark .tabs>.tab-nav{border-bottom-color:#2d3a4e!important}',
-    'html.dark .tabs>.tab-nav button.selected{color:#60a5fa!important;border-bottom-color:#3b82f6!important}',
-    /* ── Accordion border ── */
-    'html.dark .accordion,html.dark .details{border-color:#2d3a4e!important}',
-    /* ── Cancel button — dark ── */
-    'html.dark button[aria-label="Stop / Cancel"],html.dark button.stop-btn{background:#1e1215!important;color:#f87171!important;border-color:#7f1d1d!important}',
-    'html.dark button[aria-label="Stop / Cancel"]:hover,html.dark button.stop-btn:hover{background:#2d1515!important;border-color:#ef4444!important}',
-    /* ── Upload drop zone — dark dashed border ── */
-    'html.dark .upload-container{border-color:#334155!important;border-style:dashed!important;background:#0f172a!important}',
-    'html.dark .upload-container:hover{border-color:#3b82f6!important}',
-    /* ── Dropdown listbox shadow — dark ── */
+    'html.dark button{background:#35363a!important;border-color:#5f6368!important;color:#e8eaed!important;border-radius:8px!important}',
+    'html.dark button.selected{background:#3c4043!important}',
+    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1a73e8,#ea4335)!important;color:#fff!important;border:none!important;border-radius:24px!important}',
+    /* theme toggle */
+    'html.dark #ta-btn-light{background:transparent!important;color:#9aa0a6!important}',
+    'html.dark #ta-btn-dark{background:#8ab4f8!important;color:#202124!important}',
+    /* block card shadow */
+    'html.dark .block,html.dark .form,html.dark .padded{box-shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.25)!important}',
+    /* inputs — focus */
+    'html.dark input[type=text],html.dark input[type=password],html.dark input:not([type]),html.dark textarea,html.dark select{border:1.5px solid #5f6368!important;background:#35363a!important;color:#e8eaed!important;border-radius:8px!important}',
+    'html.dark input[type=text]:focus,html.dark input[type=password]:focus,html.dark input:not([type]):focus,html.dark textarea:focus{border-color:#8ab4f8!important;border-width:2px!important;box-shadow:none!important}',
+    /* tab nav */
+    'html.dark .tabs>.tab-nav{border-bottom-color:#3c4043!important}',
+    /* cancel button */
+    'html.dark button[aria-label="Stop / Cancel"],html.dark button.stop-btn{background:#2d0c0c!important;color:#f28b82!important;border-color:#ea4335!important}',
+    'html.dark button[aria-label="Stop / Cancel"]:hover,html.dark button.stop-btn:hover{background:#3d1010!important;border-color:#ea4335!important}',
+    /* upload */
+    'html.dark #ta-file-drop .upload-container{border-color:#3c4043!important;border-style:dashed!important;background:#292a2d!important;border-radius:16px!important;min-height:160px!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important}',
+    'html.dark #ta-file-drop .upload-container:hover{border-color:#8ab4f8!important;background:#1a2e4a!important}',
+    'html.dark #ta-file-drop .upload-container *{cursor:pointer!important;color:#e8eaed!important}',
+    'html.dark #ta-file-drop .upload-container label{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;width:100%!important;min-height:160px!important;cursor:pointer!important;gap:4px!important;padding:24px 20px!important;text-align:center!important}',
+    'html.dark #ta-file-drop .upload-container svg{color:#8ab4f8!important}',
+    'html.dark #ta-file-drop .upload-container button{background:#1a73e8!important;color:#fff!important;border:none!important;border-radius:24px!important;padding:8px 20px!important;font-size:0.85em!important;font-weight:500!important;margin-top:8px!important}',
+    /* dropdown listbox shadow */
     'html.dark [role=listbox]{box-shadow:0 8px 32px rgba(0,0,0,0.55)!important;border-color:#334155!important}',
     /* ── Labels ── */
-    'html.dark label>span:first-child,html.dark .block-label{color:#94a3b8!important}',
-    'html.dark .info{color:#64748b!important}',
+    'html.dark label>span:first-child,html.dark .block-label{color:#9aa0a6!important}',
+    'html.dark .info{color:#5f6368!important}',
     /* ── Hero dark mode — add border + stronger glow to separate from dark page ── */
     'html.dark .ta-hero{border:1px solid rgba(59,130,246,0.22)!important;box-shadow:0 8px 48px rgba(0,0,0,0.6),0 0 0 1px rgba(59,130,246,0.08),0 2px 8px rgba(0,0,0,0.4)!important}',
     'html.dark .ta-hero-blob-tr{background:radial-gradient(circle,rgba(59,130,246,0.28) 0%,transparent 68%)!important}',
@@ -4692,7 +4838,7 @@ window.taClickUpdateBtn = function(btn) {
     'html.dark .ta-chip-fast{background:#3b2d00!important;border-color:#ca8a04!important;color:#fbbf24!important}',
     'html.dark .ta-chip-vfast{background:#450a0a!important;border-color:#991b1b!important;color:#f87171!important}',
     /* scrollbars */
-    'html.dark ::-webkit-scrollbar-track{background:#0f172a!important}',
+    'html.dark ::-webkit-scrollbar-track{background:#202124!important}',
     'html.dark ::-webkit-scrollbar-thumb{background:#334155!important}',
     'html.dark ::-webkit-scrollbar-thumb:hover{background:#475569!important}',
   ].join('');
@@ -4711,52 +4857,84 @@ window.taClickUpdateBtn = function(btn) {
   }
 
   function patchDOM(dark) {
-    var bg0 = dark ? '#0f172a' : null;
-    var bg1 = dark ? '#1e293b' : null;
-    var fg  = dark ? '#e2e8f0' : null;
-    var fg2 = dark ? '#94a3b8' : null;
-    var bd  = dark ? '#334155' : null;
+    if (dark) {
+      /* ── DARK MODE — override every element with Material dark colors ── */
+      var bg0 = '#202124', bg1 = '#292a2d', fg = '#e8eaed', fg2 = '#9aa0a6', bd = '#3c4043';
 
-    /* Page containers */
-    document.querySelectorAll('.gradio-container,.main,.contain,body').forEach(function(el){
-      _sp(el,'background',bg0); _sp(el,'color',fg);
-    });
+      document.querySelectorAll('.gradio-container,.main,.contain,body').forEach(function(el){
+        _sp(el,'background',bg0); _sp(el,'color',fg);
+      });
+      document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact,details,summary').forEach(function(el){
+        _sp(el,'background',bg1); _sp(el,'border-color',bd);
+      });
+      document.querySelectorAll('input,textarea,select').forEach(function(el){
+        _sp(el,'background','#35363a'); _sp(el,'color',fg); _sp(el,'border-color','#5f6368');
+      });
+      /* Nuclear text patch — dark mode only */
+      var SKIP = {IMG:1,VIDEO:1,CANVAS:1,SVG:1,PATH:1,INPUT:1,TEXTAREA:1,SELECT:1};
+      document.querySelectorAll('.gradio-container *').forEach(function(el){
+        if (SKIP[el.tagName] || _skip(el)) return;
+        var isLabel = el.classList.contains('block-label') ||
+          (el.parentElement && (el.parentElement.classList.contains('label-wrap') ||
+                                el.parentElement.classList.contains('info')));
+        _sp(el,'color', isLabel ? fg2 : fg);
+      });
+      document.querySelectorAll('[role=listbox],[role=option],[role=combobox]').forEach(function(el){
+        _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
+      });
+      document.querySelectorAll('.big-btn button').forEach(function(el){
+        _sp(el,'background','linear-gradient(135deg,#1a73e8,#ea4335)'); _sp(el,'color','#fff');
+      });
 
-    /* Blocks, forms, accordions — backgrounds */
-    document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact,details,summary').forEach(function(el){
-      _sp(el,'background',bg1); _sp(el,'border-color',bd);
-      if(fg) _sp(el,'color',fg);
-    });
+    } else {
+      /* ── LIGHT MODE — patch Gradio-native structural elements only ── */
+      var lbg = '#f8f9fa', lbg1 = '#ffffff', lfg = '#202124', lfg2 = '#374151', lbd = '#dadce0';
 
-    /* Inputs */
-    document.querySelectorAll('input,textarea,select').forEach(function(el){
-      _sp(el,'background',bg0); _sp(el,'color',fg); _sp(el,'border-color',dark?'#475569':null);
-    });
-
-    /* Nuclear text patch — every text node inside .gradio-container gets the
-       correct color. We skip: images, buttons, our own widgets, and the banner.
-       This ensures accordion labels, info text, step numbers, etc. are visible. */
-    var SKIP_TAGS = {IMG:1,VIDEO:1,CANVAS:1,SVG:1,PATH:1,INPUT:1,TEXTAREA:1,SELECT:1};
-    document.querySelectorAll('.gradio-container *').forEach(function(el){
-      if (SKIP_TAGS[el.tagName]) return;
-      if (_skip(el)) return;
-      /* Labels/info get subdued color; everything else gets full white */
-      var isLabel = el.classList.contains('block-label') ||
-                    (el.parentElement && (el.parentElement.classList.contains('label-wrap') ||
-                                          el.parentElement.classList.contains('info')));
-      _sp(el, 'color', dark ? (isLabel ? '#94a3b8' : '#e2e8f0') : null);
-    });
-
-    /* Dropdowns specifically */
-    document.querySelectorAll('[role=listbox],[role=option],[role=combobox]').forEach(function(el){
-      _sp(el,'background',bg1); _sp(el,'color',fg); _sp(el,'border-color',bd);
-    });
-
-    /* Big button — keep it blue */
-    document.querySelectorAll('.big-btn button').forEach(function(el){
-      _sp(el,'background',dark?'linear-gradient(135deg,#1e40af,#3b82f6)':null);
-      _sp(el,'color',dark?'#fff':null);
-    });
+      document.querySelectorAll('.gradio-container,.main,.contain,body').forEach(function(el){
+        _sp(el,'background',lbg); el.style.removeProperty('color');
+      });
+      document.querySelectorAll('.block,.form,.wrap,.panel-full-width,.compact,.padded').forEach(function(el){
+        _sp(el,'background',lbg1); _sp(el,'border-color',lbd); el.style.removeProperty('color');
+      });
+      document.querySelectorAll('input,textarea,select').forEach(function(el){
+        _sp(el,'background',lbg1); _sp(el,'color',lfg); _sp(el,'border-color',lbd);
+      });
+      /* Patch only known Gradio-native text elements — not custom HTML panels */
+      document.querySelectorAll('.block-label,.label-wrap span,label>span').forEach(function(el){
+        _sp(el,'color',lfg);
+      });
+      document.querySelectorAll('.info,.info-text,.info span,[class*="info-text"]').forEach(function(el){
+        _sp(el,'color',lfg2);
+      });
+      document.querySelectorAll('.upload-container span,.upload-container p,.upload-container .wrap').forEach(function(el){
+        _sp(el,'color',lfg);
+      });
+      document.querySelectorAll('.tab-nav button').forEach(function(el){
+        if (!el.classList.contains('selected')) _sp(el,'color','#374151');
+        else _sp(el,'color','#1a73e8');
+      });
+      document.querySelectorAll('[role=listbox],[role=option],[role=combobox]').forEach(function(el){
+        _sp(el,'background',lbg1); _sp(el,'color',lfg); _sp(el,'border-color',lbd);
+      });
+      /* Remove dark-mode inline overrides from all other elements */
+      document.querySelectorAll('.gradio-container *').forEach(function(el){
+        if (_skip(el)) return;
+        var tag = el.tagName;
+        if (tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT'||tag==='IMG'||tag==='VIDEO'||tag==='SVG'||tag==='CANVAS') return;
+        if (el.classList.contains('block-label')||el.classList.contains('info')||
+            (el.parentElement&&el.parentElement.classList.contains('info'))||
+            el.closest('.upload-container')||el.closest('.tab-nav')) return;
+        el.style.removeProperty('color');
+      });
+      /* Restore intentionally-colored buttons */
+      document.querySelectorAll('#ta-analyze-btn, button.ta-analyze-btn').forEach(function(el){
+        _sp(el,'background','linear-gradient(135deg,#1d4ed8,#ef4444)');
+        _sp(el,'color','#fff'); el.style.removeProperty('border');
+      });
+      document.querySelectorAll('.ta-cancel-btn button').forEach(function(el){
+        _sp(el,'background','#dc2626'); _sp(el,'color','#fff');
+      });
+    }
   }
 
   /* ── Gradio CSS variable names — set as inline props on <html> ──────────────
@@ -4764,37 +4942,37 @@ window.taClickUpdateBtn = function(btn) {
      which is how Gradio reads them. This is the only approach that reliably
      overrides Gradio's Soft theme variables regardless of specificity. */
   var DARK_VARS = {
-    '--body-background-fill':      '#0f172a',
-    '--background-fill-primary':   '#0f172a',
-    '--background-fill-secondary': '#1e293b',
-    '--block-background-fill':     '#1e293b',
-    '--input-background-fill':     '#0f172a',
-    '--panel-background-fill':     '#1e293b',
-    '--chatbot-background-fill':   '#1e293b',
-    '--body-text-color':           '#e2e8f0',
-    '--block-label-text-color':    '#94a3b8',
-    '--block-title-text-color':    '#e2e8f0',
-    '--block-info-text-color':     '#94a3b8',
-    '--block-border-color':        '#334155',
+    '--body-background-fill':      '#202124',
+    '--background-fill-primary':   '#202124',
+    '--background-fill-secondary': '#292a2d',
+    '--block-background-fill':     '#292a2d',
+    '--input-background-fill':     '#35363a',
+    '--panel-background-fill':     '#292a2d',
+    '--chatbot-background-fill':   '#292a2d',
+    '--body-text-color':           '#e8eaed',
+    '--block-label-text-color':    '#9aa0a6',
+    '--block-title-text-color':    '#e8eaed',
+    '--block-info-text-color':     '#9aa0a6',
+    '--block-border-color':        '#3c4043',
     '--block-border-width':        '1px',
-    '--input-border-color':        '#475569',
-    '--border-color-primary':      '#334155',
-    '--border-color-accent':       '#3b82f6',
-    '--neutral-100':               '#1e293b',
-    '--neutral-200':               '#334155',
-    '--neutral-300':               '#475569',
-    '--neutral-400':               '#64748b',
-    '--neutral-500':               '#94a3b8',
-    '--neutral-600':               '#cbd5e1',
-    '--neutral-700':               '#e2e8f0',
-    '--neutral-800':               '#f1f5f9',
-    '--neutral-900':               '#f8fafc',
-    '--color-accent':              '#3b82f6',
-    '--link-text-color':           '#60a5fa',
-    '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.5)',
+    '--input-border-color':        '#5f6368',
+    '--border-color-primary':      '#3c4043',
+    '--border-color-accent':       '#8ab4f8',
+    '--neutral-100':               '#292a2d',
+    '--neutral-200':               '#35363a',
+    '--neutral-300':               '#3c4043',
+    '--neutral-400':               '#5f6368',
+    '--neutral-500':               '#9aa0a6',
+    '--neutral-600':               '#bdc1c6',
+    '--neutral-700':               '#e8eaed',
+    '--neutral-800':               '#f1f3f4',
+    '--neutral-900':               '#f8f9fa',
+    '--color-accent':              '#8ab4f8',
+    '--link-text-color':           '#8ab4f8',
+    '--shadow-drop':               '0 1px 3px rgba(0,0,0,0.4)',
   };
 
-  var LIGHT_VARS={"--body-background-fill":"#f0f4fb","--background-fill-primary":"#f0f4fb","--background-fill-secondary":"#ffffff","--block-background-fill":"#ffffff","--input-background-fill":"#ffffff","--panel-background-fill":"#ffffff","--body-text-color":"#0d1b2e","--block-label-text-color":"#5a6a83","--block-border-color":"#dde3ef","--input-border-color":"#dde3ef","--border-color-primary":"#dde3ef","--color-accent":"#2563eb","--link-text-color":"#2563eb","--shadow-drop":"0 1px 3px rgba(0,0,0,0.06)"};
+  var LIGHT_VARS={"--body-background-fill":"#f8f9fa","--background-fill-primary":"#f8f9fa","--background-fill-secondary":"#ffffff","--block-background-fill":"#ffffff","--input-background-fill":"#ffffff","--panel-background-fill":"#ffffff","--body-text-color":"#202124","--block-label-text-color":"#1e293b","--block-title-text-color":"#202124","--block-info-text-color":"#374151","--neutral-500":"#374151","--neutral-400":"#475569","--neutral-300":"#64748b","--block-border-color":"#dadce0","--block-border-width":"1px","--input-border-color":"#dadce0","--border-color-primary":"#dadce0","--border-color-accent":"#1a73e8","--neutral-100":"#f8f9fa","--neutral-200":"#f1f3f4","--neutral-300":"#dadce0","--neutral-400":"#bdc1c6","--neutral-500":"#80868b","--neutral-600":"#5f6368","--neutral-700":"#3c4043","--neutral-800":"#202124","--neutral-900":"#171717","--color-accent":"#1a73e8","--link-text-color":"#1a73e8","--shadow-drop":"0 1px 2px rgba(0,0,0,0.06)"};
   function setGradioVars(dark) {
     var root = document.documentElement;
     [DARK_VARS,LIGHT_VARS].forEach(function(s){Object.keys(s).forEach(function(k){root.style.removeProperty(k);});});
@@ -4817,26 +4995,63 @@ window.taClickUpdateBtn = function(btn) {
     if (st.parentNode) st.parentNode.removeChild(st);
     document.head.appendChild(st);
   var LIGHT_RULES=[
-    "html:not(.dark){color-scheme:light;color:#0d1b2e!important;background:#f0f4fb!important}",
-    "html:not(.dark) body,html:not(.dark) .gradio-container,html:not(.dark) .main{background:#f0f4fb!important;color:#0d1b2e!important}",
-    "html:not(.dark) .block,html:not(.dark) .form,html:not(.dark) .wrap,html:not(.dark) .padded{background:#ffffff!important;border-color:#dde3ef!important}",
-    "html:not(.dark) input,html:not(.dark) textarea,html:not(.dark) select{background:#ffffff!important;color:#0d1b2e!important;border-color:#dde3ef!important}",
+    /* base */
+    "html:not(.dark){color-scheme:light;color:#202124!important;background:#f8f9fa!important}",
+    "html:not(.dark) body,html:not(.dark) .gradio-container,html:not(.dark) .main,html:not(.dark) .contain{background:#f8f9fa!important;color:#202124!important}",
+    /* blocks */
+    "html:not(.dark) .block,html:not(.dark) .form,html:not(.dark) .wrap,html:not(.dark) .padded{background:#ffffff!important;border-color:#dadce0!important;border-radius:12px!important;box-shadow:0 1px 2px rgba(0,0,0,0.05),0 2px 6px rgba(0,0,0,0.04)!important}",
+    /* inputs */
+    "html:not(.dark) input,html:not(.dark) textarea,html:not(.dark) select{background:#ffffff!important;color:#202124!important;border-color:#dadce0!important;border-radius:8px!important}",
+    "html:not(.dark) input::placeholder,html:not(.dark) textarea::placeholder{color:#80868b!important}",
+    "html:not(.dark) input:focus,html:not(.dark) textarea:focus{border-color:#1a73e8!important;border-width:2px!important}",
+    /* tabs */
+    "html:not(.dark) .tabs>.tab-nav{border-bottom-color:#dadce0!important}",
     "html:not(.dark) .tabs>.tab-nav button{color:#374151!important;background:transparent!important;font-weight:600!important}",
-    "html:not(.dark) .tabs>.tab-nav button.selected{color:#1d4ed8!important;border-bottom-color:#1d4ed8!important;font-weight:700!important}",
-    "html:not(.dark) .tabitem{background:#f0f4fb!important}",
-    "html:not(.dark) [role=listbox]{background:#ffffff!important;border-color:#94a3b8!important;box-shadow:0 8px 24px rgba(0,0,0,0.12)!important}",
-    "html:not(.dark) [role=option]{color:#0d1b2e!important;background:#ffffff!important}",
-    "html:not(.dark) [role=option]:hover,html:not(.dark) [role=option][aria-selected=true]{background:#bfdbfe!important;color:#1e3a8a!important}",
-    "html:not(.dark) .accordion,html:not(.dark) details{background:#ffffff!important;border-color:#dde3ef!important}",
-    "html:not(.dark) button{background:#ffffff!important;border-color:#dde3ef!important;color:#0d1b2e!important}",
-    "html:not(.dark) #ta-btn-light{background:#2563eb!important;color:#fff!important}",
-    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5a6a83!important}",
-    "html:not(.dark) .upload-container{border-color:#cbd5e1!important;background:#ffffff!important}",
-    "html:not(.dark) .label-wrap span,html:not(.dark) .block-label,html:not(.dark) label>span{color:#374151!important}",
-    "html:not(.dark) .info{color:#4b5563!important}",
-    "html:not(.dark) .prose a,html:not(.dark) .markdown a{color:#1d4ed8!important;font-weight:600!important}",
-    "html:not(.dark) .ta-large-file-banner{background:#fffbeb!important;border-color:#f59e0b!important}",
-    "html:not(.dark) .ta-large-file-banner,html:not(.dark) .ta-large-file-banner strong{color:#92400e!important}",
+    "html:not(.dark) .tabs>.tab-nav button.selected{color:#1a73e8!important;border-bottom-color:#1a73e8!important;font-weight:600!important}",
+    "html:not(.dark) .tabitem{background:#f8f9fa!important}",
+    /* dropdowns */
+    "html:not(.dark) [role=listbox]{background:#ffffff!important;border-color:#dadce0!important;box-shadow:0 4px 16px rgba(0,0,0,0.1)!important;border-radius:8px!important}",
+    "html:not(.dark) [role=option]{color:#202124!important;background:#ffffff!important}",
+    "html:not(.dark) [role=option]:hover,html:not(.dark) [role=option][aria-selected=true]{background:#e8f0fe!important;color:#1a73e8!important}",
+    /* accordion */
+    "html:not(.dark) .accordion,html:not(.dark) details{background:#ffffff!important;border-color:#dadce0!important;border-radius:8px!important}",
+    "html:not(.dark) .accordion .label-wrap,html:not(.dark) details summary{color:#202124!important}",
+    /* buttons */
+    "html:not(.dark) button:not(#ta-float-analyze):not(.ta-analyze-btn):not([id=ta-analyze-btn]){background:#ffffff!important;border-color:#dadce0!important;color:#202124!important;border-radius:8px!important}",
+    "html:not(.dark) #ta-btn-light{background:#1a73e8!important;color:#fff!important;border:none!important}",
+    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5f6368!important}",
+    /* labels */
+    "html:not(.dark) .label-wrap span,html:not(.dark) .block-label,html:not(.dark) label>span{color:#1e293b!important;font-weight:700!important}",
+    "html:not(.dark) .info,html:not(.dark) .info-text,html:not(.dark) .info span,html:not(.dark) [class*=info-text]{color:#374151!important;font-weight:600!important}",
+    /* placeholder text */
+    "::placeholder{color:#6b7280!important;opacity:1!important}",
+    "html.dark ::placeholder{color:#9aa0a6!important;opacity:1!important}",
+    /* upload area text */
+    "html:not(.dark) .upload-container span,html:not(.dark) .upload-container p,html:not(.dark) .upload-container .wrap{color:#1e293b!important}",
+    "html:not(.dark) .upload-container .or{color:#374151!important}",
+    /* all block/form secondary text — catches Gradio-generated spans */
+    "html:not(.dark) .block span:not(.svelte-),html:not(.dark) .form span:not(.svelte-),html:not(.dark) .padded span:not(.svelte-){color:#1e293b!important}",
+    "html:not(.dark) .block p,html:not(.dark) .form p{color:#1e293b!important}",
+    /* number input text */
+    "html:not(.dark) input[type=number]{color:#1e293b!important;font-weight:500!important}",
+    /* links */
+    "html:not(.dark) .prose a,html:not(.dark) .markdown a{color:#1a73e8!important;font-weight:500!important}",
+    /* upload */
+    "html:not(.dark) #ta-file-drop .upload-container{border-color:#dadce0!important;background:#fafafa!important}",
+    /* file preview */
+    "html:not(.dark) .file-preview{background:#ffffff!important;color:#202124!important}",
+    /* upload container generic */
+    "html:not(.dark) .upload-container{background:#ffffff!important;border-color:#dadce0!important}",
+    /* scrollbars */
+    "html:not(.dark) ::-webkit-scrollbar-track{background:#f8f9fa!important}",
+    "html:not(.dark) ::-webkit-scrollbar-thumb{background:#dadce0!important}",
+    "html:not(.dark) ::-webkit-scrollbar-thumb:hover{background:#bdc1c6!important}",
+    /* banner */
+    "html:not(.dark) .ta-large-file-banner{background:#fef7e0!important;border-color:#f9ab00!important}",
+    "html:not(.dark) .ta-large-file-banner,html:not(.dark) .ta-large-file-banner strong{color:#7b5800!important}",
+    /* theme toggle */
+    "html:not(.dark) #ta-btn-light{background:#1a73e8!important;color:#fff!important}",
+    "html:not(.dark) #ta-btn-dark{background:transparent!important;color:#5f6368!important}",
   ].join("");
     st.textContent = dark ? DARK_RULES : LIGHT_RULES;
 
@@ -4844,9 +5059,9 @@ window.taClickUpdateBtn = function(btn) {
     patchDOM(dark);
 
     /* Direct body/html inline styles — these beat everything */
-    _sp(document.body, 'background', dark ? '#0f172a' : null);
-    _sp(document.body, 'color',      dark ? '#e2e8f0' : null);
-    _sp(document.documentElement, 'background', dark ? '#0f172a' : null);
+    _sp(document.body, 'background', dark ? '#202124' : '#f8f9fa');
+    _sp(document.body, 'color',      dark ? '#e8eaed' : '#202124');
+    _sp(document.documentElement, 'background', dark ? '#202124' : '#f8f9fa');
 
     localStorage.setItem('ta-dark',      dark ? 'true'  : 'false');
     localStorage.setItem('theme',        dark ? 'dark'  : 'light');
@@ -4885,7 +5100,7 @@ window.taClickUpdateBtn = function(btn) {
         immediately move ta-override back to the END so our rules win cascade
      3. Re-patch DOM when Gradio adds new body nodes */
   new MutationObserver(function(muts) {
-    if (!_dark) return;
+    if (!_dark) return;  /* only enforce .dark class in dark mode */
     muts.forEach(function(m) {
       if (m.attributeName === 'class' && !m.target.classList.contains('dark'))
         m.target.classList.add('dark');
@@ -4894,7 +5109,6 @@ window.taClickUpdateBtn = function(btn) {
 
   /* Watch <head> for new <style> injections — move ta-override to end immediately */
   new MutationObserver(function(muts) {
-    if (!_dark) return;
     var newStyle = muts.some(function(m){
       return Array.prototype.some.call(m.addedNodes, function(n){
         return n.nodeType === 1 && n.tagName === 'STYLE' && n.id !== 'ta-override' && n.id !== 'ta-static';
@@ -4908,22 +5122,20 @@ window.taClickUpdateBtn = function(btn) {
 
   var _patchTimer = null;
   new MutationObserver(function(muts) {
-    if (!_dark) return;
     var hasNodes = muts.some(function(m){ return m.addedNodes.length > 0; });
     if (!hasNodes) return;
     if (_patchTimer) return;
-    _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(true); patchDOM(true); }, 50);
+    _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(_dark); patchDOM(_dark); }, 50);
   }).observe(document.body || document.documentElement, { childList: true, subtree: true });
 
-  /* Periodic re-apply in dark mode — catches any Gradio re-renders we miss */
+  /* Periodic re-apply — catches any Gradio re-renders in both modes */
   setInterval(function() {
-    if (!_dark) return;
     /* Re-append ta-override to ensure it stays last */
     if (st.parentNode && st.parentNode.lastChild !== st) {
       st.parentNode.removeChild(st);
       document.head.appendChild(st);
     }
-    setGradioVars(true);
+    setGradioVars(_dark);
   }, 1000);
 
   /* ── Init — single init guard prevents double event-listener bug ─────────── */
@@ -5759,8 +5971,8 @@ window.taClickUpdateBtn = function(btn) {
       var rxBps = _speed(_rxLog);
       var txBps = _speed(_txLog);
 
-      var rxColor = rxBps > 1048576 ? '#22c55e' : rxBps > 102400 ? '#3b82f6' : '#64748b';
-      var txColor = txBps > 1048576 ? '#22c55e' : txBps > 102400 ? '#a855f7' : '#64748b';
+      var rxColor = rxBps > 1048576 ? '#34a853' : rxBps > 102400 ? '#1a73e8' : '#9aa0a6';
+      var txColor = txBps > 1048576 ? '#34a853' : txBps > 102400 ? '#8ab4f8' : '#9aa0a6';
 
       /* upload progress bar when active */
       var upDetail = '';
@@ -5778,31 +5990,51 @@ window.taClickUpdateBtn = function(btn) {
       /* ping + connection badge */
       var footer = '';
       var connInfo = '';
+      var connIcon = '';
       try {
         var nc = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
         if (nc) {
           var et = nc.effectiveType || '';
-          var dl = nc.downlink;
-          if (et) connInfo += et.toUpperCase();
-          if (dl)  connInfo += (connInfo ? ' · ' : '') + dl + ' Mbps';
+          var ct = nc.type || '';
+          var dl = nc.downlink || 0;
+          if (ct === 'ethernet') { connIcon = '🔌'; connInfo = 'Wired / Ethernet'; }
+          else if (ct === 'wifi') { connIcon = '📶'; connInfo = 'Wi-Fi' + (dl ? ' · ' + dl + ' Mbps' : ''); }
+          else if (ct === 'cellular') {
+            if (et === '4g' && dl > 50)      { connIcon = '5️⃣'; connInfo = '5G'; }
+            else if (et === '4g' && dl > 20)  { connIcon = '4️⃣'; connInfo = '4G LTE+'; }
+            else if (et === '4g')             { connIcon = '4️⃣'; connInfo = '4G LTE'; }
+            else if (et === '3g')             { connIcon = '3️⃣'; connInfo = '3G'; }
+            else if (et === '2g')             { connIcon = '2️⃣'; connInfo = '2G'; }
+            else if (et === 'slow-2g')        { connIcon = '🐌'; connInfo = 'Slow 2G'; }
+            else                              { connIcon = '📱'; connInfo = 'Cellular'; }
+            if (dl) connInfo += ' · ' + dl + ' Mbps';
+          } else if (et) {
+            connIcon = '🌐';
+            connInfo = et === '4g' ? '4G LTE' : et.toUpperCase();
+            if (dl) connInfo += ' · ' + dl + ' Mbps';
+          }
         }
       } catch(ex) {}
       if (_pingMs > 0 || connInfo) {
-        var pingColor = _pingMs < 80 ? '#22c55e' : _pingMs < 200 ? '#f59e0b' : '#ef4444';
+        var pingColor = _pingMs < 80 ? '#34a853' : _pingMs < 200 ? '#f9ab00' : '#ea4335';
         footer = '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;'
                + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);'
                + 'font-size:0.72em;color:var(--ta-card-sub,#64748b);">'
                + (_pingMs > 0 ?
-                   '<span>🏓 Ping&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>' : '')
-               + (connInfo ? '<span>📶 ' + connInfo + '</span>' : '')
+                   '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ta-card-bg);border:1px solid var(--ta-card-border);border-radius:12px;padding:2px 8px;">'
+                   + '🏓&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>' : '')
+               + (connInfo ? '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ta-card-bg);border:1px solid var(--ta-card-border);border-radius:12px;padding:2px 8px;">'
+                   + connIcon + '&nbsp;' + connInfo + '</span>' : '')
                + '</div>';
       }
 
       p.innerHTML = (
         '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
         + '<div style="margin-top:8px;">'
-        + '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-        + 'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+        + '<div style="font-size:0.72em;font-weight:600;letter-spacing:0.04em;'
+        + 'color:var(--ta-accent,#1a73e8);margin-bottom:8px;display:flex;align-items:center;gap:6px;">'
+        + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ta-accent,#1a73e8);animation:tapulse 2s infinite;"></span>'
+        + 'LIVE NETWORK</div>'
         + '<div style="display:flex;gap:8px;">'
         + _card('⬇', 'Download', rxBps, _rxTotal, rxColor)
         + _card('⬆', 'Upload',   txBps, _txTotal, txColor, upDetail)
@@ -6097,7 +6329,14 @@ _CAPABILITIES = (
     + '</div></div>'
 )
 
-_SECTION = lambda label: f'<div class="ta-section-label">{label}</div>'
+def _SECTION(label):
+    import re
+    m = re.match(r'Step\s+(\d+)\s*[—\-]\s*(.*)', label)
+    if m:
+        num, text = m.group(1), m.group(2)
+        return (f'<div class="ta-section-label">'
+                f'<span class="ta-section-step">{num}</span>{text}</div>')
+    return f'<div class="ta-section-label">{label}</div>'
 
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
@@ -6817,10 +7056,18 @@ _DEV_BANNER = """
 <div id="ta-dev-banner" style="
   background:linear-gradient(135deg,#ea580c,#f97316);
   color:#fff;font-size:0.8em;font-weight:700;
-  text-align:center;padding:6px 16px;letter-spacing:0.05em;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:5px 16px;letter-spacing:0.04em;
   position:sticky;top:0;z-index:9999;
   box-shadow:0 2px 8px rgba(234,88,12,0.4);">
-  ⚙️ DEV MODE — Port 7861 — Changes here do NOT affect production
+  <span>⚙️ DEV MODE &nbsp;·&nbsp; Port 7861 &nbsp;·&nbsp; Changes here do NOT affect production</span>
+  <button onclick="(function(){var d=document.documentElement.classList.contains('dark');if(typeof applyTheme==='function'){applyTheme(!d);}else{document.documentElement.classList.toggle('dark',!d);}})()"
+    title="Toggle light / dark mode"
+    style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);
+           color:#fff;border-radius:8px;padding:3px 10px;cursor:pointer;
+           font-size:1.1em;line-height:1;letter-spacing:0;">
+    ☀️/🌙
+  </button>
 </div>""" if _DEV_MODE else ""
 
 _title = f"Transcript Agent v{APP_VERSION}{' [DEV]' if _DEV_MODE else ''}"
@@ -6842,7 +7089,7 @@ with gr.Blocks(title=_title) as demo:
     # ── Browser-persisted settings (single BrowserState per setting) ───────────
     # stt_engine is intentionally excluded — restoring it via demo.load() triggers
     # stt_engine.change() → _toggle_and_save_stt → causes STT Model to disappear.
-    bsr_whisper  = bsw_whisper  = gr.BrowserState("base",   storage_key="ta-bs-whisper")
+    bsr_whisper  = bsw_whisper  = gr.BrowserState("turbo",  storage_key="ta-bs-whisper")
     bsr_stt_model= bsw_stt_model= gr.BrowserState(None,    storage_key="ta-bs-stt-model")
     bsr_language = bsw_language = gr.BrowserState("auto",   storage_key="ta-bs-language")
     bsr_style    = bsw_style    = gr.BrowserState("formal", storage_key="ta-bs-style")
@@ -6892,6 +7139,7 @@ with gr.Blocks(title=_title) as demo:
                 label="Drag & drop a file or click to browse",
                 file_types=SUPPORTED,
                 type="filepath",
+                elem_id="ta-file-drop",
             )
             gr.HTML("""
 <style>
@@ -6932,8 +7180,8 @@ html.dark .ta-large-file-warn{background:#422006;border-color:#d97706;color:#fde
                 stt_model_input = gr.Dropdown(
                     label="Whisper model size",
                     choices=_WHISPER_SIZES,
-                    value="base",
-                    info="tiny = fastest · turbo ≈ large speed  |  large-v3 = most accurate",
+                    value="turbo",
+                    info="turbo = fast & accurate (default) · tiny = fastest · large-v3 = most accurate",
                     visible=True,
                     allow_custom_value=True,
                     elem_id="ta-stt-model",
@@ -7556,7 +7804,7 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
             gr.update(visible=False), gr.update(visible=False),
             2, gr.update(value=""),
         )
-        if not file_path or not _HAS_VIDEO_ANALYZER:
+        if not file_path or _video_analyzer is None:
             return _no_vid
         _ext = Path(file_path).suffix.lower()
         if _ext not in {".mp4",".mov",".avi",".mkv",".webm",".m4v",".flv",".wmv"}:
@@ -7619,8 +7867,8 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
         if not file_path:
             err = '<p style="color:#ef4444;padding:12px;">Please upload a video first.</p>'
             return err, "", "", None, ""
-        if not _HAS_VIDEO_ANALYZER:
-            err = '<p style="color:#ef4444;padding:12px;">Video analysis packages not installed. Run: pip install mediapipe opencv-python</p>'
+        if _video_analyzer is None:
+            err = '<p style="color:#ef4444;padding:12px;">VideoAnalyzer not available. Run: pip install mediapipe opencv-python deepface</p>'
             return err, "", "", None, ""
 
         count = int(person_count or 2)
@@ -8133,89 +8381,94 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
     )
 
     # ── Video Analysis events ─────────────────────────────────────────────────
-    if _HAS_VIDEO_ANALYZER:
-
-        def _va_analyze(video_path):
-            """One click: auto-detect faces, assign roles, run full analysis."""
-            if not video_path:
-                yield (
-                    gr.update(value="<p style='color:#f59e0b;'>Upload a video first.</p>"),
-                    gr.update(), gr.update(visible=False), gr.update(visible=False),
-                )
-                return
-
-            progress_val  = [0.0]
-            result_holder = [None]
-            exc_holder    = [None]
-
-            def _worker():
-                try:
-                    # Auto-detect faces → auto-assign roles
-                    thumbs, _ = _video_analyzer.scan_faces(video_path)
-                    pids = list(thumbs.keys())
-                    role_map = {}
-                    if pids:
-                        role_map[pids[0]] = "Candidate"
-                        for _i, _p in enumerate(pids[1:], 1):
-                            role_map[_p] = f"Interviewer {_i}"
-
-                    def _pcb(v): progress_val[0] = v
-
-                    result_holder[0] = _video_analyzer.analyze_video(
-                        video_path, role_map, sample_fps=1.0, progress_cb=_pcb
-                    )
-                except Exception as e:
-                    exc_holder[0] = e
-
+    def _va_analyze(video_path):
+        """One click: auto-detect faces, assign roles, run full analysis."""
+        if not video_path:
             yield (
-                gr.update(value='<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
-                                'Detecting faces and analysing… this may take a minute.</div>'),
+                gr.update(value="<p style='color:#f59e0b;'>Upload a video first.</p>"),
                 gr.update(), gr.update(visible=False), gr.update(visible=False),
             )
+            return
 
-            t = threading.Thread(target=_worker, daemon=True)
-            t.start()
-
-            while t.is_alive():
-                pct = int(progress_val[0] * 100)
-                yield (
-                    gr.update(value=(
-                        f'<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
-                        f'Analysing… {pct}%'
-                        f'<div style="background:#e2e8f0;border-radius:4px;height:6px;margin-top:6px;">'
-                        f'<div style="background:#3b82f6;height:6px;border-radius:4px;width:{pct}%;"></div>'
-                        f'</div></div>'
-                    )),
-                    gr.update(), gr.update(visible=False), gr.update(visible=False),
-                )
-                time.sleep(1.5)
-
-            t.join()
-
-            if exc_holder[0]:
-                yield (
-                    gr.update(value=f'<p style="color:#ef4444;">Analysis failed: {exc_holder[0]}</p>'),
-                    gr.update(), gr.update(visible=False), gr.update(visible=False),
-                )
-                return
-
-            result = result_holder[0]
-            if result is None or result.error:
-                yield (
-                    gr.update(value=f'<p style="color:#ef4444;">{result.error if result else "Unknown error"}</p>'),
-                    gr.update(), gr.update(visible=False), gr.update(visible=False),
-                )
-                return
-
-            score_html   = _video_analyzer.render_score_cards_html(result)
-            timeline_fig = _video_analyzer.render_timeline_figure(result)
-            ann_path     = result.annotated_video_path
+        if _video_analyzer is None:
             yield (
-                gr.update(value='<div style="color:#22c55e;padding:8px 0;font-size:0.84em;">Done!</div>'),
-                gr.update(value=score_html),
-                gr.update(value=timeline_fig, visible=timeline_fig is not None),
-                gr.update(value=ann_path, visible=ann_path is not None),
+                gr.update(value="<p style='color:#ef4444;'>VideoAnalyzer not available. Run: pip install mediapipe opencv-python deepface</p>"),
+                gr.update(), gr.update(visible=False), gr.update(visible=False),
             )
+            return
+
+        progress_val  = [0.0]
+        result_holder = [None]
+        exc_holder    = [None]
+
+        def _worker():
+            try:
+                # Auto-detect faces → auto-assign roles
+                thumbs, _ = _video_analyzer.scan_faces(video_path)
+                pids = list(thumbs.keys())
+                role_map = {}
+                if pids:
+                    role_map[pids[0]] = "Candidate"
+                    for _i, _p in enumerate(pids[1:], 1):
+                        role_map[_p] = f"Interviewer {_i}"
+
+                def _pcb(v): progress_val[0] = v
+
+                result_holder[0] = _video_analyzer.analyze_video(
+                    video_path, role_map, sample_fps=1.0, progress_cb=_pcb
+                )
+            except Exception as e:
+                exc_holder[0] = e
+
+        yield (
+            gr.update(value='<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
+                            'Detecting faces and analysing… this may take a minute.</div>'),
+            gr.update(), gr.update(visible=False), gr.update(visible=False),
+        )
+
+        t = threading.Thread(target=_worker, daemon=True)
+        t.start()
+
+        while t.is_alive():
+            pct = int(progress_val[0] * 100)
+            yield (
+                gr.update(value=(
+                    f'<div style="color:#3b82f6;padding:8px 0;font-size:0.84em;">'
+                    f'Analysing… {pct}%'
+                    f'<div style="background:var(--ta-step-wait-bg);border-radius:4px;height:6px;margin-top:6px;">'
+                    f'<div style="background:#3b82f6;height:6px;border-radius:4px;width:{pct}%;"></div>'
+                    f'</div></div>'
+                )),
+                gr.update(), gr.update(visible=False), gr.update(visible=False),
+            )
+            time.sleep(1.5)
+
+        t.join()
+
+        if exc_holder[0]:
+            yield (
+                gr.update(value=f'<p style="color:#ef4444;">Analysis failed: {exc_holder[0]}</p>'),
+                gr.update(), gr.update(visible=False), gr.update(visible=False),
+            )
+            return
+
+        result = result_holder[0]
+        if result is None or result.error:
+            yield (
+                gr.update(value=f'<p style="color:#ef4444;">{result.error if result else "Unknown error"}</p>'),
+                gr.update(), gr.update(visible=False), gr.update(visible=False),
+            )
+            return
+
+        score_html   = _video_analyzer.render_score_cards_html(result)
+        timeline_fig = _video_analyzer.render_timeline_figure(result)
+        ann_path     = result.annotated_video_path
+        yield (
+            gr.update(value='<div style="color:#22c55e;padding:8px 0;font-size:0.84em;">Done!</div>'),
+            gr.update(value=score_html),
+            gr.update(value=timeline_fig, visible=timeline_fig is not None),
+            gr.update(value=ann_path, visible=ann_path is not None),
+        )
 
 
     # Check for updates on page load (non-blocking, skipped on HF Spaces)

@@ -6735,7 +6735,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.4"
+APP_VERSION = "2.4.5"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7070,7 +7070,7 @@ _DEV_BANNER = """
 
 _title = f"Transcript Agent v{APP_VERSION}{' [DEV]' if _DEV_MODE else ''}"
 
-with gr.Blocks(title=_title) as demo:
+with gr.Blocks(title=_title, head=f"<script>{_THEME_JS}</script>") as demo:
 
     if _DEV_MODE:
         gr.HTML(_DEV_BANNER)
@@ -8479,6 +8479,7 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
 
 
 
+
 if __name__ == "__main__":
     # Keep the machine awake the entire time the app is running
     import atexit as _atexit
@@ -8524,7 +8525,6 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
-        head=f"<script>{_THEME_JS}</script>",
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

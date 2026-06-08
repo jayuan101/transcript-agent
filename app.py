@@ -457,8 +457,9 @@ _PROVIDERS = {
         "placeholder": "none required",
         "info": "ollama.ai — run models locally, no API key needed",
         "models": [
-            # ── DEFAULT (best balance) ────────────────────────────────
-            "gemma3:27b",         # Google Gemma 3 27B — best quality/size ratio ★ default
+            # ── DEFAULT ──────────────────────────────────────────────
+            "gemma3:27b",         # Google Gemma 3 27B ★ default
+            "gemma3:12b",         # Google Gemma 3 12B — faster, 8 GB RAM
             # ── Best quality (48 GB+ RAM) ─────────────────────────────
             "llama4:maverick",    # Meta Llama 4 Maverick
             "llama4:scout",       # Meta Llama 4 Scout
@@ -475,7 +476,6 @@ _PROVIDERS = {
             "qwen3:14b",          # Qwen 3 14B
             "phi4",               # Microsoft Phi-4 14B
             "phi4-mini",          # Phi-4 Mini — fast
-            "gemma3:12b",         # Google Gemma 3 12B
             "qwen3:8b",           # Qwen 3 8B
             "qwen2.5:14b",        # Alibaba 14B
             "llama3.2",           # Meta 3B/11B — fastest
@@ -1161,7 +1161,11 @@ _ANIM = (
 )
 
 def _fmt_eta(eta_secs: int) -> str:
-    m, s = divmod(max(0, eta_secs), 60)
+    total_s = max(0, eta_secs)
+    h, rem = divmod(total_s, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}h {m:02d}m" if m else f"{h}h"
     return f"{m}m {s:02d}s" if m else f"{s}s"
 
 
@@ -2526,7 +2530,8 @@ def _net_panel_html(direction: str, received: int, total: int,
 
 
 def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
-                    elapsed: str = "", done: bool = False, word_count: int = 0) -> str:
+                    elapsed: str = "", done: bool = False, word_count: int = 0,
+                    is_local: bool = False) -> str:
     import datetime as _dt
 
     _slide_css = (
@@ -2619,15 +2624,30 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
         import math as _math, re as _re
         _m = _re.match(r'(?:(\d+)m\s*)?(\d+)s', elapsed or "")
         _elapsed_s = (int(_m.group(1) or 0) * 60 + int(_m.group(2) or 0)) if _m else 0
-        # Total estimated AI time: scale by word count if known, else default 90s
-        _total_ai = max(90, int(word_count * 0.14)) if word_count > 0 else 90
-        # Asymptotic curve: grows fast → slows → caps at 92% until done
-        ai_pct   = min(92, int(100 * (1 - _math.exp(-_elapsed_s / (_total_ai * 0.4))))) if _elapsed_s > 0 else 5
-        # Estimate remaining from asymptotic curve
+        if is_local:
+            # Local models vary wildly by hardware — use generous estimate,
+            # floor at 10 min, and cap progress at 85% so it never looks done.
+            _total_ai = max(600, int(word_count * 2.0)) if word_count > 0 else 600
+            _pct_cap  = 85
+        else:
+            # Total estimated AI time: scale by word count if known, else 90s
+            _total_ai = max(90, int(word_count * 0.14)) if word_count > 0 else 90
+            _pct_cap  = 92
+        # Asymptotic curve: grows fast → slows → caps until done
+        ai_pct   = min(_pct_cap, int(100 * (1 - _math.exp(-_elapsed_s / (_total_ai * 0.4))))) if _elapsed_s > 0 else 5
+        # Estimate remaining
         _est_rem = max(0, int(_total_ai - _elapsed_s))
-        eta_str  = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
+        if is_local:
+            # Never say "Almost done" — local models are unpredictable
+            eta_str = _fmt_eta(_est_rem) if _est_rem > 0 else "Still processing…"
+        else:
+            eta_str = _fmt_eta(_est_rem) if _est_rem > 3 else "Almost done…"
         # Sub-label
-        if word_count > 0:
+        if is_local and word_count > 0:
+            _sub_label = f"🖥️ Local model processing {word_count:,}-word transcript — time varies by hardware…"
+        elif is_local:
+            _sub_label = "🖥️ Local model running — time varies by hardware…"
+        elif word_count > 0:
             _sub_label = f"🤖 Analyzing {word_count:,}-word transcript — writing full report…"
         else:
             _sub_label = "🤖 Reading transcript and writing your report…"
@@ -3534,16 +3554,27 @@ def process_file(
                 stall_warned.add(stall_key)
                 log = _add_log("🚨  15 min with no Whisper update. If progress bar is frozen, consider restarting and using a smaller Whisper model (tiny/base).", "error")
                 yield _out(log=log)
-            elif stage == "claude" and quiet == 120 and stall_key not in stall_warned:
+            elif stage == "claude" and stall_key not in stall_warned and (
+                    (provider_name == "Ollama (Local)" and quiet == 300) or
+                    (provider_name != "Ollama (Local)" and quiet == 120)):
                 stall_warned.add(stall_key)
-                log = _add_log(f"⚠️  {model_name} taking 2+ min. Long transcript or slow API — still waiting.", "warn")
+                if provider_name == "Ollama (Local)":
+                    log = _add_log(f"⚠️  {model_name} is still running (5 min). Local models are slower — this is normal for long transcripts.", "warn")
+                else:
+                    log = _add_log(f"⚠️  {model_name} taking 2+ min. Long transcript or slow API — still waiting.", "warn")
                 yield _out(log=log)
-            elif stage == "claude" and quiet == 600 and stall_key not in stall_warned:
+            elif stage == "claude" and stall_key not in stall_warned and (
+                    (provider_name == "Ollama (Local)" and quiet == 1800) or
+                    (provider_name != "Ollama (Local)" and quiet == 600)):
                 stall_warned.add(stall_key)
-                log = _add_log(f"🚨  10 min waiting for {provider_name} ({model_name}). Check your API key quota or try a faster model.", "error")
+                if provider_name == "Ollama (Local)":
+                    log = _add_log(f"🚨  30 min waiting for {model_name}. This may be normal for a large model on CPU. Consider switching to a smaller model (gemma3:12b, qwen3:8b).", "error")
+                else:
+                    log = _add_log(f"🚨  10 min waiting for {provider_name} ({model_name}). Check your API key quota or try a faster model.", "error")
                 yield _out(log=log)
             elif stage == "claude" and quiet > 0 and quiet % 30 == 0:
-                yield _out(eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count))
+                yield _out(eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count,
+                                               is_local=(provider_name == "Ollama (Local)")))
 
             # ── eta panel update ─────────────────────────────────────────────
             if stage in ("whisper",):
@@ -3559,7 +3590,8 @@ def process_file(
                            eta=_eta_panel_html("extracting", elapsed=elapsed))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count))
+                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count,
+                                               is_local=(provider_name == "Ollama (Local)")))
             else:
                 yield _out(status=_status_compact("⏳", "Loading…", elapsed),
                            eta=_eta_panel_html("loading", elapsed=elapsed))
@@ -3595,7 +3627,8 @@ def process_file(
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
                 yield _out(status=_status_compact("🤖", f"Analyzing with {model_name}…", elapsed),
-                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count), log=log)
+                           eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count,
+                                               is_local=(provider_name == "Ollama (Local)")), log=log)
 
         elif kind == "pct":
             whisper_pct = msg[1]
@@ -3626,7 +3659,8 @@ def process_file(
             log_text  = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
             yield _out(
                 status=_status_compact("🤖", f"Analyzing with {model_name}…", elapsed),
-                eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count),
+                eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count,
+                                    is_local=(provider_name == "Ollama (Local)")),
                 transcript=msg[1],
                 log=log_text,
             )

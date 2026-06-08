@@ -63,7 +63,7 @@ class LLMClient:
             self._client = _oai.OpenAI(**kw)
 
     def chat(self, system: str, user: str, max_tokens: int,
-             thinking: bool = False, on_usage=None) -> str:
+             thinking: bool = False, on_usage=None, json_mode: bool = False) -> str:
         """on_usage(input_tokens, output_tokens) — called after each API response."""
         if self.provider == "anthropic":
             import time as _time
@@ -117,17 +117,33 @@ class LLMClient:
             import re as _re2, time as _t2
             for _attempt in range(4):
                 try:
+                    # Ollama: cap output tokens and set num_ctx large enough to
+                    # hold the full prompt + output. Default Ollama num_ctx is
+                    # 2048 — easily overflowed by any real transcript, which
+                    # causes the model to emit 0–1 tokens.
+                    # 8192 output supports 3-hour transcripts (analysis fields
+                    # only; transcript echo is skipped for very long recordings).
+                    _out_tokens = min(max_tokens, 8192) if self._is_ollama else max_tokens
                     _kw = dict(
                         model=self.model,
-                        max_tokens=max_tokens,
+                        max_tokens=_out_tokens,
                         messages=[
                             {"role": "system", "content": system},
                             {"role": "user", "content": user},
                         ],
                     )
                     if self._is_ollama:
-                        # num_gpu=-1 = all layers on GPU; 0 = CPU only
-                        _kw["extra_body"] = {"options": {"num_gpu": -1 if self.use_gpu else 0}}
+                        # num_ctx must fit input + output.
+                        # 65 k floor covers a 3-hour transcript (~50 k input tokens).
+                        _ctx = max(65536, _out_tokens + len(system) // 3 + len(user) // 3)
+                        _kw["extra_body"] = {
+                            "options": {
+                                "num_gpu": -1 if self.use_gpu else 0,
+                                "num_ctx": _ctx,
+                            }
+                        }
+                        if json_mode:
+                            _kw["response_format"] = {"type": "json_object"}
                     resp = self._client.chat.completions.create(**_kw)
                     if on_usage and resp.usage:
                         on_usage(resp.usage.prompt_tokens, resp.usage.completion_tokens)
@@ -2055,12 +2071,12 @@ def process_transcript(
         for _parse_attempt in range(3):
             if _parse_attempt == 0:
                 _sys = sys_prompt
-                _max_tok = 16000
+                _max_tok = 32000   # covers 3-hour transcripts with full output
             elif _parse_attempt == 1:
                 _sys = ("IMPORTANT: Respond with ONLY a raw JSON object. "
                         "No markdown, no code fences, no explanation — just the JSON.\n\n"
                         + sys_prompt)
-                _max_tok = 8000
+                _max_tok = 16000
             else:
                 # Final fallback: analysis fields only, skip transcript echo
                 _sys = ("Return ONLY a JSON object with these keys: "
@@ -2068,13 +2084,14 @@ def process_transcript(
                         "speaker_profiles, speaker_stats. "
                         "Leave clean_transcript and speaker_dialogue as empty strings. "
                         "No markdown, no fences.")
-                _max_tok = 4000
+                _max_tok = 8000
             raw = client.chat(
                 system=_sys,
                 user=prompt,
                 max_tokens=_max_tok,
                 thinking=False,
                 on_usage=_on_usage,
+                json_mode=True,
             )
             try:
                 results.append(_parse_json(raw))
@@ -2309,7 +2326,7 @@ def run_interview_analysis(
         transcript=transcript[:_TRANSCRIPT_CHAR_LIMIT],
         deep_mode="YES" if deep_mode else "NO",
     )
-    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=32000)
+    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=32000, json_mode=True)
     _log("Interview analysis complete.")
     try:
         # Strip markdown fences if model ignores instructions

@@ -4237,7 +4237,16 @@ _HERO = """
 </div>
 """
 
-_THEME_TOGGLE_BAR = ""  # toggle injected fixed-position via _THEME_JS
+_THEME_TOGGLE_BAR = """
+<div id="ta-theme-toggle" style="position:fixed;top:14px;right:18px;z-index:2147483647;display:inline-flex;align-items:center;background:#e8eaed;border-radius:20px;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+  <button id="ta-btn-light"
+    onclick="(function(){var h=document.documentElement,b=document.body;h.classList.remove('dark');b&&b.classList.remove('dark');localStorage.setItem('ta-dark','false');if(window.applyTheme)window.applyTheme(false);})()"
+    style="display:flex;align-items:center;gap:4px;padding:4px 12px;border-radius:18px;border:none;cursor:pointer;font-size:0.78em;font-weight:700;background:#fff;color:#1a73e8;box-shadow:0 1px 3px rgba(0,0,0,0.15);transition:all 0.18s;">☀️ Light</button>
+  <button id="ta-btn-dark"
+    onclick="(function(){var h=document.documentElement,b=document.body;h.classList.add('dark');b&&b.classList.add('dark');localStorage.setItem('ta-dark','true');if(window.applyTheme)window.applyTheme(true);})()"
+    style="display:flex;align-items:center;gap:4px;padding:4px 12px;border-radius:18px;border:none;cursor:pointer;font-size:0.78em;font-weight:700;background:transparent;color:#5f6368;transition:all 0.18s;">🌙 Dark</button>
+</div>
+"""
 
 
 _API_BANNER = """
@@ -7070,7 +7079,7 @@ _DEV_BANNER = """
 
 _title = f"Transcript Agent v{APP_VERSION}{' [DEV]' if _DEV_MODE else ''}"
 
-with gr.Blocks(title=_title, head=f"<script>{_THEME_JS}</script>") as demo:
+with gr.Blocks(title=_title) as demo:
 
     if _DEV_MODE:
         gr.HTML(_DEV_BANNER)
@@ -8525,6 +8534,7 @@ if __name__ == "__main__":
     _launch_kw = dict(
         server_name=_host,
         server_port=_port,
+        js=_THEME_JS,
         theme=_THEME,
         css=CSS,
         allowed_paths=[str(OUT_DIR), tempfile.gettempdir()],

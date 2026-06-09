@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.10"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.11"""
 
 import os
 import sys
@@ -983,8 +983,9 @@ html.dark input[type="checkbox"] { background: var(--ta-bg) !important; }
   60%  { box-shadow: 0 0 0 14px rgba(99,60,220,0), 0 4px 18px rgba(99,60,220,0.45); }
   100% { box-shadow: 0 0 0 0 rgba(99,60,220,0), 0 4px 18px rgba(99,60,220,0.45); }
 }
-html.dark button.ta-analyze-btn, html.dark #ta-float-analyze {
-  filter: brightness(1.1);
+html.dark button.ta-analyze-btn, html.dark #ta-analyze-btn, html.dark #ta-float-analyze {
+  background: linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899,#ef4444) !important;
+  animation: ta-rainbow 4s linear infinite, ta-pulse-ring 1.8s ease-out infinite !important;
 }
 @keyframes ta-spin { to { transform: rotate(360deg); } }
 
@@ -5007,9 +5008,10 @@ window.taClickUpdateBtn = function(btn) {
     'html.dark .file-preview{background:#292a2d!important;color:#e8eaed!important}',
     'html.dark .dropdown-arrow svg{fill:#9aa0a6!important}',
     /* buttons */
-    'html.dark button:not(#ta-btn-light):not(#ta-btn-dark){background:#35363a!important;border-color:#5f6368!important;color:#e8eaed!important;border-radius:8px!important}',
+    'html.dark button:not(#ta-btn-light):not(#ta-btn-dark):not(#ta-float-analyze):not(.ta-analyze-btn):not([id=ta-analyze-btn]){background:#35363a!important;border-color:#5f6368!important;color:#e8eaed!important;border-radius:8px!important}',
     'html.dark button.selected{background:#3c4043!important}',
-    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn{background:linear-gradient(135deg,#1a73e8,#ea4335)!important;color:#fff!important;border:none!important;border-radius:24px!important}',
+    '@keyframes ta-rainbow{0%{filter:hue-rotate(0deg)}100%{filter:hue-rotate(360deg)}}',
+    'html.dark button.ta-analyze-btn,html.dark #ta-analyze-btn,html.dark #ta-float-analyze{background:linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899,#ef4444)!important;color:#fff!important;border:none!important;border-radius:24px!important;animation:ta-rainbow 4s linear infinite,ta-pulse-ring 1.8s ease-out infinite!important}',
     /* block card shadow */
     'html.dark .block,html.dark .form,html.dark .padded{box-shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.25)!important}',
     /* inputs — focus */
@@ -5295,10 +5297,10 @@ window.taClickUpdateBtn = function(btn) {
     var fb = document.getElementById('ta-float-analyze');
     if (fb) {
       fb.style.background  = dark
-        ? 'linear-gradient(135deg,#1e3a8a,#ef4444)'
+        ? 'linear-gradient(135deg,#6366f1,#8b5cf6,#ec4899,#ef4444)'
         : 'linear-gradient(135deg,#1d4ed8,#ef4444)';
       fb.style.boxShadow   = dark
-        ? '0 4px 20px rgba(99,60,220,0.7)'
+        ? '0 4px 24px rgba(139,92,246,0.8)'
         : '0 4px 20px rgba(99,60,220,0.5)';
     }
 
@@ -6996,7 +6998,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.10"
+APP_VERSION = "2.5.11"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

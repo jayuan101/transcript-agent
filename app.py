@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.4.8"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.4.9"""
 
 import os
 import sys
@@ -1147,7 +1147,136 @@ html.dark .ta-chip-vfast  { background:#450a0a !important;border-color:#f87171 !
   .ta-q-card { padding: 10px 12px !important; }
 }
 
+/* ── Professional code blocks ─────────────────────────────────────────────── */
+.ta-code-wrap {
+  margin: 10px 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  font-family: 'JetBrains Mono','Fira Code','Cascadia Code',Consolas,'Courier New',monospace;
+}
+.ta-code-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e293b;
+  padding: 7px 14px;
+}
+.ta-code-lang-tag {
+  background: #3b82f6;
+  color: #fff;
+  font-size: 0.72em;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-family: inherit;
+  flex-shrink: 0;
+}
+.ta-code-sublabel {
+  flex: 1;
+  font-size: 0.72em;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+.ta-code-copybtn {
+  margin-left: auto;
+  background: #334155;
+  color: #94a3b8;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  font-size: 0.72em;
+  font-weight: 600;
+  padding: 3px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.ta-code-copybtn:hover { background: #475569; color: #e2e8f0; }
+.ta-code-pre {
+  background: #0d1117;
+  color: #e6edf3;
+  font-size: 0.82em;
+  padding: 14px 18px 14px 0;
+  margin: 0;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.65;
+  counter-reset: linenum;
+}
+.ta-code-pre code {
+  display: block;
+  font-family: 'JetBrains Mono','Fira Code','Cascadia Code',Consolas,'Courier New',monospace;
+}
+.ta-ln {
+  counter-increment: linenum;
+  display: inline-block;
+  width: 3em;
+  text-align: right;
+  padding-right: 1.4em;
+  color: #30363d;
+  user-select: none;
+  font-size: 0.88em;
+}
+.ta-ln::before { content: counter(linenum); }
+/* Candidate answer prose block */
+.ta-cand-prose {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 0.84em;
+  color: #c9d1d9;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 6px 0 0;
+}
+
 """
+
+_HLJS_LANG_MAP: dict[str, str] = {
+    "python": "python", "pyspark": "python", "pandas": "python",
+    "java": "java", "kotlin": "kotlin", "scala": "scala",
+    "sql": "sql", "javascript": "javascript", "typescript": "typescript",
+    "go": "go", "golang": "go", "c++": "cpp", "c#": "csharp",
+    "swift": "swift", "rust": "rust", "bash": "bash", "shell": "bash",
+    "r": "r", "ruby": "ruby", "php": "php", "dart": "dart",
+}
+
+
+def _code_block_html(code: str, lang: str = "", label: str = "") -> str:
+    """Render a professional code block with syntax highlighting, line numbers, copy button."""
+    lang_clean   = lang.split()[0].lower() if lang else ""
+    hljs_lang    = _HLJS_LANG_MAP.get(lang_clean, "plaintext")
+    lang_display = lang if lang else "code"
+    code_escaped = code.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    lines        = code_escaped.splitlines()
+    # Strip single trailing blank line
+    if lines and not lines[-1].strip():
+        lines = lines[:-1]
+    numbered = "\n".join(f'<span class="ta-ln"></span>{ln}' for ln in lines)
+    uid = f"tacode{abs(hash(code)) % 10_000_000}"
+    copy_js = (
+        f"(function(b){{var p=document.getElementById('{uid}');"
+        "navigator.clipboard.writeText(p.innerText).then(function(){"
+        "b.textContent='Copied ✓';setTimeout(function(){b.textContent='Copy'},1800);});})(this)"
+    )
+    return (
+        f'<div class="ta-code-wrap">'
+        f'<div class="ta-code-topbar">'
+        f'<span class="ta-code-lang-tag">{lang_display}</span>'
+        + (f'<span class="ta-code-sublabel">{label}</span>' if label else '<span class="ta-code-sublabel"></span>')
+        + f'<button class="ta-code-copybtn" onclick="{copy_js}">Copy</button>'
+        f'</div>'
+        f'<pre class="ta-code-pre"><code id="{uid}" class="language-{hljs_lang}">{numbered}</code></pre>'
+        f'</div>'
+    )
+
 
 _SB = (
     "background:var(--ta-card-bg);border:3px solid var(--ta-step-act-bdr);border-radius:10px;"
@@ -3039,28 +3168,15 @@ def _build_interview_html(ia: dict) -> str:
                     f'<p class="ta-q-said-text">{_cappr}</p></div>'
                 )
             if _ans:
-                _ans_escaped = _ans.replace("<","&lt;").replace(">","&gt;")
                 html += (
                     f'<div style="margin:10px 0;">'
                     f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
-                    f'letter-spacing:.08em;color:#fbbf24;background:#1c1917;'
-                    f'padding:6px 14px;border-radius:8px 8px 0 0;">📝 Candidate\'s Answer</div>'
-                    f'<pre style="background:#1c1917;color:#fef3c7;font-size:0.8em;'
-                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
-                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_ans_escaped}</pre>'
+                    f'letter-spacing:.08em;color:#fbbf24;padding:4px 0 6px;">📝 Candidate\'s Answer</div>'
+                    f'<div class="ta-cand-prose">{_ans.replace(chr(60),"&lt;").replace(chr(62),"&gt;")}</div>'
                     f'</div>'
                 )
             if _opt:
-                html += (
-                    f'<div style="margin:10px 0;">'
-                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
-                    f'letter-spacing:.08em;color:#22d3ee;background:#0f172a;'
-                    f'padding:6px 14px;border-radius:8px 8px 0 0;">{_sol_header}</div>'
-                    f'<pre style="background:#0f172a;color:#e2e8f0;font-size:0.8em;'
-                    f'padding:14px 16px;margin:0;border-radius:0 0 8px 8px;'
-                    f'overflow-x:auto;white-space:pre-wrap;word-break:break-word;">{_opt}</pre>'
-                    f'</div>'
-                )
+                html += _code_block_html(_opt, lang=_lang_used, label=_sol_header)
             _meta_parts = []
             if _oappr:    _meta_parts.append(f"<b>Approach:</b> {_oappr}")
             if _tc:       _meta_parts.append(f"<b>Time:</b> {_tc}")
@@ -6779,7 +6895,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.8"
+APP_VERSION = "2.4.9"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7115,6 +7231,33 @@ _DEV_BANNER = """
 _title = f"Transcript Agent v{APP_VERSION}{' [DEV]' if _DEV_MODE else ''}"
 
 with gr.Blocks(title=_title) as demo:
+
+    # Load Highlight.js for code syntax highlighting (degrades gracefully offline)
+    gr.HTML("""
+<link id="hljs-css" rel="stylesheet" crossorigin="anonymous"
+  href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script>
+(function(){
+  var s=document.createElement('script');
+  s.crossOrigin='anonymous';
+  s.src='https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+  s.onload=function(){
+    function _hlAll(root){
+      (root||document).querySelectorAll('code[class*="language-"]').forEach(function(el){
+        if(!el.dataset.highlighted){try{hljs.highlightElement(el);}catch(e){}}
+      });
+    }
+    _hlAll();
+    new MutationObserver(function(ms){
+      ms.forEach(function(m){m.addedNodes.forEach(function(n){
+        if(n.querySelectorAll) _hlAll(n);
+      });});
+    }).observe(document.body,{childList:true,subtree:true});
+  };
+  document.head.appendChild(s);
+})();
+</script>
+""")
 
     if _DEV_MODE:
         gr.HTML(_DEV_BANNER)

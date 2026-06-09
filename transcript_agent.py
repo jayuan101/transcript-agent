@@ -2047,8 +2047,11 @@ def process_transcript(
 
         if speaker_names:
             prompt = (
-                f"There are {speaker_names} in this recording.\n"
-                f"Label each speaker distinctly as Speaker 1, Speaker 2, etc. when identifying who said what.\n\n"
+                f"Speaker/participant info for this recording: {speaker_names}.\n"
+                f"In speaker_map, map each diarized speaker (Speaker 0, Speaker 1, …) to one of "
+                f"these real participant names whenever the dialogue makes the match clear "
+                f"(e.g. someone is addressed by name, or introduces themselves); otherwise use a "
+                f"role label. Keep each speaker distinct.\n\n"
             ) + prompt
 
         if n > 1:
@@ -2149,6 +2152,14 @@ def process_transcript(
             accent_indicators=s.get("accent_indicators", ""),
             accent_confidence=s.get("accent_confidence", ""),
         ))
+
+    # Apply the resolved speaker_map so the transcript/dialogue actually show
+    # WHO is talking. The AI often omits clean_transcript/speaker_dialogue for
+    # long transcripts (so they fall back to raw "Speaker 0/1" text) yet still
+    # returns a complete speaker_map — relabel those raw labels with real names.
+    if merged.speaker_map:
+        merged.clean_transcript = apply_speaker_map(merged.clean_transcript, merged.speaker_map)
+        merged.speaker_dialogue = apply_speaker_map(merged.speaker_dialogue, merged.speaker_map)
 
     return merged
 
@@ -2424,6 +2435,54 @@ def extract_speaker_names(transcript: str, role_map: dict) -> dict:
         else:
             enhanced[spk_label] = role
     return enhanced
+
+
+def _shorten_speaker_label(value: str) -> str:
+    """Turn a verbose speaker_map value into a concise transcript label.
+
+    'Ravi (Data Scientist, Schneider Electric, Chicago)' -> 'Ravi'
+    'Juwan (Candidate - Lead Data Engineer, NY)'         -> 'Juwan (Candidate)'
+    'Interviewer 1'                                       -> 'Interviewer 1'
+    """
+    import re as _re
+    v = (value or "").strip()
+    if not v:
+        return v
+    base = v.split("(")[0].strip().rstrip("-–—,;:").strip()
+    if not base:
+        base = v
+    # Keep a short role marker (Candidate / Interviewer N / etc.) if present.
+    m = _re.search(r"\b(Candidate|Interviewer(?:\s*\d+)?|Interviewee|Host|"
+                   r"Moderator|Recruiter|Panelist)\b", v, _re.I)
+    if m:
+        role = m.group(1).strip().title()
+        if role.lower() not in base.lower():
+            base = f"{base} ({role})"
+    return base
+
+
+def apply_speaker_map(text: str, speaker_map: dict) -> str:
+    """Replace raw diarization labels at the start of transcript lines with the
+    resolved short speaker name from ``speaker_map``.
+
+    Handles 'Speaker 0:', 'SPEAKER_00:' etc., optionally preceded by a
+    [timestamp]. No-op for lines that are already named, so it is safe to call
+    even when the AI already wrote a fully-resolved transcript.
+    """
+    import re as _re
+    if not text or not speaker_map:
+        return text
+    # Longest keys first so 'Speaker 1' never partially matches 'Speaker 10'.
+    for key in sorted(speaker_map, key=len, reverse=True):
+        short = _shorten_speaker_label(speaker_map[key])
+        if not short or short == key:
+            continue
+        text = _re.sub(
+            rf'(?m)^(\s*(?:\[[^\]]*\]\s*)?){_re.escape(key)}\s*:',
+            lambda mo, s=short: f'{mo.group(1)}{s}:',
+            text,
+        )
+    return text
 
 
 def relabel_speakers_from_video(text: str, va_result) -> tuple:

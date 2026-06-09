@@ -3647,6 +3647,30 @@ def process_file(
                 msg = f"Connection error. Could not reach the API. ({type(e).__name__}: {msg})"
             q.put(("error", msg))
 
+    # ── Read on-screen participant names from meeting recordings ──────────────
+    # Teams / Google Meet / Zoom / Nextcloud print each person's name on their
+    # video tile. OCR them so the AI can map "Speaker N" → the real names.
+    if is_av and ext in VIDEO_EXTS and not _pre_transcribed and _video_analyzer is not None:
+        try:
+            from video_analyzer import _HAS_OCR as _OCR_OK
+        except Exception:
+            _OCR_OK = False
+        if _OCR_OK:
+            log = _add_log("👥 Scanning video for on-screen participant names…", "progress")
+            yield _out(status=_status_compact("👥", "Reading participant names from video…", _elapsed()),
+                       log=log)
+            try:
+                _ocr_names = _video_analyzer.extract_participant_names(
+                    uploaded_file, max_frames=8, use_gpu=bool(use_gpu))
+            except Exception as _ocr_e:
+                _ocr_names = []
+                print(f"[OCR] participant-name scan failed: {_ocr_e}")
+            if _ocr_names:
+                log = _add_log("👥 Participants on screen: " + ", ".join(_ocr_names), "done")
+                yield _out(log=log)
+                _hint = "the on-screen participants are: " + ", ".join(_ocr_names)
+                speaker_names = (f"{speaker_names}; {_hint}" if speaker_names else _hint)
+
     t = threading.Thread(target=background, daemon=True)
     t.start()
 
@@ -3885,9 +3909,9 @@ def process_file(
                         _role_labels = [iv_role_0, iv_role_1, iv_role_2, iv_role_3]
                         _rm = {pid: (_role_labels[i] if i < len(_role_labels) else f"Person {i+1}")
                                for i, pid in enumerate(pids[:int(iv_person_count or 2)])}
-                        def _pcb(v): _va_q.put(("pct", v))
+                        def _pcb(v, info=None): _va_q.put(("pct", v, info))
                         res = _video_analyzer.analyze_video(
-                            uploaded_file, _rm, sample_fps=1.0, progress_cb=_pcb,
+                            uploaded_file, _rm, sample_fps=0.5, progress_cb=_pcb,
                             use_gpu=bool(use_gpu),
                         )
                         _va_q.put(("done", res))
@@ -3906,7 +3930,17 @@ def process_file(
                         continue
                     if _va_msg[0] == "pct":
                         _pct = int(_va_msg[1] * 100)
-                        log_text = _add_log(f"🎥 Video analysis {_pct}%…", "progress")
+                        _info = _va_msg[2] if len(_va_msg) > 2 else None
+                        _detail = ""
+                        if _info:
+                            _d, _t, _eta = _info.get("done"), _info.get("total"), _info.get("eta")
+                            if _d and _t:
+                                _detail += f" (frame {_d}/{_t}"
+                                if _eta is not None:
+                                    _m, _s = divmod(int(_eta), 60)
+                                    _detail += f", ~{_m}m {_s}s left" if _m else f", ~{_s}s left"
+                                _detail += ")"
+                        log_text = _add_log(f"🎥 Video analysis {_pct}%{_detail}…", "progress")
                         yield _out(
                             status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
                             log=log_text,
@@ -8782,10 +8816,10 @@ html.dark .ta-footer-txt{{color:#94a3b8;}}
                     for _i, _p in enumerate(pids[1:], 1):
                         role_map[_p] = f"Interviewer {_i}"
 
-                def _pcb(v): progress_val[0] = v
+                def _pcb(v, info=None): progress_val[0] = v
 
                 result_holder[0] = _video_analyzer.analyze_video(
-                    video_path, role_map, sample_fps=1.0, progress_cb=_pcb
+                    video_path, role_map, sample_fps=0.5, progress_cb=_pcb
                 )
             except Exception as e:
                 exc_holder[0] = e

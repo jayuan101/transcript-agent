@@ -49,5 +49,10 @@ deepface>=0.0.93        # most accurate; pulls in TensorFlow (~2 GB)
 # plotly is already a Gradio transitive dep; add explicitly for clarity
 plotly>=5.0.0
 
+# ── On-screen participant name OCR (Teams / Meet / Zoom / Nextcloud) ──────────
+# Reads the name labels printed on each video tile so speakers can be matched
+# to real names. Reuses the already-installed torch (CPU/GPU).
+easyocr>=1.7.0
+
 # ── PyTorch (CPU) — installed separately in setup scripts for size reasons ───
 # torch  — handled by setup_windows.bat / setup_mac.sh

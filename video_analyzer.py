@@ -15,6 +15,7 @@ from __future__ import annotations
 import cv2
 import math
 import os
+import platform as _platform
 import tempfile
 import time
 import urllib.request
@@ -44,6 +45,68 @@ try:
     _HAS_FER = True
 except Exception:
     _HAS_FER = False
+
+try:
+    import easyocr as _easyocr
+    _HAS_OCR = True
+except Exception:
+    _HAS_OCR = False
+
+# Lazily-created singleton OCR reader (model load is slow — do it once).
+_OCR_READER = {"r": None, "gpu": None}
+
+
+def _get_ocr_reader(use_gpu: bool = False):
+    """Return a cached easyocr.Reader, or None if easyocr isn't installed."""
+    if not _HAS_OCR:
+        return None
+    if _OCR_READER["r"] is None or _OCR_READER["gpu"] != use_gpu:
+        try:
+            _OCR_READER["r"] = _easyocr.Reader(["en"], gpu=bool(use_gpu), verbose=False)
+            _OCR_READER["gpu"] = use_gpu
+        except Exception as e:
+            print(f"[VA] OCR reader init failed: {e}")
+            return None
+    return _OCR_READER["r"]
+
+
+# Text that shows up on meeting / OS / browser UIs but is never a participant name.
+_OCR_STOPWORDS = {
+    # meeting apps & controls
+    "nextcloud", "zoom", "teams", "microsoft", "google", "meet", "webex",
+    "mute", "unmute", "muted", "leave", "join", "joining", "chat", "share",
+    "screen", "recording", "rec", "participants", "people", "view", "gallery",
+    "speaker", "more", "stop", "start", "camera", "video", "audio", "raise",
+    "hand", "reactions", "settings", "you", "host", "guest", "live", "end",
+    "call", "meeting", "present", "presenting", "pinned", "spotlight", "talk",
+    # OS / browser / login chrome that leaks into screen recordings
+    "windows", "sign", "signin", "login", "logout", "logout", "register",
+    "password", "email", "username", "search", "home", "back", "next",
+    "cancel", "submit", "download", "upload", "file", "edit", "save", "open",
+    "close", "menu", "profile", "account", "help", "need", "support", "loading",
+    "untitled", "tab", "new", "page", "click", "here", "welcome", "continue",
+}
+
+
+def _looks_like_name(token: str) -> bool:
+    """Heuristic: is this OCR token plausibly a person's display name?"""
+    t = (token or "").strip().strip(".,:;|-_•").strip()
+    if not (2 <= len(t) <= 30):
+        return False
+    # Reject anything with digits or sentence punctuation — names don't have these.
+    if any(c.isdigit() for c in t) or any(c in t for c in "?!@#/\\()[]{}"):
+        return False
+    # Must be mostly letters (allow spaces, ., ', -) — reject icons/garble.
+    letters = sum(c.isalpha() for c in t)
+    if letters < max(2, int(len(t) * 0.7)):
+        return False
+    words = t.split()
+    if len(words) > 4:
+        return False
+    if any(w.lower() in _OCR_STOPWORDS for w in words):
+        return False
+    # A display name almost always starts with a capital letter.
+    return t[0].isupper()
 
 # ── Model URLs & cache ────────────────────────────────────────────────────────
 
@@ -237,22 +300,43 @@ class _CentroidTracker:
 
 # ── Main VideoAnalyzer ────────────────────────────────────────────────────────
 
+# Cached result of probing the MediaPipe GPU delegate on this machine.
+#   None  = not probed yet
+#   True  = GPU delegate works (used for inference)
+#   False = GPU unavailable here → CPU only (don't keep retrying GPU init)
+_MP_GPU_STATE = {"works": None}
+
+
 class VideoAnalyzer:
 
-    @staticmethod
-    def _mp_delegate(use_gpu: bool):
-        """Return mediapipe GPU delegate when use_gpu=True and GPU is available, else CPU."""
-        if not use_gpu:
-            return _mp_tasks.BaseOptions.Delegate.CPU
-        try:
+    @classmethod
+    def _mp_delegate(cls, use_gpu: bool):
+        """Return the MediaPipe delegate to use.
+
+        Picks GPU only when the caller wants it AND a previous probe hasn't
+        already proven the GPU delegate unusable on this machine (e.g. MediaPipe
+        Tasks has no GPU delegate on Windows → it's CPU-only there). The probe
+        result is cached so we don't repeatedly attempt — and fail — GPU init."""
+        if use_gpu and _MP_GPU_STATE["works"] is not False:
             return _mp_tasks.BaseOptions.Delegate.GPU
-        except Exception:
-            return _mp_tasks.BaseOptions.Delegate.CPU
+        return _mp_tasks.BaseOptions.Delegate.CPU
+
+    @staticmethod
+    def _note_gpu_result(ok: bool):
+        """Remember whether the MediaPipe GPU delegate actually worked, and
+        announce the active compute device exactly once."""
+        if _MP_GPU_STATE["works"] is None:
+            _MP_GPU_STATE["works"] = ok
+            if ok:
+                print("[VA] Compute device: GPU (MediaPipe GPU delegate)")
+            else:
+                print(f"[VA] Compute device: CPU (GPU delegate unavailable on "
+                      f"{_platform.system()}; MediaPipe Tasks GPU is Linux/Android only)")
 
     def _safe_create_face_lm(self, model_path: str, use_gpu: bool, **kwargs):
         """Create FaceLandmarker, automatically falling back to CPU if GPU/EGL init fails."""
         delegates = [self._mp_delegate(use_gpu)]
-        if use_gpu:
+        if use_gpu and delegates[0] != _mp_tasks.BaseOptions.Delegate.CPU:
             delegates.append(_mp_tasks.BaseOptions.Delegate.CPU)
         last_exc = None
         for delegate in delegates:
@@ -261,11 +345,13 @@ class VideoAnalyzer:
                     base_options=_mp_tasks.BaseOptions(model_asset_path=model_path, delegate=delegate),
                     **kwargs
                 )
-                return _mp_vision.FaceLandmarker.create_from_options(opts)
+                lm = _mp_vision.FaceLandmarker.create_from_options(opts)
+                self._note_gpu_result(delegate == _mp_tasks.BaseOptions.Delegate.GPU)
+                return lm
             except Exception as e:
                 last_exc = e
-                if delegate != delegates[-1]:
-                    print(f"[VA] FaceLandmarker GPU init failed ({type(e).__name__}), retrying with CPU…")
+                if delegate == _mp_tasks.BaseOptions.Delegate.GPU:
+                    self._note_gpu_result(False)
         raise last_exc
 
     # ── Public API: uploaded-video pipeline ───────────────────────────────────
@@ -291,12 +377,18 @@ class VideoAnalyzer:
         thumbs: Dict[int, str] = {}
         seen_count: Dict[int, int] = {}   # pid → frames seen
         ivl   = max(1, int(fps * 2))
+        # Bound the scan pass too (face-ID only needs a coarse sampling).
+        if tot > 0:
+            ivl = max(ivl, math.ceil(tot / self._MAX_SAMPLES))
+        n_scan = max(1, (tot // ivl) if tot > 0 else self._MAX_SAMPLES)
         idx   = 0
         total_scanned = 0
         while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break
+            if not cap.grab(): break
             if idx % ivl == 0:
+                ret, frame = cap.retrieve()
+                if not ret: break
+                frame = self._downscale(frame)
                 h, w = frame.shape[:2]
                 rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mpi  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -314,7 +406,7 @@ class VideoAnalyzer:
                             cv2.imwrite(p, cv2.resize(crop, (120, 160)))
                             thumbs[pid] = p
                 total_scanned += 1
-                if progress_cb: progress_cb(min(0.3, idx / tot * 0.35))
+                if progress_cb: progress_cb(min(0.3, (total_scanned / n_scan) * 0.3))
             idx += 1
         cap.release(); lm.close()
 
@@ -327,6 +419,76 @@ class VideoAnalyzer:
         )[:4]
         thumbs = {pid: thumbs[pid] for pid in stable if pid in thumbs}
         return thumbs, dur
+
+    def extract_participant_names(
+        self, video_path: str, max_frames: int = 6, use_gpu: bool = False,
+        progress_cb=None,
+    ) -> List[str]:
+        """Read the on-screen participant names from a meeting recording
+        (Teams / Google Meet / Zoom / Nextcloud, etc.).
+
+        These apps print each participant's display name at the bottom of their
+        video tile — visible even when their camera is off. We OCR the bottom
+        strip of a handful of evenly-spaced frames, keep name-like text, and
+        return the names ordered by how often they appear (most frequent first).
+        Returns [] if easyocr isn't installed or nothing name-like is found.
+        """
+        reader = _get_ocr_reader(use_gpu)
+        if reader is None:
+            return []
+        from collections import Counter
+        cap = cv2.VideoCapture(video_path)
+        tot = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+        # Spread sample points across the recording; skip the very start/end.
+        if tot > 0:
+            pts = [int(tot * f) for f in
+                   [i / (max_frames + 1) for i in range(1, max_frames + 1)]]
+        else:
+            pts = list(range(0, max_frames * 300, 300))
+        counts: Counter = Counter()
+        conf_sum: Dict[str, float] = {}
+        for n, fidx in enumerate(pts):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, fidx)
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                continue
+            h, w = frame.shape[:2]
+            # Bottom 22% strip — where every tile's name label lives.
+            strip = frame[int(h * 0.78):h, 0:w]
+            try:
+                res = reader.readtext(strip, detail=1, paragraph=False)
+            except Exception:
+                res = []
+            for _box, txt, conf in res:
+                if conf < 0.35:
+                    continue
+                # Strip trailing mic/camera glyphs OCR'd as punctuation.
+                name = (txt or "").strip().strip("&|.,:;-_ ").strip()
+                if _looks_like_name(name):
+                    key = name.title()
+                    counts[key] += 1
+                    conf_sum[key] = conf_sum.get(key, 0.0) + float(conf)
+            if progress_cb:
+                progress_cb((n + 1) / len(pts))
+        cap.release()
+        # Require a name to appear in at least 2 sampled frames when we have
+        # enough samples — real participants persist; transient UI text doesn't.
+        min_count = 2 if len(pts) >= 4 else 1
+        kept = [k for k in counts if counts[k] >= min_count]
+        if not kept:                       # nothing persisted — fall back to any hit
+            kept = list(counts)
+        # Order by frequency, then total confidence.
+        kept.sort(key=lambda k: (counts[k], conf_sum[k]), reverse=True)
+        # Merge near-duplicate OCR variants (e.g. "Yefter Santos"/"Yefter Santol"),
+        # keeping the higher-ranked spelling.
+        from difflib import SequenceMatcher
+        merged: List[str] = []
+        for name in kept:
+            if any(SequenceMatcher(None, name.lower(), m.lower()).ratio() >= 0.82
+                   for m in merged):
+                continue
+            merged.append(name)
+        return merged
 
     def analyze_video(
         self,
@@ -350,6 +512,10 @@ class VideoAnalyzer:
             r.error = f"Analysis failed: {exc}\n{traceback.format_exc()}"
             return r
 
+    # Hard caps so a long recording never takes hours / looks frozen.
+    _MAX_SAMPLES   = 600    # max frames actually analysed, regardless of length
+    _PROC_MAX_W    = 960    # downscale wide frames before detection (px)
+
     def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate=False, use_gpu=True):
         fl   = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
         try:   pl = _ensure_model(_POSE_LANDMARKER_URL, "pose_landmarker_lite.task")
@@ -360,6 +526,11 @@ class VideoAnalyzer:
         tot  = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         dur  = tot / fps
         ivl  = max(1, int(fps / sample_fps))
+        # Bound total analysed frames: for long videos widen the stride so we
+        # never process more than _MAX_SAMPLES frames (keeps runtime predictable).
+        if tot > 0:
+            ivl = max(ivl, math.ceil(tot / self._MAX_SAMPLES))
+        n_samples = max(1, (tot // ivl) if tot > 0 else self._MAX_SAMPLES)
 
         face_lm = self._safe_create_face_lm(
             fl, use_gpu,
@@ -370,7 +541,10 @@ class VideoAnalyzer:
         )
         pose_lm = None
         if pl:
-            for _delegate in ([self._mp_delegate(use_gpu)] + ([_mp_tasks.BaseOptions.Delegate.CPU] if use_gpu else [])):
+            _pose_delegates = [self._mp_delegate(use_gpu)]
+            if use_gpu and _pose_delegates[0] != _mp_tasks.BaseOptions.Delegate.CPU:
+                _pose_delegates.append(_mp_tasks.BaseOptions.Delegate.CPU)
+            for _delegate in _pose_delegates:
                 try:
                     pose_lm = _mp_vision.PoseLandmarker.create_from_options(
                         _mp_vision.PoseLandmarkerOptions(
@@ -382,23 +556,34 @@ class VideoAnalyzer:
                     )
                     break
                 except Exception as e:
-                    if _delegate == _mp_tasks.BaseOptions.Delegate.CPU:
-                        print(f"[VA] PoseLandmarker failed: {e}")
+                    if _delegate == _mp_tasks.BaseOptions.Delegate.GPU:
+                        self._note_gpu_result(False)
                     else:
-                        print(f"[VA] PoseLandmarker GPU init failed, retrying with CPU…")
+                        print(f"[VA] PoseLandmarker failed: {e}")
 
         trk        = _CentroidTracker(max_gone=int(fps * 3), max_dist=200)
         pitch_hist = deque(maxlen=8)
         all_frames: List[List[FaceFrame]] = []
         first_seen: Dict[int, float] = {}
         idx = 0
+        done = 0
+        t_start = time.time()
         while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break
+            # grab() advances one frame without decoding it (cheap); we only
+            # retrieve()/decode the frames we actually sample.
+            if not cap.grab(): break
             if idx % ivl == 0:
+                ret, frame = cap.retrieve()
+                if not ret: break
+                frame = self._downscale(frame)
                 ffs = self._proc(frame, idx / fps, trk, face_lm, pose_lm, first_seen, pitch_hist, use_gpu=use_gpu)
                 all_frames.append(ffs)
-                if progress_cb: progress_cb(min(0.72, 0.05 + idx / tot * 0.67))
+                done += 1
+                if progress_cb:
+                    frac = min(0.72, 0.05 + (done / n_samples) * 0.67)
+                    elapsed = time.time() - t_start
+                    eta = int(elapsed / done * (n_samples - done)) if done else None
+                    progress_cb(frac, {"done": done, "total": n_samples, "eta": eta})
             idx += 1
         cap.release()
         # MediaPipe model teardown can deadlock on Windows — close with timeout
@@ -422,6 +607,17 @@ class VideoAnalyzer:
         return result
 
     # ── Frame processing helpers ──────────────────────────────────────────────
+
+    def _downscale(self, frame):
+        """Shrink wide frames before detection — large speedup, negligible
+        accuracy loss for delivery analysis (tracker/pose/blendshapes are
+        scale-invariant; absolute bbox pixels are only used for annotation)."""
+        h, w = frame.shape[:2]
+        if w > self._PROC_MAX_W:
+            s = self._PROC_MAX_W / w
+            frame = cv2.resize(frame, (self._PROC_MAX_W, int(h * s)),
+                               interpolation=cv2.INTER_AREA)
+        return frame
 
     def _lm_to_bboxes(self, res, h, w) -> List[Tuple]:
         bbs = []

@@ -7254,24 +7254,12 @@ def _do_in_app_update():
     else:
         lines.append("ℹ No .git directory — skipping code pull.")
 
+    # Skip live pip upgrade — on Windows, loaded .pyd/.dll files are locked by the
+    # running process, so pip always fails with WinError 5 (Access Denied).
+    # New packages will be installed cleanly on next app restart after git pull.
     req = _os.path.join(BASE, "requirements.txt")
     if _os.path.exists(req):
-        try:
-            _sp.run([_sys.executable, "-m", "pip", "install",
-                     "setuptools", "wheel", "--quiet"],
-                    capture_output=True, text=True, timeout=60)
-            r2 = _sp.run([_sys.executable, "-m", "pip", "install",
-                          "-r", req, "--upgrade", "--quiet"],
-                         capture_output=True, text=True, timeout=300)
-            if r2.returncode == 0:
-                lines.append("✓ Python packages upgraded.")
-            else:
-                import re as _re
-                _safe = _re.sub(r"[A-Za-z]:\\[^\s'\"]*|/home/[^\s'\"]*|/Users/[^\s'\"]*", "<path>", r2.stderr.strip())
-                lines.append(f"⚠ pip upgrade had warnings — {_safe[:120]}")
-        except Exception as e:
-            lines.append(f"⚠ pip failed — {e}")
-            ok = False
+        lines.append("ℹ Restart the app to pick up any new package requirements.")
 
     color  = "#166534" if ok else "#991b1b"
     bg     = "#f0fdf4" if ok else "#fef2f2"

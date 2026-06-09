@@ -400,8 +400,18 @@ class VideoAnalyzer:
                 all_frames.append(ffs)
                 if progress_cb: progress_cb(min(0.72, 0.05 + idx / tot * 0.67))
             idx += 1
-        cap.release(); face_lm.close()
-        if pose_lm: pose_lm.close()
+        cap.release()
+        # MediaPipe model teardown can deadlock on Windows — close with timeout
+        import threading as _clt
+        def _close_models():
+            try: face_lm.close()
+            except Exception: pass
+            try:
+                if pose_lm: pose_lm.close()
+            except Exception: pass
+        _ct = _clt.Thread(target=_close_models, daemon=True)
+        _ct.start()
+        _ct.join(timeout=5.0)   # give 5 s; if still hung, abandon and continue
         if progress_cb: progress_cb(0.78)
 
         result = self._aggregate(all_frames, role_map, dur, first_seen, cultural_mode)
@@ -568,21 +578,32 @@ class VideoAnalyzer:
     def _emotion(self, crop, bs, use_gpu: bool = True) -> Tuple[str, Dict[str, float]]:
         if crop is not None and crop.size > 0 and crop.shape[0] >= 20:
             if _HAS_DEEPFACE:
-                try:
+                import threading as _et
+                _df_result: list = []
+                def _run_df():
                     try:
-                        import tensorflow as _tf
-                        _device = "/GPU:0" if (use_gpu and _tf.config.list_physical_devices("GPU")) else "/CPU:0"
-                        ctx = _tf.device(_device)
+                        try:
+                            import tensorflow as _tf
+                            _device = "/GPU:0" if (use_gpu and _tf.config.list_physical_devices("GPU")) else "/CPU:0"
+                            ctx = _tf.device(_device)
+                        except Exception:
+                            import contextlib as _cl
+                            ctx = _cl.nullcontext()
+                        with ctx:
+                            res = _DeepFace.analyze(crop, actions=["emotion"],
+                                                    enforce_detection=False, silent=True,
+                                                    detector_backend="skip")
+                        raw = (res[0] if isinstance(res, list) else res)["emotion"]
+                        _df_result.append(raw)
                     except Exception:
-                        import contextlib as _cl
-                        ctx = _cl.nullcontext()
-                    with ctx:
-                        res = _DeepFace.analyze(crop, actions=["emotion"], enforce_detection=False, silent=True,
-                                                detector_backend="skip")
-                    raw = (res[0] if isinstance(res, list) else res)["emotion"]
+                        pass
+                _t = _et.Thread(target=_run_df, daemon=True)
+                _t.start()
+                _t.join(timeout=2.5)   # 2.5 s max per frame — skip if DeepFace hangs
+                if _df_result:
+                    raw = _df_result[0]
                     dom = max(raw, key=raw.get)
                     return self._map_emo(dom), {self._map_emo(k): v for k, v in raw.items()}
-                except Exception: pass
             if _HAS_FER:
                 try:
                     dets = _fer_detector.detect_emotions(crop)

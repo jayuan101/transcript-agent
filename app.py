@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.2"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.4"""
 
 import os
 import sys
@@ -2237,7 +2237,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
 #   13 download_accordion  14 log_out       15 eta_panel  16 result_state  17 dl_active
 # ---------------------------------------------------------------------------
 
-_NOCHANGE = (gr.update(),) * 29   # yield this to keep connection alive without changes
+_NOCHANGE = (gr.update(),) * 28   # yield this to keep connection alive without changes
 
 
 def _build_va_speaker_map(segments: list, va_result) -> dict:
@@ -2279,7 +2279,7 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dl_c=gr.update(), dl_j=gr.update(), dl_p=gr.update(),
          dl_srt=gr.update(), dl_vtt=gr.update(), dl_docx=gr.update(),
          dl_acc=gr.update(), log=gr.update(), eta=gr.update(),
-         net=gr.update(), stats=gr.update(), rs=None,
+         stats=gr.update(), rs=None,
          iv_scores=gr.update(), iv_tl=gr.update(), iv_sum=gr.update(),
          iv_vid=gr.update(), iv_prog=gr.update(),
          dl_wait=gr.update()):
@@ -2290,7 +2290,7 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
             combined, interview,
             _dl(dl_t), _dl(dl_s), _dl(dl_r), _dl(dl_c), _dl(dl_j), _dl(dl_p),
             _dl(dl_srt), _dl(dl_vtt), _dl(dl_docx),
-            dl_acc, log, eta, net, stats, rs,
+            dl_acc, log, eta, stats, rs,
             iv_scores, iv_tl, iv_sum, iv_vid, iv_prog,
             dl_wait)
 
@@ -6958,7 +6958,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.2"
+APP_VERSION = "2.5.4"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -8584,7 +8584,6 @@ html:not(.dark) .ta-bug-note{color:#64748b;}
             download_accordion,
             log_out,
             eta_panel,
-            net_monitor,
             stats_panel,
             result_state,
             iv_scores_panel, iv_timeline, iv_summary, iv_output_video, iv_progress,

@@ -2342,6 +2342,70 @@ import time as _time_mod
 import uuid as _uuid_mod
 
 
+def relabel_speakers_from_video(text: str, va_result) -> tuple:
+    """
+    Replace generic SPEAKER_XX labels in a timestamped transcript with the
+    video-detected role names (Candidate, Interviewer 1, etc.).
+
+    Expects lines in the format produced by WhisperX:
+        [0:00:05] SPEAKER_00: some text here
+
+    Returns (relabeled_text, label_map) where label_map is e.g.
+        {"SPEAKER_00": "Candidate", "SPEAKER_01": "Interviewer 1"}
+    """
+    import re as _re
+
+    speaking_segs = getattr(va_result, "speaking_segments", None) if va_result else None
+    if not speaking_segs:
+        return text, {}
+
+    pid_to_role: dict = {pid: p.role for pid, p in va_result.persons.items()}
+
+    def _ts_to_sec(ts: str) -> float:
+        parts = ts.strip("[]").split(":")
+        try:
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
+            if len(parts) == 2:
+                return int(parts[0]) * 60 + float(parts[1])
+        except Exception:
+            pass
+        return 0.0
+
+    def _role_at(t: float) -> str:
+        """Return the role of whoever was speaking at time t (best overlap wins)."""
+        best_pid, best_overlap = None, 0.0
+        for pid, segs in speaking_segs.items():
+            for s, e in segs:
+                overlap = max(0.0, min(t + 0.5, e) - max(t - 0.5, s))
+                if overlap > best_overlap:
+                    best_overlap, best_pid = overlap, pid
+        return pid_to_role.get(best_pid, "") if best_pid is not None else ""
+
+    line_pat = _re.compile(r'^(\[[0-9:.]+\])\s+(SPEAKER_\d+)(:\s*)(.*)', _re.DOTALL)
+    label_map: dict = {}
+    new_lines = []
+
+    for line in text.splitlines():
+        m = line_pat.match(line)
+        if m:
+            ts_str, spk, colon, rest = m.groups()
+            t    = _ts_to_sec(ts_str)
+            role = _role_at(t)
+            if role:
+                label_map[spk] = role
+            elif spk in label_map:
+                role = label_map[spk]   # carry forward last known mapping
+            if role:
+                new_lines.append(f"{ts_str} {role}{colon}{rest}")
+            else:
+                new_lines.append(line)
+        else:
+            new_lines.append(line)
+
+    return "\n".join(new_lines), label_map
+
+
 def save_history_entry(entry: dict, history_path: "Path") -> None:
     history_path.parent.mkdir(parents=True, exist_ok=True)
     with open(history_path, "a", encoding="utf-8") as f:

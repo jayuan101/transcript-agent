@@ -174,6 +174,9 @@ class VideoAnalysisResult:
     duration_seconds:     float = 0.0
     person_count:         int   = 0
     error:                str   = ""
+    # Per-person speaking intervals built from jaw-open detection:
+    # {person_id: [(start_sec, end_sec), ...]}
+    speaking_segments:    Dict[int, List[Tuple[float, float]]] = field(default_factory=dict)
 
 
 # ── Face centroid tracker ─────────────────────────────────────────────────────
@@ -837,9 +840,42 @@ class VideoAnalyzer:
         c_ov  = sum([cands[0].confidence, cands[0].composure, cands[0].eye_contact,
                      cands[0].engagement, cands[0].energy]) / 5 if cands else 0
         result.overall_score = round(c_ov*0.5 + result.rapport_score*0.3 + result.talk_balance_score*0.2, 1)
-        result.timeline_data = self._build_timeline(all_frames, role_map)
-        result.observations  = self._observations(result, pf, role_map)
+        result.timeline_data    = self._build_timeline(all_frames, role_map)
+        result.observations     = self._observations(result, pf, role_map)
+        result.speaking_segments = self._build_speaking_segments(pf)
         return result
+
+    def _build_speaking_segments(self, pf: Dict[int, List]) -> Dict[int, List[Tuple[float, float]]]:
+        """Collapse per-frame is_speaking flags into (start_sec, end_sec) intervals per person."""
+        out: Dict[int, List[Tuple[float, float]]] = {}
+        GAP = 0.6  # merge speaking bursts separated by less than this many seconds
+        for pid, ffs in pf.items():
+            segs: List[Tuple[float, float]] = []
+            sorted_ffs = sorted(ffs, key=lambda f: f.timestamp)
+            start: Optional[float] = None
+            last_t: Optional[float] = None
+            for ff in sorted_ffs:
+                if ff.is_speaking:
+                    if start is None:
+                        start = ff.timestamp
+                    last_t = ff.timestamp
+                else:
+                    if start is not None:
+                        end = last_t + GAP
+                        if segs and start - segs[-1][1] <= GAP:
+                            segs[-1] = (segs[-1][0], end)  # bridge small silence
+                        else:
+                            segs.append((start, end))
+                        start = None
+                        last_t = None
+            if start is not None:
+                end = (last_t or start) + GAP
+                if segs and start - segs[-1][1] <= GAP:
+                    segs[-1] = (segs[-1][0], end)
+                else:
+                    segs.append((start, end))
+            out[pid] = segs
+        return out
 
     def _score_person(self, pid, role, ffs, tot_sp, cultural_mode) -> PersonScore:
         n       = len(ffs)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.0"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.1"""
 
 import os
 import sys
@@ -357,6 +357,7 @@ from transcript_agent import (
     AUDIO_EXTS, VIDEO_EXTS, IMAGE_EXTS, STT_ENGINES,
     load_history, save_history_entry,
     run_interview_analysis, extract_profile_text,
+    relabel_speakers_from_video,
 )
 
 # ── AI provider configuration ─────────────────────────────────────────────────
@@ -2237,6 +2238,39 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
 
 _NOCHANGE = (gr.update(),) * 29   # yield this to keep connection alive without changes
 
+
+def _build_va_speaker_map(segments: list, va_result) -> dict:
+    """
+    Map SPEAKER_XX labels → video role names by summing overlap between
+    audio segments and per-person video speaking intervals.
+    Returns e.g. {"SPEAKER_00": "Candidate", "SPEAKER_01": "Interviewer 1"}.
+    """
+    from collections import defaultdict
+    speaking_segs = getattr(va_result, "speaking_segments", {}) or {}
+    pid_to_role   = {pid: p.role for pid, p in va_result.persons.items()}
+    votes: dict   = defaultdict(lambda: defaultdict(float))
+
+    for seg in segments:
+        spk = seg.get("speaker", "")
+        if not spk:
+            continue
+        s, e = float(seg.get("start", 0.0)), float(seg.get("end", 0.0))
+        for pid, ivs in speaking_segs.items():
+            overlap = sum(max(0.0, min(e, iv_e) - max(s, iv_s)) for iv_s, iv_e in ivs)
+            if overlap > 0.05:
+                votes[spk][pid] += overlap
+
+    label_map: dict = {}
+    used_roles: set = set()
+    # Assign greedily: most-overlap speaker gets first pick
+    for spk, pid_scores in sorted(votes.items()):
+        best_pid = max(pid_scores, key=pid_scores.get)
+        role = pid_to_role.get(best_pid, "")
+        if role and role not in used_roles:
+            label_map[spk] = role
+            used_roles.add(role)
+    return label_map
+
 def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
          dialogue=gr.update(), profiles=gr.update(), analytics=gr.update(),
          combined=gr.update(), interview=gr.update(),
@@ -3975,6 +4009,28 @@ def process_file(
                             _va_timeline_html = ""
                     except Exception as _ce:
                         log_text = _add_log(f"⚠️ Claude video assessment skipped: {_ce}", "warn")
+                        yield _out(log=log_text)
+
+            # ── Relabel SPEAKER_XX with video-detected role names ─────────────────
+            if (_va_res and not getattr(_va_res, "error", None)
+                    and getattr(_va_res, "speaking_segments", None)):
+                _av_segs = getattr(result, "segments", []) or []
+                if _av_segs:
+                    _va_spk_map = _build_va_speaker_map(_av_segs, _va_res)
+                    if _va_spk_map:
+                        def _apply_spk_map(text, m):
+                            for k, v in sorted(m.items(), key=lambda x: -len(x[0])):
+                                text = (text.replace(k + ":", v + ":")
+                                            .replace(k + " ", v + " "))
+                            return text
+                        result.clean_transcript = _apply_spk_map(
+                            result.clean_transcript or "", _va_spk_map)
+                        result.speaker_dialogue = _apply_spk_map(
+                            result.speaker_dialogue or "", _va_spk_map)
+                        _map_str = "  |  ".join(
+                            f"{k} → {v}" for k, v in _va_spk_map.items())
+                        log_text = _add_log(
+                            f"🎯 Speaker labels matched from video: {_map_str}", "done")
                         yield _out(log=log_text)
 
             # ── Update cache with lang + segments now that we have them ────────
@@ -6895,7 +6951,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "2.5.1"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7746,6 +7802,10 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                         label="Annotated video", elem_id="iv-output-video",
                         interactive=False, visible=False,
                     )
+
+                    # Video analysis result state — holds VideoAnalysisResult for speaker relabeling
+                    va_result_state = gr.State(value=None)
+                    iv_relabel_status = gr.HTML(value="", visible=False, elem_id="iv-relabel-status")
 
                     # Compatibility stubs
                     va_inline_video = gr.State(value=None)

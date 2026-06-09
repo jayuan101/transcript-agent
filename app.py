@@ -4525,6 +4525,13 @@ window.taClickUpdateBtn = function(btn) {
   window.__taThemeRan = true;
   var _dark = false;
 
+  /* ── Tab visibility guard — pause all intervals when tab is hidden ──────────
+     Each setInterval callback checks this before doing any work.
+     When the tab is hidden browsers throttle intervals anyway, but still run
+     them — checking _taVisible lets us skip all the DOM work entirely.       */
+  var _taVisible = !document.hidden;
+  document.addEventListener('visibilitychange', function() { _taVisible = !document.hidden; });
+
   /* ── Inject toggle widget directly into <body> so Gradio can never remove it ─
      We do NOT use gr.HTML() for the buttons — Gradio 6 re-renders those
      components and strips IDs/styles. Injecting via JS is permanent.           */
@@ -4706,7 +4713,7 @@ window.taClickUpdateBtn = function(btn) {
   }
   /* Run immediately and re-check every 2 s so Gradio re-renders never lose the buttons */
   document.body ? _injectToggle() : document.addEventListener('DOMContentLoaded', _injectToggle);
-  setInterval(function(){ _injectToggle(); patchDOM(_dark); }, 2000);
+  setInterval(function(){ if(!_taVisible)return; _injectToggle(); patchDOM(_dark); }, 2000);
 
   /* ── Drop zone enhancer — adds icon + text overlay to Step 1 file upload ── */
   function _enhanceDropZone() {
@@ -4767,7 +4774,7 @@ window.taClickUpdateBtn = function(btn) {
     });
   }
   document.body ? _enhanceDropZone() : document.addEventListener('DOMContentLoaded', _enhanceDropZone);
-  setInterval(_enhanceDropZone, 1500);
+  setInterval(function(){ if(!_taVisible)return; _enhanceDropZone(); }, 1500);
 
   /* ── PERMANENT static CSS injected directly into <head> ─────────────────────
      Gradio 6 embeds css=CSS as JSON data in <script> tags and injects it later
@@ -5353,6 +5360,7 @@ window.taClickUpdateBtn = function(btn) {
 
   /* Periodic re-apply — catches any Gradio re-renders in both modes */
   setInterval(function() {
+    if (!_taVisible) return;
     /* Re-append ta-override to ensure it stays last */
     if (st.parentNode && st.parentNode.lastChild !== st) {
       st.parentNode.removeChild(st);
@@ -6056,6 +6064,7 @@ window.taClickUpdateBtn = function(btn) {
 
     /* Wire all present instances, then re-check every 800 ms for new ones */
     function wireAll() {
+      if (!_taVisible) return;
       document.querySelectorAll('#ta-float-analyze').forEach(wireFloatBtn);
       /* Also wire the main Analyze button so clicking it scrolls to results */
       document.querySelectorAll('#ta-analyze-btn, button.ta-analyze-btn').forEach(function(mb) {
@@ -6141,7 +6150,7 @@ window.taClickUpdateBtn = function(btn) {
           if (txt && txt.length > 0) _pushRx(txt.length);
         })
         .catch(function() { _n.pingMs = 0; })
-        .finally(function() { setTimeout(pingLoop, 3000); });
+        .finally(function() { setTimeout(pingLoop, _taVisible ? 3000 : 30000); });
     })();
 
     /* bar sparkline — 12 segments */
@@ -6196,6 +6205,7 @@ window.taClickUpdateBtn = function(btn) {
     }
 
     function render() {
+      if (!_taVisible) return;
       var p = _n.el
            || document.getElementById('ta-net-monitor')
            || document.querySelector('[id="ta-net-monitor"]');
@@ -6449,6 +6459,7 @@ window.taClickUpdateBtn = function(btn) {
     }
 
     function _ping() {
+      if (!_taVisible) return;
       fetch(window.location.origin + '/?_hb=' + Date.now(), {
         cache: 'no-store', method: 'HEAD'
       }).then(function(r) {

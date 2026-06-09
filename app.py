@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.4"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.6"""
 
 import os
 import sys
@@ -6208,8 +6208,7 @@ window.taClickUpdateBtn = function(btn) {
           + pct.toFixed(0) + '%' + (eta > 0 ? ' · ETA ' + eta + 's' : '') + '</span></div>';
       }
 
-      /* ping + connection badge */
-      var footer = '';
+      /* ping + connection badge — always shown */
       var connInfo = '';
       var connIcon = '';
       try {
@@ -6218,39 +6217,57 @@ window.taClickUpdateBtn = function(btn) {
           var et = nc.effectiveType || '';
           var ct = nc.type || '';
           var dl = nc.downlink || 0;
-          if (ct === 'ethernet') { connIcon = '🔌'; connInfo = 'Wired / Ethernet'; }
-          else if (ct === 'wifi') { connIcon = '📶'; connInfo = 'Wi-Fi' + (dl ? ' · ' + dl + ' Mbps' : ''); }
-          else if (ct === 'cellular') {
-            if (et === '4g' && dl > 50)      { connIcon = '5️⃣'; connInfo = '5G'; }
-            else if (et === '4g' && dl > 20)  { connIcon = '4️⃣'; connInfo = '4G LTE+'; }
-            else if (et === '4g')             { connIcon = '4️⃣'; connInfo = '4G LTE'; }
-            else if (et === '3g')             { connIcon = '3️⃣'; connInfo = '3G'; }
-            else if (et === '2g')             { connIcon = '2️⃣'; connInfo = '2G'; }
-            else if (et === 'slow-2g')        { connIcon = '🐌'; connInfo = 'Slow 2G'; }
-            else                              { connIcon = '📱'; connInfo = 'Cellular'; }
+          if (ct === 'ethernet') {
+            connIcon = '🔌'; connInfo = 'Wired · Ethernet';
             if (dl) connInfo += ' · ' + dl + ' Mbps';
-          } else if (et) {
-            connIcon = '🌐';
-            connInfo = et === '4g' ? '4G LTE' : et.toUpperCase();
+          } else if (ct === 'wifi') {
+            connIcon = '📶'; connInfo = 'Wi-Fi';
             if (dl) connInfo += ' · ' + dl + ' Mbps';
+          } else if (ct === 'cellular') {
+            if      (et === '4g' && dl > 50) { connIcon = '📶'; connInfo = '5G'; }
+            else if (et === '4g' && dl > 20) { connIcon = '📶'; connInfo = '4G LTE+'; }
+            else if (et === '4g')            { connIcon = '📶'; connInfo = '4G LTE'; }
+            else if (et === '3g')            { connIcon = '📶'; connInfo = '3G'; }
+            else if (et === '2g')            { connIcon = '📶'; connInfo = '2G'; }
+            else if (et === 'slow-2g')       { connIcon = '📶'; connInfo = 'Slow 2G'; }
+            else                             { connIcon = '📶'; connInfo = 'Cellular'; }
+            if (dl) connInfo += ' · ' + dl + ' Mbps';
+          } else {
+            /* Desktop on WiFi/Ethernet often reports type="" or "other" —
+               use downlink speed to make a reasonable guess */
+            if (dl >= 50)      { connIcon = '🔌'; connInfo = 'Wired · ' + dl + ' Mbps'; }
+            else if (dl >= 5)  { connIcon = '📶'; connInfo = 'Wi-Fi · ' + dl + ' Mbps'; }
+            else if (dl > 0)   { connIcon = '📶'; connInfo = dl + ' Mbps'; }
+            else if (et === '4g') { connIcon = '🔌'; connInfo = 'Connected'; }
+            else if (et)       { connIcon = '📶'; connInfo = et.toUpperCase(); }
           }
         }
       } catch(ex) {}
-      if (_pingMs > 0 || connInfo) {
-        var pingColor = _pingMs < 80 ? '#34a853' : _pingMs < 200 ? '#f9ab00' : '#ea4335';
-        footer = '<div style="display:flex;align-items:center;gap:10px;margin-top:8px;'
-               + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);'
-               + 'font-size:0.72em;color:var(--ta-card-sub,#64748b);">'
-               + (_pingMs > 0 ?
-                   '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ta-card-bg);border:1px solid var(--ta-card-border);border-radius:12px;padding:2px 8px;">'
-                   + '🏓&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>' : '')
-               + (connInfo ? '<span style="display:inline-flex;align-items:center;gap:4px;background:var(--ta-card-bg);border:1px solid var(--ta-card-border);border-radius:12px;padding:2px 8px;">'
-                   + connIcon + '&nbsp;' + connInfo + '</span>' : '')
-               + '</div>';
-      }
+
+      var pingColor = _pingMs < 80 ? '#34a853' : _pingMs < 200 ? '#f9ab00' : '#ea4335';
+      var footer = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px;'
+             + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);font-size:0.72em;">'
+             + (_pingMs > 0
+                 ? '<span style="display:inline-flex;align-items:center;gap:4px;'
+                   + 'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+                   + 'border-radius:12px;padding:2px 8px;color:var(--ta-card-sub,#64748b);">'
+                   + '🏓&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>'
+                 : '<span style="display:inline-flex;align-items:center;gap:5px;'
+                   + 'color:var(--ta-card-sub,#64748b);">'
+                   + '<span style="display:inline-block;width:9px;height:9px;border:2px solid var(--ta-accent,#1a73e8);'
+                   + 'border-top-color:transparent;border-radius:50%;animation:taspin 0.8s linear infinite;"></span>'
+                   + 'Pinging…</span>')
+             + (connInfo
+                 ? '<span style="display:inline-flex;align-items:center;gap:4px;'
+                   + 'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
+                   + 'border-radius:12px;padding:2px 8px;color:var(--ta-card-sub,#64748b);">'
+                   + connIcon + '&nbsp;' + connInfo + '</span>'
+                 : '')
+             + '</div>';
 
       p.innerHTML = (
-        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+        '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}'
+        + '@keyframes taspin{to{transform:rotate(360deg)}}</style>'
         + '<div style="margin-top:8px;">'
         + '<div style="font-size:0.72em;font-weight:600;letter-spacing:0.04em;'
         + 'color:var(--ta-accent,#1a73e8);margin-bottom:8px;display:flex;align-items:center;gap:6px;">'
@@ -6958,7 +6975,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.4"
+APP_VERSION = "2.5.6"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7722,36 +7739,42 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
             stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
             net_monitor = gr.HTML(
                 value=(
-                    '<style>@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}</style>'
+                    '<style>'
+                    '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}'
+                    '@keyframes taspin{to{transform:rotate(360deg)}}'
+                    '</style>'
                     '<div style="margin-top:8px;">'
-                    '<div style="font-size:0.7em;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;'
-                    'color:var(--ta-card-sub,#94a3b8);margin-bottom:6px;">🌐 Live Network</div>'
+                    # Header — pulsing blue dot always on from first render
+                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+                    'letter-spacing:0.08em;color:var(--ta-accent,#1a73e8);margin-bottom:8px;'
+                    'display:flex;align-items:center;gap:6px;">'
+                    '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
+                    'background:var(--ta-accent,#1a73e8);animation:tapulse 2s infinite;"></span>'
+                    'LIVE NETWORK</div>'
                     '<div style="display:flex;gap:8px;">'
-                    # Download card
+                    # Download card — active blue colour from the start
                     '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
-                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
-                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
-                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬇ Download</span>'
-                    '</div>'
-                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
-                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
-                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
-                    '</div>'
+                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;'
+                    'color:var(--ta-accent,#1a73e8);margin-bottom:6px;">⬇ Download</div>'
+                    '<div style="font-size:1.4em;font-weight:800;color:var(--ta-card-sub,#9aa0a6);line-height:1.2;margin-bottom:4px;">–</div>'
                     '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
                     '</div>'
                     # Upload card
                     '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
-                    '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">'
-                    '<span style="width:8px;height:8px;background:#64748b;border-radius:50%;display:inline-block;opacity:0.3;"></span>'
-                    '<span style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:var(--ta-card-sub,#64748b);">⬆ Upload</span>'
-                    '</div>'
-                    '<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:8px;">'
-                    '<span style="font-size:1.6em;font-weight:800;color:var(--ta-card-sub,#94a3b8);line-height:1;">0</span>'
-                    '<span style="font-size:0.75em;font-weight:600;color:var(--ta-card-sub,#94a3b8);">B/s</span>'
-                    '</div>'
+                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;'
+                    'color:var(--ta-accent,#1a73e8);margin-bottom:6px;">⬆ Upload</div>'
+                    '<div style="font-size:1.4em;font-weight:800;color:var(--ta-card-sub,#9aa0a6);line-height:1.2;margin-bottom:4px;">–</div>'
                     '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
                     '</div>'
-                    '</div></div>'
+                    '</div>'
+                    # Footer — spinning ring while waiting for first ping
+                    '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;'
+                    'border-top:1px solid var(--ta-card-border,#e2e8f0);font-size:0.72em;'
+                    'color:var(--ta-card-sub,#64748b);">'
+                    '<span style="display:inline-block;width:10px;height:10px;border:2px solid var(--ta-accent,#1a73e8);'
+                    'border-top-color:transparent;border-radius:50%;animation:taspin 0.8s linear infinite;"></span>'
+                    'Connecting…</div>'
+                    '</div>'
                 ),
                 elem_id="ta-net-monitor",
             )

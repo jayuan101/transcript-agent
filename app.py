@@ -5352,10 +5352,11 @@ window.taClickUpdateBtn = function(btn) {
 
   var _patchTimer = null;
   new MutationObserver(function(muts) {
+    if (!_taVisible) return;
     var hasNodes = muts.some(function(m){ return m.addedNodes.length > 0; });
     if (!hasNodes) return;
     if (_patchTimer) return;
-    _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(_dark); patchDOM(_dark); }, 50);
+    _patchTimer = setTimeout(function(){ _patchTimer = null; setGradioVars(_dark); patchDOM(_dark); }, 150);
   }).observe(document.body || document.documentElement, { childList: true, subtree: true });
 
   /* Periodic re-apply — catches any Gradio re-renders in both modes */
@@ -6308,19 +6309,23 @@ window.taClickUpdateBtn = function(btn) {
     (function() {
       var OrigES = window.EventSource;
       if (!OrigES) return;
+      /* Cache once — avoids allocating a new TextEncoder per SSE token during streaming */
+      var _te = (typeof TextEncoder !== 'undefined') ? new TextEncoder() : null;
       function PatchedES(url, init) {
         var es = new OrigES(url, init);
         var origAdd = es.addEventListener.bind(es);
         es.addEventListener = function(evt, fn, opts) {
           origAdd(evt, function(e) {
-            try {
-              if (e.data) {
-                var b = (typeof TextEncoder !== 'undefined')
-                  ? new TextEncoder().encode(e.data).length
-                  : e.data.length;
-                _pushRx(b);
-              }
-            } catch(ex) {}
+            /* Skip byte measurement entirely when tab is hidden — streaming at step 2/3
+               can fire hundreds of SSE events per second; measuring while hidden just burns CPU */
+            if (_taVisible) {
+              try {
+                if (e.data) {
+                  var b = _te ? _te.encode(e.data).length : e.data.length;
+                  _pushRx(b);
+                }
+              } catch(ex) {}
+            }
             fn.call(this, e);
           }, opts);
         };
@@ -6396,6 +6401,7 @@ window.taClickUpdateBtn = function(btn) {
       }
       /* XHR download bytes */
       self.addEventListener('progress', function(e) {
+        if (!_taVisible) return;
         var delta = e.loaded - (self._taLastRx || 0);
         if (delta > 0) _pushRx(delta);
         self._taLastRx = e.loaded;

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.4.7"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.4.8"""
 
 import os
 import sys
@@ -6779,7 +6779,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.7"
+APP_VERSION = "2.4.8"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7696,37 +7696,27 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
     """)
 
     # ── Bug Report Form ──────────────────────────────────────────────────────
-    with gr.Accordion("🐛 Report a Bug", open=False, elem_id="ta-bug-report"):
-        gr.HTML(
-            '<div style="font-size:0.85em;padding:4px 0 10px;color:var(--ta-sub);">'
-            'Found something broken? Describe what happened, attach a screenshot,'
-            ' and hit Submit — we read every report.'
-            '</div>'
-        )
-        with gr.Row():
-            with gr.Column(scale=2):
-                bug_desc = gr.Textbox(
-                    label="What happened?",
-                    placeholder="Describe the bug — what you were doing and what went wrong…",
-                    lines=4,
-                )
-                bug_steps = gr.Textbox(
-                    label="Steps to reproduce (optional)",
-                    placeholder="1. Uploaded a .mkv file\n2. Clicked Analyze\n3. Got the error…",
-                    lines=2,
-                )
-                bug_email = gr.Textbox(
-                    label="Your email (optional — for follow-up)",
-                    placeholder="you@example.com",
-                )
-            with gr.Column(scale=1):
-                bug_screenshot = gr.Image(
-                    label="Screenshot (optional — drag & drop or paste)",
-                    type="filepath",
-                    height=210,
-                )
-        bug_submit_btn = gr.Button("Submit Bug Report", variant="primary", size="sm")
-        bug_status = gr.HTML(value="", visible=False)
+    gr.HTML("""
+<style>
+.ta-bug-bar{display:flex;align-items:center;justify-content:center;gap:14px;
+  padding:18px 0 24px;flex-wrap:wrap;}
+.ta-bug-btn{display:inline-flex;align-items:center;gap:8px;
+  background:#ef4444;color:#fff!important;font-size:0.88em;font-weight:700;
+  padding:10px 26px;border-radius:22px;text-decoration:none!important;
+  box-shadow:0 2px 8px rgba(239,68,68,0.35);
+  transition:background 0.18s,box-shadow 0.18s;}
+.ta-bug-btn:hover{background:#dc2626;box-shadow:0 4px 14px rgba(239,68,68,0.5);}
+.ta-bug-note{font-size:0.78em;color:var(--ta-sub);text-align:center;}
+html.dark .ta-bug-note{color:#94a3b8;}
+html:not(.dark) .ta-bug-note{color:#64748b;}
+</style>
+<div class="ta-bug-bar">
+  <a href="https://forms.gle/aEMqRjFGyAVWVKQ77" target="_blank" class="ta-bug-btn">
+    🐛 Report a Bug
+  </a>
+</div>
+<div class="ta-bug-note">Opens in a new tab &nbsp;·&nbsp; attach a screenshot &nbsp;·&nbsp; you'll get a confirmation page when submitted</div>
+""")
 
     # ── Interview Vision helpers ──────────────────────────────────────────────
     def _build_iv_scores_html(result: dict) -> str:
@@ -8268,105 +8258,6 @@ html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
     trash_empty_btn.click(
         fn=_empty_trash,
         outputs=[trash_action_status, trash_table],
-        queue=True,
-    )
-
-    # ── Bug report submit ────────────────────────────────────────────────────
-    def _submit_bug(desc, steps, reporter_email, screenshot_path):
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.mime.base import MIMEBase
-        from email import encoders as _enc
-        import datetime as _dt3
-
-        if not desc or not desc.strip():
-            return gr.update(
-                value="<p style='color:#f59e0b;font-size:0.85em;padding:6px 0;'>Please describe the bug before submitting.</p>",
-                visible=True,
-            )
-
-        smtp_user = os.environ.get("BUG_SMTP_USER", "")
-        smtp_pass = os.environ.get("BUG_SMTP_PASS", "")
-        to_addr   = "jay.pendley1218@gmail.com"
-        ts        = _dt3.datetime.now().strftime("%Y-%m-%d %H:%M")
-
-        subject = f"[TA Bug v{APP_VERSION}] {desc.strip()[:60]}"
-        body_lines = [
-            f"Transcript Agent Bug Report",
-            f"Version : {APP_VERSION}",
-            f"Time    : {ts}",
-            "",
-            f"Description",
-            f"-----------",
-            desc.strip(),
-        ]
-        if steps and steps.strip():
-            body_lines += ["", "Steps to reproduce", "------------------", steps.strip()]
-        if reporter_email and reporter_email.strip():
-            body_lines += ["", f"Reporter: {reporter_email.strip()}"]
-        body = "\n".join(body_lines)
-
-        if smtp_user and smtp_pass:
-            try:
-                msg = MIMEMultipart()
-                msg["From"]    = smtp_user
-                msg["To"]      = to_addr
-                msg["Subject"] = subject
-                msg.attach(MIMEText(body, "plain"))
-
-                if screenshot_path and Path(screenshot_path).is_file():
-                    with open(screenshot_path, "rb") as fp:
-                        part = MIMEBase("application", "octet-stream")
-                        part.set_payload(fp.read())
-                        _enc.encode_base64(part)
-                        part.add_header(
-                            "Content-Disposition", "attachment",
-                            filename=Path(screenshot_path).name,
-                        )
-                        msg.attach(part)
-
-                with smtplib.SMTP("smtp.gmail.com", 587, timeout=15) as smtp:
-                    smtp.starttls()
-                    smtp.login(smtp_user, smtp_pass)
-                    smtp.send_message(msg)
-
-                return gr.update(
-                    value="<p style='color:#22c55e;font-size:0.85em;padding:6px 0;'>✅ Bug report sent — thank you!</p>",
-                    visible=True,
-                )
-            except Exception as ex:
-                return gr.update(
-                    value=f"<p style='color:#ef4444;font-size:0.85em;padding:6px 0;'>Send failed: {ex}</p>",
-                    visible=True,
-                )
-
-        # Fallback: save to local file when SMTP is not configured
-        report_path = OUT_DIR / "bug_reports.jsonl"
-        entry = {
-            "ts": ts, "version": APP_VERSION,
-            "description": desc.strip(),
-            "steps": steps.strip() if steps else "",
-            "reporter": reporter_email.strip() if reporter_email else "",
-            "screenshot": str(screenshot_path) if screenshot_path else "",
-        }
-        with open(report_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
-        return gr.update(
-            value=(
-                f"<p style='color:#22c55e;font-size:0.85em;padding:6px 0;'>✅ Report saved to "
-                f"<code>{report_path}</code>. "
-                f"To enable email delivery, add <code>BUG_SMTP_USER</code> and "
-                f"<code>BUG_SMTP_PASS</code> to your <code>.env</code> file.</p>"
-            ),
-            visible=True,
-        )
-
-    bug_submit_btn.click(
-        fn=_submit_bug,
-        inputs=[bug_desc, bug_steps, bug_email, bug_screenshot],
-        outputs=[bug_status],
         queue=True,
     )
 

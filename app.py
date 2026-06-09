@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.8"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.9"""
 
 import os
 import sys
@@ -6075,19 +6075,27 @@ window.taClickUpdateBtn = function(btn) {
      Shows per-direction live speed + session totals, both light & dark mode. */
   (function(){
     var WIN_MS   = 3000;   /* 3-second rolling window for speed calc */
-    var _pingMs  = 0;
 
-    /* separate rolling logs for RX (download) and TX (upload) */
-    var _rxLog = [], _txLog = [];
-    /* session totals (bytes) */
-    var _rxTotal = 0, _txTotal = 0;
+    /* Expose shared state on window so js_on_load can hand us the element.
+       In Gradio 6.x, getElementById is unreliable — js_on_load receives
+       the exact DOM element via its `element` argument.                    */
+    window._taNet = window._taNet || {};
+    var _n = window._taNet;
+    _n.pingMs  = _n.pingMs  || 0;
+    _n.rxLog   = _n.rxLog   || [];
+    _n.txLog   = _n.txLog   || [];
+    _n.rxTotal = _n.rxTotal || 0;
+    _n.txTotal = _n.txTotal || 0;
+    _n.upLoaded = 0; _n.upTotal = 0; _n.upActive = false; _n.upLastPushed = 0;
+    _n.el = _n.el || null;
+    _n.started = _n.started || false;
 
-    /* active upload state */
-    var _upLoaded = 0, _upTotal = 0, _upStart = 0, _upActive = false;
-    var _upLastPushed = 0;
+    /* Local aliases for the log arrays (same object reference) */
+    var _rxLog = _n.rxLog;
+    var _txLog = _n.txLog;
 
-    function _pushRx(b) { if (b > 0) { _rxLog.push({t:Date.now(),b:b}); _rxTotal += b; } }
-    function _pushTx(b) { if (b > 0) { _txLog.push({t:Date.now(),b:b}); _txTotal += b; } }
+    function _pushRx(b) { if (b > 0) { _n.rxLog.push({t:Date.now(),b:b}); _n.rxTotal += b; } }
+    function _pushTx(b) { if (b > 0) { _n.txLog.push({t:Date.now(),b:b}); _n.txTotal += b; } }
 
     function _speed(log) {
       var now = Date.now();
@@ -6122,7 +6130,7 @@ window.taClickUpdateBtn = function(btn) {
       var t0 = performance.now();
       fetch(url, { cache: 'no-store' })
         .then(function(r) {
-          _pingMs = Math.round(performance.now() - t0);
+          _n.pingMs = Math.round(performance.now() - t0);
           var cl = r.headers && r.headers.get('content-length');
           if (cl) _pushRx(parseInt(cl, 10));
           return r.text();
@@ -6130,7 +6138,7 @@ window.taClickUpdateBtn = function(btn) {
         .then(function(txt) {
           if (txt && txt.length > 0) _pushRx(txt.length);
         })
-        .catch(function() { _pingMs = 0; })
+        .catch(function() { _n.pingMs = 0; })
         .finally(function() { setTimeout(pingLoop, 3000); });
     })();
 
@@ -6186,21 +6194,22 @@ window.taClickUpdateBtn = function(btn) {
     }
 
     function render() {
-      var p = document.getElementById('ta-net-monitor')
+      var p = _n.el
+           || document.getElementById('ta-net-monitor')
            || document.querySelector('[id="ta-net-monitor"]');
       if (!p) return;
 
-      var rxBps = _speed(_rxLog);
-      var txBps = _speed(_txLog);
+      var rxBps = _speed(_n.rxLog);
+      var txBps = _speed(_n.txLog);
 
       var rxColor = rxBps > 1048576 ? '#34a853' : rxBps > 102400 ? '#1a73e8' : '#9aa0a6';
       var txColor = txBps > 1048576 ? '#34a853' : txBps > 102400 ? '#8ab4f8' : '#9aa0a6';
 
       /* upload progress bar when active */
       var upDetail = '';
-      if (_upActive && _upTotal > 0) {
-        var pct = Math.min(100, _upLoaded / _upTotal * 100);
-        var eta = txBps > 0 && _upTotal > _upLoaded ? Math.round((_upTotal - _upLoaded) / txBps) : 0;
+      if (_n.upActive && _n.upTotal > 0) {
+        var pct = Math.min(100, _n.upLoaded / _n.upTotal * 100);
+        var eta = txBps > 0 && _n.upTotal > _n.upLoaded ? Math.round((_n.upTotal - _n.upLoaded) / txBps) : 0;
         upDetail = '<div style="margin-top:6px;">'
           + '<div style="height:3px;background:var(--ta-card-border,#e2e8f0);border-radius:2px;overflow:hidden;margin-bottom:3px;">'
           + '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#a855f7;border-radius:2px;transition:width 0.3s;"></div>'
@@ -6245,14 +6254,14 @@ window.taClickUpdateBtn = function(btn) {
         }
       } catch(ex) {}
 
-      var pingColor = _pingMs < 80 ? '#34a853' : _pingMs < 200 ? '#f9ab00' : '#ea4335';
+      var pingColor = _n.pingMs < 80 ? '#34a853' : _n.pingMs < 200 ? '#f9ab00' : '#ea4335';
       var footer = '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:8px;'
              + 'padding-top:8px;border-top:1px solid var(--ta-card-border,#e2e8f0);font-size:0.72em;">'
-             + (_pingMs > 0
+             + (_n.pingMs > 0
                  ? '<span style="display:inline-flex;align-items:center;gap:4px;'
                    + 'background:var(--ta-card-bg);border:1px solid var(--ta-card-border);'
                    + 'border-radius:12px;padding:2px 8px;color:var(--ta-card-sub,#64748b);">'
-                   + '🏓&nbsp;<strong style="color:' + pingColor + ';">' + _pingMs + ' ms</strong></span>'
+                   + '🏓&nbsp;<strong style="color:' + pingColor + ';">' + _n.pingMs + ' ms</strong></span>'
                  : '<span style="display:inline-flex;align-items:center;gap:5px;'
                    + 'color:var(--ta-card-sub,#64748b);">'
                    + '<span style="display:inline-block;width:9px;height:9px;border:2px solid var(--ta-accent,#1a73e8);'
@@ -6275,8 +6284,8 @@ window.taClickUpdateBtn = function(btn) {
         + '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ta-accent,#1a73e8);animation:tapulse 2s infinite;"></span>'
         + 'LIVE NETWORK</div>'
         + '<div style="display:flex;gap:8px;">'
-        + _card('⬇', 'Download', rxBps, _rxTotal, rxColor)
-        + _card('⬆', 'Upload',   txBps, _txTotal, txColor, upDetail)
+        + _card('⬇', 'Download', rxBps, _n.rxTotal, rxColor)
+        + _card('⬆', 'Upload',   txBps, _n.txTotal, txColor, upDetail)
         + '</div>'
         + footer
         + '</div>'
@@ -6362,17 +6371,16 @@ window.taClickUpdateBtn = function(btn) {
                               || data instanceof ArrayBuffer
                               || (typeof data === 'object' && data.size));
       if (isUpload) {
-        _upStart = Date.now(); _upActive = true;
-        _upLoaded = 0; _upTotal = 0; _upLastPushed = 0;
+        _n.upLoaded = 0; _n.upTotal = 0; _n.upLastPushed = 0; _n.upActive = true;
         self.upload.addEventListener('progress', function(e) {
-          var delta = e.loaded - _upLastPushed;
-          if (delta > 0) { _pushTx(delta); _upLastPushed = e.loaded; }
-          _upLoaded = e.loaded;
-          _upTotal  = e.lengthComputable ? e.total : 0;
+          var delta = e.loaded - _n.upLastPushed;
+          if (delta > 0) { _pushTx(delta); _n.upLastPushed = e.loaded; }
+          _n.upLoaded = e.loaded;
+          _n.upTotal  = e.lengthComputable ? e.total : 0;
         });
-        self.upload.addEventListener('load',  function() { _upActive = false; });
-        self.upload.addEventListener('error', function() { _upActive = false; });
-        self.upload.addEventListener('abort', function() { _upActive = false; });
+        self.upload.addEventListener('load',  function() { _n.upActive = false; });
+        self.upload.addEventListener('error', function() { _n.upActive = false; });
+        self.upload.addEventListener('abort', function() { _n.upActive = false; });
       }
       /* XHR download bytes */
       self.addEventListener('progress', function(e) {
@@ -6383,37 +6391,25 @@ window.taClickUpdateBtn = function(btn) {
       return _origSend.apply(this, arguments);
     };
 
-    /* ── Start render loop ─────────────────────────────────────────────────────
-       Gradio 6.x renders components asynchronously. We use BOTH a MutationObserver
-       (fires immediately when the element appears) AND a setTimeout fallback, so
-       the render loop starts as early as possible regardless of render timing.   */
-    var _netIntervalStarted = false;
-    function _startNetInterval(el) {
-      if (_netIntervalStarted) return;
-      _netIntervalStarted = true;
+    /* ── Expose start function for js_on_load ──────────────────────────────────
+       gr.HTML js_on_load receives the exact element — far more reliable than
+       getElementById in Gradio 6.x. We expose _n.start() so js_on_load can
+       hand us the element directly.                                             */
+    _n.start = function(el) {
+      if (_n.started) return;
+      _n.started = true;
+      _n.el = el;
       render();
       setInterval(render, 500);
-    }
-    function _findNetEl() {
-      /* try id first, then data-testid, then any child of a known wrapper */
-      return document.getElementById('ta-net-monitor')
-          || document.querySelector('[id="ta-net-monitor"]')
-          || document.querySelector('[elem_id="ta-net-monitor"]');
-    }
-    /* MutationObserver — fires the moment the element enters the DOM */
-    try {
-      var _moNet = new MutationObserver(function() {
-        var el = _findNetEl();
-        if (el) { _moNet.disconnect(); _startNetInterval(el); }
-      });
-      _moNet.observe(document.documentElement, { childList: true, subtree: true });
-    } catch(ex) {}
-    /* Polling fallback — covers cases where the element was already in DOM */
-    (function _pollNet() {
-      var el = _findNetEl();
-      if (el) { _startNetInterval(el); }
-      else    { setTimeout(_pollNet, 200); }
-    })();
+    };
+    /* Fallback: if js_on_load never fires, try getElementById after 1 s */
+    setTimeout(function() {
+      if (!_n.started) {
+        var el = document.getElementById('ta-net-monitor')
+              || document.querySelector('[id="ta-net-monitor"]');
+        if (el) _n.start(el);
+      }
+    }, 1000);
   })();
 
   /* ── 🔌 Server reconnect heartbeat ────────────────────────────────────────
@@ -6999,7 +6995,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.8"
+APP_VERSION = "2.5.9"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7802,6 +7798,16 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                     '</div>'
                 ),
                 elem_id="ta-net-monitor",
+                js_on_load=(
+                    "if(window._taNet&&window._taNet.start){"
+                    "  window._taNet.start(element);"
+                    "} else {"
+                    "  var _retry=function(){"
+                    "    if(window._taNet&&window._taNet.start) window._taNet.start(element);"
+                    "    else setTimeout(_retry,200);"
+                    "  }; setTimeout(_retry,200);"
+                    "}"
+                ),
             )
 
             with gr.Tabs(elem_id="ta-results-tabs"):

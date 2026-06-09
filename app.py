@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.6"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.7"""
 
 import os
 import sys
@@ -6186,7 +6186,8 @@ window.taClickUpdateBtn = function(btn) {
     }
 
     function render() {
-      var p = document.getElementById('ta-net-monitor');
+      var p = document.getElementById('ta-net-monitor')
+           || document.querySelector('[id="ta-net-monitor"]');
       if (!p) return;
 
       var rxBps = _speed(_rxLog);
@@ -6382,13 +6383,36 @@ window.taClickUpdateBtn = function(btn) {
       return _origSend.apply(this, arguments);
     };
 
-    /* ── Start render loop — retry until element exists ── */
-    (function startRender() {
-      if (!document.getElementById('ta-net-monitor')) {
-        setTimeout(startRender, 250); return;
-      }
+    /* ── Start render loop ─────────────────────────────────────────────────────
+       Gradio 6.x renders components asynchronously. We use BOTH a MutationObserver
+       (fires immediately when the element appears) AND a setTimeout fallback, so
+       the render loop starts as early as possible regardless of render timing.   */
+    var _netIntervalStarted = false;
+    function _startNetInterval(el) {
+      if (_netIntervalStarted) return;
+      _netIntervalStarted = true;
       render();
       setInterval(render, 500);
+    }
+    function _findNetEl() {
+      /* try id first, then data-testid, then any child of a known wrapper */
+      return document.getElementById('ta-net-monitor')
+          || document.querySelector('[id="ta-net-monitor"]')
+          || document.querySelector('[elem_id="ta-net-monitor"]');
+    }
+    /* MutationObserver — fires the moment the element enters the DOM */
+    try {
+      var _moNet = new MutationObserver(function() {
+        var el = _findNetEl();
+        if (el) { _moNet.disconnect(); _startNetInterval(el); }
+      });
+      _moNet.observe(document.documentElement, { childList: true, subtree: true });
+    } catch(ex) {}
+    /* Polling fallback — covers cases where the element was already in DOM */
+    (function _pollNet() {
+      var el = _findNetEl();
+      if (el) { _startNetInterval(el); }
+      else    { setTimeout(_pollNet, 200); }
     })();
   })();
 
@@ -6975,7 +6999,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.6"
+APP_VERSION = "2.5.7"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7742,6 +7766,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                     '<style>'
                     '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}'
                     '@keyframes taspin{to{transform:rotate(360deg)}}'
+                    '@keyframes taslide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'
                     '</style>'
                     '<div style="margin-top:8px;">'
                     # Header — pulsing blue dot always on from first render
@@ -7767,13 +7792,13 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                     '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
                     '</div>'
                     '</div>'
-                    # Footer — spinning ring while waiting for first ping
-                    '<div style="display:flex;align-items:center;gap:8px;margin-top:8px;padding-top:8px;'
-                    'border-top:1px solid var(--ta-card-border,#e2e8f0);font-size:0.72em;'
-                    'color:var(--ta-card-sub,#64748b);">'
-                    '<span style="display:inline-block;width:10px;height:10px;border:2px solid var(--ta-accent,#1a73e8);'
-                    'border-top-color:transparent;border-radius:50%;animation:taspin 0.8s linear infinite;"></span>'
-                    'Connecting…</div>'
+                    # Footer — subtle animated bar while JS warms up
+                    '<div style="margin-top:8px;padding-top:8px;'
+                    'border-top:1px solid var(--ta-card-border,#e2e8f0);">'
+                    '<div style="height:3px;border-radius:2px;background:var(--ta-card-border,#e2e8f0);overflow:hidden;">'
+                    '<div style="height:100%;width:40%;background:var(--ta-accent,#1a73e8);border-radius:2px;'
+                    'animation:taslide 1.4s ease-in-out infinite;"></div>'
+                    '</div></div>'
                     '</div>'
                 ),
                 elem_id="ta-net-monitor",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.1"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.2"""
 
 import os
 import sys
@@ -358,6 +358,7 @@ from transcript_agent import (
     load_history, save_history_entry,
     run_interview_analysis, extract_profile_text,
     relabel_speakers_from_video,
+    extract_speaker_names,
 )
 
 # ── AI provider configuration ─────────────────────────────────────────────────
@@ -4018,6 +4019,12 @@ def process_file(
                 if _av_segs:
                     _va_spk_map = _build_va_speaker_map(_av_segs, _va_res)
                     if _va_spk_map:
+                        # Scan transcript for name introductions and combine with roles.
+                        # "SPEAKER_00 → Candidate" becomes "SPEAKER_00 → Priya (Candidate)"
+                        # if "I'm Priya" appears near SPEAKER_00 lines.
+                        _raw_for_names = result.clean_transcript or result.speaker_dialogue or ""
+                        _va_spk_map = extract_speaker_names(_raw_for_names, _va_spk_map)
+
                         def _apply_spk_map(text, m):
                             for k, v in sorted(m.items(), key=lambda x: -len(x[0])):
                                 text = (text.replace(k + ":", v + ":")
@@ -6951,7 +6958,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.1"
+APP_VERSION = "2.5.2"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

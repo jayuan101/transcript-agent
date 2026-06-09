@@ -2342,6 +2342,90 @@ import time as _time_mod
 import uuid as _uuid_mod
 
 
+def extract_speaker_names(transcript: str, role_map: dict) -> dict:
+    """
+    Scan a transcript for self-introduction phrases near each speaker label
+    and return an enhanced role map that combines extracted name + role.
+
+    Input  role_map : {"SPEAKER_00": "Candidate", "SPEAKER_01": "Interviewer 1"}
+    Output enhanced : {"SPEAKER_00": "Priya (Candidate)",
+                       "SPEAKER_01": "Tom (Interviewer 1)"}
+
+    Works with SPEAKER_XX labels, role labels, or mixed.
+    Handles English and most Indian/international given names.
+    """
+    import re as _re
+
+    # Patterns that indicate a speaker is introducing themselves.
+    # Group 1 captures the name (one or two capitalised words).
+    _NAME_RE = _re.compile(
+        r"(?:"
+        r"(?:I'?m|I\s+am)\s+"
+        r"|[Mm]y\s+name(?:'?s|\s+is)\s+"
+        r"|[Tt]his\s+is\s+"
+        r"|[Ss]peaking\s+(?:is|with)\s+"
+        r"|[Cc]alling\s+(?:is|from)\s+"
+        r"|[Yy]ou\s+(?:can\s+)?call\s+me\s+"
+        r")"
+        r"([A-Z][a-z]{1,24}(?:\s+[A-Z][a-z]{1,24})?)"
+    )
+
+    # Common words that look capitalised mid-sentence but are not names.
+    _STOPWORDS = {
+        "The", "This", "That", "Here", "There", "Just", "Sure", "Good",
+        "Well", "Also", "Like", "Some", "What", "When", "Where", "How",
+        "Why", "Who", "From", "With", "About", "Going", "Looking",
+        "Working", "Doing", "Actually", "Really", "Pretty", "Very",
+        "Sorry", "Thank", "Thanks", "Please", "Right", "Okay", "Yeah",
+        "Today", "Tomorrow", "Monday", "Tuesday", "Wednesday", "Thursday",
+        "Friday", "Saturday", "Sunday", "Speaking", "Calling", "Happy",
+        "Nice", "Great", "Glad", "Ready", "Joining", "Based", "Currently",
+        "Previously", "Recently", "Senior", "Junior", "Lead", "Manager",
+        "Engineer", "Developer", "Analyst", "Director", "Team",
+    }
+
+    # Build speaker → [lines] from the transcript.
+    # Accepts "[0:00:05] SPEAKER_00: text" or "Candidate: text" etc.
+    _LINE_RE = _re.compile(
+        r"^(?:\[?[\d:.]+\]?\s+)?([A-Z][A-Z0-9_ ]*[0-9]?|[A-Z][a-z]+(?: [0-9]+)?):\s*(.*)",
+        _re.MULTILINE,
+    )
+    speaker_lines: dict = {}
+    for m in _LINE_RE.finditer(transcript):
+        spk, text = m.group(1).strip(), m.group(2).strip()
+        speaker_lines.setdefault(spk, []).append(text)
+
+    # For every known label (SPEAKER_XX or role name), find a real name.
+    all_labels = set(role_map.keys()) | set(role_map.values())
+    found_names: dict = {}   # label → first name found
+
+    for label in all_labels:
+        lines = speaker_lines.get(label, [])
+        for line in lines[:15]:          # introductions almost always come early
+            m = _NAME_RE.search(line)
+            if m:
+                name = m.group(1).strip()
+                first = name.split()[0]
+                if first not in _STOPWORDS and len(first) > 1:
+                    found_names[label] = name
+                    break
+
+    # Build enhanced map: "SPEAKER_00" → "Priya (Candidate)"
+    enhanced: dict = {}
+    for spk_label, role in role_map.items():
+        # Check both the raw label and the role name for a found name
+        name = found_names.get(spk_label) or found_names.get(role)
+        if name:
+            # Avoid "Tom (Tom)" if someone's role happens to match their name
+            if name.split()[0].lower() == role.split()[0].lower():
+                enhanced[spk_label] = role
+            else:
+                enhanced[spk_label] = f"{name} ({role})"
+        else:
+            enhanced[spk_label] = role
+    return enhanced
+
+
 def relabel_speakers_from_video(text: str, va_result) -> tuple:
     """
     Replace generic SPEAKER_XX labels in a timestamped transcript with the

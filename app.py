@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.9"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.10"""
 
 import os
 import sys
@@ -4730,7 +4730,7 @@ window.taClickUpdateBtn = function(btn) {
       + '<line x1="12" y1="12" x2="12" y2="21"/>'
       + '<path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>'
       + '</svg>'
-      + '<div style="font-size:0.95em;font-weight:600;color:#202124;font-family:\'Google Sans\',Roboto,Arial,sans-serif;">'
+      + '<div style="font-size:0.95em;font-weight:600;color:#202124;font-family:var(--ta-font,sans-serif);">'
       + 'Drag &amp; drop your file here</div>'
       + '<div style="font-size:0.78em;color:#5f6368;font-family:Roboto,Arial,sans-serif;">'
       + 'Audio · Video · PDF · DOCX · SRT · TXT</div>'
@@ -6391,25 +6391,26 @@ window.taClickUpdateBtn = function(btn) {
       return _origSend.apply(this, arguments);
     };
 
-    /* ── Expose start function for js_on_load ──────────────────────────────────
-       gr.HTML js_on_load receives the exact element — far more reliable than
-       getElementById in Gradio 6.x. We expose _n.start() so js_on_load can
-       hand us the element directly.                                             */
-    _n.start = function(el) {
-      if (_n.started) return;
+    /* ── Create the live network pill and append to document.body ─────────────
+       No Gradio component needed — we own this element completely.
+       position:fixed so it's always visible regardless of scroll.              */
+    (function() {
+      var pill = document.createElement('div');
+      pill.id = 'ta-net-pill';
+      pill.style.cssText = (
+        'position:fixed;bottom:16px;right:16px;z-index:9000;'
+        + 'background:var(--ta-card-bg,#fff);'
+        + 'border:1px solid var(--ta-card-border,#e2e8f0);'
+        + 'border-radius:14px;padding:10px 14px;min-width:200px;'
+        + 'box-shadow:0 4px 18px rgba(0,0,0,0.10);'
+        + 'font-family:sans-serif;font-size:12px;'
+      );
+      document.body.appendChild(pill);
+      _n.el = pill;
       _n.started = true;
-      _n.el = el;
       render();
       setInterval(render, 500);
-    };
-    /* Fallback: if js_on_load never fires, try getElementById after 1 s */
-    setTimeout(function() {
-      if (!_n.started) {
-        var el = document.getElementById('ta-net-monitor')
-              || document.querySelector('[id="ta-net-monitor"]');
-        if (el) _n.start(el);
-      }
-    }, 1000);
+    })();
   })();
 
   /* ── 🔌 Server reconnect heartbeat ────────────────────────────────────────
@@ -6995,7 +6996,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.9"
+APP_VERSION = "2.5.10"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7757,58 +7758,9 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                 label="Live Processing Log",
             )
             stats_panel = gr.HTML(value="", elem_id="ta-stats-panel")
-            net_monitor = gr.HTML(
-                value=(
-                    '<style>'
-                    '@keyframes tapulse{0%,100%{opacity:1}50%{opacity:0.25}}'
-                    '@keyframes taspin{to{transform:rotate(360deg)}}'
-                    '@keyframes taslide{0%{transform:translateX(-100%)}100%{transform:translateX(350%)}}'
-                    '</style>'
-                    '<div style="margin-top:8px;">'
-                    # Header — pulsing blue dot always on from first render
-                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
-                    'letter-spacing:0.08em;color:var(--ta-accent,#1a73e8);margin-bottom:8px;'
-                    'display:flex;align-items:center;gap:6px;">'
-                    '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;'
-                    'background:var(--ta-accent,#1a73e8);animation:tapulse 2s infinite;"></span>'
-                    'LIVE NETWORK</div>'
-                    '<div style="display:flex;gap:8px;">'
-                    # Download card — active blue colour from the start
-                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
-                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;'
-                    'color:var(--ta-accent,#1a73e8);margin-bottom:6px;">⬇ Download</div>'
-                    '<div style="font-size:1.4em;font-weight:800;color:var(--ta-card-sub,#9aa0a6);line-height:1.2;margin-bottom:4px;">–</div>'
-                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
-                    '</div>'
-                    # Upload card
-                    '<div style="flex:1;background:var(--ta-card-bg,#f8fafc);border:1px solid var(--ta-card-border,#e2e8f0);border-radius:12px;padding:10px 12px;">'
-                    '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;'
-                    'color:var(--ta-accent,#1a73e8);margin-bottom:6px;">⬆ Upload</div>'
-                    '<div style="font-size:1.4em;font-weight:800;color:var(--ta-card-sub,#9aa0a6);line-height:1.2;margin-bottom:4px;">–</div>'
-                    '<div style="font-size:0.7em;color:var(--ta-card-sub,#64748b);">Session <strong>0 B</strong></div>'
-                    '</div>'
-                    '</div>'
-                    # Footer — subtle animated bar while JS warms up
-                    '<div style="margin-top:8px;padding-top:8px;'
-                    'border-top:1px solid var(--ta-card-border,#e2e8f0);">'
-                    '<div style="height:3px;border-radius:2px;background:var(--ta-card-border,#e2e8f0);overflow:hidden;">'
-                    '<div style="height:100%;width:40%;background:var(--ta-accent,#1a73e8);border-radius:2px;'
-                    'animation:taslide 1.4s ease-in-out infinite;"></div>'
-                    '</div></div>'
-                    '</div>'
-                ),
-                elem_id="ta-net-monitor",
-                js_on_load=(
-                    "if(window._taNet&&window._taNet.start){"
-                    "  window._taNet.start(element);"
-                    "} else {"
-                    "  var _retry=function(){"
-                    "    if(window._taNet&&window._taNet.start) window._taNet.start(element);"
-                    "    else setTimeout(_retry,200);"
-                    "  }; setTimeout(_retry,200);"
-                    "}"
-                ),
-            )
+            # net_monitor is a fixed-position pill injected by _THEME_JS directly
+            # into document.body — no Gradio component magic needed.
+            net_monitor = gr.HTML(value="", visible=False)
 
             with gr.Tabs(elem_id="ta-results-tabs"):
                 with gr.TabItem("Summary"):

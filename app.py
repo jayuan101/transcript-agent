@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.7"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.8"""
 
 import os
 import sys
@@ -6999,7 +6999,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.7"
+APP_VERSION = "2.5.8"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7929,56 +7929,44 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
 
     gr.HTML(f"""
 <style>
-.ta-footer-txt{{text-align:center;padding:20px 0 4px;font-size:0.76em;}}
+.ta-footer-bar{{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
+  gap:10px;padding:20px 16px 24px;}}
+.ta-footer-txt{{font-size:0.76em;text-align:center;}}
 html:not(.dark) .ta-footer-txt{{color:#64748b;}}
 html.dark .ta-footer-txt{{color:#94a3b8;}}
-.ta-paypal-btn{{display:inline-flex!important;align-items:center!important;gap:8px!important;
-  background:#0070ba!important;color:#fff!important;font-size:0.85em!important;
-  font-weight:700!important;padding:9px 22px!important;border-radius:20px!important;
+.ta-footer-sep{{color:#cbd5e1;font-size:0.8em;}}
+.ta-paypal-btn{{display:inline-flex!important;align-items:center!important;gap:6px!important;
+  background:#0070ba!important;color:#fff!important;font-size:0.82em!important;
+  font-weight:700!important;padding:7px 18px!important;border-radius:20px!important;
   text-decoration:none!important;border:none!important;
   box-shadow:0 2px 8px rgba(0,112,186,0.35)!important;
   transition:background 0.18s,box-shadow 0.18s!important;}}
 .ta-paypal-btn:hover{{background:#005ea6!important;box-shadow:0 4px 14px rgba(0,112,186,0.5)!important;}}
 .ta-paypal-btn span{{color:#fff!important;}}
-html.dark .ta-paypal-btn{{box-shadow:0 2px 10px rgba(0,112,186,0.5)!important;}}
+.ta-bug-btn{{display:inline-flex!important;align-items:center!important;gap:6px!important;
+  background:#ef4444!important;color:#fff!important;font-size:0.82em!important;
+  font-weight:700!important;padding:7px 18px!important;border-radius:20px!important;
+  text-decoration:none!important;border:none!important;
+  box-shadow:0 2px 8px rgba(239,68,68,0.3)!important;
+  transition:background 0.18s,box-shadow 0.18s!important;}}
+.ta-bug-btn:hover{{background:#dc2626!important;box-shadow:0 4px 14px rgba(239,68,68,0.45)!important;}}
 </style>
-    <div class="ta-footer-txt">
-      Transcript Agent &nbsp;&bull;&nbsp; Transcription by OpenAI Whisper
-      &nbsp;&bull;&nbsp; Analysis by Anthropic Claude
-      &nbsp;&bull;&nbsp; Files processed privately on your machine
-      {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
-    </div>
-    <div style="text-align:center;padding:8px 0 20px;">
-      <a href="https://paypal.me/jay247616" target="_blank" class="ta-paypal-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="white" style="flex-shrink:0;">
-          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z"/>
-        </svg>
-        <span>Donate via PayPal</span>
-      </a>
-    </div>
-    """)
-
-    # ── Bug Report Form ──────────────────────────────────────────────────────
-    gr.HTML("""
-<style>
-.ta-bug-bar{display:flex;align-items:center;justify-content:center;gap:14px;
-  padding:18px 0 24px;flex-wrap:wrap;}
-.ta-bug-btn{display:inline-flex;align-items:center;gap:8px;
-  background:#ef4444;color:#fff!important;font-size:0.88em;font-weight:700;
-  padding:10px 26px;border-radius:22px;text-decoration:none!important;
-  box-shadow:0 2px 8px rgba(239,68,68,0.35);
-  transition:background 0.18s,box-shadow 0.18s;}
-.ta-bug-btn:hover{background:#dc2626;box-shadow:0 4px 14px rgba(239,68,68,0.5);}
-.ta-bug-note{font-size:0.78em;color:var(--ta-sub);text-align:center;}
-html.dark .ta-bug-note{color:#94a3b8;}
-html:not(.dark) .ta-bug-note{color:#64748b;}
-</style>
-<div class="ta-bug-bar">
+<div class="ta-footer-bar">
+  <span class="ta-footer-txt">
+    Transcript Agent &nbsp;&bull;&nbsp; OpenAI Whisper &nbsp;&bull;&nbsp;
+    Anthropic Claude &nbsp;&bull;&nbsp; 100% Private
+    {"&nbsp;&bull;&nbsp;" + _changelog_link if _changelog_link else ""}
+  </span>
+  <a href="https://paypal.me/jay247616" target="_blank" class="ta-paypal-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="white" style="flex-shrink:0;">
+      <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.93 4.778-4.005 7.201-9.138 7.201h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.777-4.471z"/>
+    </svg>
+    <span>Donate</span>
+  </a>
   <a href="https://forms.gle/aEMqRjFGyAVWVKQ77" target="_blank" class="ta-bug-btn">
     🐛 Report a Bug
   </a>
 </div>
-<div class="ta-bug-note">Opens in a new tab &nbsp;·&nbsp; attach a screenshot &nbsp;·&nbsp; you'll get a confirmation page when submitted</div>
 """)
 
     # ── Interview Vision helpers ──────────────────────────────────────────────

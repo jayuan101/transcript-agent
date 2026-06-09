@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.14"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.15"""
 
 import os
 import sys
@@ -7015,7 +7015,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.14"
+APP_VERSION = "2.5.15"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7254,22 +7254,32 @@ def _do_in_app_update():
     else:
         lines.append("ℹ No .git directory — skipping code pull.")
 
-    # Skip live pip upgrade — on Windows, loaded .pyd/.dll files are locked by the
-    # running process, so pip always fails with WinError 5 (Access Denied).
-    # New packages will be installed cleanly on next app restart after git pull.
-    req = _os.path.join(BASE, "requirements.txt")
-    if _os.path.exists(req):
-        lines.append("ℹ Restart the app to pick up any new package requirements.")
-
     color  = "#166534" if ok else "#991b1b"
     bg     = "#f0fdf4" if ok else "#fef2f2"
     border = "#86efac" if ok else "#fca5a5"
-    msg    = "✅ Update applied! Close this window and reopen the app." if ok else "⚠ Update incomplete."
-    items  = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
-    yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
-           f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">{msg}</div>'
-           f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
-           f'</div>')
+
+    if not ok:
+        items = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+        yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+               f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">⚠ Update incomplete.</div>'
+               f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
+               f'</div>')
+        return
+
+    # ── Auto-restart — new code is on disk; restart the Python process so it loads ──
+    items = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+    for countdown in (3, 2, 1):
+        yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+               f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">'
+               f'✅ Updated! Restarting in {countdown}…</div>'
+               f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
+               f'</div>')
+        import time as _time
+        _time.sleep(1)
+
+    # Start new process then exit this one
+    _sp.Popen([_sys.executable] + _sys.argv)
+    _os._exit(0)
 
 # ── Desktop download section ──────────────────────────────────────────────────
 _HF_RAW = "https://huggingface.co/spaces/Coastline6/transcript-agent-v2/resolve/main"

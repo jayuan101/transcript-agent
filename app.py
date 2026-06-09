@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.4.9"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.0"""
 
 import os
 import sys
@@ -6895,7 +6895,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.9"
+APP_VERSION = "2.5.0"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]
@@ -7759,6 +7759,10 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                 with gr.TabItem("📂 History"):
                     with gr.Row():
                         history_refresh_btn = gr.Button("🔄 Refresh", size="sm", scale=1)
+                        history_rerender_btn = gr.Button(
+                            "♻️ Re-render Analysis", variant="secondary", size="sm", scale=1,
+                            interactive=False, elem_id="ta-history-rerender",
+                        )
                         history_delete_btn  = gr.Button(
                             "🗑 Delete Selected", variant="stop", size="sm", scale=1,
                             interactive=False, elem_id="ta-history-delete",
@@ -7776,6 +7780,7 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                         wrap=True,
                     )
                     history_selected_summary = gr.Markdown(value="", label="Session Summary")
+                    history_full_analysis    = gr.HTML(value="", visible=False, elem_id="ta-history-full")
 
                     with gr.Accordion("🗑 Trash", open=False):
                         with gr.Row():
@@ -8257,12 +8262,89 @@ html:not(.dark) .ta-bug-note{color:#64748b;}
                     + (f" — {score_reason}" if score_reason else "")
                     + "  \n\n"
                 )
-        return md, e.get("id"), gr.update(interactive=True)
+        has_json = bool(e.get("paths", {}).get("json")) and Path(e["paths"]["json"]).is_file()
+        return (
+            md,
+            e.get("id"),
+            gr.update(interactive=True),
+            gr.update(interactive=has_json),
+            gr.update(value="", visible=False),
+        )
 
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
     history_table.select(
         fn=load_history_row,
-        outputs=[history_selected_summary, history_selected_id, history_delete_btn],
+        outputs=[history_selected_summary, history_selected_id, history_delete_btn,
+                 history_rerender_btn, history_full_analysis],
+    )
+
+    # ── Re-render full analysis from saved _full.json ────────────────────────
+    def _rerender_history(entry_id):
+        if not entry_id:
+            return gr.update(value="<p style='color:#f59e0b;font-size:0.85em;'>No session selected.</p>", visible=True)
+        entries = load_history(HISTORY_PATH)
+        entry   = next((e for e in entries if e.get("id") == entry_id), None)
+        if not entry:
+            return gr.update(value="<p style='color:#ef4444;font-size:0.85em;'>Session not found in history.</p>", visible=True)
+
+        json_path = Path(entry.get("paths", {}).get("json", ""))
+        if not json_path.is_file():
+            return gr.update(
+                value=(
+                    "<p style='color:#f59e0b;font-size:0.85em;'>"
+                    f"Output file not found: <code>{json_path}</code>. "
+                    "The original analysis files may have been moved or deleted."
+                    "</p>"
+                ),
+                visible=True,
+            )
+
+        try:
+            with open(json_path, encoding="utf-8") as f:
+                saved = json.load(f)
+        except Exception as ex:
+            return gr.update(value=f"<p style='color:#ef4444;font-size:0.85em;'>Failed to load saved data: {ex}</p>", visible=True)
+
+        ia = saved.get("interview_analysis") or {}
+        transcript_text = saved.get("clean_transcript") or saved.get("speaker_dialogue") or ""
+
+        sections = []
+
+        # Transcript preview
+        if transcript_text.strip():
+            preview = transcript_text[:3000] + ("…" if len(transcript_text) > 3000 else "")
+            preview_escaped = preview.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            sections.append(
+                '<div style="margin-bottom:18px;">'
+                '<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                'letter-spacing:.08em;color:#94a3b8;padding:6px 0 8px;">📝 Transcript</div>'
+                f'<div class="ta-cand-prose" style="max-height:240px;overflow-y:auto;">{preview_escaped}</div>'
+                '</div>'
+            )
+
+        # Full interview analysis re-rendered with latest code blocks
+        if ia:
+            sections.append(_build_interview_html(ia))
+
+        if not sections:
+            return gr.update(
+                value="<p style='color:#94a3b8;font-size:0.85em;'>No analysis data found in the saved file.</p>",
+                visible=True,
+            )
+
+        header = (
+            f'<div style="font-size:0.82em;color:#64748b;padding:6px 0 14px;">'
+            f'Re-rendered from <code>{json_path.name}</code> — '
+            f'uses the latest code block formatting and syntax highlighting.'
+            f'</div>'
+        )
+        return gr.update(value=header + "".join(sections), visible=True)
+
+    history_rerender_btn.click(
+        fn=_rerender_history,
+        inputs=[history_selected_id],
+        outputs=[history_full_analysis],
+        queue=True,
     )
 
     # ── History export ────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.13"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.14"""
 
 import os
 import sys
@@ -7015,7 +7015,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.13"
+APP_VERSION = "2.5.14"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

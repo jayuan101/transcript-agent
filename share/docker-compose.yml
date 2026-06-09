@@ -1,0 +1,85 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║          TRANSCRIPT AGENT  v2.5.13  —  Zero-Install Docker Compose          ║
+# ║       AI-powered transcription + meeting analysis (Whisper + GPT/Claude)    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+#
+# ── Requirements ──────────────────────────────────────────────────────────────
+#   • Docker Desktop  https://www.docker.com/products/docker-desktop
+#     Windows: enable "Use WSL 2 based engine" in Settings → General (default on new installs)
+#     Mac:     Intel or Apple Silicon — both work out of the box
+#     Linux:   Docker Engine + Docker Compose plugin
+#   • At least ONE API key (Anthropic, OpenAI, Gemini, or Groq) for AI analysis
+#   • Whisper (local STT) is FREE — no key needed if you skip cloud STT
+#
+# ── Quick start (Windows, Mac, Linux) ─────────────────────────────────────────
+#   1. Save this file as  docker-compose.yml  in a new empty folder
+#
+#   2. Create a .env file in the SAME folder with your API key(s):
+#        ANTHROPIC_API_KEY=sk-ant-...
+#        TZ=America/New_York
+#
+#   3. Create the outputs folder:
+#        Windows PowerShell:  mkdir outputs
+#        Mac / Linux:         mkdir outputs
+#
+#   4. Start the app:
+#        docker compose up -d
+#
+#   5. Open in your browser:
+#        http://localhost:7860
+#
+# ── Commands ──────────────────────────────────────────────────────────────────
+#   docker compose up -d          start (detached)
+#   docker compose pull           update to latest image
+#   docker compose down           stop
+#   docker compose logs -f        view live logs
+#   docker compose restart        restart after .env change
+#
+# ── GPU support (NVIDIA only) ─────────────────────────────────────────────────
+#   Uncomment the `deploy:` block below after installing nvidia-container-toolkit.
+#   Windows users: GPU passthrough requires WSL2 + NVIDIA driver ≥ 510 + Docker Desktop ≥ 4.13
+#
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  transcript-agent:
+    image: sushi0934/transcript-agent:latest
+    pull_policy: always               # always pull latest on `docker compose up`
+    container_name: transcript-agent
+    ports:
+      - "7860:7860"                   # Gradio UI   → http://localhost:7860
+      - "8000:8000"                   # REST API    → http://localhost:8000/docs
+    volumes:
+      - ./.env:/app/.env:ro           # API keys — read-only inside the container
+      - ./outputs:/app/outputs        # transcripts & reports saved here on your machine
+      - whisper-cache:/app/.cache     # Whisper models (~1–3 GB) — cached across restarts
+    env_file:
+      - .env
+    environment:
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT=7860
+      - TZ=${TZ:-America/New_York}
+      - TF_FORCE_GPU_ALLOW_GROWTH=true
+      - GRADIO_ANALYTICS_ENABLED=False
+
+    # ── NVIDIA GPU (optional) ─────────────────────────────────────────────────
+    # Uncomment to enable GPU acceleration for Whisper and DeepFace:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  whisper-cache:
+    name: transcript-agent-whisper-cache

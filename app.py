@@ -7266,7 +7266,9 @@ def _do_in_app_update():
             if r2.returncode == 0:
                 lines.append("✓ Python packages upgraded.")
             else:
-                lines.append(f"⚠ pip upgrade had warnings — {r2.stderr.strip()[:120]}")
+                import re as _re
+                _safe = _re.sub(r"[A-Za-z]:\\[^\s'\"]*|/home/[^\s'\"]*|/Users/[^\s'\"]*", "<path>", r2.stderr.strip())
+                lines.append(f"⚠ pip upgrade had warnings — {_safe[:120]}")
         except Exception as e:
             lines.append(f"⚠ pip failed — {e}")
             ok = False

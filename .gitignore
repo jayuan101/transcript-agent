@@ -12,6 +12,7 @@ startup_err.txt
 # Environment and secrets
 .env
 .env.*
+!.env.example
 
 # Gradio internals
 .gradio/
@@ -28,8 +29,7 @@ test_*.pdf
 # MediaPipe models
 .mediapipe_models/
 
-# Share dir — generated files only
-share/docker-compose.yml
+# Share dir — only exclude generated output files
 share/outputs/
 
 # Distribution builds

@@ -1,14 +1,16 @@
-# Pull from Docker Hub instead of building locally.
+# ── Transcript Agent — Pull from Docker Hub (no build needed) ─────────────────
 # Usage:
 #   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml up -d
 #
-# Set DOCKERHUB_USERNAME in your shell or .env before running.
+# Pinned tag:  sushi0934/transcript-agent:2.5.13
+# Latest tag:  sushi0934/transcript-agent:latest  (auto-updates)
+# ─────────────────────────────────────────────────────────────────────────────
 
 services:
   transcript-agent:
     image: ${DOCKERHUB_USERNAME:-sushi0934}/transcript-agent:latest
-    pull_policy: always          # re-pull on every `docker compose up` to auto-update
+    pull_policy: always          # re-pull on every `docker compose up` to stay current
     container_name: transcript-agent
     ports:
       - "7860:7860"

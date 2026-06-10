@@ -3656,12 +3656,14 @@ def process_file(
             _role_labels = [iv_role_0, iv_role_1, iv_role_2, iv_role_3]
             _rm = {pid: (_role_labels[i] if i < len(_role_labels) else f"Person {i+1}")
                    for i, pid in enumerate(pids[:int(iv_person_count or 2)])}
-            _lastb = {"b": -1}
+            _lastp = {"p": -1}
             def _pcb(v, info=None):
-                b = int(round((v or 0.0) * 4)) * 25
-                if b != _lastb["b"]:
-                    _lastb["b"] = b
-                    q.put(("log", f"🎥 Reading names & delivery from video… {b}%"))
+                # Emit on every 1% change so the status line + ETA update smoothly
+                # (the live loop snaps the shown % to 25 and logs at 25% buckets).
+                p = int((v or 0.0) * 100)
+                if p != _lastp["p"]:
+                    _lastp["p"] = p
+                    q.put(("name_pct", v, info))
             va = _video_analyzer.analyze_video(
                 uploaded_file, _rm, sample_fps=0.5, progress_cb=_pcb, use_gpu=bool(use_gpu))
             _video_name_cache["res"] = va
@@ -3764,6 +3766,7 @@ def process_file(
     # ── live update loop ──────────────────────────────────────────────────────
     whisper_pct     = 0.0
     _last_whisper_bucket = -1   # last 25%-bucket logged, to avoid 1%-by-1% log spam
+    _last_names_bucket   = -1   # same, for the "reading names / video" stage
     raw_shown       = False
     claude_started  = False
     stage           = "loading"
@@ -3921,6 +3924,24 @@ def process_file(
             yield _out(
                 status=_status_compact("🎤", f"Transcribing…  {pct_int}%", elapsed),
                 eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed),
+                log=log_upd,
+            )
+
+        elif kind == "name_pct":
+            _v      = msg[1] or 0.0
+            _info   = msg[2] if len(msg) > 2 else None
+            elapsed = _elapsed_live()
+            pct_int = int(round(_v * 100 / 25.0) * 25)   # snap shown % to 25
+            _eta_txt = ""
+            if _info and _info.get("eta") is not None:
+                _m, _s = divmod(int(_info["eta"]) + 35 * 60, 60)   # padded ETA
+                _eta_txt = f"  ·  ETA ~{_m}m {_s:02d}s" if _m else f"  ·  ETA ~{_s}s"
+            log_upd = gr.update()
+            if pct_int != _last_names_bucket:
+                _last_names_bucket = pct_int
+                log_upd = _add_log(f"🎥 Reading names & delivery… {pct_int}%{_eta_txt}", "progress")
+            yield _out(
+                status=_status_compact("🎥", f"Reading names & delivery…  {pct_int}%{_eta_txt}", elapsed),
                 log=log_upd,
             )
 

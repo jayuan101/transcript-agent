@@ -465,6 +465,160 @@ def _fmt_ts(seconds: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}" if h else f"{m:02d}:{s:02d}"
 
 
+# Question-type grouping (Technical vs Behavioral breakdown) ───────────────────
+_Q_TYPE_ORDER = ["Technical", "Behavioral", "Other"]
+
+
+def _q_type_label(q: dict) -> str:
+    """Normalise a question's 'type' field to one of _Q_TYPE_ORDER."""
+    t = (q.get("type") or "").strip().lower()
+    if t.startswith("tech"):
+        return "Technical"
+    if t.startswith("behav"):
+        return "Behavioral"
+    return "Other"
+
+
+_UNKNOWN_SPEAKER_KEYS = {
+    "", "unknown", "unknown speaker", "unidentified", "unidentified speaker",
+    "n/a", "na", "speaker", "guest", "participant", "unnamed", "anonymous",
+}
+
+
+def _spk_canon(name: str) -> str:
+    """Display form of a speaker name: drop role parens, collapse whitespace."""
+    s = re.sub(r"\s*\([^)]*\)\s*", " ", (name or "")).strip()
+    return re.sub(r"\s+", " ", s)
+
+
+def _spk_is_unknown(name: str) -> bool:
+    """True for blank / 'Unknown' / generic 'Speaker N' style labels."""
+    k = _spk_canon(name).lower()
+    return (k in _UNKNOWN_SPEAKER_KEYS) or bool(re.fullmatch(r"speaker[\s_]*\d+", k))
+
+
+def extract_name_from_filename(path: str) -> str:
+    """Pull the candidate's name from an interview recording filename.
+
+    Convention: ``<date> <time>-Interview-<Name>-<Confidential|Company>-<Company|Source>.<ext>``
+    The name may itself contain hyphens (e.g. ``Ja-Yuan Pendley``). This is the
+    reliable name source for screen-recorded AI-interview platforms (tcapp.ai,
+    HireVue, etc.) that have no on-screen video tiles to OCR.
+
+    Returns the candidate name, or '' if the filename doesn't match.
+    Examples:
+      '…-Interview-Riyaz Ahmed Mohammed-Confidential-Diverse Lynx LLC.mkv' -> 'Riyaz Ahmed Mohammed'
+      '…-Interview-Ja-Yuan Pendley-Schneider Electric Industries-Toptal.mkv' -> 'Ja-Yuan Pendley'
+    """
+    stem = os.path.splitext(os.path.basename(path or ""))[0]
+    m = re.search(r"[Ii]nterview\s*-\s*(.+)", stem)
+    if not m:
+        return ""
+    segs = [s.strip() for s in m.group(1).split("-") if s.strip()]
+    if not segs:
+        return ""
+    low = [s.lower() for s in segs]
+    if "confidential" in low:                 # name ends right before 'Confidential'
+        name = "-".join(segs[:low.index("confidential")]).strip()
+    elif len(segs) > 2:                        # …-<Name…>-<Company>-<Source>
+        name = "-".join(segs[:-2]).strip()
+    else:                                      # …-<Name>-<Company>  /  …-<Name>
+        name = segs[0]
+    # Sanity: a real name has no digits and isn't an obvious company suffix.
+    if not name or any(ch.isdigit() for ch in name):
+        return ""
+    if re.search(r"\b(LLC|Inc|Ltd|GmbH|Industries|Technologies|Solutions|Corp)\b", name):
+        return ""
+    return name
+
+
+def clean_and_dedupe_speakers(merged: "TranscriptResult") -> None:
+    """Make the speaker list report-ready, in place:
+
+    • collapse duplicate speakers (fuzzy-matched name spellings → one person),
+    • never show 'Unknown' — unresolved/late speakers become a distinct
+      'Speaker N' (kept, so late-joining participants are still counted),
+    • keep names as ground truth (we only unify spellings, never invent names).
+
+    Touches speaker_map (transcript labels), speaker_profiles and speaker_stats
+    so every export format stays consistent.
+    """
+    from difflib import SequenceMatcher
+
+    # 1. Cluster every known real name so spelling variants unify to one display.
+    clusters: List[List[str]] = []  # each: [canon_key, display]
+    real_names = [n for n in (
+        list(merged.speaker_profiles.keys())
+        + [s.name for s in merged.speaker_stats]
+        + list(merged.speaker_map.values())
+    ) if n and not _spk_is_unknown(n)]
+    for nm in real_names:
+        disp = _spk_canon(nm)
+        key = disp.lower()
+        hit = None
+        for c in clusters:
+            if c[0] == key or SequenceMatcher(None, c[0], key).ratio() >= 0.88:
+                hit = c
+                break
+        if hit:
+            if len(disp) > len(hit[1]):   # prefer the fuller spelling
+                hit[1] = disp
+        else:
+            clusters.append([key, disp])
+
+    def _resolve_real(nm: str):
+        if not nm or _spk_is_unknown(nm):
+            return None
+        key = _spk_canon(nm).lower()
+        for c in clusters:
+            if c[0] == key or SequenceMatcher(None, c[0], key).ratio() >= 0.88:
+                return c[1]
+        return _spk_canon(nm)
+
+    # 2. Stable 'Speaker N' labels for unknown speakers — numbered after the
+    #    real participants, keyed by the original token so each stays distinct.
+    base = len(clusters)
+    unknown_seq = {"n": 0}
+    unknown_map: Dict[str, str] = {}
+
+    def _resolve_unknown(token: str) -> str:
+        token = token or "?"
+        if token not in unknown_map:
+            unknown_seq["n"] += 1
+            unknown_map[token] = f"Speaker {base + unknown_seq['n']}"
+        return unknown_map[token]
+
+    # 3. Rebuild speaker_map (transcript labels) — real name or clean Speaker N.
+    new_map: Dict[str, str] = {}
+    for label, val in merged.speaker_map.items():
+        new_map[label] = _resolve_real(val) or _resolve_unknown(label)
+    merged.speaker_map = new_map
+
+    # 4. Dedupe profiles — keep the most detailed text per person.
+    new_profiles: Dict[str, str] = {}
+    for nm, text in merged.speaker_profiles.items():
+        rv = _resolve_real(nm) or _resolve_unknown(nm)
+        if rv not in new_profiles or len(text or "") > len(new_profiles[rv] or ""):
+            new_profiles[rv] = text
+    merged.speaker_profiles = new_profiles
+
+    # 5. Dedupe stats — one entry per person, keep the one with more signal.
+    seen: Dict[str, "SpeakerStats"] = {}
+    deduped: List["SpeakerStats"] = []
+    for s in merged.speaker_stats:
+        rv = _resolve_real(s.name) or _resolve_unknown(s.name)
+        if rv in seen:
+            if (s.speaking_percentage or 0) > (seen[rv].speaking_percentage or 0):
+                cur = seen[rv]
+                cur.__dict__.update(s.__dict__)
+                cur.name = rv
+            continue
+        s.name = rv
+        seen[rv] = s
+        deduped.append(s)
+    merged.speaker_stats = deduped
+
+
 def _fmt_srt_ts(seconds: float) -> str:
     ms = int((seconds % 1) * 1000)
     h = int(seconds // 3600)
@@ -703,7 +857,17 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             _DEFL_LABEL = {"partial": "! PARTIALLY DEFLECTED", "full": "X DID NOT ANSWER"}
             _DEFL_RGB   = {"partial": _RGB["ni"], "full": _RGB["missed"]}
 
-            for q in qs:
+            _grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+            for _g in _Q_TYPE_ORDER:
+              _gq = _grouped[_g]
+              if not _gq:
+                continue
+              _gh = doc.add_paragraph()
+              _set_para_spacing(_gh, before=140, after=40)
+              _ghr = _gh.add_run(f"{_g} Questions ({len(_gq)})")
+              _ghr.bold = True; _ghr.font.size = Pt(11)
+              _ghr.font.color.rgb = _RGB["header"]
+              for q in _gq:
                 qid       = q.get("id", "")
                 question  = q.get("question", "")
                 sc        = q.get("score", "")
@@ -2047,11 +2211,25 @@ def process_transcript(
 
         if speaker_names:
             prompt = (
-                f"Speaker/participant info for this recording: {speaker_names}.\n"
-                f"In speaker_map, map each diarized speaker (Speaker 0, Speaker 1, …) to one of "
-                f"these real participant names whenever the dialogue makes the match clear "
-                f"(e.g. someone is addressed by name, or introduces themselves); otherwise use a "
-                f"role label. Keep each speaker distinct.\n\n"
+                f"On-screen / known participant names for this recording: {speaker_names}.\n"
+                f"These names were READ FROM THE SCREEN — treat them as ground truth.\n"
+                f"Rules for speaker_map, speaker_profiles and speaker_stats:\n"
+                f"- Use ONLY these real names. Do NOT invent, translate, or guess a name "
+                f"that is not in this list.\n"
+                f"- Map each diarized speaker (Speaker 0, Speaker 1, …) to the correct name "
+                f"using the dialogue (self-introductions, people addressed by name, turn-taking).\n"
+                f"- NEVER label anyone 'Unknown'. If you genuinely cannot match a diarized "
+                f"speaker to a provided name, label them 'Speaker N' (e.g. 'Speaker 3') — "
+                f"never 'Unknown'.\n"
+                f"- Do NOT create duplicate speakers: each real person appears exactly once. "
+                f"Merge segments that clearly belong to the same person.\n"
+                f"- Include participants who joined late — they still count as a distinct speaker.\n\n"
+            ) + prompt
+        else:
+            prompt = (
+                "Speaker rules: never label anyone 'Unknown' — use 'Speaker N' instead; "
+                "never list the same person twice (no duplicate speakers); and count "
+                "participants who joined late as their own distinct speaker.\n\n"
             ) + prompt
 
         if n > 1:
@@ -2153,6 +2331,10 @@ def process_transcript(
             accent_confidence=s.get("accent_confidence", ""),
         ))
 
+    # Remove 'Unknown' labels, collapse duplicate speakers, and keep late
+    # joiners as distinct 'Speaker N' — before the map is applied to the text.
+    clean_and_dedupe_speakers(merged)
+
     # Apply the resolved speaker_map so the transcript/dialogue actually show
     # WHO is talking. The AI often omits clean_transcript/speaker_dialogue for
     # long transcripts (so they fall back to raw "Speaker 0/1" text) yet still
@@ -2200,6 +2382,11 @@ CRITICAL: Include EVERY question asked by the interviewer in the "questions" arr
 
 EXCLUDE from scoring: Do NOT include any question where the interviewer is inviting the candidate to ask their own questions — e.g. "Do you have any questions for me?", "Is there anything you'd like to ask?", "Any questions from your side?", or similar closing invitations. These are not interview questions and must not appear in the "questions" array or affect the score.
 
+Rules for "type" — classify EVERY question as exactly one of:
+- "Technical": coding, algorithms, system design, data/SQL, architecture, tools, frameworks, or any role-specific domain-knowledge question.
+- "Behavioral": experience, soft skills, situational ("tell me about a time…"), teamwork, conflict, motivation, or culture-fit questions.
+- "Other": introductions, logistics, salary/availability, or anything that is neither technical nor behavioral.
+
 Rules for answer_said — NO SUMMARISING:
 - Reproduce everything the candidate said in full. Do NOT shorten, summarise, or paraphrase.
 - Include every specific point, example, number, story, technology, project name, company name,
@@ -2230,6 +2417,7 @@ Rules for model_answer — FULL DETAILED RESPONSE, NOT SUMMARISED:
     {{
       "id": 1,
       "question": "<exact question text from the transcript>",
+      "type": "<Technical|Behavioral|Other>",
       "speaker": "<interviewer name or 'Interviewer'>",
       "answer_said": "<FULL verbatim or near-verbatim reproduction of everything the candidate said — every point, example, number, company, project, metric, and reasoning — NO summarising, NO sentence limit>",
       "deflection": "<none|partial|full>",
@@ -2640,7 +2828,14 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             }
             sections.append("  QUESTION BREAKDOWN")
             sections.append("  " + thin)
-            for q in qs:
+            _grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+            for _g in _Q_TYPE_ORDER:
+              _gq = _grouped[_g]
+              if not _gq:
+                continue
+              sections.append(f"  ── {_g} Questions ({len(_gq)}) ──")
+              sections.append("")
+              for q in _gq:
                 qid        = q.get("id", "")
                 question   = q.get("question", "")
                 sc         = q.get("score", "")
@@ -2848,6 +3043,9 @@ def run(
     transcription_only: bool = False,  # skip AI analysis — return raw transcript immediately
     image_paths: list = None,       # optional images (slides, whiteboard) for visual context
     use_gpu: bool = True,           # use CUDA if available for Whisper
+    name_bind_cb=None,              # callable(segments) -> {SPEAKER_XX: real name} read
+                                    # off the on-screen video tiles; runs BEFORE the AI
+                                    # analysis so the report uses real names, not guesses
 ) -> TranscriptResult:
     def _log(m):
         _safe_print(f"  {m}")
@@ -2949,6 +3147,38 @@ def run(
     if cancel_event and cancel_event.is_set():
         raise RuntimeError("Job cancelled before AI analysis")
 
+    # ── Screen-name binding (read names off the video tiles → diarized speakers) ─
+    # Runs BEFORE the AI analysis so the report's speaker_map / profiles use the
+    # REAL on-screen names instead of AI guesses. The caller's callback does the
+    # video analysis + per-tile OCR + speaking-time binding and returns the
+    # authoritative {SPEAKER_XX: name} map. Fully guarded — never blocks the run.
+    _auth_map = {}
+    if name_bind_cb and _segments and not transcription_only:
+        try:
+            if on_stage_change: on_stage_change("names")
+            _auth_map = name_bind_cb(_segments) or {}
+        except Exception as _nb_e:
+            _log(f"⚠️ Screen-name binding skipped: {_nb_e}")
+            _auth_map = {}
+    if _auth_map:
+        _bind_str = "; ".join(f"{k} is {v}" for k, v in sorted(_auth_map.items()))
+        _log(f"👥 Names read from screen → {', '.join(sorted(set(_auth_map.values())))}")
+        _explicit = (
+            "EXACT speaker identities, read directly from the on-screen video tiles "
+            f"(authoritative — use these names verbatim and do not guess): {_bind_str}."
+        )
+        speaker_names = f"{_explicit}  {speaker_names}" if speaker_names else _explicit
+    elif interview_mode:
+        # Fallback ONLY when the video gave us no names (e.g. screen-recorded AI
+        # interviews with no tiles). On-screen names always win; some filenames
+        # have no name either — then we add nothing and leave it to the AI.
+        _fname = extract_name_from_filename(file_path)
+        if _fname:
+            _log(f"Candidate name from filename (fallback): {_fname}")
+            _hint = (f"The candidate being interviewed is {_fname} "
+                     f"(from the recording filename) — use this exact name for the candidate.")
+            speaker_names = f"{_hint}  {speaker_names}" if speaker_names else _hint
+
     _log(f"Text ready: ~{len(raw_text.split()):,} words  |  Passing to AI…")
 
     if on_stage_change: on_stage_change("claude")
@@ -2994,6 +3224,14 @@ def run(
     result.segments    = _segments
     result.stt_engine  = stt_engine
     result.stt_seconds = _stt_secs
+
+    # Screen-read names win over any AI guess — override the map, relabel the
+    # transcript/dialogue, then drop 'Unknown' and collapse duplicates.
+    if _auth_map:
+        result.speaker_map = {**(result.speaker_map or {}), **_auth_map}
+        result.speaker_dialogue = apply_speaker_map(result.speaker_dialogue, result.speaker_map)
+        result.clean_transcript = apply_speaker_map(result.clean_transcript, result.speaker_map)
+        clean_and_dedupe_speakers(result)
 
     # ── Interview Mode ────────────────────────────────────────────────────────
     if interview_mode:

@@ -1293,6 +1293,20 @@ _ANIM = (
     "</style>"
 )
 
+# Question-type grouping (Technical vs Behavioral breakdown) ──────────────────
+_Q_TYPE_ORDER = ["Technical", "Behavioral", "Other"]
+
+
+def _q_type_label(q: dict) -> str:
+    """Normalise a question's 'type' field to one of _Q_TYPE_ORDER."""
+    t = (q.get("type") or "").strip().lower()
+    if t.startswith("tech"):
+        return "Technical"
+    if t.startswith("behav"):
+        return "Behavioral"
+    return "Other"
+
+
 def _fmt_eta(eta_secs: int) -> str:
     total_s = max(0, eta_secs)
     h, rem = divmod(total_s, 3600)
@@ -1303,14 +1317,26 @@ def _fmt_eta(eta_secs: int) -> str:
 
 
 def _status_compact(icon: str, title: str, elapsed: str = "") -> str:
-    """Minimal one-line status — used when eta_panel carries the detail."""
+    """Minimal one-line status — used when eta_panel carries the detail.
+
+    Includes a CSS-animated pulse dot and a `.ta-beat` heartbeat badge that a
+    global JS ticker keeps updating client-side ("live" / "active Ns ago"),
+    so the panel visibly breathes even when the server is deep in Whisper.
+    """
     elap = (f'<span style="color:var(--ta-card-sub);font-size:.85em;margin-left:10px;">'
             f'elapsed: {elapsed}</span>') if elapsed else ""
+    beat = (f'<span class="ta-beat" data-stamp="{int(time.time()*1000)}" '
+            f'style="float:right;font-size:.78em;font-weight:600;color:#22c55e;">⚡ live</span>')
+    pulse = ('<style>@keyframes tapulse{0%,100%{opacity:1;transform:scale(1)}'
+             '50%{opacity:.35;transform:scale(.75)}}</style>'
+             '<span style="display:inline-block;width:9px;height:9px;border-radius:50%;'
+             'background:#22c55e;margin-right:9px;vertical-align:1px;'
+             'animation:tapulse 1.5s ease-in-out infinite;"></span>')
     return (f'<div style="background:var(--ta-card-bg);border:3px solid var(--ta-step-act-bdr);border-radius:10px;'
             f'padding:16px 20px;font-size:1.05em;font-family:sans-serif;min-height:60px;'
             f'box-shadow:0 2px 10px rgba(37,99,235,0.15);">'
             f'<div style="color:var(--ta-card-text);font-weight:700;font-size:1em;">'
-            f'{icon} {title}{elap}</div></div>')
+            f'{pulse}{icon} {title}{elap}{beat}</div></div>')
 
 
 def _status_html(icon: str, title: str, subtitle: str = "", elapsed: str = "",
@@ -1968,10 +1994,20 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 pdf.cell(W, 5, "  |  ".join(stats), new_x="LMARGIN", new_y="NEXT")
                 pdf.ln(3)
 
-            # Per-question
+            # Per-question — grouped by type (Technical / Behavioral / Other)
             qs = ia.get("questions", [])
             _DEFL_LABEL = {"partial": "! PARTIALLY DEFLECTED", "full": "X DID NOT ANSWER"}
-            for q in qs:
+            _grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+            for _g in _Q_TYPE_ORDER:
+              _gq = _grouped[_g]
+              if not _gq:
+                continue
+              pdf.ln(2)
+              pdf.set_font("Helvetica", "B", 11)
+              pdf.set_text_color(*_C["header"])
+              pdf.cell(W, 6, f"{_g} Questions ({len(_gq)})", new_x="LMARGIN", new_y="NEXT")
+              pdf.set_text_color(0, 0, 0)
+              for q in _gq:
                 qid       = q.get("id", "")
                 question  = q.get("question", "")
                 sc        = q.get("score", "")
@@ -2788,7 +2824,9 @@ def _eta_panel_html(stage: str, pct: float = None, eta_secs: int = None,
     # ── Claude stage: elapsed-based simulated percentage ──────────────────────
     if stage == "claude":
         import math as _math, re as _re
-        _m = _re.match(r'(?:(\d+)m\s*)?(\d+)s', elapsed or "")
+        # elapsed may arrive as a ticking <span class="ta-tick">12m 34s</span>
+        _plain = _re.sub(r'<[^>]+>', '', elapsed or "")
+        _m = _re.match(r'(?:(\d+)m\s*)?(\d+)s', _plain)
         _elapsed_s = (int(_m.group(1) or 0) * 60 + int(_m.group(2) or 0)) if _m else 0
         if is_local:
             # Local models vary wildly by hardware — use generous estimate,
@@ -3332,6 +3370,12 @@ def process_file(
     # ── validation (all errors shown inline, no popup) ────────────────────────
     api_key = (user_api_key or "").strip()
     provider_cfg = _PROVIDERS.get(provider_name, _PROVIDERS["Claude (Anthropic)"])
+    # Local single-user install: fall back to the .env key so an empty box
+    # still works. Never on Docker/HF Spaces — a shared server must not lend
+    # the owner's key to visitors.
+    if (not api_key and provider_name == "Claude (Anthropic)"
+            and os.environ.get("GRADIO_SERVER_NAME") != "0.0.0.0"):
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "").strip()
     # API key not needed when transcription only — no AI call is made
     if not api_key and provider_name != "Ollama (Local)" and not transcription_only:
         yield _err(f"Add your {provider_name} API key at the top to get started.")
@@ -3363,6 +3407,14 @@ def process_file(
         secs = int(time.time() - start_time)
         m, s = divmod(secs, 60)
         return f"{m}m {s:02d}s" if m else f"{s}s"
+
+    def _elapsed_live():
+        # Ticking variant for active-stage panels: a global JS interval keeps
+        # updating .ta-tick[data-start] client-side every second, so the clock
+        # never freezes between server pushes. Use plain _elapsed() for final
+        # ("done") panels so they stop counting.
+        return (f'<span class="ta-tick" data-start="{int(start_time*1000)}">'
+                f'{_elapsed()}</span>')
 
     _KIND_COLORS = {
         'header':   ('#f8fafc', True),
@@ -3502,12 +3554,12 @@ def process_file(
                     else:
                         log = _add_log(f"⬇️  {recv_mb:.1f} MB  {speed/1_048_576:.1f} MB/s", "download")
                     yield _out(
-                        status=_status_compact("⬇️", "Downloading…", _elapsed()),
+                        status=_status_compact("⬇️", "Downloading…", _elapsed_live()),
                         log=log,
                     )
             except Q.Empty:
                 _dl_stall += 1
-                elapsed = _elapsed()
+                elapsed = _elapsed_live()
                 if _dl_stall == 30:
                     log = _add_log("⚠️  Still downloading… (30s with no data). Large file or slow connection.", "warn")
                     yield _out(log=log)
@@ -3527,8 +3579,8 @@ def process_file(
     # Tell the browser a job is starting — survives page refresh
     _job_js = f"<script>window.taJobStart && window.taJobStart({repr(_fname)})</script>"
     yield _out(
-        status=_status_compact("⏳", "Starting…", _elapsed()) + _job_js,
-        eta=_eta_panel_html("loading", elapsed=_elapsed()),
+        status=_status_compact("⏳", "Starting…", _elapsed_live()) + _job_js,
+        eta=_eta_panel_html("loading", elapsed=_elapsed_live()),
         log=log,
     )
 
@@ -3585,6 +3637,40 @@ def process_file(
     def on_log(msg, kind=None):
         q.put(("log", msg))
 
+    # ── Screen-name binding callback ──────────────────────────────────────────
+    # Runs ONCE before the AI analysis (inside transcript_agent.run): analyses the
+    # video, OCRs each tile's name, and binds names to diarized speakers so the
+    # report uses the real on-screen names. The VideoAnalysisResult is cached so
+    # the Step-3 delivery view reuses it instead of analysing the video twice.
+    _video_name_cache = {"res": None}
+
+    def _name_bind_cb(segments):
+        _is_vid = Path(uploaded_file).suffix.lower() in VIDEO_EXTS
+        if not (_is_vid and interview_mode and _HAS_VIDEO_ANALYZER
+                and _video_analyzer is not None):
+            return {}
+        try:
+            q.put(("log", "👥 Reading on-screen participant names from the video…"))
+            thumbs, _ = _video_analyzer.scan_faces(uploaded_file, use_gpu=bool(use_gpu))
+            pids = list(thumbs.keys())
+            _role_labels = [iv_role_0, iv_role_1, iv_role_2, iv_role_3]
+            _rm = {pid: (_role_labels[i] if i < len(_role_labels) else f"Person {i+1}")
+                   for i, pid in enumerate(pids[:int(iv_person_count or 2)])}
+            _lastb = {"b": -1}
+            def _pcb(v, info=None):
+                b = int(round((v or 0.0) * 4)) * 25
+                if b != _lastb["b"]:
+                    _lastb["b"] = b
+                    q.put(("log", f"🎥 Reading names & delivery from video… {b}%"))
+            va = _video_analyzer.analyze_video(
+                uploaded_file, _rm, sample_fps=0.5, progress_cb=_pcb, use_gpu=bool(use_gpu))
+            _video_name_cache["res"] = va
+            from video_analyzer import read_and_bind_speaker_names as _rb
+            return _rb(_video_analyzer, uploaded_file, va, segments, use_gpu=bool(use_gpu)) or {}
+        except Exception as _e:
+            print(f"[name-bind cb] {_e}")
+            return {}
+
     def background():
         try:
             result = run(
@@ -3620,6 +3706,7 @@ def process_file(
                 transcription_only=bool(transcription_only),
                 image_paths=image_files if isinstance(image_files, list) else ([image_files] if image_files else []),
                 use_gpu=bool(use_gpu),
+                name_bind_cb=_name_bind_cb,
             )
             q.put(("done", result))
         except ImportError as e:
@@ -3657,7 +3744,7 @@ def process_file(
             _OCR_OK = False
         if _OCR_OK:
             log = _add_log("👥 Scanning video for on-screen participant names…", "progress")
-            yield _out(status=_status_compact("👥", "Reading participant names from video…", _elapsed()),
+            yield _out(status=_status_compact("👥", "Reading participant names from video…", _elapsed_live()),
                        log=log)
             try:
                 _ocr_names = _video_analyzer.extract_participant_names(
@@ -3676,6 +3763,7 @@ def process_file(
 
     # ── live update loop ──────────────────────────────────────────────────────
     whisper_pct     = 0.0
+    _last_whisper_bucket = -1   # last 25%-bucket logged, to avoid 1%-by-1% log spam
     raw_shown       = False
     claude_started  = False
     stage           = "loading"
@@ -3709,7 +3797,7 @@ def process_file(
             _cancel_ev.set()
             raise
         except Q.Empty:
-            elapsed  = _elapsed()
+            elapsed  = _elapsed_live()
             quiet    = int(time.time() - last_activity)
             eta_upd  = gr.update()
 
@@ -3765,6 +3853,8 @@ def process_file(
             elif stage == "extracting":
                 yield _out(status=_status_compact("🎬", "Extracting audio…", elapsed),
                            eta=_eta_panel_html("extracting", elapsed=elapsed))
+            elif stage == "names":
+                yield _out(status=_status_compact("👥", "Reading on-screen participant names…", elapsed))
             elif stage in ("claude",) or claude_started:
                 yield _out(status=_status_compact("🤖", "Analyzing with AI…", elapsed),
                            eta=_eta_panel_html("claude", elapsed=elapsed, word_count=_word_count,
@@ -3790,7 +3880,7 @@ def process_file(
 
         elif kind == "stage":
             stage   = msg[1]
-            elapsed = _elapsed()
+            elapsed = _elapsed_live()
             if stage == "extracting":
                 log = _add_header("🎬  EXTRACTING AUDIO")
                 yield _out(status=_status_compact("🎬", "Extracting audio from video…", elapsed),
@@ -3800,6 +3890,10 @@ def process_file(
                 log = _add_log(f"Whisper {_whisper_model} loaded — transcription in progress…", "info")
                 yield _out(status=_status_compact("🎤", f"Transcribing audio…  [{_whisper_model}]", elapsed),
                            eta=_eta_panel_html("whisper", elapsed=elapsed), log=log)
+            elif stage == "names":
+                log = _add_header("👥  READING ON-SCREEN NAMES")
+                yield _out(status=_status_compact("👥", "Reading participant names off the video…", elapsed),
+                           log=log)
             elif stage == "claude" and not claude_started:
                 log = _add_header("🤖  AI ANALYSIS  (Step 2 of 2)")
                 log = _add_log(f"Sending transcript to {provider_name} — {model_name}…", "ai")
@@ -3809,24 +3903,30 @@ def process_file(
 
         elif kind == "pct":
             whisper_pct = msg[1]
-            elapsed     = _elapsed()
+            elapsed     = _elapsed_live()
             eta_s       = _eta_secs(whisper_pct)
             eta_txt     = _eta_str(whisper_pct)
-            pct_int     = int(whisper_pct * 100)
-            # Log: clean text only — ETA panel owns the visual bar
-            log_text = _add_log(
-                f"🎤 {pct_int}%{('  —  ETA ' + eta_txt) if eta_txt else ''}",
-                "progress"
-            )
+            # Snap the displayed % to the nearest 25 so it advances in clear
+            # quarter-steps (0/25/50/75/100) instead of ticking 1% at a time.
+            pct_int     = int(round(whisper_pct * 100 / 25.0) * 25)
+            # Only write a log line when the 25%-bucket changes — avoids spamming
+            # the log with a near-identical entry every second.
+            log_upd = gr.update()
+            if pct_int != _last_whisper_bucket:
+                _last_whisper_bucket = pct_int
+                log_upd = _add_log(
+                    f"🎤 {pct_int}%{('  —  ETA ' + eta_txt) if eta_txt else ''}",
+                    "progress"
+                )
             yield _out(
                 status=_status_compact("🎤", f"Transcribing…  {pct_int}%", elapsed),
                 eta=_eta_panel_html("whisper", pct=whisper_pct, eta_secs=eta_s, elapsed=elapsed),
-                log=log_text,
+                log=log_upd,
             )
 
         elif kind == "transcript":
             raw_shown     = True
-            elapsed       = _elapsed()
+            elapsed       = _elapsed_live()
             _raw_stt_text = msg[1]
             _word_count   = len(_raw_stt_text.split())
             # Interim cache save (no lang/segments yet — updated fully on "done")
@@ -3897,7 +3997,7 @@ def process_file(
                 log_text = _add_log("━━━ Step 3 of 3 — Video Delivery Analysis ━━━", "info")
                 log_text = _add_log("🎥 Scanning faces and analysing delivery — this may take a minute…", "ai")
                 yield _out(
-                    status=_status_compact("🎥", "Step 3 of 3 — Video delivery…", _elapsed()),
+                    status=_status_compact("🎥", "Step 3 of 3 — Video delivery…", _elapsed_live()),
                     log=log_text,
                 )
                 _va_q: Q.Queue = Q.Queue()
@@ -3918,10 +4018,23 @@ def process_file(
                     except Exception as _e:
                         _va_q.put(("err", str(_e)))
 
-                _va_t = threading.Thread(target=_va_worker, daemon=True)
-                _va_t.start()
+                # Reuse the analysis already run during the name-reading pass
+                # (before the AI step) so the video is never processed twice.
+                _cached_va = _video_name_cache["res"]
+                if _cached_va is not None and not getattr(_cached_va, "error", None):
+                    _va_q.put(("done", _cached_va))
+                    _va_t = None
+                else:
+                    _va_t = threading.Thread(target=_va_worker, daemon=True)
+                    _va_t.start()
 
-                while _va_t.is_alive() or not _va_q.empty():
+                # Video analysis is the slowest stage and can look "frozen".
+                # Pad the displayed ETA by a fixed buffer so it always shows a
+                # comfortable amount of time remaining (user knows it's alive),
+                # and snap progress to 25% buckets so the log isn't spammed.
+                _VIDEO_ETA_PAD   = 35 * 60   # seconds (~35 min cushion)
+                _last_video_bucket = -1
+                while (_va_t is not None and _va_t.is_alive()) or not _va_q.empty():
                     if _cancel_ev.is_set():
                         break
                     try: _va_msg = _va_q.get(timeout=1.0)
@@ -3929,7 +4042,8 @@ def process_file(
                         yield _NOCHANGE  # keepalive so Gradio stream doesn't freeze
                         continue
                     if _va_msg[0] == "pct":
-                        _pct = int(_va_msg[1] * 100)
+                        # Snap to nearest 25% so the bar moves in clear quarters.
+                        _pct = int(round(_va_msg[1] * 100 / 25.0) * 25)
                         _info = _va_msg[2] if len(_va_msg) > 2 else None
                         _detail = ""
                         if _info:
@@ -3937,13 +4051,18 @@ def process_file(
                             if _d and _t:
                                 _detail += f" (frame {_d}/{_t}"
                                 if _eta is not None:
-                                    _m, _s = divmod(int(_eta), 60)
+                                    # Overestimate: pad the ETA so it never looks frozen.
+                                    _m, _s = divmod(int(_eta) + _VIDEO_ETA_PAD, 60)
                                     _detail += f", ~{_m}m {_s}s left" if _m else f", ~{_s}s left"
                                 _detail += ")"
-                        log_text = _add_log(f"🎥 Video analysis {_pct}%{_detail}…", "progress")
+                        # Only log when the 25%-bucket changes — no 1%-by-1% spam.
+                        log_upd = gr.update()
+                        if _pct != _last_video_bucket:
+                            _last_video_bucket = _pct
+                            log_upd = _add_log(f"🎥 Video analysis {_pct}%{_detail}…", "progress")
                         yield _out(
-                            status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
-                            log=log_text,
+                            status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed_live()),
+                            log=log_upd,
                         )
                     elif _va_msg[0] == "done":
                         _va_res = _va_msg[1]
@@ -3964,7 +4083,7 @@ def process_file(
                     try:
                         log_text = _add_log("🤖 Claude writing interview assessment…", "ai")
                         yield _out(
-                            status=_status_compact("🤖", "Claude reviewing video results…", _elapsed()),
+                            status=_status_compact("🤖", "Claude reviewing video results…", _elapsed_live()),
                             log=log_text,
                         )
                         _persons = getattr(_va_res, "persons", {})
@@ -4165,7 +4284,7 @@ def process_file(
                 try:
                     log_text = _add_log(f"🌐 Translating transcript to {_out_lang}…", "ai")
                     yield _out(
-                        status=_status_compact("🌐", f"Translating to {_out_lang}…", _elapsed()),
+                        status=_status_compact("🌐", f"Translating to {_out_lang}…", _elapsed_live()),
                         log=log_text,
                     )
                     _display_transcript = _translate_transcript(
@@ -4528,6 +4647,29 @@ _THEME_JS = """
     m.content = 'width=device-width, initial-scale=1.0';
     document.head.appendChild(m);
   }
+})();
+
+/* ── Live elapsed clocks + heartbeat: tick client-side so the timer never
+      freezes while the server is busy transcribing ── */
+(function(){
+  function fmt(s){
+    var m = Math.floor(s/60), r = s%60;
+    return m ? m + "m " + String(r).padStart(2,"0") + "s" : r + "s";
+  }
+  setInterval(function(){
+    var now = Date.now();
+    document.querySelectorAll('.ta-tick[data-start]').forEach(function(el){
+      var t0 = parseInt(el.getAttribute('data-start'), 10);
+      if (t0 > 0) el.textContent = fmt(Math.max(0, Math.round((now - t0)/1000)));
+    });
+    document.querySelectorAll('.ta-beat[data-stamp]').forEach(function(el){
+      var ts = parseInt(el.getAttribute('data-stamp'), 10);
+      if (!(ts > 0)) return;
+      var q = Math.round((now - ts)/1000);
+      el.textContent = q <= 3 ? "⚡ live" : "⚡ active " + fmt(q) + " ago";
+      el.style.color = q > 600 ? "#f87171" : (q > 120 ? "#fbbf24" : "#22c55e");
+    });
+  }, 1000);
 })();
 
 /* ── OTA update button handler ── */
@@ -6068,9 +6210,31 @@ window.taClickUpdateBtn = function(btn) {
       var t = document.getElementById('ta-results-tabs') || document.getElementById('ta-eta-panel');
       if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+    /* Instant click acknowledgement: the analyze job can take 30-90 s to send
+       its first server update when a just-uploaded video is still being
+       face-scanned. Show a "queued" card immediately so the click never
+       feels ignored. The first real server yield overwrites it. */
+    function instantFeedback() {
+      var panel = document.getElementById('ta-eta-panel');
+      var idle = !panel || panel.innerHTML.indexOf('Upload a file') !== -1
+                       || panel.innerHTML.indexOf('ta-done-panel') !== -1;
+      if (!idle) return;
+      var st = document.getElementById('ta-status-bar');
+      if (st) {
+        st.innerHTML = (
+          '<div style="background:var(--ta-card-bg);border:3px solid var(--ta-step-act-bdr);'
+          + 'border-radius:10px;padding:16px 20px;font-size:1.05em;font-family:sans-serif;min-height:60px;'
+          + 'box-shadow:0 2px 10px rgba(37,99,235,0.15);">'
+          + '<div style="color:var(--ta-card-text);font-weight:700;">⏳ Queued — preparing your analysis…</div>'
+          + '<div style="color:var(--ta-card-sub);font-size:0.82em;margin-top:4px;">'
+          + 'Just uploaded a video? The face scan finishes first — this can take a minute.</div></div>'
+        );
+      }
+    }
     function doAnalyze() {
       var btn = document.querySelector('#ta-analyze-btn, button.ta-analyze-btn');
       if (!btn) return;
+      instantFeedback();
       btn.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
       setTimeout(scrollToResults, 300);
     }
@@ -6106,6 +6270,7 @@ window.taClickUpdateBtn = function(btn) {
         if (mb.dataset.taScrollWired) return;
         mb.dataset.taScrollWired = '1';
         mb.addEventListener('click', function() {
+          instantFeedback();
           setTimeout(scrollToResults, 300);
         });
       });
@@ -7906,6 +8071,10 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
                         wrap=True,
                     )
                     history_selected_summary = gr.Markdown(value="", label="Session Summary")
+                    history_download = gr.File(
+                        label="📥 Download session files",
+                        file_count="multiple", interactive=False, visible=False,
+                    )
                     history_full_analysis    = gr.HTML(value="", visible=False, elem_id="ta-history-full")
 
                     with gr.Accordion("🗑 Trash", open=False):
@@ -8325,7 +8494,9 @@ html.dark .ta-footer-txt{{color:#94a3b8;}}
         entries = load_history(HISTORY_PATH)
         idx = evt.index[0] if hasattr(evt, "index") else 0
         if not entries or idx >= len(entries):
-            return "_No session data found._", None, gr.update(interactive=False)
+            return ("_No session data found._", None, gr.update(interactive=False),
+                    gr.update(interactive=False), gr.update(value="", visible=False),
+                    gr.update(value=None, visible=False))
         e = entries[idx]
         tok_in  = e.get("tok_in",  0) or 0
         tok_out = e.get("tok_out", 0) or 0
@@ -8377,19 +8548,24 @@ html.dark .ta-footer-txt{{color:#94a3b8;}}
                     + "  \n\n"
                 )
         has_json = bool(e.get("paths", {}).get("json")) and Path(e["paths"]["json"]).is_file()
+        # Collect every saved output file that still exists so the user can
+        # download them straight from History.
+        dl_files = [p for p in (e.get("paths") or {}).values()
+                    if p and Path(p).is_file()]
         return (
             md,
             e.get("id"),
             gr.update(interactive=True),
             gr.update(interactive=has_json),
             gr.update(value="", visible=False),
+            gr.update(value=dl_files or None, visible=bool(dl_files)),
         )
 
     history_refresh_btn.click(fn=refresh_history, outputs=history_table)
     history_table.select(
         fn=load_history_row,
         outputs=[history_selected_summary, history_selected_id, history_delete_btn,
-                 history_rerender_btn, history_full_analysis],
+                 history_rerender_btn, history_full_analysis, history_download],
     )
 
     # ── Re-render full analysis from saved _full.json ────────────────────────

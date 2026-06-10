@@ -15,6 +15,7 @@ from __future__ import annotations
 import cv2
 import math
 import os
+import platform as _platform
 import tempfile
 import time
 import urllib.request
@@ -44,6 +45,68 @@ try:
     _HAS_FER = True
 except Exception:
     _HAS_FER = False
+
+try:
+    import easyocr as _easyocr
+    _HAS_OCR = True
+except Exception:
+    _HAS_OCR = False
+
+# Lazily-created singleton OCR reader (model load is slow — do it once).
+_OCR_READER = {"r": None, "gpu": None}
+
+
+def _get_ocr_reader(use_gpu: bool = False):
+    """Return a cached easyocr.Reader, or None if easyocr isn't installed."""
+    if not _HAS_OCR:
+        return None
+    if _OCR_READER["r"] is None or _OCR_READER["gpu"] != use_gpu:
+        try:
+            _OCR_READER["r"] = _easyocr.Reader(["en"], gpu=bool(use_gpu), verbose=False)
+            _OCR_READER["gpu"] = use_gpu
+        except Exception as e:
+            print(f"[VA] OCR reader init failed: {e}")
+            return None
+    return _OCR_READER["r"]
+
+
+# Text that shows up on meeting / OS / browser UIs but is never a participant name.
+_OCR_STOPWORDS = {
+    # meeting apps & controls
+    "nextcloud", "zoom", "teams", "microsoft", "google", "meet", "webex",
+    "mute", "unmute", "muted", "leave", "join", "joining", "chat", "share",
+    "screen", "recording", "rec", "participants", "people", "view", "gallery",
+    "speaker", "more", "stop", "start", "camera", "video", "audio", "raise",
+    "hand", "reactions", "settings", "you", "host", "guest", "live", "end",
+    "call", "meeting", "present", "presenting", "pinned", "spotlight", "talk",
+    # OS / browser / login chrome that leaks into screen recordings
+    "windows", "sign", "signin", "login", "logout", "logout", "register",
+    "password", "email", "username", "search", "home", "back", "next",
+    "cancel", "submit", "download", "upload", "file", "edit", "save", "open",
+    "close", "menu", "profile", "account", "help", "need", "support", "loading",
+    "untitled", "tab", "new", "page", "click", "here", "welcome", "continue",
+}
+
+
+def _looks_like_name(token: str) -> bool:
+    """Heuristic: is this OCR token plausibly a person's display name?"""
+    t = (token or "").strip().strip(".,:;|-_•").strip()
+    if not (2 <= len(t) <= 30):
+        return False
+    # Reject anything with digits or sentence punctuation — names don't have these.
+    if any(c.isdigit() for c in t) or any(c in t for c in "?!@#/\\()[]{}"):
+        return False
+    # Must be mostly letters (allow spaces, ., ', -) — reject icons/garble.
+    letters = sum(c.isalpha() for c in t)
+    if letters < max(2, int(len(t) * 0.7)):
+        return False
+    words = t.split()
+    if len(words) > 4:
+        return False
+    if any(w.lower() in _OCR_STOPWORDS for w in words):
+        return False
+    # A display name almost always starts with a capital letter.
+    return t[0].isupper()
 
 # ── Model URLs & cache ────────────────────────────────────────────────────────
 
@@ -81,6 +144,135 @@ EMO_BGR = {
     "nervous": (0, 165, 255), "surprised": (200, 0, 200),
     "angry": (60, 20, 220),  "disgusted": (130, 0, 130),
 }
+# Question-type grouping (Technical vs Behavioral breakdown) ──────────────────
+_Q_TYPE_ORDER = ["Technical", "Behavioral", "Other"]
+
+
+def _q_type_label(q: dict) -> str:
+    """Normalise a question's 'type' field to one of _Q_TYPE_ORDER."""
+    t = (q.get("type") or "").strip().lower()
+    if t.startswith("tech"):
+        return "Technical"
+    if t.startswith("behav"):
+        return "Behavioral"
+    return "Other"
+
+
+# ── Speaker binding (read on-screen names → diarized audio speakers) ──────────
+# These are pure functions so they can be unit-tested without a video/model.
+
+def _interval_overlap(a0: float, a1: float, b0: float, b1: float) -> float:
+    """Seconds of overlap between [a0,a1] and [b0,b1] (0 if disjoint)."""
+    return max(0.0, min(a1, b1) - max(a0, b0))
+
+
+def bind_speakers_by_overlap(audio_segments, speaking_segments,
+                             min_overlap_frac: float = 0.30):
+    """Map each audio-diarized speaker to the on-screen person whose visible
+    speaking intervals overlap it most in time.
+
+    audio_segments:    [{"start": s, "end": e, "speaker": "SPEAKER_00"}, ...]
+                       (diarized audio turns, with timestamps)
+    speaking_segments: {person_id: [(start, end), ...]}  (video jaw-open turns)
+
+    Returns {audio_speaker_label: person_id}, one-to-one, greedy by overlap.
+    A binding is only kept when the overlap covers at least
+    ``min_overlap_frac`` of that audio speaker's total talk time — weak/ambiguous
+    matches are left unbound (the caller labels them 'Speaker N').
+    """
+    audio_intervals: Dict[str, List[Tuple[float, float]]] = {}
+    for seg in audio_segments or []:
+        lbl = seg.get("speaker")
+        if lbl is None:
+            continue
+        s = float(seg.get("start", 0.0) or 0.0)
+        e = float(seg.get("end", s) or s)
+        if e > s:
+            audio_intervals.setdefault(str(lbl), []).append((s, e))
+
+    audio_total = {lbl: sum(e - s for s, e in ivs)
+                   for lbl, ivs in audio_intervals.items()}
+
+    pairs: List[Tuple[float, str, int]] = []  # (overlap_secs, audio_label, person_id)
+    for lbl, aivs in audio_intervals.items():
+        for pid, pivs in (speaking_segments or {}).items():
+            ov = sum(_interval_overlap(a0, a1, b0, b1)
+                     for a0, a1 in aivs for b0, b1 in (pivs or []))
+            if ov > 0:
+                pairs.append((ov, lbl, pid))
+
+    pairs.sort(key=lambda x: x[0], reverse=True)
+    used_lbl, used_pid, mapping = set(), set(), {}
+    for ov, lbl, pid in pairs:
+        if lbl in used_lbl or pid in used_pid:
+            continue
+        tot = audio_total.get(lbl, 0.0)
+        if tot > 0 and ov < min_overlap_frac * tot:
+            continue          # too weak — leave this speaker unbound
+        mapping[lbl] = pid
+        used_lbl.add(lbl)
+        used_pid.add(pid)
+    return mapping
+
+
+def match_tiles_to_persons(tile_centroids, person_centroids, max_dist: float = 0.18):
+    """Match OCR'd name tiles (full-res pass) to analysed persons (downscaled
+    pass) by nearest normalised centroid — both are in [0,1] frame fractions, so
+    the differing pixel resolutions don't matter.
+
+    tile_centroids:   {tile_id: (cx, cy)}
+    person_centroids: {person_id: (cx, cy)}
+    Returns {person_id: tile_id} for tiles within ``max_dist`` (greedy nearest).
+    """
+    cand: List[Tuple[float, int, int]] = []  # (dist, person_id, tile_id)
+    for pid, (px, py) in (person_centroids or {}).items():
+        for tid, (tx, ty) in (tile_centroids or {}).items():
+            d = ((px - tx) ** 2 + (py - ty) ** 2) ** 0.5
+            if d <= max_dist:
+                cand.append((d, pid, tid))
+    cand.sort(key=lambda x: x[0])
+    used_p, used_t, out = set(), set(), {}
+    for d, pid, tid in cand:
+        if pid in used_p or tid in used_t:
+            continue
+        out[pid] = tid
+        used_p.add(pid)
+        used_t.add(tid)
+    return out
+
+
+def read_and_bind_speaker_names(analyzer, video_path, va_result, audio_segments,
+                                use_gpu: bool = False, progress_cb=None):
+    """End-to-end: read on-screen tile names and bind each to the diarized audio
+    speaker it belongs to.
+
+    Steps: OCR each tile's name (full-res) → match tiles to analysed persons by
+    position → bind persons to audio speakers by speaking-time overlap.
+
+    Returns ``{audio_speaker_label: real_name}`` for confidently bound speakers
+    (no guessing — only names actually read off the screen), or ``{}``.
+    """
+    if analyzer is None or va_result is None:
+        return {}
+    tile_names = analyzer.extract_tile_names(
+        video_path, use_gpu=use_gpu, progress_cb=progress_cb)
+    if not tile_names:
+        return {}
+    tile_centroids = {tid: info["centroid"] for tid, info in tile_names.items()}
+    person_to_tile = match_tiles_to_persons(
+        tile_centroids, getattr(va_result, "person_centroids", {}) or {})
+    person_names = {pid: tile_names[tid]["name"]
+                    for pid, tid in person_to_tile.items() if tid in tile_names}
+    binding = bind_speakers_by_overlap(
+        audio_segments, getattr(va_result, "speaking_segments", {}) or {})
+    out = {}
+    for spk, pid in binding.items():
+        nm = person_names.get(pid)
+        if nm:
+            out[spk] = nm
+    return out
+
+
 ROLE_BGR = {
     "Candidate": (255, 120, 0), "Interviewer 1": (0, 180, 0),
     "Interviewer 2": (220, 0, 220), "Interviewer 3": (200, 200, 0),
@@ -124,6 +316,8 @@ class FaceFrame:
     posture:        str                = "unknown"
     is_speaking:    bool               = False
     body_language:  Optional[BodyLanguageSummary] = None
+    norm_cx:        float              = 0.0   # bbox centre as a frame fraction
+    norm_cy:        float              = 0.0   # (resolution-independent position)
 
 
 @dataclass
@@ -177,6 +371,9 @@ class VideoAnalysisResult:
     # Per-person speaking intervals built from jaw-open detection:
     # {person_id: [(start_sec, end_sec), ...]}
     speaking_segments:    Dict[int, List[Tuple[float, float]]] = field(default_factory=dict)
+    # Per-person normalised tile centre (cx, cy) — used to match on-screen OCR'd
+    # name tiles to analysed persons regardless of frame resolution.
+    person_centroids:     Dict[int, Tuple[float, float]] = field(default_factory=dict)
 
 
 # ── Face centroid tracker ─────────────────────────────────────────────────────
@@ -237,22 +434,43 @@ class _CentroidTracker:
 
 # ── Main VideoAnalyzer ────────────────────────────────────────────────────────
 
+# Cached result of probing the MediaPipe GPU delegate on this machine.
+#   None  = not probed yet
+#   True  = GPU delegate works (used for inference)
+#   False = GPU unavailable here → CPU only (don't keep retrying GPU init)
+_MP_GPU_STATE = {"works": None}
+
+
 class VideoAnalyzer:
 
-    @staticmethod
-    def _mp_delegate(use_gpu: bool):
-        """Return mediapipe GPU delegate when use_gpu=True and GPU is available, else CPU."""
-        if not use_gpu:
-            return _mp_tasks.BaseOptions.Delegate.CPU
-        try:
+    @classmethod
+    def _mp_delegate(cls, use_gpu: bool):
+        """Return the MediaPipe delegate to use.
+
+        Picks GPU only when the caller wants it AND a previous probe hasn't
+        already proven the GPU delegate unusable on this machine (e.g. MediaPipe
+        Tasks has no GPU delegate on Windows → it's CPU-only there). The probe
+        result is cached so we don't repeatedly attempt — and fail — GPU init."""
+        if use_gpu and _MP_GPU_STATE["works"] is not False:
             return _mp_tasks.BaseOptions.Delegate.GPU
-        except Exception:
-            return _mp_tasks.BaseOptions.Delegate.CPU
+        return _mp_tasks.BaseOptions.Delegate.CPU
+
+    @staticmethod
+    def _note_gpu_result(ok: bool):
+        """Remember whether the MediaPipe GPU delegate actually worked, and
+        announce the active compute device exactly once."""
+        if _MP_GPU_STATE["works"] is None:
+            _MP_GPU_STATE["works"] = ok
+            if ok:
+                print("[VA] Compute device: GPU (MediaPipe GPU delegate)")
+            else:
+                print(f"[VA] Compute device: CPU (GPU delegate unavailable on "
+                      f"{_platform.system()}; MediaPipe Tasks GPU is Linux/Android only)")
 
     def _safe_create_face_lm(self, model_path: str, use_gpu: bool, **kwargs):
         """Create FaceLandmarker, automatically falling back to CPU if GPU/EGL init fails."""
         delegates = [self._mp_delegate(use_gpu)]
-        if use_gpu:
+        if use_gpu and delegates[0] != _mp_tasks.BaseOptions.Delegate.CPU:
             delegates.append(_mp_tasks.BaseOptions.Delegate.CPU)
         last_exc = None
         for delegate in delegates:
@@ -261,11 +479,13 @@ class VideoAnalyzer:
                     base_options=_mp_tasks.BaseOptions(model_asset_path=model_path, delegate=delegate),
                     **kwargs
                 )
-                return _mp_vision.FaceLandmarker.create_from_options(opts)
+                lm = _mp_vision.FaceLandmarker.create_from_options(opts)
+                self._note_gpu_result(delegate == _mp_tasks.BaseOptions.Delegate.GPU)
+                return lm
             except Exception as e:
                 last_exc = e
-                if delegate != delegates[-1]:
-                    print(f"[VA] FaceLandmarker GPU init failed ({type(e).__name__}), retrying with CPU…")
+                if delegate == _mp_tasks.BaseOptions.Delegate.GPU:
+                    self._note_gpu_result(False)
         raise last_exc
 
     # ── Public API: uploaded-video pipeline ───────────────────────────────────
@@ -291,12 +511,18 @@ class VideoAnalyzer:
         thumbs: Dict[int, str] = {}
         seen_count: Dict[int, int] = {}   # pid → frames seen
         ivl   = max(1, int(fps * 2))
+        # Bound the scan pass too (face-ID only needs a coarse sampling).
+        if tot > 0:
+            ivl = max(ivl, math.ceil(tot / self._MAX_SAMPLES))
+        n_scan = max(1, (tot // ivl) if tot > 0 else self._MAX_SAMPLES)
         idx   = 0
         total_scanned = 0
         while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break
+            if not cap.grab(): break
             if idx % ivl == 0:
+                ret, frame = cap.retrieve()
+                if not ret: break
+                frame = self._downscale(frame)
                 h, w = frame.shape[:2]
                 rgb  = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 mpi  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -314,7 +540,7 @@ class VideoAnalyzer:
                             cv2.imwrite(p, cv2.resize(crop, (120, 160)))
                             thumbs[pid] = p
                 total_scanned += 1
-                if progress_cb: progress_cb(min(0.3, idx / tot * 0.35))
+                if progress_cb: progress_cb(min(0.3, (total_scanned / n_scan) * 0.3))
             idx += 1
         cap.release(); lm.close()
 
@@ -327,6 +553,167 @@ class VideoAnalyzer:
         )[:4]
         thumbs = {pid: thumbs[pid] for pid in stable if pid in thumbs}
         return thumbs, dur
+
+    def extract_participant_names(
+        self, video_path: str, max_frames: int = 6, use_gpu: bool = False,
+        progress_cb=None,
+    ) -> List[str]:
+        """Read the on-screen participant names from a meeting recording
+        (Teams / Google Meet / Zoom / Nextcloud, etc.).
+
+        These apps print each participant's display name at the bottom of their
+        video tile — visible even when their camera is off. We OCR the bottom
+        strip of a handful of evenly-spaced frames, keep name-like text, and
+        return the names ordered by how often they appear (most frequent first).
+        Returns [] if easyocr isn't installed or nothing name-like is found.
+        """
+        reader = _get_ocr_reader(use_gpu)
+        if reader is None:
+            return []
+        from collections import Counter
+        cap = cv2.VideoCapture(video_path)
+        tot = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+        # Spread sample points across the recording; skip the very start/end.
+        if tot > 0:
+            pts = [int(tot * f) for f in
+                   [i / (max_frames + 1) for i in range(1, max_frames + 1)]]
+        else:
+            pts = list(range(0, max_frames * 300, 300))
+        counts: Counter = Counter()
+        conf_sum: Dict[str, float] = {}
+        for n, fidx in enumerate(pts):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, fidx)
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                continue
+            h, w = frame.shape[:2]
+            # Bottom 22% strip — where every tile's name label lives.
+            strip = frame[int(h * 0.78):h, 0:w]
+            try:
+                res = reader.readtext(strip, detail=1, paragraph=False)
+            except Exception:
+                res = []
+            for _box, txt, conf in res:
+                if conf < 0.35:
+                    continue
+                # Strip trailing mic/camera glyphs OCR'd as punctuation.
+                name = (txt or "").strip().strip("&|.,:;-_ ").strip()
+                if _looks_like_name(name):
+                    key = name.title()
+                    counts[key] += 1
+                    conf_sum[key] = conf_sum.get(key, 0.0) + float(conf)
+            if progress_cb:
+                progress_cb((n + 1) / len(pts))
+        cap.release()
+        # Require a name to appear in at least 2 sampled frames when we have
+        # enough samples — real participants persist; transient UI text doesn't.
+        min_count = 2 if len(pts) >= 4 else 1
+        kept = [k for k in counts if counts[k] >= min_count]
+        if not kept:                       # nothing persisted — fall back to any hit
+            kept = list(counts)
+        # Order by frequency, then total confidence.
+        kept.sort(key=lambda k: (counts[k], conf_sum[k]), reverse=True)
+        # Merge near-duplicate OCR variants (e.g. "Yefter Santos"/"Yefter Santol"),
+        # keeping the higher-ranked spelling.
+        from difflib import SequenceMatcher
+        merged: List[str] = []
+        for name in kept:
+            if any(SequenceMatcher(None, name.lower(), m.lower()).ratio() >= 0.82
+                   for m in merged):
+                continue
+            merged.append(name)
+        return merged
+
+    def extract_tile_names(
+        self, video_path: str, max_frames: int = 10, use_gpu: bool = False,
+        progress_cb=None,
+    ) -> Dict[int, dict]:
+        """Read each participant's name from the label under their *own* video
+        tile, tracking tiles across full-resolution frames so a name can later be
+        bound to the right diarized speaker.
+
+        Unlike :meth:`extract_participant_names` (which just collects the set of
+        names on screen), this keeps a per-tile identity and position. Late
+        joiners are handled naturally — a tile that first appears late is still
+        tracked and named, with ``first_seen`` recording when they joined.
+
+        Returns ``{tile_id: {"name", "centroid": (cx, cy), "first_seen",
+        "last_seen", "votes"}}`` (centroid is a [0,1] frame fraction), or ``{}``
+        if OCR isn't available. Full-resolution frames are used so the small tile
+        name text stays legible (the analysis pass downscales and would not).
+        """
+        reader = _get_ocr_reader(use_gpu)
+        if reader is None:
+            return {}
+        from collections import Counter
+        cap = cv2.VideoCapture(video_path)
+        tot = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        if tot > 0:
+            pts = [int(tot * (i / (max_frames + 1))) for i in range(1, max_frames + 1)]
+        else:
+            pts = list(range(0, max_frames * 300, 300))
+
+        trk = _CentroidTracker(max_gone=max_frames, max_dist=240, min_hits=1)
+        haar = self._get_haar()
+        votes: Dict[int, Counter] = defaultdict(Counter)
+        confs: Dict[int, float] = defaultdict(float)
+        cents: Dict[int, list] = defaultdict(list)
+        seen_ts: Dict[int, list] = {}
+
+        for n, fidx in enumerate(pts):
+            cap.set(cv2.CAP_PROP_POS_FRAMES, fidx)
+            ok, frame = cap.read()
+            if not ok or frame is None:
+                continue
+            ts = fidx / fps
+            h, w = frame.shape[:2]
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces = haar.detectMultiScale(
+                gray, scaleFactor=1.1, minNeighbors=5,
+                minSize=(max(24, w // 40), max(24, h // 40)),
+            )
+            trkd = trk.update([tuple(int(v) for v in f) for f in faces])
+            for tid, (x, y, fw, fh) in trkd.items():
+                cents[tid].append(((x + fw / 2) / w, (y + fh / 2) / h))
+                st = seen_ts.setdefault(tid, [ts, ts])
+                st[1] = ts
+                # Name label sits in a band just below the face tile.
+                ny0, ny1 = min(h, y + fh), min(h, y + fh + int(fh * 0.9))
+                nx0, nx1 = max(0, x - int(fw * 0.4)), min(w, x + fw + int(fw * 0.6))
+                if ny1 <= ny0 or nx1 <= nx0:
+                    continue
+                try:
+                    found = reader.readtext(frame[ny0:ny1, nx0:nx1],
+                                            detail=1, paragraph=False)
+                except Exception:
+                    found = []
+                for _box, txt, conf in found:
+                    if conf < 0.4:
+                        continue
+                    name = (txt or "").strip().strip("&|.,:;-_ ").strip()
+                    if _looks_like_name(name):
+                        votes[tid][name.title()] += 1
+                        confs[tid] += float(conf)
+            if progress_cb:
+                progress_cb((n + 1) / len(pts))
+        cap.release()
+
+        out: Dict[int, dict] = {}
+        for tid, ctr in votes.items():
+            if not ctr:
+                continue
+            name, _ = ctr.most_common(1)[0]
+            pc = cents.get(tid, [])
+            centroid = ((sum(p[0] for p in pc) / len(pc),
+                         sum(p[1] for p in pc) / len(pc)) if pc else (0.5, 0.5))
+            st = seen_ts.get(tid, [0.0, 0.0])
+            out[tid] = {
+                "name": name, "centroid": centroid,
+                "first_seen": st[0], "last_seen": st[1],
+                "votes": sum(ctr.values()),
+            }
+        return out
 
     def analyze_video(
         self,
@@ -350,6 +737,10 @@ class VideoAnalyzer:
             r.error = f"Analysis failed: {exc}\n{traceback.format_exc()}"
             return r
 
+    # Hard caps so a long recording never takes hours / looks frozen.
+    _MAX_SAMPLES   = 600    # max frames actually analysed, regardless of length
+    _PROC_MAX_W    = 960    # downscale wide frames before detection (px)
+
     def _run_upload(self, video_path, role_map, sample_fps, progress_cb, cultural_mode, annotate=False, use_gpu=True):
         fl   = _ensure_model(_FACE_LANDMARKER_URL, "face_landmarker.task")
         try:   pl = _ensure_model(_POSE_LANDMARKER_URL, "pose_landmarker_lite.task")
@@ -360,6 +751,11 @@ class VideoAnalyzer:
         tot  = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         dur  = tot / fps
         ivl  = max(1, int(fps / sample_fps))
+        # Bound total analysed frames: for long videos widen the stride so we
+        # never process more than _MAX_SAMPLES frames (keeps runtime predictable).
+        if tot > 0:
+            ivl = max(ivl, math.ceil(tot / self._MAX_SAMPLES))
+        n_samples = max(1, (tot // ivl) if tot > 0 else self._MAX_SAMPLES)
 
         face_lm = self._safe_create_face_lm(
             fl, use_gpu,
@@ -370,7 +766,10 @@ class VideoAnalyzer:
         )
         pose_lm = None
         if pl:
-            for _delegate in ([self._mp_delegate(use_gpu)] + ([_mp_tasks.BaseOptions.Delegate.CPU] if use_gpu else [])):
+            _pose_delegates = [self._mp_delegate(use_gpu)]
+            if use_gpu and _pose_delegates[0] != _mp_tasks.BaseOptions.Delegate.CPU:
+                _pose_delegates.append(_mp_tasks.BaseOptions.Delegate.CPU)
+            for _delegate in _pose_delegates:
                 try:
                     pose_lm = _mp_vision.PoseLandmarker.create_from_options(
                         _mp_vision.PoseLandmarkerOptions(
@@ -382,23 +781,34 @@ class VideoAnalyzer:
                     )
                     break
                 except Exception as e:
-                    if _delegate == _mp_tasks.BaseOptions.Delegate.CPU:
-                        print(f"[VA] PoseLandmarker failed: {e}")
+                    if _delegate == _mp_tasks.BaseOptions.Delegate.GPU:
+                        self._note_gpu_result(False)
                     else:
-                        print(f"[VA] PoseLandmarker GPU init failed, retrying with CPU…")
+                        print(f"[VA] PoseLandmarker failed: {e}")
 
         trk        = _CentroidTracker(max_gone=int(fps * 3), max_dist=200)
         pitch_hist = deque(maxlen=8)
         all_frames: List[List[FaceFrame]] = []
         first_seen: Dict[int, float] = {}
         idx = 0
+        done = 0
+        t_start = time.time()
         while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret: break
+            # grab() advances one frame without decoding it (cheap); we only
+            # retrieve()/decode the frames we actually sample.
+            if not cap.grab(): break
             if idx % ivl == 0:
+                ret, frame = cap.retrieve()
+                if not ret: break
+                frame = self._downscale(frame)
                 ffs = self._proc(frame, idx / fps, trk, face_lm, pose_lm, first_seen, pitch_hist, use_gpu=use_gpu)
                 all_frames.append(ffs)
-                if progress_cb: progress_cb(min(0.72, 0.05 + idx / tot * 0.67))
+                done += 1
+                if progress_cb:
+                    frac = min(0.72, 0.05 + (done / n_samples) * 0.67)
+                    elapsed = time.time() - t_start
+                    eta = int(elapsed / done * (n_samples - done)) if done else None
+                    progress_cb(frac, {"done": done, "total": n_samples, "eta": eta})
             idx += 1
         cap.release()
         # MediaPipe model teardown can deadlock on Windows — close with timeout
@@ -422,6 +832,17 @@ class VideoAnalyzer:
         return result
 
     # ── Frame processing helpers ──────────────────────────────────────────────
+
+    def _downscale(self, frame):
+        """Shrink wide frames before detection — large speedup, negligible
+        accuracy loss for delivery analysis (tracker/pose/blendshapes are
+        scale-invariant; absolute bbox pixels are only used for annotation)."""
+        h, w = frame.shape[:2]
+        if w > self._PROC_MAX_W:
+            s = self._PROC_MAX_W / w
+            frame = cv2.resize(frame, (self._PROC_MAX_W, int(h * s)),
+                               interpolation=cv2.INTER_AREA)
+        return frame
 
     def _lm_to_bboxes(self, res, h, w) -> List[Tuple]:
         bbs = []
@@ -548,6 +969,8 @@ class VideoAnalyzer:
                 eye_contact=ec, yaw=yaw, pitch=pitch, roll=roll,
                 posture=posture, is_speaking=(jaw > 0.18),
                 body_language=bl,
+                norm_cx=((x + fw / 2) / w) if w else 0.0,
+                norm_cy=((y + fh / 2) / h) if h else 0.0,
             ))
         return out
 
@@ -846,6 +1269,11 @@ class VideoAnalyzer:
             ps   = self._score_person(pid, role, ffs, tot_sp, cultural_mode)
             ps.appeared_at_second = first_seen.get(pid, 0.0)
             result.persons[pid] = ps
+            _cxs = [f.norm_cx for f in ffs if f.norm_cx]
+            _cys = [f.norm_cy for f in ffs if f.norm_cy]
+            if _cxs and _cys:
+                result.person_centroids[pid] = (sum(_cxs) / len(_cxs),
+                                                sum(_cys) / len(_cys))
 
         if len(result.persons) >= 2:
             result.rapport_score      = self._rapport(pf)
@@ -1266,69 +1694,42 @@ class VideoAnalyzer:
             html += (f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">'
                      + delivery_card + content_card + f'</div>')
 
-            # ── Full question-by-question breakdown ───────────────────────────
+            # ── Questions asked — compact list (question + score badge only) ──
             if q_summary:
                 _Q_COL = {"Great":"#22c55e","Good":"#3b82f6",
                           "Needs Improvement":"#f59e0b","Missed":"#ef4444"}
-                _Q_BG  = {"Great":"#f0fdf4","Good":"#eff6ff",
-                          "Needs Improvement":"#fffbeb","Missed":"#fef2f2"}
+                _GRP_COL = {"Technical":"#6366f1","Behavioral":"#0ea5e9","Other":"#94a3b8"}
                 html += ('<div style="border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;'
                          'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
                          '<div style="font-weight:800;color:#1e293b;margin-bottom:14px;font-size:0.95em;">'
-                         '📋 Question-by-Question Breakdown</div>')
-                all_qs = ia.get("questions", [])
-                for q in all_qs:
-                    sc_lbl  = q.get("score","")
-                    sc_col  = _Q_COL.get(sc_lbl,"#94a3b8")
-                    sc_bg   = _Q_BG.get(sc_lbl,"#f8fafc")
-                    reason  = q.get("score_reason","")
-                    said    = q.get("answer_said") or q.get("answer_summary","")
-                    ideal   = q.get("model_answer") or q.get("ideal_answer","")
-                    tip     = q.get("coaching_tip","")
-                    defl    = (q.get("deflection") or "none").lower()
-                    qid     = q.get("id","")
+                         '📋 Questions Asked</div>')
+                _qs_all = ia.get("questions", [])
+                _grouped = {g: [q for q in _qs_all if _q_type_label(q) == g]
+                            for g in _Q_TYPE_ORDER}
+                for _g in _Q_TYPE_ORDER:
+                    _gq = _grouped[_g]
+                    if not _gq:
+                        continue
                     html += (
-                        f'<div style="border:1.5px solid {sc_col};border-radius:12px;padding:14px 16px;'
-                        f'margin-bottom:12px;background:{sc_bg};">'
-                        # Header: Q# badge + question text + score badge
-                        f'<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:10px;">'
-                        f'<span style="background:#e2e8f0;color:#475569;font-size:0.7em;font-weight:700;'
-                        f'padding:2px 8px;border-radius:8px;white-space:nowrap;margin-top:2px;flex-shrink:0;">Q{qid}</span>'
-                        f'<span style="font-size:0.88em;font-weight:600;color:#1e293b;flex:1;">{q.get("question","")}</span>'
-                        f'<span style="background:{sc_col};color:#fff;font-size:0.7em;font-weight:700;'
-                        f'padding:2px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;">{sc_lbl or "—"}</span>'
-                        f'</div>'
+                        f'<div style="margin:12px 0 6px;font-size:0.78em;font-weight:800;'
+                        f'text-transform:uppercase;letter-spacing:.05em;color:{_GRP_COL[_g]};'
+                        f'border-bottom:2px solid {_GRP_COL[_g]};padding-bottom:4px;">'
+                        f'{_g} Questions · {len(_gq)}</div>'
                     )
-                    if reason:
-                        html += (f'<div style="font-size:0.78em;color:#64748b;margin-bottom:8px;">'
-                                 f'<em>{reason}</em></div>')
-                    defl_note = q.get("deflection_note","")
-                    if defl in ("partial","full"):
-                        _defl_col = "#f59e0b" if defl == "partial" else "#ef4444"
-                        _defl_lbl = "⚠️ Partially deflected" if defl == "partial" else "🚫 Did not answer"
-                        html += (f'<div style="font-size:0.75em;font-weight:700;color:{_defl_col};'
-                                 f'margin-bottom:4px;">{_defl_lbl}</div>')
-                        if defl_note:
-                            html += (f'<div style="font-size:0.78em;color:#64748b;font-style:italic;'
-                                     f'margin-bottom:8px;">{defl_note}</div>')
-                    if said:
-                        html += (f'<div style="margin-bottom:8px;">'
-                                 f'<div style="font-size:0.72em;font-weight:700;color:#475569;'
-                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">What was said</div>'
-                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{said}</div></div>')
-                    if ideal:
-                        html += (f'<div style="margin-bottom:8px;padding:8px 10px;'
-                                 f'background:rgba(59,130,246,0.06);border-left:3px solid #3b82f6;border-radius:4px;">'
-                                 f'<div style="font-size:0.72em;font-weight:700;color:#1d4ed8;'
-                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">What you could have said</div>'
-                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{ideal}</div></div>')
-                    if tip:
-                        html += (f'<div style="padding:8px 10px;background:rgba(245,158,11,0.08);'
-                                 f'border-left:3px solid #f59e0b;border-radius:4px;">'
-                                 f'<div style="font-size:0.72em;font-weight:700;color:#92400e;'
-                                 f'text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Coaching Tip</div>'
-                                 f'<div style="font-size:0.82em;color:#374151;line-height:1.5;">{tip}</div></div>')
-                    html += '</div>'
+                    for q in _gq:
+                        sc_lbl = q.get("score","")
+                        sc_col = _Q_COL.get(sc_lbl,"#94a3b8")
+                        qid    = q.get("id","")
+                        html += (
+                            f'<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 4px;'
+                            f'border-bottom:1px solid #f1f5f9;">'
+                            f'<span style="background:#e2e8f0;color:#475569;font-size:0.7em;font-weight:700;'
+                            f'padding:2px 8px;border-radius:8px;white-space:nowrap;margin-top:2px;flex-shrink:0;">Q{qid}</span>'
+                            f'<span style="font-size:0.88em;font-weight:600;color:#1e293b;flex:1;">{q.get("question","")}</span>'
+                            f'<span style="background:{sc_col};color:#fff;font-size:0.7em;font-weight:700;'
+                            f'padding:2px 10px;border-radius:10px;white-space:nowrap;flex-shrink:0;">{sc_lbl or "—"}</span>'
+                            f'</div>'
+                        )
                 html += '</div>'
 
             # ── Deep Analysis panel ───────────────────────────────────────────
@@ -1381,14 +1782,15 @@ class VideoAnalyzer:
                          f'Arms crossed: {p.arm_crossed_pct:.0f}% of session</div></div>'
                          f'</div>')
 
-        # Interviewer cards
+        # Interviewer cards — generic "Interviewer" label (the speaker dialogue
+        # already identifies who is who, so the numbered role is redundant).
         for p in ivrs:
             c = SC(p.overall)
             html += (f'<div style="border:2px solid {c};border-radius:14px;padding:18px 20px;'
                      f'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
                      f'<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">'
                      f'<div style="background:{c};border-radius:10px;padding:6px 14px;'
-                     f'color:#fff;font-weight:800;font-size:0.9em;">{p.role}</div>'
+                     f'color:#fff;font-weight:800;font-size:0.9em;">Interviewer</div>'
                      f'<div style="font-size:1.4em;font-weight:900;color:{c};">{p.overall:.0f}</div>'
                      f'<div style="font-size:0.78em;color:#64748b;margin-left:auto;">'
                      f'Talk: {p.talk_time_pct:.0f}% · Mood: {p.dominant_emotion}</div></div>'

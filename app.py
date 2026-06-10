@@ -3635,6 +3635,7 @@ def process_file(
                 _va_t = threading.Thread(target=_va_worker, daemon=True)
                 _va_t.start()
 
+                _va_last_milestone = -1
                 while _va_t.is_alive() or not _va_q.empty():
                     if _cancel_ev.is_set():
                         break
@@ -3644,7 +3645,10 @@ def process_file(
                         continue
                     if _va_msg[0] == "pct":
                         _pct = int(_va_msg[1] * 100)
-                        log_text = _add_log(f"🎥 Video analysis {_pct}%…", "progress")
+                        _milestone = (_pct // 25) * 25
+                        if _milestone > _va_last_milestone:
+                            _va_last_milestone = _milestone
+                            log_text = _add_log(f"🎥 Video analysis {_milestone}%…", "progress")
                         yield _out(
                             status=_status_compact("🎥", f"Step 3 of 3 — Video {_pct}%…", _elapsed()),
                             log=log_text,
@@ -6498,7 +6502,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.4.4"
+APP_VERSION = "2.4.5"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

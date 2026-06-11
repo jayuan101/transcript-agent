@@ -1514,20 +1514,33 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
                   model: str = "nova-2", on_stage_change=None) -> tuple:
     try:
         import httpx as _httpx
-        from deepgram import DeepgramClient, PrerecordedOptions
+        from deepgram import DeepgramClient
     except ImportError:
         raise ImportError("deepgram-sdk required: pip install deepgram-sdk")
-    dg = DeepgramClient(api_key)
+    # deepgram-sdk ships two incompatible client APIs.  v3/v4 expose
+    # PrerecordedOptions + dg.listen.rest.v("1").transcribe_file(buffer, opts);
+    # the modern generated SDK (4.1+/7.x) drops PrerecordedOptions and uses
+    # dg.listen.v1.media.transcribe_file(request=<bytes>, **options).  Support
+    # both so the agent works regardless of which version is installed.
+    try:
+        from deepgram import PrerecordedOptions
+        _dg_modern = False
+    except ImportError:
+        PrerecordedOptions = None
+        _dg_modern = True
+    # The modern SDK takes the key keyword-only; v3/v4 accept it positionally.
+    dg = DeepgramClient(api_key=api_key) if _dg_modern else DeepgramClient(api_key)
     effective_model = model or "nova-2"
     if on_log:
         on_log(f"Deepgram model: {effective_model}", "info")
     lang_kw = {"language": language} if language else {"detect_language": True}
-    opts = PrerecordedOptions(
+    _opts = dict(
         model=effective_model,
         punctuate=True, diarize=True, utterances=True,
         smart_format=True, numerals=True,
         **lang_kw,
     )
+    opts = None if _dg_modern else PrerecordedOptions(**_opts)
 
     if on_stage_change:
         on_stage_change("extracting")
@@ -1574,12 +1587,23 @@ def _stt_deepgram(path: str, api_key: str, language: str = None, on_log=None,
         on_stage_change("stt_cloud")
 
     try:
-        with open(upload_path, "rb") as f:
-            resp = dg.listen.rest.v("1").transcribe_file(
-                {"buffer": f, "mimetype": "audio/mpeg"},
-                opts,
-                timeout=_httpx.Timeout(None, connect=15.0),  # no read timeout
+        if _dg_modern:
+            with open(upload_path, "rb") as f:
+                _audio = f.read()
+            # Generous read timeout: Deepgram processes ~5x real-time, so even a
+            # multi-hour file resolves well within 4h.
+            resp = dg.listen.v1.media.transcribe_file(
+                request=_audio,
+                request_options={"timeout_in_seconds": 14400},
+                **_opts,
             )
+        else:
+            with open(upload_path, "rb") as f:
+                resp = dg.listen.rest.v("1").transcribe_file(
+                    {"buffer": f, "mimetype": "audio/mpeg"},
+                    opts,
+                    timeout=_httpx.Timeout(None, connect=15.0),  # no read timeout
+                )
     finally:
         if _tmp_audio:
             try: os.unlink(_tmp_audio)

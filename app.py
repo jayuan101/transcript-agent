@@ -368,6 +368,7 @@ _PROVIDERS = {
         "placeholder": "sk-ant-api03-…",
         "info": "console.anthropic.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
+            "claude-fable-5",
             "claude-opus-4-8",
             "claude-sonnet-4-6",
             "claude-haiku-4-5-20251001",
@@ -381,6 +382,7 @@ _PROVIDERS = {
         "placeholder": "sk-…",
         "info": "platform.openai.com → API keys · 🔒 Saved in your browser only — never on this server",
         "models": [
+            "gpt-5.5",
             "gpt-4.1",
             "gpt-4.1-mini",
             "gpt-4.1-nano",
@@ -397,6 +399,7 @@ _PROVIDERS = {
         "placeholder": "AIzaSy…",
         "info": "aistudio.google.com → Get API key · 🔒 Saved in your browser only — never on this server",
         "models": [
+            "gemini-3.5-flash",
             "gemini-2.5-pro",
             "gemini-2.5-flash",
             "gemini-2.0-flash",
@@ -2477,12 +2480,14 @@ def _out(status=gr.update(), summary=gr.update(), transcript=gr.update(),
 # Pricing: (input $/MTok, output $/MTok)
 _MODEL_PRICING: dict[str, tuple[float, float]] = {
     # Claude
+    "claude-fable-5":               (20.00, 100.00),
     "claude-opus-4-8":              (15.00, 75.00),
     "claude-sonnet-4-6":            ( 3.00, 15.00),
     "claude-haiku-4-5-20251001":    ( 0.80,  4.00),
     "claude-3-5-sonnet-20241022":   ( 3.00, 15.00),
     "claude-3-5-haiku-20241022":    ( 0.80,  4.00),
     # OpenAI
+    "gpt-5.5":                      ( 5.00, 20.00),
     "gpt-4.1":                      ( 2.00,  8.00),
     "gpt-4.1-mini":                 ( 0.40,  1.60),
     "gpt-4.1-nano":                 ( 0.10,  0.40),
@@ -2492,6 +2497,7 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "o3-mini":                      ( 1.10,  4.40),
     "o4-mini":                      ( 1.10,  4.40),
     # Gemini
+    "gemini-3.5-flash":             ( 0.20,  0.80),
     "gemini-2.5-pro":               ( 1.25, 10.00),
     "gemini-2.5-flash":             ( 0.15,  0.60),
     "gemini-2.0-flash":             ( 0.075, 0.30),
@@ -3221,7 +3227,23 @@ def _build_interview_html(ia: dict) -> str:
         "partial": ("⚠️ Deflected",      "#f59e0b", "#fffbeb", "#fde68a"),
         "full":    ("🚫 Did Not Answer", "#ef4444", "#fef2f2", "#fecaca"),
     }
-    for q in qs:
+    _QTYPE_ICON = {"Technical": "🔧", "Behavioral": "🗣", "Other": "📌"}
+    if qs:
+        html += (
+            '<div style="font-size:0.72em;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:.1em;color:#64748b;margin:20px 0 12px;">📋 Question Breakdown</div>'
+        )
+    _grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+    for _g in _Q_TYPE_ORDER:
+      _gq = _grouped[_g]
+      if not _gq:
+          continue
+      html += (
+          f'<div class="ta-q-title" style="font-size:0.92em;margin:14px 0 10px;'
+          f'border-bottom:2px solid #e2e8f0;padding-bottom:6px;">'
+          f'{_QTYPE_ICON.get(_g,"")} {_g} Questions ({len(_gq)})</div>'
+      )
+      for q in _gq:
         sc           = q.get("score", "")
         col          = _SCORE_COLOR.get(sc, "#6b7280")
         answer_said  = q.get("answer_said") or q.get("answer_summary", "")
@@ -6011,6 +6033,11 @@ window.taClickUpdateBtn = function(btn) {
     var PKEY = 'ta-provider';
     var MKEY = 'ta-model';
 
+    /* Capture the saved choice now, before watchDropdown's initial-render
+       mutation can overwrite it with the freshly-rendered default value. */
+    var SAVED_PROVIDER = localStorage.getItem(PKEY);
+    var SAVED_MODEL    = localStorage.getItem(MKEY);
+
     /* Read the currently displayed value from a Gradio dropdown container */
     function dropVal(id) {
       var el = document.getElementById(id);
@@ -6024,24 +6051,36 @@ window.taClickUpdateBtn = function(btn) {
       return '';
     }
 
+    /* Dispatch a full pointer/mouse event sequence — Gradio's dropdown
+       options listen for pointerdown/mousedown, so a plain .click() on
+       the option element is silently ignored. */
+    function fireClick(el) {
+      ['pointerdown', 'mousedown', 'mouseup', 'click'].forEach(function(type) {
+        el.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, view: window }));
+      });
+    }
+
     /* Click a named option inside a Gradio dropdown, then call cb when done */
     function pickOption(id, text, cb) {
       var el = document.getElementById(id);
       if (!el || !text) return;
-      var trigger = el.querySelector('button');
+      var trigger = el.querySelector('input[role="listbox"]') || el.querySelector('button');
       if (!trigger) return;
+      trigger.focus();
       trigger.click();                       /* open the listbox */
       setTimeout(function() {
         var opts = el.querySelectorAll('[role="option"],li');
+        /* options are rendered with a leading "✓ " marker — strip it before comparing */
         for (var i = 0; i < opts.length; i++) {
-          if (opts[i].textContent.trim() === text) {
-            opts[i].click();
+          var label = opts[i].textContent.replace(/^[\s✓✔]+/, '').trim();
+          if (label === text) {
+            fireClick(opts[i]);
             if (cb) setTimeout(cb, 800);   /* wait for Gradio server round-trip */
             return;
           }
         }
-        trigger.click();                   /* option not found — close */
-      }, 200);
+        trigger.blur();                    /* option not found — close */
+      }, 350);
     }
 
     /* Watch a dropdown and persist its value whenever it changes */
@@ -6060,14 +6099,14 @@ window.taClickUpdateBtn = function(btn) {
 
     /* On page load: restore saved provider then model */
     function restore() {
-      var provider = localStorage.getItem(PKEY);
-      var model    = localStorage.getItem(MKEY);
+      var provider = SAVED_PROVIDER;
+      var model    = SAVED_MODEL;
       if (!provider && !model) return;
 
       function tryRestore(attempt) {
         if (attempt > 20) return;
         var el = document.getElementById('provider-sel');
-        if (!el || !el.querySelector('button')) {
+        if (!el || !el.querySelector('input[role="listbox"]')) {
           setTimeout(function(){ tryRestore(attempt + 1); }, 600);
           return;
         }
@@ -7999,7 +8038,19 @@ html.dark .ta-gpu-badge-name{{color:#f1f5f9!important;}}
 
             with gr.Accordion("🎤 Interview Mode", open=False):
                 interview_toggle = gr.Checkbox(label="Enable Interview Mode — score every question and generate a coaching guide", value=False, elem_id="ta-interview-toggle")
-                interview_deep   = gr.Checkbox(label="Deep Analysis (deflection rate, advancement likelihood)", value=False, elem_id="ta-interview-deep")
+                interview_deep   = gr.Checkbox(label="Deep Analysis (deflection rate, advancement likelihood)", value=False, visible=False, elem_id="ta-interview-deep")
+                gr.HTML("""
+<div style="margin-top:10px;padding:10px 12px;background:var(--ta-card-bg,#f8fafc);
+     border:1px solid var(--ta-card-border,#e2e8f0);border-radius:10px;">
+  <div style="font-size:0.78em;font-weight:700;color:var(--ta-stat-label,#1e40af);margin-bottom:4px;">
+    📋 Question Breakdown
+  </div>
+  <div style="font-size:0.72em;color:var(--ta-card-sub,#64748b);line-height:1.5;">
+    The coaching report groups every interview question into its own section —
+    🔧 Technical, 🗣 Behavioral, and 📌 Other — each scored individually with
+    what was said, a model answer, and a coaching tip.
+  </div>
+</div>""")
                 gr.HTML("""
 <div style="margin-top:10px;padding:10px 12px;background:var(--ta-card-bg,#f8fafc);
      border:1px solid var(--ta-card-border,#e2e8f0);border-radius:10px;">

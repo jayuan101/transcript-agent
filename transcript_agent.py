@@ -762,54 +762,6 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
         mp.runs[0].font.color.rgb = _RGB["muted"]
         _set_para_spacing(mp, before=40, after=120)
 
-    # ── Summary ───────────────────────────────────────────────────────────────
-    if result.summary:
-        _add_section_heading(doc, "Summary")
-        p = doc.add_paragraph(result.summary)
-        p.runs[0].font.size = Pt(10)
-        _set_para_spacing(p, after=100)
-
-    # ── Key Points ────────────────────────────────────────────────────────────
-    if result.key_points:
-        _add_section_heading(doc, "Key Points")
-        for kp in result.key_points:
-            p = doc.add_paragraph(style="List Bullet")
-            p.add_run(kp).font.size = Pt(10)
-
-    # ── Action Items ──────────────────────────────────────────────────────────
-    if result.action_items:
-        _add_section_heading(doc, "Action Items")
-        for ai in result.action_items:
-            if isinstance(ai, dict):
-                action   = ai.get("action", ai.get("item", str(ai)))
-                owner    = ai.get("owner", "")
-                tl       = ai.get("timeline", "")
-                text     = action
-                if owner: text += f"  (Owner: {owner})"
-                if tl:    text += f"  [{tl}]"
-            else:
-                text = str(ai)
-            p = doc.add_paragraph(style="List Bullet")
-            p.add_run(text).font.size = Pt(10)
-
-    # ── Speaker Profiles ──────────────────────────────────────────────────────
-    if result.speaker_profiles:
-        _add_section_heading(doc, "Speaker Profiles")
-        for name, profile in result.speaker_profiles.items():
-            np = doc.add_paragraph()
-            np.add_run(name + ": ").bold = True
-            np.add_run(profile)
-
-    # ── Transcript ────────────────────────────────────────────────────────────
-    if result.speaker_dialogue:
-        _add_section_heading(doc, "Speaker Dialogue")
-        p = doc.add_paragraph(result.speaker_dialogue)
-        p.runs[0].font.size = Pt(9)
-    elif result.clean_transcript:
-        _add_section_heading(doc, "Transcript")
-        p = doc.add_paragraph(result.clean_transcript)
-        p.runs[0].font.size = Pt(9)
-
     # ── Interview Coaching Analysis ───────────────────────────────────────────
     ia = result.interview_analysis or {}
     if ia and not ia.get("parse_error"):
@@ -849,6 +801,65 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             vp.runs[0].italic = True
             vp.runs[0].font.color.rgb = _RGB["muted"]
             _set_para_spacing(vp, before=80, after=120)
+
+        # ── How these numbers were calculated ─────────────────────────────────
+        adv_reason = ia.get("advance_reasoning", "")
+        _exp_h = doc.add_paragraph()
+        _set_para_spacing(_exp_h, before=40, after=60)
+        _exp_hr = _exp_h.add_run("How these numbers were calculated")
+        _exp_hr.bold = True; _exp_hr.font.size = Pt(11); _exp_hr.font.color.rgb = _RGB["header"]
+
+        _exp_lines = [
+            f"Overall Score ({score}/10): a weighted judgement of every answer in the "
+            "Question Breakdown below — technical depth, behavioural responses, and communication "
+            "clarity. A higher score means stronger, more complete answers.",
+        ]
+        if adv:
+            _exp_lines.append(
+                f"Advance Likelihood ({adv}%): the estimated chance of progressing to the next "
+                "round. It climbs with strong, on-topic answers and drops when questions are "
+                "deflected or answered weakly."
+                + (f" {adv_reason}" if adv_reason else "")
+            )
+        if defl_rt:
+            _exp_lines.append(
+                f"Deflection Rate ({defl_rt}%): the share of questions that were dodged, only "
+                "partially answered, or answered off-topic. Lower is better."
+            )
+        for _t in _exp_lines:
+            _bp = doc.add_paragraph(_t)
+            _bp.runs[0].font.size = Pt(9)
+            _set_para_spacing(_bp, after=40)
+
+        # ── What went well / What to improve ──────────────────────────────────
+        _strengths  = ia.get("strengths", []) or []
+        _weaknesses = ia.get("weaknesses", []) or []
+        if _strengths:
+            _sh = doc.add_paragraph()
+            _set_para_spacing(_sh, before=80, after=10)
+            _shr = _sh.add_run("What went well")
+            _shr.bold = True; _shr.font.size = Pt(10); _shr.font.color.rgb = _RGB["great"]
+            for _s in _strengths:
+                _b = doc.add_paragraph(style="List Bullet")
+                _b.add_run(str(_s)).font.size = Pt(9)
+        if _weaknesses:
+            _wh = doc.add_paragraph()
+            _set_para_spacing(_wh, before=80, after=10)
+            _whr = _wh.add_run("What to improve")
+            _whr.bold = True; _whr.font.size = Pt(10); _whr.font.color.rgb = _RGB["ni"]
+            for _w in _weaknesses:
+                _b = doc.add_paragraph(style="List Bullet")
+                _b.add_run(str(_w)).font.size = Pt(9)
+
+        # Pointer to the detailed breakdown
+        if ia.get("questions"):
+            _ptr = doc.add_paragraph()
+            _set_para_spacing(_ptr, before=80, after=100)
+            _pr = _ptr.add_run(
+                "Want to go deeper? See the per-question Question Breakdown below for exactly "
+                "what was asked, what was said, and a model answer for each question."
+            )
+            _pr.italic = True; _pr.font.size = Pt(9); _pr.font.color.rgb = _RGB["muted"]
 
         # Per-question breakdown
         qs = ia.get("questions", [])
@@ -953,6 +964,10 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             cid     = c.get("id", "")
             problem = c.get("problem", "")
             ans     = c.get("candidate_answer", "")
+            spoken  = c.get("spoken_explanation", "")
+            written = c.get("written_code", "")
+            svc     = c.get("speech_vs_code", "")
+            sc_match= c.get("speech_code_match", "")
             sc      = c.get("score", "")
             reason  = c.get("score_reason", "")
             cappr   = c.get("candidate_approach", "")
@@ -984,7 +999,41 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             # Candidate approach + answer
             if cappr:
                 _add_labelled_block(doc, "CANDIDATE'S APPROACH", cappr, "F8FAFC", _RGB["muted"])
-            if ans:
+
+            # ── Said vs. Coded comparison ─────────────────────────────────────
+            if spoken:
+                _add_labelled_block(doc, "WHAT THEY SAID (SPOKEN)", spoken, "F8FAFC", _RGB["muted"])
+            if written:
+                lp = doc.add_paragraph()
+                _shade_paragraph(lp, "1E293B")
+                lp.paragraph_format.left_indent  = Cm(0.3)
+                lp.paragraph_format.space_before = Pt(6)
+                lp.paragraph_format.space_after  = Pt(0)
+                lr = lp.add_run("WHAT THEY CODED (ON SCREEN)")
+                lr.bold = True; lr.font.size = Pt(8)
+                lr.font.color.rgb = RGBColor(148, 163, 184)
+                for line in written.splitlines():
+                    cp = doc.add_paragraph()
+                    _shade_paragraph(cp, "0F172A")
+                    cp.paragraph_format.left_indent  = Cm(0.3)
+                    cp.paragraph_format.space_before = Pt(0)
+                    cp.paragraph_format.space_after  = Pt(0)
+                    cr = cp.add_run(line if line else " ")
+                    cr.font.name = "Courier New"; cr.font.size = Pt(8.5)
+                    cr.font.color.rgb = RGBColor(226, 232, 240)
+                ep = doc.add_paragraph()
+                _shade_paragraph(ep, "0F172A")
+                ep.paragraph_format.space_before = Pt(0)
+                ep.paragraph_format.space_after  = Pt(8)
+            if svc:
+                _MATCH_RGB = {"aligned": _RGB["great"], "minor mismatch": _RGB["ni"],
+                              "major mismatch": _RGB["missed"]}
+                _m = (sc_match or "").strip().lower()
+                _lbl = f"SAID vs CODED — {sc_match}" if sc_match else "SAID vs CODED"
+                _add_labelled_block(doc, _lbl, svc, "EFF6FF",
+                                    _MATCH_RGB.get(_m, _RGB["blue"]))
+            # Fallback to combined answer only if neither spoken nor written supplied
+            if ans and not spoken and not written:
                 _add_labelled_block(doc, "WHAT THEY SAID / DID", ans, "F1F5F9", _RGB["header"])
 
             # Optimal solution — monospace code block
@@ -1087,6 +1136,28 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             for r in bl.runs: r.font.size = Pt(9)
             _set_para_spacing(bl, after=20)
 
+            # Transparent body-language factors — why each cue helps/hurts chances
+            try:
+                from video_analyzer import delivery_factors as _delivery_factors
+                _factors = _delivery_factors(_p)
+            except Exception:
+                _factors = []
+            if _factors:
+                fh = doc.add_paragraph()
+                _set_para_spacing(fh, before=40, after=10)
+                fhr = fh.add_run("Why this affects advancement chances")
+                fhr.bold = True; fhr.font.size = Pt(10); fhr.font.color.rgb = _RGB["header"]
+                for _f in _factors:
+                    fp = doc.add_paragraph(style="List Bullet")
+                    r_lbl = fp.add_run(f"{_f['label']} ({_f['value']}): ")
+                    r_lbl.bold = True; r_lbl.font.size = Pt(9)
+                    r_lbl.font.color.rgb = (_RGB["great"] if _f["good"] else _RGB["missed"])
+                    r_imp = fp.add_run(_f["impact"])
+                    r_imp.font.size = Pt(9)
+                    r_det = fp.add_run(f"  {_f['detail']}")
+                    r_det.font.size = Pt(8); r_det.italic = True
+                    r_det.font.color.rgb = _RGB["muted"]
+
             # Cultural scores
             if _p.cultural:
                 cp = doc.add_paragraph()
@@ -1108,6 +1179,75 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             for obs in va_result.observations:
                 op = doc.add_paragraph(style="List Bullet")
                 op.add_run(obs).font.size = Pt(9)
+
+    # ── Summary ───────────────────────────────────────────────────────────────
+    if result.summary:
+        _add_section_heading(doc, "Record Summary")
+        p = doc.add_paragraph(result.summary)
+        p.runs[0].font.size = Pt(10)
+        _set_para_spacing(p, after=100)
+
+    # ── Key Points ────────────────────────────────────────────────────────────
+    if result.key_points:
+        _add_section_heading(doc, "Key Points")
+        for kp in result.key_points:
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run(kp).font.size = Pt(10)
+
+    # ── Action Items ──────────────────────────────────────────────────────────
+    if result.action_items:
+        _add_section_heading(doc, "Action Items")
+        for ai in result.action_items:
+            if isinstance(ai, dict):
+                action   = ai.get("action", ai.get("item", str(ai)))
+                owner    = ai.get("owner", "")
+                tl       = ai.get("timeline", "")
+                text     = action
+                if owner: text += f"  (Owner: {owner})"
+                if tl:    text += f"  [{tl}]"
+            else:
+                text = str(ai)
+            p = doc.add_paragraph(style="List Bullet")
+            p.add_run(text).font.size = Pt(10)
+
+    # ── Speech Analytics ──────────────────────────────────────────────
+    if result.speaker_stats:
+        _add_section_heading(doc, "Speech Analytics")
+        for s in result.speaker_stats:
+            sp_h = doc.add_paragraph()
+            _set_para_spacing(sp_h, before=80, after=10)
+            r_nm = sp_h.add_run(s.name)
+            r_nm.bold = True; r_nm.font.size = Pt(10); r_nm.font.color.rgb = _RGB["header"]
+            wpm_str = f"{s.words_per_minute:.0f} WPM" if s.words_per_minute else "N/A"
+            det = doc.add_paragraph()
+            det.add_run("Speech rate: ").bold = True
+            det.add_run(f"{wpm_str} — {s.pace_label}   ")
+            if s.speaking_percentage:
+                det.add_run("Speaking time: ").bold = True
+                det.add_run(f"{s.speaking_percentage:.0f}% of conversation   ")
+            if s.accent_indicators:
+                det.add_run("Accent: ").bold = True
+                det.add_run(s.accent_indicators)
+            for rr in det.runs: rr.font.size = Pt(9)
+            _set_para_spacing(det, after=40)
+
+    # ── Speaker Profiles ──────────────────────────────────────────────────────
+    if result.speaker_profiles:
+        _add_section_heading(doc, "Speaker Profiles")
+        for name, profile in result.speaker_profiles.items():
+            np = doc.add_paragraph()
+            np.add_run(name + ": ").bold = True
+            np.add_run(profile)
+
+    # ── Transcript ────────────────────────────────────────────────────────────
+    if result.speaker_dialogue:
+        _add_section_heading(doc, "Speaker Dialogue")
+        p = doc.add_paragraph(result.speaker_dialogue)
+        p.runs[0].font.size = Pt(9)
+    elif result.clean_transcript:
+        _add_section_heading(doc, "Transcript")
+        p = doc.add_paragraph(result.clean_transcript)
+        p.runs[0].font.size = Pt(9)
 
     doc.save(output_path)
     return True
@@ -2459,6 +2599,10 @@ Rules for model_answer — FULL DETAILED RESPONSE, NOT SUMMARISED:
       "problem": "<exact problem statement as given in the transcript>",
       "language_requested": "<the language/framework explicitly asked for in the question, or 'not specified' if none was asked>",
       "candidate_answer": "<FULL verbatim reproduction of everything the candidate said, wrote, or attempted — include every line of code they wrote or sketched, their exact reasoning, every edge case they mentioned, every mistake — preserve code formatting with newlines — DO NOT summarise, paraphrase, or shorten — if they wrote code, reproduce it exactly as written>",
+      "spoken_explanation": "<what the candidate VERBALLY said / narrated about their solution — their out-loud reasoning, the approach they described, any claims about time/space complexity, and edge cases they said they would handle. Transcribe their spoken words here; do NOT put the code itself in this field. Empty string if they wrote code silently without explaining.>",
+      "written_code": "<the actual code the candidate wrote / typed / had on screen, reproduced EXACTLY with original indentation and newlines. Empty string if they only spoke and wrote no code.>",
+      "speech_code_match": "<Aligned|Minor mismatch|Major mismatch|N/A — use N/A only when no code was written>",
+      "speech_vs_code": "<a clear comparison of what the candidate SAID versus what their CODE actually does. Call out EVERY discrepancy specifically, e.g. 'claimed O(n) but the nested loop is O(n^2)', 'said they handle empty input but the code has no guard', 'described recursion but actually wrote an iterative loop'. If the spoken explanation fully matches the code, state that explicitly. If no code was written, note that they only explained the approach verbally without implementing it.>",
       "score": "<Great|Good|Needs Improvement|Missed>",
       "score_reason": "<one sentence why — score ONLY on the language/tech that was asked; if none was specified, score on approach and algorithm correctness only — coaching_tip does NOT affect this score>",
       "candidate_approach": "<the algorithm or strategy the candidate used, e.g. 'brute force O(n²) nested loop'>",
@@ -2507,6 +2651,12 @@ CODING CHALLENGES RULES:
   language choice. Coaching tips are informational only and must NOT change the score.
 - The "optimal_solution" must be complete, runnable code with a brief inline comment. No pseudocode
   unless pseudocode was explicitly what was asked.
+- SAID vs CODED (important): Separate what the candidate VERBALLY explained ("spoken_explanation")
+  from the actual code they WROTE ("written_code"). Then in "speech_vs_code" compare the two and
+  list every discrepancy between their narration and their implementation (e.g. complexity claims
+  that don't match the code, edge cases they said they'd handle but didn't, an approach they
+  described but did not actually implement). Set "speech_code_match" to Aligned / Minor mismatch /
+  Major mismatch, or N/A if no code was written.
 
 --- DEEP MODE (only fill if requested) ---
   "deflection_rate": "<0-100 % of questions deflected>",
@@ -2913,6 +3063,10 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             cid      = c.get("id", "")
             prob     = c.get("problem", "")
             ans      = c.get("candidate_answer", "")
+            spoken   = c.get("spoken_explanation", "")
+            written  = c.get("written_code", "")
+            svc      = c.get("speech_vs_code", "")
+            sc_match = c.get("speech_code_match", "")
             sc       = c.get("score", "")
             reason   = c.get("score_reason", "")
             cappr    = c.get("candidate_approach", "")
@@ -2937,7 +3091,22 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                 sections.append(f"    Libraries Used    : {libs}")
             if cappr:
                 sections.append(f"    Candidate Approach: {cappr}")
-            if ans:
+            if spoken:
+                sections.append(f"    What they SAID (spoken):")
+                for line in spoken.splitlines():
+                    sections.append(f"      {line}")
+            if written:
+                sections.append(f"    What they CODED (on screen):")
+                sections.append(f"    " + "-" * 40)
+                for line in written.splitlines():
+                    sections.append(f"      {line}")
+                sections.append(f"    " + "-" * 40)
+            if svc:
+                hdr = f"    Said vs Coded ({sc_match}):" if sc_match else "    Said vs Coded:"
+                sections.append(hdr)
+                for line in svc.splitlines():
+                    sections.append(f"      {line}")
+            if ans and not spoken and not written:
                 sections.append(f"    What they said:")
                 for line in ans.splitlines():
                     sections.append(f"      {line}")

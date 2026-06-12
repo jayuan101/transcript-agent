@@ -376,6 +376,146 @@ class VideoAnalysisResult:
     person_centroids:     Dict[int, Tuple[float, float]] = field(default_factory=dict)
 
 
+# ── Transparent body-language → advancement factors ────────────────────────────
+
+def delivery_factors(p) -> List[dict]:
+    """Transparent, per-signal breakdown of how each visible body-language cue is
+    measured and how it affects interview advancement chances.
+
+    Pure function of PersonScore attributes so the same explanation is reused by
+    the HTML score cards and the DOCX / PDF reports. Each item is a dict:
+      {label, value, detail, impact, good}
+    - detail : how the signal is measured (transparency about *what part*)
+    - impact : whether it is helping or hurting chances, and why
+    - good   : True if the cue helps, False if it hurts / is mixed
+    """
+    ed = getattr(p, "emotion_distribution", {}) or {}
+    happy_pct   = round(ed.get("happy", 0.0) * 100)
+    nervous_pct = round(ed.get("nervous", 0.0) * 100)
+    factors: List[dict] = []
+
+    _SMILE_DETAIL = "Measured from facial expression as the share of frames with a visible smile."
+    if happy_pct < 15:
+        factors.append({
+            "label": "Smiling / warmth",
+            "value": f"smiled ~{happy_pct}% of the time",
+            "detail": _SMILE_DETAIL,
+            "impact": ("HURTING chances — rarely smiling reads as flat or disengaged. A warm, "
+                       "genuine smile (especially when greeting and answering) signals enthusiasm "
+                       "and likability, which interviewers weigh heavily."),
+            "good": False,
+        })
+    elif happy_pct < 35:
+        factors.append({
+            "label": "Smiling / warmth",
+            "value": f"smiled ~{happy_pct}% of the time",
+            "detail": _SMILE_DETAIL,
+            "impact": ("MIXED — some warmth shown, but smiling more during greetings and positive "
+                       "moments would project stronger enthusiasm and lift advancement odds."),
+            "good": False,
+        })
+    else:
+        factors.append({
+            "label": "Smiling / warmth",
+            "value": f"smiled ~{happy_pct}% of the time",
+            "detail": _SMILE_DETAIL,
+            "impact": "HELPING chances — consistent warmth and positive affect boost likability.",
+            "good": True,
+        })
+
+    ec = getattr(p, "eye_contact", 0.0)
+    _EC_DETAIL = ("Measured as the share of frames where the gaze was directed at the "
+                  "camera / interviewer (head facing forward).")
+    if ec < 50:
+        factors.append({
+            "label": "Eye contact",
+            "value": f"{ec:.0f}% of the time",
+            "detail": _EC_DETAIL,
+            "impact": ("HURTING chances — looking away or down this often can read as low "
+                       "confidence or evasiveness. Aim for 70%+ by looking into the camera while "
+                       "speaking, glancing away only briefly to think."),
+            "good": False,
+        })
+    elif ec < 70:
+        factors.append({
+            "label": "Eye contact",
+            "value": f"{ec:.0f}% of the time",
+            "detail": _EC_DETAIL,
+            "impact": ("MIXED — reasonable, but holding the camera a bit more steadily while "
+                       "answering would project more confidence."),
+            "good": False,
+        })
+    else:
+        factors.append({
+            "label": "Eye contact",
+            "value": f"{ec:.0f}% of the time",
+            "detail": _EC_DETAIL,
+            "impact": "HELPING chances — strong, steady eye contact projects confidence and engagement.",
+            "good": True,
+        })
+
+    cross    = getattr(p, "arm_crossed_pct", 0.0)
+    open_pct = getattr(p, "open_body_pct", 0.0)
+    if cross >= 25:
+        factors.append({
+            "label": "Arms crossed",
+            "value": f"{cross:.0f}% of the session",
+            "detail": "Measured from pose landmarks as frames where the wrists cross in front of the torso.",
+            "impact": ("HURTING chances — crossed arms can read as closed-off or defensive. Keep "
+                       "hands open and visible, resting on the desk or gesturing naturally."),
+            "good": False,
+        })
+    elif open_pct < 50:
+        factors.append({
+            "label": "Open posture",
+            "value": f"open {open_pct:.0f}% of the session",
+            "detail": "Measured from shoulder / arm spread in pose landmarks.",
+            "impact": ("MIXED — a more open, upright posture with shoulders back would project "
+                       "confidence and approachability."),
+            "good": False,
+        })
+    else:
+        factors.append({
+            "label": "Open posture",
+            "value": f"open {open_pct:.0f}% of the session",
+            "detail": "Measured from shoulder / arm spread in pose landmarks.",
+            "impact": "HELPING chances — open, relaxed posture conveys confidence.",
+            "good": True,
+        })
+
+    fwd = getattr(p, "forward_lean_pct", 0.0)
+    _FWD_DETAIL = "Measured as frames where the head / torso leans toward the camera."
+    if fwd < 15:
+        factors.append({
+            "label": "Forward lean",
+            "value": f"{fwd:.0f}% of the session",
+            "detail": _FWD_DETAIL,
+            "impact": ("MIXED — leaning in slightly when listening and answering signals interest "
+                       "and enthusiasm; sitting back can read as detached."),
+            "good": False,
+        })
+    else:
+        factors.append({
+            "label": "Forward lean",
+            "value": f"{fwd:.0f}% of the session",
+            "detail": _FWD_DETAIL,
+            "impact": "HELPING chances — leaning in shows active engagement.",
+            "good": True,
+        })
+
+    if nervous_pct > 30 or getattr(p, "composure", 100.0) < 55:
+        factors.append({
+            "label": "Composure",
+            "value": f"visible nervousness ~{nervous_pct}% of the time",
+            "detail": "Measured from tense / nervous facial expressions across frames.",
+            "impact": ("HURTING chances — visible nervousness can undercut otherwise strong "
+                       "answers. Slow breathing, deliberate pauses, and mock-interview practice help."),
+            "good": False,
+        })
+
+    return factors
+
+
 # ── Face centroid tracker ─────────────────────────────────────────────────────
 
 class _CentroidTracker:
@@ -1407,7 +1547,7 @@ class VideoAnalyzer:
             tl.append(e)
         return tl
 
-    def _observations(self, result, pf, role_map, n=4) -> List[str]:
+    def _observations(self, result, pf, role_map, n=7) -> List[str]:
         obs = []
         cid = next((pid for pid,p in result.persons.items() if p.role=="Candidate"), None)
         if cid:
@@ -1423,9 +1563,16 @@ class VideoAnalyzer:
 
             ec = result.persons[cid].eye_contact
             if ec < 50:
-                obs.append(f"Candidate's eye contact was limited ({ec:.0f}%) — stronger direct gaze would project confidence.")
+                obs.append(f"Eye contact was limited ({ec:.0f}% of frames facing the camera) — this can read as low confidence and is likely hurting advancement chances; aim for 70%+.")
             elif ec > 75:
                 obs.append(f"Candidate maintained strong eye contact ({ec:.0f}%), projecting engagement.")
+
+            # Smiling / warmth observation — transparent about the impact
+            happy = sum(1 for f in ffs if f.emotion == "happy") / max(1, len(ffs)) * 100
+            if happy < 15:
+                obs.append(f"Rarely smiled (positive expression only {happy:.0f}% of the time) — staying flat can read as disengaged and is likely hurting chances; a warmer, more genuine smile would boost likability.")
+            elif happy > 40:
+                obs.append(f"Smiled often ({happy:.0f}% of the time), projecting warmth and enthusiasm — this helps likability and advancement chances.")
 
             nv = sum(1 for f in ffs if f.emotion=="nervous") / max(1,len(ffs)) * 100
             if nv > 30:
@@ -1526,6 +1673,34 @@ class VideoAnalyzer:
             print(f"[VA] annotated video error: {e}"); return None
 
     # ── HTML renderers ────────────────────────────────────────────────────────
+
+    def _factors_card_html(self, p) -> str:
+        """Transparent 'why this affects your chances' card for a candidate."""
+        factors = delivery_factors(p)
+        if not factors:
+            return ""
+        rows = ""
+        for f in factors:
+            dot = "#22c55e" if f["good"] else "#ef4444"
+            rows += (
+                f'<div style="display:flex;gap:10px;margin-bottom:10px;align-items:flex-start;">'
+                f'<span style="width:9px;height:9px;border-radius:50%;background:{dot};'
+                f'margin-top:5px;flex-shrink:0;"></span>'
+                f'<div><div style="font-size:0.84em;font-weight:700;color:#1e293b;">'
+                f'{f["label"]} — <span style="font-weight:600;color:#475569;">{f["value"]}</span></div>'
+                f'<div style="font-size:0.76em;color:#64748b;margin:2px 0;">{f["detail"]}</div>'
+                f'<div style="font-size:0.8em;color:#374151;line-height:1.5;">{f["impact"]}</div>'
+                f'</div></div>'
+            )
+        return (
+            '<div style="border:1px solid #e2e8f0;border-radius:14px;padding:16px 20px;'
+            'margin-bottom:16px;background:var(--ta-card-bg,#f8fafc);">'
+            '<div style="font-weight:800;color:#1e293b;margin-bottom:4px;font-size:0.9em;">'
+            '🔎 Body Language — Why It Affects Your Chances</div>'
+            '<div style="font-size:0.74em;color:#94a3b8;margin-bottom:12px;">'
+            'Transparent breakdown: what was measured and how each cue helps or hurts advancement.</div>'
+            + rows + '</div>'
+        )
 
     def render_score_cards_html(self, result: VideoAnalysisResult, cultural_mode="both", ia: dict = None) -> str:
         if result.error:
@@ -1694,6 +1869,8 @@ class VideoAnalyzer:
             html += (f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px;">'
                      + delivery_card + content_card + f'</div>')
 
+            html += self._factors_card_html(p)
+
             # ── Questions asked — compact list (question + score badge only) ──
             if q_summary:
                 _Q_COL = {"Great":"#22c55e","Good":"#3b82f6",
@@ -1781,6 +1958,7 @@ class VideoAnalyzer:
                          + f'<div style="font-size:0.75em;color:#64748b;">'
                          f'Arms crossed: {p.arm_crossed_pct:.0f}% of session</div></div>'
                          f'</div>')
+                html += self._factors_card_html(p)
 
         # Interviewer cards — generic "Interviewer" label (the speaker dialogue
         # already identifies who is who, so the numbered role is redundant).

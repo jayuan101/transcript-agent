@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.5.16 — 2026-06-12
+- Reports restructured (UI + PDF + DOCX): Interview Coaching Analysis now appears at the top with the score banner (Overall Score / Advance Likelihood / Deflection Rate)
+- New "How these numbers were calculated" section explaining how the Overall Score, Advance Likelihood and Deflection Rate are derived
+- Added a "What went well" / "What to improve" summary plus a pointer to the detailed per-question breakdown
+- "Summary" renamed to "Record Summary"; Speech Analytics now included in DOCX and PDF; Speaker Profiles and Speaker Dialogue moved to the bottom of the report
+- Body Language transparency: per-cue breakdown of why each signal helps or hurts advancement chances (smiling, eye contact, open posture, forward lean, composure) including how each is measured — shown in UI, DOCX and PDF
+- Coding challenges now compare what the candidate SAID (spoken explanation) against what they CODED (on-screen code), with an Aligned / Minor / Major mismatch verdict — in the UI, PDF, DOCX and text exports
+- Fixed a PDF export crash caused by an em-dash in the Video Delivery section
+
 ## v2.4.4 — 2026-06-07
 - Check for Updates now shows "You're up to date!" when already on latest version
 - Mac dmg now includes OTA launcher (ta_launcher.sh + Launch Transcript Agent.command) — same auto-update on launch as Windows

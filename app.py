@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.15"""
+"""Transcript Agent — Gradio UI with drag-and-drop | v2.5.16"""
 
 import os
 import sys
@@ -1920,51 +1920,6 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
             pdf.ln(3)
         pdf.set_text_color(0, 0, 0)
 
-        # Summary
-        if getattr(result, "summary", ""):
-            _section_header("SUMMARY", *_C["header"])
-            _body(result.summary)
-            pdf.ln(2)
-
-        # Key Points
-        if getattr(result, "key_points", []):
-            _section_header("KEY POINTS", *_C["sub"])
-            for kp in result.key_points:
-                pdf.set_font("Helvetica", "", 10)
-                pdf.set_x(pdf.l_margin + 4)
-                pdf.multi_cell(W - 4, 5, f"- {_s(kp)}")
-            pdf.ln(2)
-
-        # Action Items
-        if getattr(result, "action_items", []):
-            _section_header("ACTION ITEMS", *_C["sub"])
-            for ai in result.action_items:
-                if isinstance(ai, dict):
-                    txt = ai.get("action", ai.get("item", str(ai)))
-                    owner = ai.get("owner", "")
-                    tl    = ai.get("timeline", "")
-                    line  = f"[ ] {txt}"
-                    if owner: line += f"  (Owner: {owner})"
-                    if tl:    line += f"  [{tl}]"
-                else:
-                    line = f"[ ] {str(ai)}"
-                pdf.set_font("Helvetica", "", 10)
-                pdf.set_x(pdf.l_margin + 4)
-                pdf.multi_cell(W - 4, 5, _s(line))
-            pdf.ln(2)
-
-        # Speaker profiles
-        if getattr(result, "speaker_profiles", {}):
-            _section_header("SPEAKER PROFILES", *_C["sub"])
-            for name, profile in result.speaker_profiles.items():
-                pdf.set_font("Helvetica", "B", 10)
-                pdf.cell(W, 5, _s(name), new_x="LMARGIN", new_y="NEXT")
-                pdf.set_font("Helvetica", "", 9)
-                pdf.set_text_color(*_C["sub"])
-                pdf.multi_cell(W, 5, _s(profile))
-                pdf.set_text_color(0, 0, 0)
-                pdf.ln(2)
-
         # Interview Coaching
         ia = getattr(result, "interview_analysis", {}) or {}
         if ia and not ia.get("parse_error"):
@@ -1993,6 +1948,72 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 if defl: stats.append(f"Deflection Rate: {defl}%")
                 pdf.cell(W, 5, "  |  ".join(stats), new_x="LMARGIN", new_y="NEXT")
                 pdf.ln(3)
+
+            # ── How these numbers were calculated ─────────────────────────────
+            adv_reason = ia.get("advance_reasoning", "")
+            pdf.ln(1)
+            pdf.set_font("Helvetica", "B", 11)
+            pdf.set_text_color(*_C["header"])
+            pdf.cell(W, 6, "How these numbers were calculated", new_x="LMARGIN", new_y="NEXT")
+            pdf.set_text_color(0, 0, 0)
+            _exp_lines = [
+                f"Overall Score ({score}/10): a weighted judgement of every answer in the "
+                "question breakdown below -- technical depth, behavioural responses, and "
+                "communication clarity. A higher score means stronger, more complete answers.",
+            ]
+            if adv:
+                _exp_lines.append(
+                    f"Advance Likelihood ({adv}%): the estimated chance of progressing to the "
+                    "next round. It climbs with strong, on-topic answers and drops when questions "
+                    "are deflected or answered weakly."
+                    + (f" {adv_reason}" if adv_reason else "")
+                )
+            if defl:
+                _exp_lines.append(
+                    f"Deflection Rate ({defl}%): the share of questions that were dodged, only "
+                    "partially answered, or answered off-topic. Lower is better."
+                )
+            for _t in _exp_lines:
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*_C["sub"])
+                pdf.multi_cell(W, 5, _s(_t))
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(1)
+
+            # ── What went well / What to improve ──────────────────────────────
+            _strengths  = ia.get("strengths", []) or []
+            _weaknesses = ia.get("weaknesses", []) or []
+            if _strengths:
+                pdf.ln(1)
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(*_C["great"])
+                pdf.cell(W, 5, "What went well", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0, 0, 0)
+                for _st in _strengths:
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.set_x(pdf.l_margin + 4)
+                    pdf.multi_cell(W - 4, 5, f"- {_s(str(_st))}")
+            if _weaknesses:
+                pdf.ln(1)
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.set_text_color(*_C["ni"])
+                pdf.cell(W, 5, "What to improve", new_x="LMARGIN", new_y="NEXT")
+                pdf.set_text_color(0, 0, 0)
+                for _wk in _weaknesses:
+                    pdf.set_font("Helvetica", "", 9)
+                    pdf.set_x(pdf.l_margin + 4)
+                    pdf.multi_cell(W - 4, 5, f"- {_s(str(_wk))}")
+
+            # Pointer to the detailed breakdown
+            if ia.get("questions"):
+                pdf.ln(1)
+                pdf.set_font("Helvetica", "I", 9)
+                pdf.set_text_color(*_C["muted"])
+                pdf.multi_cell(W, 5, _s(
+                    "Want to go deeper? See the per-question breakdown below for exactly what "
+                    "was asked, what was said, and a model answer for each question."))
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
 
             # Per-question — grouped by type (Technical / Behavioral / Other)
             qs = ia.get("questions", [])
@@ -2099,6 +2120,10 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 _cid      = _ch.get("id", "")
                 _prob     = _ch.get("problem", "")
                 _ans      = _ch.get("candidate_answer", "")
+                _spoken   = _ch.get("spoken_explanation", "")
+                _written  = _ch.get("written_code", "")
+                _svc      = _ch.get("speech_vs_code", "")
+                _sc_match = _ch.get("speech_code_match", "")
                 _sc       = _ch.get("score", "")
                 _reason   = _ch.get("score_reason", "")
                 _cappr    = _ch.get("candidate_approach", "")
@@ -2150,7 +2175,35 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
 
                 if _cappr:
                     _label_block("CANDIDATE'S APPROACH", _cappr, _C["bg_grey"], _C["sub"])
-                if _ans:
+
+                # ── Said vs. Coded comparison ─────────────────────────────────
+                if _spoken:
+                    _label_block("WHAT THEY SAID (SPOKEN)", _spoken, _C["bg_grey"], _C["sub"])
+                if _written:
+                    pdf.ln(2)
+                    pdf.set_fill_color(15, 23, 42)
+                    pdf.set_text_color(148, 163, 184)
+                    pdf.set_font("Helvetica", "B", 7)
+                    pdf.cell(W, 5, _s("  WHAT THEY CODED (ON SCREEN)"),
+                             new_x="LMARGIN", new_y="NEXT", fill=True)
+                    pdf.set_font("Courier", "", 7.5)
+                    pdf.set_text_color(226, 232, 240)
+                    for _line in _written.splitlines():
+                        pdf.set_fill_color(15, 23, 42)
+                        pdf.set_x(pdf.l_margin)
+                        pdf.multi_cell(W, 4.5, _s(_line) if _line.strip() else " ", fill=True)
+                    pdf.ln(2)
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.set_font("Helvetica", "", 9)
+                if _svc:
+                    _MATCH_COL = {"aligned": _C["great"], "minor mismatch": _C["ni"],
+                                  "major mismatch": _C["missed"]}
+                    _m = (_sc_match or "").strip().lower()
+                    _svc_lbl = f"SAID vs CODED -- {_sc_match}" if _sc_match else "SAID vs CODED"
+                    _label_block(_svc_lbl, _svc, _C["bg_blue"],
+                                 _MATCH_COL.get(_m, _C["accent"]))
+                # Fallback to combined answer only if neither spoken nor written supplied
+                if _ans and not _spoken and not _written:
                     _label_block("WHAT THEY SAID / DID", _ans, _C["bg_grey"], _C["sub"])
 
                 # Optimal solution — dark code block
@@ -2204,7 +2257,7 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                 pdf.set_fill_color(*sc_col)
                 pdf.set_text_color(*_C["white"])
                 pdf.set_font("Helvetica", "B", 9)
-                pdf.cell(W, 6, f"  {_s(p.role)}  —  {p.overall:.0f}/100", fill=True, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(W, 6, _s(f"  {p.role}  --  {p.overall:.0f}/100"), fill=True, new_x="LMARGIN", new_y="NEXT")
                 pdf.set_text_color(0,0,0)
                 pdf.set_font("Helvetica", "", 9)
                 pdf.set_text_color(*_C["sub"])
@@ -2216,6 +2269,32 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                              f"Forward Lean: {p.forward_lean_pct:.0f}%   "
                              f"Mood: {_s(p.dominant_emotion)}")
                 pdf.cell(W, 5, body_lang, new_x="LMARGIN", new_y="NEXT")
+
+                # Transparent body-language factors — why each cue helps/hurts chances
+                try:
+                    from video_analyzer import delivery_factors as _delivery_factors
+                    _factors = _delivery_factors(p)
+                except Exception:
+                    _factors = []
+                if _factors:
+                    pdf.ln(1)
+                    pdf.set_font("Helvetica", "B", 9)
+                    pdf.set_text_color(*_C["header"])
+                    pdf.cell(W, 5, "Why this affects advancement chances",
+                             new_x="LMARGIN", new_y="NEXT")
+                    pdf.set_text_color(0, 0, 0)
+                    for _f in _factors:
+                        pdf.set_x(pdf.l_margin + 4)
+                        pdf.set_font("Helvetica", "B", 8)
+                        pdf.set_text_color(*(_C["great"] if _f["good"] else _C["missed"]))
+                        pdf.multi_cell(W - 4, 4, _s(f"- {_f['label']} ({_f['value']})"))
+                        pdf.set_x(pdf.l_margin + 8)
+                        pdf.set_font("Helvetica", "", 8)
+                        pdf.set_text_color(*_C["sub"])
+                        pdf.multi_cell(W - 8, 4, _s(f"{_f['impact']} {_f['detail']}"))
+                    pdf.set_text_color(0, 0, 0)
+                    pdf.ln(1)
+
                 if p.cultural:
                     pdf.cell(W, 5,
                              f"American Standard: {p.cultural.american_score:.0f}/100   "
@@ -2227,6 +2306,69 @@ def _generate_pdf(stem: str, combined_text: str, path: Path,
                         pdf.multi_cell(W - 4, 4, f"- {_s(t)}")
                 pdf.set_text_color(0,0,0)
                 pdf.ln(3)
+
+        # Summary
+        if getattr(result, "summary", ""):
+            _section_header("RECORD SUMMARY", *_C["header"])
+            _body(result.summary)
+            pdf.ln(2)
+
+        # Key Points
+        if getattr(result, "key_points", []):
+            _section_header("KEY POINTS", *_C["sub"])
+            for kp in result.key_points:
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_x(pdf.l_margin + 4)
+                pdf.multi_cell(W - 4, 5, f"- {_s(kp)}")
+            pdf.ln(2)
+
+        # Action Items
+        if getattr(result, "action_items", []):
+            _section_header("ACTION ITEMS", *_C["sub"])
+            for ai in result.action_items:
+                if isinstance(ai, dict):
+                    txt = ai.get("action", ai.get("item", str(ai)))
+                    owner = ai.get("owner", "")
+                    tl    = ai.get("timeline", "")
+                    line  = f"[ ] {txt}"
+                    if owner: line += f"  (Owner: {owner})"
+                    if tl:    line += f"  [{tl}]"
+                else:
+                    line = f"[ ] {str(ai)}"
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_x(pdf.l_margin + 4)
+                pdf.multi_cell(W - 4, 5, _s(line))
+            pdf.ln(2)
+
+        # Speech Analytics
+        if getattr(result, "speaker_stats", []):
+            _section_header("SPEECH ANALYTICS", *_C["sub"])
+            for s in result.speaker_stats:
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(W, 5, _s(s.name), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*_C["sub"])
+                wpm_str = f"{s.words_per_minute:.0f} WPM" if s.words_per_minute else "N/A"
+                _parts = [f"Speech rate: {wpm_str} -- {_s(s.pace_label)}"]
+                if s.speaking_percentage:
+                    _parts.append(f"Speaking time: {s.speaking_percentage:.0f}% of conversation")
+                if s.accent_indicators:
+                    _parts.append(f"Accent: {_s(s.accent_indicators)}")
+                pdf.multi_cell(W, 5, "   ".join(_parts))
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
+
+        # Speaker profiles
+        if getattr(result, "speaker_profiles", {}):
+            _section_header("SPEAKER PROFILES", *_C["sub"])
+            for name, profile in result.speaker_profiles.items():
+                pdf.set_font("Helvetica", "B", 10)
+                pdf.cell(W, 5, _s(name), new_x="LMARGIN", new_y="NEXT")
+                pdf.set_font("Helvetica", "", 9)
+                pdf.set_text_color(*_C["sub"])
+                pdf.multi_cell(W, 5, _s(profile))
+                pdf.set_text_color(0, 0, 0)
+                pdf.ln(2)
 
         # Transcript
         if getattr(result, "speaker_dialogue", ""):
@@ -3182,6 +3324,10 @@ def _build_interview_html(ia: dict) -> str:
             _col     = _CC_COL.get(_sc,"#6b7280")
             _prob    = _ch.get("problem","")
             _ans     = _ch.get("candidate_answer","")
+            _spoken  = _ch.get("spoken_explanation","")
+            _written = _ch.get("written_code","")
+            _svc     = _ch.get("speech_vs_code","")
+            _sc_match= _ch.get("speech_code_match","")
             _cappr   = _ch.get("candidate_approach","")
             _lang_req= _ch.get("language_requested","")
             _lang_used=_ch.get("language_used","")
@@ -3241,7 +3387,39 @@ def _build_interview_html(ia: dict) -> str:
                     f'<div class="ta-q-said-label">🧠 Candidate\'s Approach</div>'
                     f'<p class="ta-q-said-text">{_cappr}</p></div>'
                 )
-            if _ans:
+            # ── Said vs. Coded comparison ────────────────────────────────────
+            if _spoken:
+                html += (
+                    f'<div style="margin:10px 0;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:#fbbf24;padding:4px 0 6px;">🗣️ What They Said (Spoken)</div>'
+                    f'<div class="ta-cand-prose">{_spoken.replace(chr(60),"&lt;").replace(chr(62),"&gt;")}</div>'
+                    f'</div>'
+                )
+            if _written:
+                _written_esc = _written.replace(chr(60), "&lt;").replace(chr(62), "&gt;")
+                html += _code_block_html(_written_esc, lang=_lang_used,
+                                         label="⌨️ What They Coded (on screen)")
+            if _svc:
+                _MATCH_HTML = {"aligned": ("#22c55e", "✅"),
+                               "minor mismatch": ("#f59e0b", "⚠️"),
+                               "major mismatch": ("#ef4444", "❌")}
+                _m = (_sc_match or "").strip().lower()
+                _mc, _mi = _MATCH_HTML.get(_m, ("#3b82f6", "🔍"))
+                _badge = (f'<span style="background:{_mc};color:#fff;font-size:0.72em;font-weight:800;'
+                          f'padding:2px 10px;border-radius:20px;margin-left:6px;">{_sc_match}</span>'
+                          if _sc_match else "")
+                html += (
+                    f'<div style="margin:10px 0;border-left:3px solid {_mc};'
+                    f'background:rgba(59,130,246,0.06);border-radius:8px;padding:8px 12px;">'
+                    f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
+                    f'letter-spacing:.08em;color:{_mc};padding-bottom:4px;">'
+                    f'{_mi} Said vs. Coded{_badge}</div>'
+                    f'<div class="ta-cand-prose">{_svc.replace(chr(60),"&lt;").replace(chr(62),"&gt;")}</div>'
+                    f'</div>'
+                )
+            # Fallback to combined answer only if neither spoken nor written supplied
+            if _ans and not _spoken and not _written:
                 html += (
                     f'<div style="margin:10px 0;">'
                     f'<div style="font-size:0.74em;font-weight:700;text-transform:uppercase;'
@@ -6839,6 +7017,18 @@ def _SECTION(label):
 # ── Changelog ────────────────────────────────────────────────────────────────
 _RELEASES = [
     {
+        "version": "2.5.16",
+        "date": "2026-06-12",
+        "notes": [
+            "Reports restructured (UI + PDF + DOCX): Interview Coaching Analysis now at the top with the score banner",
+            "New 'How these numbers were calculated' section explaining Overall Score, Advance Likelihood & Deflection Rate",
+            "Added 'What went well' / 'What to improve' summary with a pointer to the per-question breakdown",
+            "Summary renamed to 'Record Summary'; Speech Analytics added to DOCX/PDF; Speaker Profiles & Dialogue moved to the bottom",
+            "Body Language transparency: per-cue 'why it helps/hurts your chances' breakdown (smiling, eye contact, posture, lean, composure) with how each is measured",
+            "Coding challenges now compare what the candidate SAID vs what they CODED, with an aligned/mismatch verdict — in UI, PDF, DOCX and text exports",
+        ],
+    },
+    {
         "version": "2.0.3",
         "date": "2026-06-05",
         "notes": [
@@ -7235,7 +7425,7 @@ _RELEASES = [
     },
 ]
 
-APP_VERSION = "2.5.15"
+APP_VERSION = "2.5.16"
 
 def _build_changelog():
     latest      = _RELEASES[0]["version"]

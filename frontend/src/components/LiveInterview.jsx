@@ -90,7 +90,7 @@ export default function LiveInterview() {
         setStatus('Analyzing clip…')
 
         const tasks = [analyzeClip(blob)]
-        if (liveTranscribe) tasks.push(transcribeClip(blob, { whisperModel: 'tiny' }))
+        if (liveTranscribe) tasks.push(transcribeClip(blob, { sttEngine: 'deepgram' }))
         const results = await Promise.allSettled(tasks)
 
         if (!activeRef.current) break
@@ -109,6 +109,9 @@ export default function LiveInterview() {
         if (liveTranscribe && results[1]) {
           if (results[1].status === 'fulfilled') {
             addTranscriptLine(results[1].value.text)
+          } else {
+            setError('Live transcription: ' + results[1].reason.message)
+            setLiveTranscribe(false)
           }
         }
 

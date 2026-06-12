@@ -913,24 +913,33 @@ def _run_video_analysis(job_id: str, file_path: str, role_map: dict, sample_fps:
 @app.post("/api/transcribe-clip", summary="Quickly transcribe a short audio/video clip (live transcription)")
 async def transcribe_clip_endpoint(
     file: UploadFile = File(..., description="Short audio/video clip (a few seconds)"),
-    whisper_model: str = Form("tiny", description="Local Whisper model size for fast clip transcription"),
+    stt_engine: str = Form("deepgram", description="STT engine for live clips: deepgram | whisper_local"),
+    stt_api_key: str = Form("", description="Cloud STT API key (falls back to server .env)"),
+    whisper_model: str = Form("tiny", description="Local Whisper model size (used when stt_engine=whisper_local)"),
     language: str = Form("", description="Language code, or empty for auto-detect"),
 ):
     """
     Transcribe a short clip synchronously and return the text immediately —
     used by the Live Interview tab to show a rolling live transcript.
-    Always uses local Whisper (fast `tiny`/`base` models) so it works offline
-    with no API key and returns within a couple of seconds.
+    Defaults to Deepgram (fast cloud STT, no local Whisper/torch bundle needed);
+    falls back to local Whisper if `stt_engine=whisper_local` is requested.
     """
     suffix = Path(file.filename or "clip").suffix or ".webm"
     tmp_name = await _save_upload(file, suffix)
     try:
+        engine = stt_engine or "deepgram"
+        api_key = (stt_api_key or "").strip() or os.environ.get("DEEPGRAM_API_KEY", "") or os.environ.get("Deepgram_API_KEY", "")
+        if engine == "deepgram" and not api_key:
+            raise HTTPException(status_code=400, detail="Deepgram API key not configured (set DEEPGRAM_API_KEY in .env or pass stt_api_key)")
         text, lang, _segs, secs = stt_transcribe(
-            tmp_name, engine="whisper_local",
+            tmp_name, engine=engine,
+            api_key=api_key or None,
             whisper_model=whisper_model or "tiny",
             language=language or None,
         )
         return {"text": (text or "").strip(), "language": lang, "seconds": round(secs, 2)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:

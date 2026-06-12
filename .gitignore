@@ -34,6 +34,7 @@ share/outputs/
 
 # Distribution builds
 dist/
+build/
 
 # Node / Playwright
 node_modules/

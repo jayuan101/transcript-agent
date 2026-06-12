@@ -12,9 +12,11 @@ export async function startVideoAnalysis(formData) {
   return res.json()
 }
 
-export async function transcribeClip(blob, { whisperModel = 'tiny', language = '' } = {}) {
+export async function transcribeClip(blob, { sttEngine = 'deepgram', sttApiKey = '', whisperModel = 'tiny', language = '' } = {}) {
   const fd = new FormData()
   fd.append('file', new File([blob], 'clip.webm', { type: blob.type || 'audio/webm' }))
+  fd.append('stt_engine', sttEngine)
+  if (sttApiKey) fd.append('stt_api_key', sttApiKey)
   fd.append('whisper_model', whisperModel)
   if (language) fd.append('language', language)
   const res = await fetch('/api/transcribe-clip', { method: 'POST', body: fd })

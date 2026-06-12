@@ -1,0 +1,117 @@
+/* ── Transcript Agent — PrimeReact (Lara/Aura) custom shell ─────────────────────
+   PrimeReact's Lara theme provides the component look + CSS variables
+   (--surface-*, --text-color, --primary-color…). Here we only style the bits
+   that aren't components: the page background, hero header, pills, footer, and a
+   few layout helpers. Everything reads the theme variables so light & dark both
+   work from the single theme toggle. */
+
+:root {
+  --ta-maxw: 1100px;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-ground);
+  color: var(--text-color);
+  font-family: var(--font-family, "Inter", system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+}
+
+.ta-page { max-width: var(--ta-maxw); margin: 0 auto; padding: 0 1rem 3rem; }
+
+/* ── Hero header ───────────────────────────────────────────────────────────── */
+.ta-hero {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  padding: 1.4rem 1.6rem; margin: 1rem 0 1.5rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--primary-color) 14%, var(--surface-card)),
+    var(--surface-card));
+  border: 1px solid var(--surface-border);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 10px 30px rgba(0,0,0,0.05);
+}
+.ta-hero-icon {
+  font-size: 1.9rem; width: 54px; height: 54px; flex-shrink: 0;
+  display: grid; place-items: center; border-radius: 14px;
+  background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+.ta-hero-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.ta-hero-name { font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+.ta-hero-tag { font-size: 0.85rem; color: var(--text-color-secondary); }
+.ta-hero-pills { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.ta-pill {
+  font-size: 0.74rem; font-weight: 700; padding: 0.3rem 0.7rem; border-radius: 999px;
+  background: var(--surface-100); color: var(--text-color-secondary);
+  border: 1px solid var(--surface-border);
+}
+
+/* ── Top bar (brand + actions) ─────────────────────────────────────────────── */
+.ta-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 0.6rem 0; flex-wrap: wrap;
+}
+.ta-topbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ── Section helpers ───────────────────────────────────────────────────────── */
+.ta-section-title {
+  font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-color-secondary); margin: 0.25rem 0 0.6rem;
+}
+.ta-muted { color: var(--text-color-secondary); }
+.ta-small { font-size: 0.84rem; }
+.ta-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+.ta-flex { display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center; }
+.ta-mt { margin-top: 1rem; }
+.ta-stack > * + * { margin-top: 1rem; }
+
+/* main two-column layout: config (left) + live/results (right) */
+.ta-cols { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.25rem; align-items: start; }
+@media (max-width: 960px) { .ta-cols { grid-template-columns: 1fr; } }
+
+/* log / transcript blocks */
+.ta-pre {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8rem; line-height: 1.5; white-space: pre-wrap;
+  background: var(--surface-ground); border: 1px solid var(--surface-border);
+  border-radius: 10px; padding: 0.75rem; max-height: 460px; overflow-y: auto; margin: 0;
+}
+
+/* capabilities grid */
+.ta-caps { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 0.6rem; }
+.ta-cap {
+  display: flex; gap: 0.55rem; align-items: flex-start;
+  padding: 0.6rem 0.7rem; border-radius: 10px;
+  background: var(--surface-ground); border: 1px solid var(--surface-border);
+}
+.ta-cap-ico { font-size: 1.15rem; }
+.ta-cap-title { font-weight: 700; font-size: 0.85rem; }
+.ta-cap-text { font-size: 0.76rem; color: var(--text-color-secondary); }
+
+/* score bar */
+.ta-score { margin-bottom: 0.5rem; }
+.ta-score-head { display: flex; justify-content: space-between; font-size: 0.82rem; margin-bottom: 2px; }
+.ta-score-track { height: 8px; border-radius: 999px; background: var(--surface-200); overflow: hidden; }
+.ta-score-fill { height: 100%; border-radius: 999px; transition: width 0.4s ease; }
+
+/* footer */
+.ta-footer {
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap;
+  gap: 0.7rem; padding: 2rem 1rem 1rem; margin-top: 2rem;
+  border-top: 1px solid var(--surface-border);
+  font-size: 0.8rem; color: var(--text-color-secondary); text-align: center;
+}
+.ta-footer a { color: var(--primary-color); text-decoration: none; font-weight: 600; }
+.ta-btn-donate, .ta-btn-bug {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  color: #fff !important; font-weight: 700; font-size: 0.8rem;
+  padding: 0.42rem 1rem; border-radius: 999px; text-decoration: none;
+}
+.ta-btn-donate { background: #0070ba; }
+.ta-btn-bug { background: #ef4444; }
+
+/* make PrimeReact cards a touch softer and full-width by default */
+.p-card { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 8px 28px rgba(0,0,0,0.05) !important; border-radius: 16px !important; }
+.p-card .p-card-content { padding: 0.5rem 0 0; }
+.ta-w-full { width: 100%; }
+.ta-field { margin-bottom: 1rem; }
+.ta-field > label { display: block; font-weight: 600; font-size: 0.86rem; margin-bottom: 0.35rem; }

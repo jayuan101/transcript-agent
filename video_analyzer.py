@@ -827,7 +827,8 @@ class VideoAnalyzer:
         result = self._aggregate(all_frames, role_map, dur, first_seen, cultural_mode)
         if progress_cb: progress_cb(0.85)
         if annotate:
-            result.annotated_video_path = self._make_annotated_video(video_path, all_frames, role_map, fps)
+            result.annotated_video_path = self._make_annotated_video(
+                video_path, all_frames, role_map, fps, progress_cb=progress_cb)
         if progress_cb: progress_cb(1.0)
         return result
 
@@ -1499,27 +1500,54 @@ class VideoAnalyzer:
 
     # ── Annotated video ───────────────────────────────────────────────────────
 
-    def _make_annotated_video(self, video_path, all_frames, role_map, fps) -> Optional[str]:
+    def _make_annotated_video(self, video_path, all_frames, role_map, fps, progress_cb=None) -> Optional[str]:
         try:
+            import time as _time
             cap  = cv2.VideoCapture(video_path)
             w    = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h    = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 0
+            # Cap the annotated video at ~15 fps: face data is only sampled every
+            # ~2s, so the overlays barely change frame-to-frame — writing every
+            # source frame (often 60 fps) is wasted CPU. Skip frames and write at
+            # the lower rate, which makes the render several times faster.
+            TARGET_FPS = 15.0
+            step = max(1, round((fps or TARGET_FPS) / TARGET_FPS))
+            out_fps = (fps / step) if fps else TARGET_FPS
             out_p= tempfile.mktemp(suffix="_annotated.mp4")
-            out  = cv2.VideoWriter(out_p, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w,h))
+            out  = cv2.VideoWriter(out_p, cv2.VideoWriter_fourcc(*"mp4v"), out_fps, (w,h))
             lut: Dict[int, List[FaceFrame]] = {}
             for ffs in all_frames:
                 if ffs: lut[int(ffs[0].timestamp * fps)] = ffs
             idx  = 0; last: List[FaceFrame] = []; si = max(1,int(fps))
+            _t0 = _time.time(); _last_pct = -1
             while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret: break
-                snap = (idx//si)*si
-                faces = lut.get(snap, last)
-                if faces: last = faces
-                bl = last[0].body_language if last else BodyLanguageSummary()
-                frame = self._draw(frame, last, role_map)
-                frame = self._draw_body_language_badge(frame, bl)
-                out.write(frame); idx += 1
+                if idx % step == 0:
+                    # Keep this frame: decode (read), draw overlays, write it.
+                    ret, frame = cap.read()
+                    if not ret: break
+                    snap = (idx//si)*si
+                    faces = lut.get(snap, last)
+                    if faces: last = faces
+                    bl = last[0].body_language if last else BodyLanguageSummary()
+                    frame = self._draw(frame, last, role_map)
+                    frame = self._draw_body_language_badge(frame, bl)
+                    out.write(frame)
+                else:
+                    # Skip this frame WITHOUT decoding it — grab() is far cheaper
+                    # than read(), so most of the video is advanced for free.
+                    if not cap.grab(): break
+                idx += 1
+                # Live progress for the render stage so the UI never freezes at
+                # 85%: map source-frame fraction into the 0.85→0.99 band + ETA.
+                if progress_cb and total > 0:
+                    pct = int(idx / total * 100)
+                    if pct != _last_pct:
+                        _last_pct = pct
+                        el = _time.time() - _t0
+                        eta = int(el / idx * (total - idx)) if idx else 0
+                        progress_cb(0.85 + 0.14 * (idx / total),
+                                    {"done": idx, "total": total, "eta": eta, "stage": "rendering video"})
             cap.release(); out.release()
             return out_p
         except Exception as e:

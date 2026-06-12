@@ -4,7 +4,18 @@
 # Stop:   docker compose down
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Global build args (declared before any FROM so they can be used in FROM lines)
 ARG PYTHON_VERSION=3.12
+
+# ── Stage 1: build the React + Bootstrap UI ───────────────────────────────────
+FROM node:20-slim AS frontend
+WORKDIR /build
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build      # → /build/dist
+
+# ── Stage 2: Python runtime ───────────────────────────────────────────────────
 FROM python:${PYTHON_VERSION}-slim
 
 ARG VERSION=dev
@@ -45,6 +56,10 @@ RUN pip install --no-cache-dir python-dotenv imageio-ffmpeg
 # Copy application source
 COPY app.py transcript_agent.py launch.py api.py video_analyzer.py ./
 COPY entrypoint.sh /entrypoint.sh
+
+# Copy the built React + Bootstrap UI from the frontend stage.
+# api.py serves this at "/" (frontend/dist relative to api.py).
+COPY --from=frontend /build/dist ./frontend/dist
 
 # Download MediaPipe models at build time so they're baked into the image
 # (models are ~9 MB total; not tracked in git so COPY won't work on HF)

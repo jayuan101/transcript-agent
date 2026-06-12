@@ -1253,13 +1253,13 @@ def load_audio_video_panel(
         import torch
     except ImportError:
         _log("WhisperX not installed — falling back to standard Whisper (no diarization)")
-        text, _ = load_audio_video(path, model_size, language=language, on_log=on_log)
+        text, _lang, _segs = load_audio_video(path, model_size, language=language, on_log=on_log)
         return text, {}
 
     hf_token = os.environ.get("HF_TOKEN", "")
     if not hf_token:
         _log("HF_TOKEN not set — falling back to standard Whisper (no diarization)")
-        text, _ = load_audio_video(path, model_size, language=language, on_log=on_log)
+        text, _lang, _segs = load_audio_video(path, model_size, language=language, on_log=on_log)
         return text, {}
 
     audio_path = path
@@ -2009,7 +2009,7 @@ Return JSON with exactly these keys (analysis fields first — ALWAYS include th
   "speaker_map": {{"SPEAKER_00": "name or role", ...}},
   "summary": "Executive summary",
   "key_points": ["point 1", ...],
-  "action_items": [{"action": "what needs to be done", "owner": "who", "timeline": "when"}, ...],
+  "action_items": [{{"action": "what needs to be done", "owner": "who", "timeline": "when"}}, ...],
   "speaker_profiles": {{"Name": "2-3 sentence profile of contributions"}},
   "speaker_stats": [
     {{
@@ -2965,6 +2965,30 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
 
 # ── save outputs ──────────────────────────────────────────────────────────────
 
+def save_transcript_only(result: TranscriptResult, output_dir: str, stem: str) -> dict:
+    """Write the raw transcript (+ subtitles + JSON) for transcription-only runs,
+    which skip AI analysis and so have no summary/report to save."""
+    out = Path(output_dir)
+    out.mkdir(parents=True, exist_ok=True)
+
+    paths = {}
+    paths["transcript"] = str(out / f"{stem}_transcript.txt")
+    paths["json"]       = str(out / f"{stem}_full.json")
+
+    Path(paths["transcript"]).write_text(result.clean_transcript, encoding="utf-8")
+
+    with open(paths["json"], "w", encoding="utf-8") as f:
+        json.dump(result.__dict__, f, indent=2, ensure_ascii=False, default=str)
+
+    if result.segments:
+        paths["srt"] = str(out / f"{stem}.srt")
+        paths["vtt"] = str(out / f"{stem}.vtt")
+        Path(paths["srt"]).write_text(generate_srt(result.segments), encoding="utf-8")
+        Path(paths["vtt"]).write_text(generate_vtt(result.segments), encoding="utf-8")
+
+    return paths
+
+
 def save_results(result: TranscriptResult, config: ReportConfig, output_dir: str, stem: str) -> dict:
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -3085,6 +3109,9 @@ def run(
     if language:
         _log(f"Language: {language_variant or language}")
 
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Cancelled by user.")
+
     raw_whisperx  = {}
     _detected_lang = ""
     _segments      = []
@@ -3098,7 +3125,27 @@ def run(
         if on_stt_done: on_stt_done(0.0)
         fmt = "audio/video (cached)"
     elif ext in (AUDIO_EXTS | VIDEO_EXTS):
-        if panel_mode:
+        # Cloud STT engines that diarize themselves (Deepgram, AssemblyAI) return
+        # speaker-labelled segments natively. When Panel mode is on with one of
+        # those, use the engine's OWN diarization — far faster than local WhisperX
+        # and no Whisper download — so the user keeps speaker separation AND the
+        # cloud engine they chose, automatically.
+        _CLOUD_DIARIZE = {"deepgram", "assemblyai"}
+        if panel_mode and stt_engine in _CLOUD_DIARIZE:
+            _log(f"Mode: Panel — {STT_ENGINES.get(stt_engine, stt_engine)} speaker diarization (cloud)")
+            raw_text, _detected_lang, _segments, _stt_secs = stt_transcribe(
+                file_path, stt_engine,
+                api_key=stt_api_key,
+                whisper_model=whisper_model,
+                language=language,
+                stt_model=stt_model,
+                on_progress=on_whisper_progress,
+                on_stage_change=on_stage_change,
+                on_log=on_log,
+                use_gpu=use_gpu,
+            )
+            fmt = "panel audio/video (cloud-diarized)"
+        elif panel_mode:
             _log("Mode: Panel (multi-speaker diarization)")
             if on_stage_change: on_stage_change("extracting")
             raw_text, raw_whisperx = load_audio_video_panel(
@@ -3158,8 +3205,11 @@ def run(
     if on_raw_transcript:
         on_raw_transcript(raw_text)
 
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Cancelled by user.")
+
     if transcription_only:
-        return TranscriptResult(
+        _result = TranscriptResult(
             clean_transcript=raw_text,
             speaker_dialogue=raw_text,
             detected_language=_detected_lang,
@@ -3167,9 +3217,11 @@ def run(
             stt_engine=stt_engine,
             stt_seconds=_stt_secs,
         )
+        save_transcript_only(_result, output_dir, Path(file_path).stem)
+        return _result
 
     if cancel_event and cancel_event.is_set():
-        raise RuntimeError("Job cancelled before AI analysis")
+        raise RuntimeError("Cancelled by user.")
 
     # ── Screen-name binding (read names off the video tiles → diarized speakers) ─
     # Runs BEFORE the AI analysis so the report's speaker_map / profiles use the

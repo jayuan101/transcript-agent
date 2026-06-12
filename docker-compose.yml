@@ -18,8 +18,7 @@ services:
     image: transcript-agent:2.5.13
     container_name: transcript-agent
     ports:
-      - "7860:7860"          # Gradio UI  — http://localhost:7860
-      - "8000:8000"          # REST API   — http://localhost:8000/docs
+      - "7860:7860"          # React UI + REST API — http://localhost:7860  (API docs: /docs)
     volumes:
       - ./.env:/app/.env:ro              # API keys — read-only inside container
       - ./outputs:/app/outputs           # Transcript outputs saved here on your host

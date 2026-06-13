@@ -813,7 +813,10 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
         _exp_lines = [
             f"Overall Score ({score}/10): a weighted judgement of every answer in the "
             "Question Breakdown below — technical depth, behavioural responses, and communication "
-            "clarity. A higher score means stronger, more complete answers.",
+            "clarity. A higher score means stronger, more complete answers. This score is based "
+            "only on what was said (and code written, if any) — body language, eye contact, and "
+            "energy are not factored in here; those appear separately under Video Delivery "
+            "Analysis, if available.",
         ]
         if adv:
             _exp_lines.append(
@@ -862,8 +865,33 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             )
             _pr.italic = True; _pr.font.size = Pt(9); _pr.font.color.rgb = _RGB["muted"]
 
-        # Per-question breakdown
+        # ── Questions Asked (no answers) ────────────────────────────────────────
         qs = ia.get("questions", [])
+        _challenges = ia.get("coding_challenges", []) or []
+        if qs or _challenges:
+            _add_section_heading(doc, "Questions Asked", level=2)
+            _qa_grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+            for _g in _Q_TYPE_ORDER:
+                _gq = _qa_grouped[_g]
+                if not _gq:
+                    continue
+                _qah = doc.add_paragraph()
+                _set_para_spacing(_qah, before=60, after=20)
+                _qahr = _qah.add_run(f"{_g} Questions")
+                _qahr.bold = True; _qahr.font.size = Pt(10); _qahr.font.color.rgb = _RGB["header"]
+                for _q in _gq:
+                    _qap = doc.add_paragraph(style="List Number")
+                    _qap.add_run(str(_q.get("question", ""))).font.size = Pt(9)
+            if _challenges:
+                _qah = doc.add_paragraph()
+                _set_para_spacing(_qah, before=60, after=20)
+                _qahr = _qah.add_run("Coding Challenges")
+                _qahr.bold = True; _qahr.font.size = Pt(10); _qahr.font.color.rgb = _RGB["header"]
+                for _c in _challenges:
+                    _qap = doc.add_paragraph(style="List Number")
+                    _qap.add_run(str(_c.get("problem", ""))).font.size = Pt(9)
+
+        # Per-question breakdown
         if qs:
             _add_section_heading(doc, "Question Breakdown", level=2)
             _DEFL_LABEL = {"partial": "! PARTIALLY DEFLECTED", "full": "X DID NOT ANSWER"}
@@ -1091,7 +1119,17 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
         ovr.runs[0].font.color.rgb = _RGB["header"]
         ovr.add_run(f"   Duration: {int(va_result.duration_seconds//60)}m {int(va_result.duration_seconds%60)}s"
                     f"   Participants: {va_result.person_count}")
-        _set_para_spacing(ovr, after=80)
+        _set_para_spacing(ovr, after=20)
+
+        _vd_note = doc.add_paragraph(
+            "This score (0-100) is calculated separately from the Interview Coaching score above, "
+            "based purely on video: eye contact, posture, facial expression/energy, and speaking "
+            "balance — not on the content of the answers."
+        )
+        _vd_note.runs[0].font.size = Pt(8)
+        _vd_note.runs[0].italic = True
+        _vd_note.runs[0].font.color.rgb = _RGB["muted"]
+        _set_para_spacing(_vd_note, after=80)
 
         for _pid, _p in va_result.persons.items():
             sc_rgb = _SCORE_RGB.get(
@@ -2990,8 +3028,32 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
         if defl:
             sections.append(f"  Deflection Rate   : {defl}%")
         sections.append("")
+        sections.append(
+            "  Overall Score is based only on what was said (and code written, if any) — "
+            "body language, eye contact, and energy are not factored in here; those appear "
+            "separately under Video Delivery Analysis, if available."
+        )
+        sections.append("")
 
         qs = ia.get("questions", [])
+        _challenges = ia.get("coding_challenges", []) or []
+        if qs or _challenges:
+            sections.append("  QUESTIONS ASKED")
+            sections.append("  " + thin)
+            _qa_grouped = {g: [q for q in qs if _q_type_label(q) == g] for g in _Q_TYPE_ORDER}
+            for _g in _Q_TYPE_ORDER:
+                _gq = _qa_grouped[_g]
+                if not _gq:
+                    continue
+                sections.append(f"  {_g} Questions")
+                for _i, _q in enumerate(_gq, 1):
+                    sections.append(f"    {_i}. {_q.get('question', '')}")
+            if _challenges:
+                sections.append("  Coding Challenges")
+                for _i, _c in enumerate(_challenges, 1):
+                    sections.append(f"    {_i}. {_c.get('problem', '')}")
+            sections.append("")
+
         if qs:
             _SCORE_ICON = {
                 "Great": "★", "Good": "◑",

@@ -2700,7 +2700,7 @@ def run_interview_analysis(
         transcript=transcript[:_TRANSCRIPT_CHAR_LIMIT],
         deep_mode="YES" if deep_mode else "NO",
     )
-    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=32000, json_mode=True)
+    raw = client.chat(system=_INTERVIEW_SYSTEM, user=prompt, max_tokens=64000, json_mode=True)
     _log("Interview analysis complete.")
     try:
         # Strip markdown fences if model ignores instructions

@@ -7688,24 +7688,41 @@ def _do_in_app_update():
     lines = []
     ok    = True
 
-    if _os.path.isdir(_os.path.join(BASE, ".git")):
-        try:
-            r = _sp.run(["git", "-C", BASE, "pull"],
-                        capture_output=True, text=True, timeout=60)
-            if r.returncode == 0:
-                msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
-                lines.append(f"✓ Code: {msg}")
-            else:
-                lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
-                ok = False
-        except Exception as e:
-            lines.append(f"⚠ git not available — {e}")
-    else:
-        lines.append("ℹ No .git directory — skipping code pull.")
+    if not _os.path.isdir(_os.path.join(BASE, ".git")):
+        yield _bann(
+            "ℹ️ This installation can't self-update (no .git directory found). "
+            "Re-run the installer to get the latest version — see the download "
+            "section below.",
+            color="#92400e", bg="#fffbeb", border="#fcd34d",
+        )
+        return
+
+    pulled_changes = False
+    try:
+        r = _sp.run(["git", "-C", BASE, "pull"],
+                    capture_output=True, text=True, timeout=60)
+        if r.returncode == 0:
+            msg = r.stdout.strip().splitlines()[0] if r.stdout.strip() else "OK"
+            lines.append(f"✓ Code: {msg}")
+            pulled_changes = "Already up to date" not in msg
+        else:
+            lines.append(f"⚠ git pull failed — {r.stderr.strip()[:120]}")
+            ok = False
+    except Exception as e:
+        lines.append(f"⚠ git not available — {e}")
+        ok = False
 
     color  = "#166534" if ok else "#991b1b"
     bg     = "#f0fdf4" if ok else "#fef2f2"
     border = "#86efac" if ok else "#fca5a5"
+
+    if not pulled_changes and ok:
+        items = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)
+        yield (f'<div class="ta-update-banner" style="background:{bg};border-color:{border};">'
+               f'<div style="font-weight:800;font-size:0.95em;color:{color};margin-bottom:6px;">✅ Already up to date.</div>'
+               f'<ul style="margin:0;padding-left:18px;font-size:0.82em;color:{color};">{items}</ul>'
+               f'</div>')
+        return
 
     if not ok:
         items = "".join(f'<li style="margin:3px 0;">{l}</li>' for l in lines)

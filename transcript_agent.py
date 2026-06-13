@@ -712,6 +712,7 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
 
     def _add_labelled_block(doc, label: str, text: str, fill_hex: str, label_rgb: RGBColor):
         """Shaded labelled block (What was said / ideal / tip)."""
+        text = str(text)
         lp = doc.add_paragraph()
         _shade_paragraph(lp, fill_hex)
         lp.paragraph_format.left_indent = Cm(0.5)
@@ -904,7 +905,7 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
                 # Score badge line
                 sp = doc.add_paragraph()
                 _set_para_spacing(sp, before=0, after=20)
-                r_sc = sp.add_run(f"  {sc.upper()}  ")
+                r_sc = sp.add_run(f"  {str(sc).upper()}  ")
                 r_sc.bold = True; r_sc.font.size = Pt(9)
                 r_sc.font.color.rgb = sc_rgb
                 if reason:
@@ -990,7 +991,7 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
             # Score line
             sp2 = doc.add_paragraph()
             _set_para_spacing(sp2, before=0, after=20)
-            r_sc = sp2.add_run(f"  {sc.upper()}  ")
+            r_sc = sp2.add_run(f"  {str(sc).upper()}  ")
             r_sc.bold = True; r_sc.font.size = Pt(9); r_sc.font.color.rgb = sc_rgb
             if reason:
                 r_rs = sp2.add_run(f"  —  {reason}")
@@ -1012,7 +1013,7 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
                 lr = lp.add_run("WHAT THEY CODED (ON SCREEN)")
                 lr.bold = True; lr.font.size = Pt(8)
                 lr.font.color.rgb = RGBColor(148, 163, 184)
-                for line in written.splitlines():
+                for line in str(written).splitlines():
                     cp = doc.add_paragraph()
                     _shade_paragraph(cp, "0F172A")
                     cp.paragraph_format.left_indent  = Cm(0.3)
@@ -1047,7 +1048,7 @@ def generate_docx(result: "TranscriptResult", stem: str, output_path: str, va_re
                 lr.bold = True; lr.font.size = Pt(8)
                 lr.font.color.rgb = RGBColor(148, 163, 184)
 
-                for line in optimal.splitlines():
+                for line in str(optimal).splitlines():
                     cp = doc.add_paragraph()
                     _shade_paragraph(cp, "0F172A")
                     cp.paragraph_format.left_indent  = Cm(0.3)
@@ -3029,11 +3030,11 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                         sections.append(f"    {defl_note}")
                 if said:
                     sections.append(f"    What was said:")
-                    for _line in said.splitlines():
+                    for _line in str(said).splitlines():
                         sections.append(f"      {_line}")
                 if ideal:
                     sections.append(f"    What you could have said:")
-                    for _line in ideal.splitlines():
+                    for _line in str(ideal).splitlines():
                         sections.append(f"      {_line}")
                 if tip:
                     sections.append(f"    Coaching Tip: {tip}")
@@ -3098,7 +3099,7 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
             if written:
                 sections.append(f"    What they CODED (on screen):")
                 sections.append(f"    " + "-" * 40)
-                for line in written.splitlines():
+                for line in str(written).splitlines():
                     sections.append(f"      {line}")
                 sections.append(f"    " + "-" * 40)
             if svc:
@@ -3114,7 +3115,7 @@ def build_combined_report(result: TranscriptResult, config: ReportConfig) -> str
                 sol_label = f"Optimal Solution ({lang_used})" if lang_used else "Optimal Solution"
                 sections.append(f"    {sol_label}:")
                 sections.append(f"    " + "-" * 40)
-                for line in optimal.splitlines():
+                for line in str(optimal).splitlines():
                     sections.append(f"      {line}")
                 sections.append(f"    " + "-" * 40)
             if oappr:
